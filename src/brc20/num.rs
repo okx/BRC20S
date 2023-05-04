@@ -1,4 +1,5 @@
 use super::Error;
+use crate::brc20::error::BRC20Error;
 use crate::brc20::params::MAX_DECIMAL_WIDTH;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -10,26 +11,26 @@ use std::str::FromStr;
 pub struct Num(Decimal);
 
 impl Num {
-  pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, Error> {
+  pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, BRC20Error> {
     Ok(Self(
-      Decimal::from_str_radix(str, radix).map_err(|e| Error::InvalidNum(e.to_string()))?,
+      Decimal::from_str_radix(str, radix).map_err(|e| BRC20Error::InvalidNum(e.to_string()))?,
     ))
   }
 
-  pub fn checked_add(&self, other: Num) -> Result<Self, Error> {
+  pub fn checked_add(&self, other: Num) -> Result<Self, BRC20Error> {
     Ok(Self(self.0.clone().checked_add(other.0).ok_or(
-      Error::Overflow {
-        op: "checked_add",
+      BRC20Error::Overflow {
+        op: String::from("checked_add"),
         org: self.clone(),
         other,
       },
     )?))
   }
 
-  pub fn checked_sub(&self, other: Num) -> Result<Self, Error> {
+  pub fn checked_sub(&self, other: Num) -> Result<Self, BRC20Error> {
     Ok(Self(self.0.clone().checked_sub(other.0).ok_or(
-      Error::Overflow {
-        op: "checked_sub",
+      BRC20Error::Overflow {
+        op: String::from("checked_sub"),
         org: self.clone(),
         other,
       },
@@ -42,15 +43,15 @@ impl Num {
 }
 
 impl FromStr for Num {
-  type Err = Error;
+  type Err = BRC20Error;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    let num = Decimal::from_str_radix(s, 10).map_err(|_| Error::InvalidNum(s.to_string()))?;
+    let num = Decimal::from_str_radix(s, 10).map_err(|_| BRC20Error::InvalidNum(s.to_string()))?;
 
     if num.is_sign_negative() {
-      return Err(Error::InvalidNum(s.to_string()));
+      return Err(BRC20Error::InvalidNum(s.to_string()));
     }
     if num.scale() > MAX_DECIMAL_WIDTH {
-      return Err(Error::InvalidNum(s.to_string()));
+      return Err(BRC20Error::InvalidNum(s.to_string()));
     }
 
     Ok(Self(num))

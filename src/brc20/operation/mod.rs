@@ -1,14 +1,15 @@
 mod deploy;
 mod mint;
+mod tick;
 mod transfer;
 
+use crate::brc20::error::{BRC20Error, JSONError};
 use crate::brc20::params::*;
-use crate::brc20::Error;
+use crate::brc20::{Error, Ledger};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 
-pub type TickType = [char; TICK_CHAR_COUNT];
-pub use self::{deploy::Deploy, mint::Mint, transfer::Transfer};
+pub use self::{deploy::Deploy, mint::Mint, tick::Tick, transfer::Transfer};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "op")]
@@ -21,23 +22,30 @@ pub enum Operation {
   Transfer(Transfer),
 }
 
-pub fn deserialize_brc20(s: &str) -> Result<Operation, Error> {
-  let value: Value = serde_json::from_str(s).map_err(|_| Error::InvalidJson)?;
+pub fn deserialize_brc20(s: &str) -> Result<Operation, JSONError> {
+  let value: Value = serde_json::from_str(s).map_err(|_| JSONError::InvalidJson)?;
   if value.get("p") != Some(&json!(PROTOCOL_LITERAL)) {
-    return Err(Error::NotBRC20Json);
+    return Err(JSONError::NotBRC20Json);
   }
 
   let mut op = serde_json::from_str::<Operation>(s)
-    .map_err(|e| Error::ParseOperationJsonError(e.to_string()))?;
-  op.check()?;
-
-  op.reset_decimals();
+    .map_err(|e| JSONError::ParseOperationJsonError(e.to_string()))?;
 
   Ok(op)
 }
 
 impl Operation {
-  fn check(&self) -> Result<(), Error> {
+  pub fn update_ledger<L: Ledger>(self, tx_id: &str, ledger: &mut L) -> Result<(), Error<L>> {
+    match self {
+      Self::Deploy(deploy) => deploy.update_ledger(tx_id, ledger),
+      Self::Mint(mint) => mint.update_ledger(ledger),
+      Self::Transfer(transfer) => transfer.update_ledger(ledger),
+    }
+  }
+}
+
+impl Operation {
+  fn check(&self) -> Result<(), BRC20Error> {
     match self {
       Self::Deploy(deploy) => deploy.check(),
       Self::Mint(_mint) => Ok(()),         // do nothing
@@ -76,7 +84,7 @@ mod tests {
     assert_eq!(
       deserialize_brc20(&json_str),
       Ok(Operation::Deploy(Deploy {
-        tick: ['o', 'r', 'd', 'i'],
+        tick: Tick::from("ordi"),
         max_supply,
         mint_limit: Some(mint_limit),
         decimals: default_decimals(),
@@ -100,7 +108,7 @@ mod tests {
     assert_eq!(
       deserialize_brc20(&json_str),
       Ok(Operation::Mint(Mint {
-        tick: ['o', 'r', 'd', 'i'],
+        tick: Tick::from("ordi"),
         amount,
       }))
     );
@@ -122,31 +130,10 @@ mod tests {
     assert_eq!(
       deserialize_brc20(&json_str),
       Ok(Operation::Transfer(Transfer {
-        tick: ['o', 'r', 'd', 'i'],
+        tick: Tick::from("ordi"),
         amount,
       }))
     );
   }
 
-  #[test]
-  fn test_invalid_decimals() {
-    let max_supply = Num::from_str("21000000").unwrap();
-    let mint_limit = Num::from_str("1000").unwrap();
-
-    let json_str = format!(
-      r##"{{
-  "p": "brc-20",
-  "op": "deploy",
-  "tick": "ordi",
-  "max": "{max_supply}",
-  "lim": "{mint_limit}",
-  "dec": "19"
-}}"##
-    );
-
-    assert_eq!(
-      deserialize_brc20(&json_str),
-      Err(Error::InvalidDecimals(19))
-    );
-  }
 }

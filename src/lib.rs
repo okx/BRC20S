@@ -96,6 +96,7 @@ macro_rules! tprintln {
 
 mod arguments;
 mod blocktime;
+mod brc20;
 mod chain;
 mod config;
 mod decimal;
@@ -120,7 +121,6 @@ pub mod subcommand;
 mod tally;
 mod templates;
 mod wallet;
-mod brc20;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 

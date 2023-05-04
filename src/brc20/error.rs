@@ -6,7 +6,11 @@ pub enum Error {
   InvalidNum(String),
 
   #[error("{op} overflow: original: {org}, other: {other}")]
-  Overflow{op: &'static str, org: Num, other: Num},
+  Overflow {
+    op: &'static str,
+    org: Num,
+    other: Num,
+  },
 
   #[error("invalid json string")]
   InvalidJson,

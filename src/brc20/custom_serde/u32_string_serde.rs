@@ -5,15 +5,15 @@ pub struct U32StringSerde;
 
 impl U32StringSerde {
   pub fn serialize<S>(val: &u32, serializer: S) -> Result<S::Ok, S::Error>
-    where
-      S: Serializer,
+  where
+    S: Serializer,
   {
     String::serialize(&val.to_string(), serializer)
   }
 
   pub fn deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
-    where
-      D: Deserializer<'de>,
+  where
+    D: Deserializer<'de>,
   {
     u32::from_str(&String::deserialize(deserializer)?)
       .map_err(|e| de::Error::custom(format!("u32 from string error: {}", e)))

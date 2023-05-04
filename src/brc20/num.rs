@@ -1,51 +1,30 @@
 use std::fmt::{Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
-use once_cell::sync::Lazy;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use crate::brc20::params::MAX_DECIMAL_WIDTH;
 use super::Error;
 
-/*
-#[derive(PartialEq, Debug)]
-pub struct Num(u128);
 
-impl FromStr for Num {
-  type Err = Error;
-
-  fn from_str(s: &str) -> Result<Self, Self::Err> {
-    let mut s_iter = s.split(".");
-    let integer_part = s_iter.next().ok_or(Error::InvalidNum(s.to_string()))?.trim();
-    let decimal_part = s_iter.next().unwrap_or("").trim().trim_end_matches("0");
-    if s_iter.next().is_some() {
-      // there's more than one '.' in s
-      return Err(Error::InvalidNum(s.to_string()));
-    }
-
-    let integer_part = u64::from_str_radix(integer_part, 10).map_err(|_|Error::InvalidNum(s.to_string()))?;
-    let decimal_part = if decimal_part.len() == 0 {0} else {
-      u64::from_str_radix(decimal_part, 10).map_err(|_|Error::InvalidNum(s.to_string()))?
-    };
-
-    let x = (integer_part as u128) << 64;
-    Ok(Self( x +  decimal_part as u128))
-  }
-}
- */
-
-const MAX_DECIMAL_WIDTH : u32 = 18;
-static MAXIMUM_SUPPLY : Lazy<Decimal> = Lazy::new(||Decimal::from_str_radix("FFFFFFFFFFFFFFFF", 16).unwrap());
-
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub struct Num(Decimal);
 
 impl Num {
+  pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, Error> {
+    Ok(Self(Decimal::from_str_radix(str, radix).map_err(|e|Error::InvalidNum(e.to_string()))?))
+  }
+
   pub fn checked_add(&self, other: Num) -> Result<Self, Error> {
     Ok(Self(self.0.clone().checked_add(other.0).ok_or(Error::Overflow{op: "checked_add", org: self.clone(), other})?))
   }
 
   pub fn checked_sub(&self, other: Num) -> Result<Self, Error> {
     Ok(Self(self.0.clone().checked_sub(other.0).ok_or(Error::Overflow {op:"checked_sub", org: self.clone(), other})?))
+  }
+
+  pub fn rescale(&mut self, scale: u32) {
+    self.0.rescale(scale)
   }
 }
 
@@ -147,6 +126,21 @@ mod tests {
     assert_eq!(Num::from_str("2.222"), Num::from_str("3.303").unwrap().checked_sub(Num::from_str("1.081").unwrap()));
 
     assert!(Num(Decimal::MIN).checked_sub(Num::from_str("1").unwrap()).is_err());
+  }
+
+  #[test]
+  fn test_rescale() {
+    let mut num = Num::from_str("1.123").unwrap();
+    num.rescale(5);
+    assert_eq!(num.to_string(), "1.12300");
+
+    let mut num = Num::from_str("1.123").unwrap();
+    num.rescale(2);
+    assert_eq!(num.to_string(), "1.12");
+
+    let mut num = Num::from_str("1.125").unwrap();
+    num.rescale(2);
+    assert_eq!(num.to_string(), "1.13");
   }
 }
 

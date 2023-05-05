@@ -11,9 +11,6 @@ impl Tick {
     if self.0.as_bytes().len() != TICK_BYTE_COUNT {
       return Err(BRC20Error::InvalidTickLen(self.0.as_bytes().len()));
     }
-    if self.0.chars().any(|c| !is_valid_tick_char(c)) {
-      return Err(BRC20Error::InvalidTickChar(self.0.clone()));
-    }
 
     Ok(())
   }

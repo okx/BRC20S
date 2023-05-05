@@ -1,4 +1,7 @@
-use crate::brc20::ledger::{BRC20Balance, BRC20Event, BRC20TokenInfo, Inscription, Ledger};
+use crate::brc20::ledger::{
+  BRC20Balance, BRC20Event, BRC20TokenInfo, Inscription, Ledger, TransferableInscription,
+};
+use crate::InscriptionId;
 use redb::{ReadableTable, TableDefinition, WriteTransaction};
 
 const BRC20_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_BALANCES");
@@ -17,9 +20,9 @@ impl<'db> BRC20Database<'db> {
     Self { wtx }
   }
 
-  pub fn commit(self) -> Result<(), redb::Error> {
-    self.wtx.commit()
-  }
+  //   pub fn commit(self) -> Result<(), redb::Error> {
+  //     self.wtx.commit()
+  //   }
 }
 
 impl<'db> Ledger for BRC20Database<'db> {
@@ -104,5 +107,19 @@ impl<'db> Ledger for BRC20Database<'db> {
       .open_table(BRC20_ADDRESS_TO_TRANSFERABLE_INSCRIPTIONS)?
       .insert(address_tick, data.as_slice())?;
     Ok(())
+  }
+
+  fn get_transferable_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<TransferableInscription>, Self::Error> {
+    todo!("todo")
+  }
+  fn set_transferable_inscription(
+    &self,
+    inscription_id: InscriptionId,
+    inscription: TransferableInscription,
+  ) -> Result<(), Self::Error> {
+    todo!("todo")
   }
 }

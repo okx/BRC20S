@@ -1,15 +1,20 @@
 use crate::brc20::error::BRC20Error;
 use crate::brc20::params::MAX_DECIMAL_WIDTH;
-use rust_decimal::Decimal;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::{Decimal, MathematicalOps};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 
-#[derive(PartialEq, PartialOrd, Debug, Clone)]
+#[derive(PartialEq, PartialOrd, Debug, Clone, Copy)]
 pub struct Num(Decimal);
 
 impl Num {
+  pub fn new(num: Decimal) -> Self {
+    Self(num)
+  }
+
   pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, BRC20Error> {
     Ok(Self(
       Decimal::from_str_radix(str, radix).map_err(|e| BRC20Error::InvalidNum(e.to_string()))?,
@@ -36,8 +41,34 @@ impl Num {
     )?))
   }
 
+  pub fn checked_mul(&self, other: Num) -> Result<Self, BRC20Error> {
+    Ok(Self(self.0.clone().checked_mul(other.0).ok_or(
+      BRC20Error::Overflow {
+        op: String::from("checked_mul"),
+        org: self.clone(),
+        other,
+      },
+    )?))
+  }
+
+  pub fn checked_powu(&self, exp: u64) -> Result<Self, BRC20Error> {
+    Ok(Self(self.0.clone().checked_powu(exp).ok_or(
+      BRC20Error::Overflow {
+        op: String::from("checked_powu"),
+        org: self.clone(),
+        other: Num(Decimal::from_u64(exp).unwrap()),
+      },
+    )?))
+  }
+
   pub fn rescale(&mut self, scale: u32) {
     self.0.rescale(scale)
+  }
+}
+
+impl From<Decimal> for Num {
+  fn from(num: Decimal) -> Self {
+    Num(num)
   }
 }
 
@@ -49,7 +80,7 @@ impl FromStr for Num {
     if num.is_sign_negative() {
       return Err(BRC20Error::InvalidNum(s.to_string()));
     }
-    if num.scale() > MAX_DECIMAL_WIDTH {
+    if num.scale() > MAX_DECIMAL_WIDTH as u32 {
       return Err(BRC20Error::InvalidNum(s.to_string()));
     }
 

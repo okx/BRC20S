@@ -121,6 +121,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             inscription_collects.push((
               input_value + old_satpoint.offset,
               InscriptionData {
+                txid,
                 inscription_id,
                 action: Action::Transfer(
                   inscribe_tx
@@ -166,6 +167,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       inscription_collects.push((
         0,
         InscriptionData {
+          txid,
           inscription_id: txid.into(),
           action: Action::Inscribe(Script::new()),
           inscription: inscription.unwrap(),

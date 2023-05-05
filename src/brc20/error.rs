@@ -28,6 +28,24 @@ pub enum JSONError {
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error, Deserialize, Serialize)]
 pub enum BRC20Error {
+  #[error("tick has been existed: {0}")]
+  DuplicateTick(String),
+
+  #[error("tick not found: {0}")]
+  TickNotFound(String),
+
+  #[error("inscription not found: {0}")]
+  InscriptionNotFound(String),
+
+  #[error("invaild mint limit")]
+  InvalidMintLimit,
+
+  #[error("tick has been mined out: {0}")]
+  TickMintOut(String),
+
+  #[error("balance overflow")]
+  BalanceOverflow,
+
   #[error("invalid brc20 number: {0}")]
   InvalidNum(String),
 
@@ -35,7 +53,7 @@ pub enum BRC20Error {
   Overflow { op: String, org: Num, other: Num },
 
   #[error("invalid decimals {0}")]
-  InvalidDecimals(u32),
+  InvalidDecimals(u8),
 
   #[error("invalid max supply: {0}")]
   InvalidMaxSupply(Num),
@@ -45,6 +63,9 @@ pub enum BRC20Error {
 
   #[error("invalid tick char: {0}")]
   InvalidTickChar(String),
+
+  #[error("insufficient balance")]
+  InsufficientBalance,
 }
 
 impl<L: Ledger> From<JSONError> for Error<L> {

@@ -232,6 +232,10 @@ impl Index {
     })
   }
 
+  pub(crate) fn get_chain_network(&self) -> Network {
+    self.options.chain().network()
+  }
+
   pub(crate) fn get_unspent_outputs(&self, _wallet: Wallet) -> Result<BTreeMap<OutPoint, Amount>> {
     let mut utxos = BTreeMap::new();
     utxos.extend(

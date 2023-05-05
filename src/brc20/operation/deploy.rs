@@ -1,5 +1,5 @@
 use super::Tick;
-use crate::brc20::custom_serde::U32StringSerde;
+use crate::brc20::custom_serde::U8StringSerde;
 use crate::brc20::error::BRC20Error;
 use crate::brc20::ledger::{BRC20Event, DeployEvent};
 use crate::brc20::num::Num;
@@ -16,25 +16,26 @@ pub struct Deploy {
   pub max_supply: Num,
   #[serde(rename = "lim")]
   pub mint_limit: Option<Num>,
-  #[serde(rename = "dec", default = "default_decimals", with = "U32StringSerde")]
-  pub decimals: u32,
+  #[serde(rename = "dec", default = "default_decimals", with = "U8StringSerde")]
+  pub decimals: u8,
 }
 
 impl Deploy {
   pub(super) fn check(&self) -> Result<(), BRC20Error> {
+    self.tick.check()?;
+
     if self.max_supply > *MAXIMUM_SUPPLY.deref() {
       return Err(BRC20Error::InvalidMaxSupply(self.max_supply.clone()));
     }
     if self.decimals > MAX_DECIMAL_WIDTH {
       return Err(BRC20Error::InvalidDecimals(self.decimals));
     }
-    self.tick.check()?;
 
     Ok(())
   }
 
   pub(super) fn reset_decimals(&mut self) {
-    self.max_supply.rescale(self.decimals);
+    self.max_supply.rescale(self.decimals as u32);
   }
 
   pub(super) fn update_ledger<L: Ledger>(
@@ -55,7 +56,7 @@ impl Deploy {
         tx_id,
         &[BRC20Event::Deploy {
           event: DeployEvent {
-            inscription_id: [0; 36], // TODO: how to get inscription_id?
+            inscription_id: "".to_string(), // TODO: how to get inscription_id?
             supply: self.max_supply,
             limit_per_mint: self.mint_limit,
             decimal: self.decimals,

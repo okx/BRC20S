@@ -1,3 +1,5 @@
+use crate::brc20::{Action, InscriptionData};
+
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
@@ -102,6 +104,7 @@ impl Updater {
 
     let mut uncommitted = 0;
     let mut value_cache = HashMap::new();
+    let mut tx_cache = HashMap::new();
     loop {
       let block = match rx.recv() {
         Ok(block) => block,
@@ -115,6 +118,7 @@ impl Updater {
         &mut wtx,
         block,
         &mut value_cache,
+        &mut tx_cache,
       )?;
 
       if let Some(progress_bar) = &mut progress_bar {
@@ -334,6 +338,7 @@ impl Updater {
     wtx: &mut WriteTransaction,
     block: BlockData,
     value_cache: &mut HashMap<OutPoint, u64>,
+    tx_cache: &mut HashMap<Txid, Transaction>,
   ) -> Result<()> {
     // If value_receiver still has values something went wrong with the last block
     // Could be an assert, shouldn't recover from this and commit the last block
@@ -418,6 +423,7 @@ impl Updater {
       .unwrap_or(0);
 
     let mut inscription_updater = InscriptionUpdater::new(
+      index,
       self.height,
       &mut inscription_id_to_satpoint,
       value_receiver,
@@ -429,8 +435,9 @@ impl Updater {
       &mut satpoint_to_inscription_id,
       block.header.time,
       value_cache,
+      tx_cache,
     )?;
-
+    let mut inscription_collects: Vec<InscriptionData> = Vec::new();
     if self.index_sats {
       let mut sat_to_satpoint = wtx.open_table(SAT_TO_SATPOINT)?;
       let mut outpoint_to_sat_ranges = wtx.open_table(OUTPOINT_TO_SAT_RANGES)?;
@@ -469,7 +476,7 @@ impl Updater {
           }
         }
 
-        self.index_transaction_sats(
+        inscription_collects.extend(self.index_transaction_sats(
           tx,
           *txid,
           &mut sat_to_satpoint,
@@ -478,13 +485,14 @@ impl Updater {
           &mut outputs_in_block,
           &mut inscription_updater,
           index_inscriptions,
-        )?;
+        )?);
 
         coinbase_inputs.extend(input_sat_ranges);
       }
 
       if let Some((tx, txid)) = block.txdata.get(0) {
-        self.index_transaction_sats(
+        // coinbase 交易能有其他输入吗
+        inscription_collects.extend(self.index_transaction_sats(
           tx,
           *txid,
           &mut sat_to_satpoint,
@@ -493,7 +501,7 @@ impl Updater {
           &mut outputs_in_block,
           &mut inscription_updater,
           index_inscriptions,
-        )?;
+        )?);
       }
 
       if !coinbase_inputs.is_empty() {
@@ -523,9 +531,38 @@ impl Updater {
       }
     } else {
       for (tx, txid) in block.txdata.iter().skip(1).chain(block.txdata.first()) {
-        lost_sats += inscription_updater.index_transaction_inscriptions(tx, *txid, None)?;
+        let (tx_lost_sats, tx_inscription_collects) =
+          inscription_updater.index_transaction_inscriptions(tx, *txid, None)?;
+        lost_sats += tx_lost_sats;
+        inscription_collects.extend(tx_inscription_collects);
       }
     }
+
+    inscription_collects
+      .iter()
+      .for_each(|data| match data.get_action() {
+        Action::Inscribe(to_script) => {
+          let to = Address::from_script(&to_script, index.options.chain().network())
+            .map_or("{not-standard}".to_string(), |v| v.to_string());
+          log::info!(
+            "found inscribe action {} --> receiver {}",
+            data.get_inscription_id().to_string(),
+            to
+          )
+        }
+        Action::Transfer(from_script, to_script) => {
+          let from = Address::from_script(&from_script, index.options.chain().network())
+            .map_or("{not-standard}".to_string(), |v| v.to_string());
+          let to = Address::from_script(&to_script, index.options.chain().network())
+            .map_or("{not-standard}".to_string(), |v| v.to_string());
+          log::info!(
+            "found first transfer action {}, from {} --> to {}",
+            data.get_inscription_id().to_string(),
+            from,
+            to
+          )
+        }
+      });
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 
@@ -552,9 +589,11 @@ impl Updater {
     outputs_traversed: &mut u64,
     inscription_updater: &mut InscriptionUpdater,
     index_inscriptions: bool,
-  ) -> Result {
+  ) -> Result<Vec<InscriptionData>> {
+    let mut tx_inscription_collects = Vec::new();
     if index_inscriptions {
-      inscription_updater.index_transaction_inscriptions(tx, txid, Some(input_sat_ranges))?;
+      (_, tx_inscription_collects) =
+        inscription_updater.index_transaction_inscriptions(tx, txid, Some(input_sat_ranges))?;
     }
 
     for (vout, output) in tx.output.iter().enumerate() {
@@ -605,7 +644,7 @@ impl Updater {
       self.outputs_inserted_since_flush += 1;
     }
 
-    Ok(())
+    Ok(tx_inscription_collects)
   }
 
   fn commit(&mut self, wtx: WriteTransaction, value_cache: HashMap<OutPoint, u64>) -> Result {

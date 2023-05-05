@@ -569,6 +569,30 @@ impl Index {
     }
   }
 
+  pub(crate) fn get_transaction_with_retries(&self, txid: Txid) -> Result<Option<Transaction>> {
+    let mut errors = 0;
+    loop {
+      match self.client.get_raw_transaction(&txid, None).into_option() {
+        Err(err) => {
+          if cfg!(test) {
+            return Err(err);
+          }
+          errors += 1;
+          let seconds = 1 << errors;
+          log::warn!("failed to fetch transaction {txid}, retrying in {seconds}s: {err}");
+
+          if seconds > 120 {
+            log::error!("would sleep for more than 120s, giving up");
+            return Err(err);
+          }
+
+          thread::sleep(Duration::from_secs(seconds));
+        }
+        Ok(result) => return Ok(result),
+      }
+    }
+  }
+
   pub(crate) fn get_transaction_blockhash(&self, txid: Txid) -> Result<Option<BlockHash>> {
     Ok(
       self

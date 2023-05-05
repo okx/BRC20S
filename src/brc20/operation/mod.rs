@@ -6,7 +6,7 @@ mod transfer;
 use crate::brc20::error::{BRC20Error, JSONError};
 use crate::brc20::params::*;
 use crate::brc20::{Error, Ledger};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 pub use self::{deploy::Deploy, mint::Mint, tick::Tick, transfer::Transfer};
@@ -82,13 +82,13 @@ mod tests {
     );
 
     assert_eq!(
-      deserialize_brc20(&json_str),
-      Ok(Operation::Deploy(Deploy {
+      deserialize_brc20(&json_str).unwrap(),
+      Operation::Deploy(Deploy {
         tick: Tick::from("ordi"),
         max_supply,
         mint_limit: Some(mint_limit),
         decimals: default_decimals(),
-      }))
+      })
     );
   }
 
@@ -106,11 +106,11 @@ mod tests {
     );
 
     assert_eq!(
-      deserialize_brc20(&json_str),
-      Ok(Operation::Mint(Mint {
+      deserialize_brc20(&json_str).unwrap(),
+      Operation::Mint(Mint {
         tick: Tick::from("ordi"),
         amount,
-      }))
+      })
     );
   }
 
@@ -128,12 +128,11 @@ mod tests {
     );
 
     assert_eq!(
-      deserialize_brc20(&json_str),
-      Ok(Operation::Transfer(Transfer {
+      deserialize_brc20(&json_str).unwrap(),
+      Operation::Transfer(Transfer {
         tick: Tick::from("ordi"),
         amount,
-      }))
+      })
     );
   }
-
 }

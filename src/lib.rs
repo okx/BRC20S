@@ -110,6 +110,7 @@ mod inscription;
 mod inscription_id;
 mod media;
 mod object;
+mod okx;
 mod options;
 mod outgoing;
 mod page_config;

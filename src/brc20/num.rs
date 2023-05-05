@@ -1,4 +1,3 @@
-use super::Error;
 use crate::brc20::error::BRC20Error;
 use crate::brc20::params::MAX_DECIMAL_WIDTH;
 use rust_decimal::Decimal;

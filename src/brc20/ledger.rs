@@ -1,6 +1,6 @@
+use crate::brc20::custom_serde::InscriptionIDSerde;
 use crate::brc20::error::BRC20Error;
 use crate::brc20::Num;
-use crate::brc20::custom_serde::InscriptionIDSerde;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
@@ -12,7 +12,7 @@ pub struct BRC20Balance {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BRC20TokenInfo {
-  #[serde(with="InscriptionIDSerde")]
+  #[serde(with = "InscriptionIDSerde")]
   inscription_id: [u8; 36],
   supply: Num,
   minted: Num,
@@ -40,7 +40,7 @@ pub enum BRC20Event {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DeployEvent {
-  #[serde(with="InscriptionIDSerde")]
+  #[serde(with = "InscriptionIDSerde")]
   pub inscription_id: [u8; 36],
   pub supply: Num,
   pub limit_per_mint: Option<Num>,
@@ -51,7 +51,7 @@ pub struct DeployEvent {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MintEvent {
-  #[serde(with="InscriptionIDSerde")]
+  #[serde(with = "InscriptionIDSerde")]
   pub inscription_id: [u8; 36],
   pub amount: Num,
   pub tick: String,
@@ -60,7 +60,7 @@ pub struct MintEvent {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Transfer1Event {
-  #[serde(with="InscriptionIDSerde")]
+  #[serde(with = "InscriptionIDSerde")]
   pub inscription_id: [u8; 36],
   pub amount: Num,
   pub tick: String,
@@ -77,34 +77,30 @@ pub struct Transfer2Event {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Inscription {
-  #[serde(with="InscriptionIDSerde")]
+  #[serde(with = "InscriptionIDSerde")]
   pub inscription_id: [u8; 36],
   pub amount: Num,
 }
 
 pub trait Ledger {
-  type Error: Debug + Display + PartialEq;
+  type Error: Debug + Display;
 
   // balance
-  fn get_balance(&self, address_tick: &str) -> Result<BRC20Balance, Self::Error>;
-  fn set_balance(
-    &mut self,
-    address_tick: &str,
-    new_balance: BRC20Balance,
-  ) -> Result<(), Self::Error>;
+  fn get_balance(&self, address_tick: &str) -> Result<Option<BRC20Balance>, Self::Error>;
+  fn set_balance(&self, address_tick: &str, new_balance: BRC20Balance) -> Result<(), Self::Error>;
 
   // token
-  fn get_token_info(&self, tick: &str) -> Result<BRC20TokenInfo, Self::Error>;
-  fn set_token_info(&mut self, tick: &str, new_info: BRC20TokenInfo) -> Result<(), Self::Error>;
+  fn get_token_info(&self, tick: &str) -> Result<Option<BRC20TokenInfo>, Self::Error>;
+  fn set_token_info(&self, tick: &str, new_info: BRC20TokenInfo) -> Result<(), Self::Error>;
 
   // event
-  fn get_events_in_tx(&self, tx_id: &str) -> Result<Vec<BRC20Event>, Self::Error>;
-  fn set_events_in_tx(&mut self, tx_id: &str, events: &[BRC20Event]) -> Result<(), Self::Error>;
+  fn get_events_in_tx(&self, tx_id: &str) -> Result<Option<Vec<BRC20Event>>, Self::Error>;
+  fn set_events_in_tx(&self, tx_id: &str, events: &[BRC20Event]) -> Result<(), Self::Error>;
 
   // inscription
-  fn get_inscriptions(&self, address_tick: &str) -> Result<Vec<Inscription>, Self::Error>;
+  fn get_inscriptions(&self, address_tick: &str) -> Result<Option<Vec<Inscription>>, Self::Error>;
   fn set_inscriptions(
-    &mut self,
+    &self,
     address_tick: &str,
     inscriptions: &[Inscription],
   ) -> Result<(), Self::Error>;

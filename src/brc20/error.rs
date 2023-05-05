@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use crate::brc20::num::Num;
 use crate::brc20::Ledger;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error<L: Ledger> {
   #[error("json parse error: {0}")]
   JSONError(JSONError),
@@ -14,7 +14,7 @@ pub enum Error<L: Ledger> {
   LedgerError(<L as Ledger>::Error),
 }
 
-#[derive(Debug, PartialEq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum JSONError {
   #[error("invalid json string")]
   InvalidJson,
@@ -26,17 +26,13 @@ pub enum JSONError {
   ParseOperationJsonError(String),
 }
 
-#[derive(Debug, PartialEq, Clone, thiserror::Error, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error, Deserialize, Serialize)]
 pub enum BRC20Error {
   #[error("invalid brc20 number: {0}")]
   InvalidNum(String),
 
   #[error("{op} overflow: original: {org}, other: {other}")]
-  Overflow {
-    op: String,
-    org: Num,
-    other: Num,
-  },
+  Overflow { op: String, org: Num, other: Num },
 
   #[error("invalid decimals {0}")]
   InvalidDecimals(u32),
@@ -44,8 +40,11 @@ pub enum BRC20Error {
   #[error("invalid max supply: {0}")]
   InvalidMaxSupply(Num),
 
-  #[error("invalid tick: {0}")]
-  InvalidTick(String),
+  #[error("invalid tick length: {0}")]
+  InvalidTickLen(usize),
+
+  #[error("invalid tick char: {0}")]
+  InvalidTickChar(String),
 }
 
 impl<L: Ledger> From<JSONError> for Error<L> {

@@ -50,20 +50,22 @@ impl Deploy {
       None
     };
 
-    ledger.set_events_in_tx(
-      tx_id,
-      &[BRC20Event::Deploy {
-        event: DeployEvent {
-          inscription_id: [0; 36], // TODO: how to get inscription_id?
-          supply: self.max_supply,
-          limit_per_mint: self.mint_limit,
-          decimal: self.decimals,
-          tick: self.tick.to_string(),
-          deploy_by: "".to_string(), // TODO: how to get deploy_by ?
-        },
-        status,
-      }],
-    ).map_err(|e|Error::LedgerError(e))?;
+    ledger
+      .set_events_in_tx(
+        tx_id,
+        &[BRC20Event::Deploy {
+          event: DeployEvent {
+            inscription_id: [0; 36], // TODO: how to get inscription_id?
+            supply: self.max_supply,
+            limit_per_mint: self.mint_limit,
+            decimal: self.decimals,
+            tick: self.tick.to_string(),
+            deploy_by: "".to_string(), // TODO: how to get deploy_by ?
+          },
+          status,
+        }],
+      )
+      .map_err(|e| Error::LedgerError(e))?;
 
     result
   }
@@ -85,17 +87,13 @@ mod tests {
 
   #[test]
   fn test_invalid_decimals() {
-    let deploy = Deploy{
+    let deploy = Deploy {
       tick: Tick::from("abcd"),
       max_supply: Num::from_str("21000000").unwrap(),
       mint_limit: Some(Num::from_str("1000").unwrap()),
       decimals: 19,
     };
 
-    assert_eq!(
-      deploy.check(),
-      Err(BRC20Error::InvalidDecimals(19))
-    );
+    assert_eq!(deploy.check(), Err(BRC20Error::InvalidDecimals(19)));
   }
-
 }

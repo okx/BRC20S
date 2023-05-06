@@ -1,4 +1,5 @@
-use crate::brc20::{Action, InscriptionData};
+use crate::brc20::{BRC20Updater, InscriptionData};
+use crate::okx::BRC20Database;
 
 use {
   self::inscription_updater::InscriptionUpdater,
@@ -417,9 +418,16 @@ impl Updater {
     let mut satpoint_to_inscription_id = wtx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
+    let brc20_database = BRC20Database::new(wtx);
+
     let mut lost_sats = statistic_to_count
       .get(&Statistic::LostSats.key())?
       .map(|lost_sats| lost_sats.value())
+      .unwrap_or(0);
+
+    let mut brc20_action_count = statistic_to_count
+      .get(&Statistic::BRC20ActionCount.key())?
+      .map(|brc20_action_count| brc20_action_count.value())
       .unwrap_or(0);
 
     let mut inscription_updater = InscriptionUpdater::new(
@@ -437,7 +445,7 @@ impl Updater {
       value_cache,
       tx_cache,
     )?;
-    let mut inscription_collects: Vec<InscriptionData> = Vec::new();
+    let mut inscription_collects: Vec<(Txid, Vec<InscriptionData>)> = Vec::new();
     if self.index_sats {
       let mut sat_to_satpoint = wtx.open_table(SAT_TO_SATPOINT)?;
       let mut outpoint_to_sat_ranges = wtx.open_table(OUTPOINT_TO_SAT_RANGES)?;
@@ -476,23 +484,26 @@ impl Updater {
           }
         }
 
-        inscription_collects.extend(self.index_transaction_sats(
-          tx,
+        inscription_collects.push((
           *txid,
-          &mut sat_to_satpoint,
-          &mut input_sat_ranges,
-          &mut sat_ranges_written,
-          &mut outputs_in_block,
-          &mut inscription_updater,
-          index_inscriptions,
-        )?);
+          self.index_transaction_sats(
+            tx,
+            *txid,
+            &mut sat_to_satpoint,
+            &mut input_sat_ranges,
+            &mut sat_ranges_written,
+            &mut outputs_in_block,
+            &mut inscription_updater,
+            index_inscriptions,
+          )?,
+        ));
 
         coinbase_inputs.extend(input_sat_ranges);
       }
 
       if let Some((tx, txid)) = block.txdata.get(0) {
         // coinbase 交易能有其他输入吗
-        inscription_collects.extend(self.index_transaction_sats(
+        self.index_transaction_sats(
           tx,
           *txid,
           &mut sat_to_satpoint,
@@ -501,7 +512,7 @@ impl Updater {
           &mut outputs_in_block,
           &mut inscription_updater,
           index_inscriptions,
-        )?);
+        )?;
       }
 
       if !coinbase_inputs.is_empty() {
@@ -534,37 +545,20 @@ impl Updater {
         let (tx_lost_sats, tx_inscription_collects) =
           inscription_updater.index_transaction_inscriptions(tx, *txid, None)?;
         lost_sats += tx_lost_sats;
-        inscription_collects.extend(tx_inscription_collects);
+        inscription_collects.push((*txid, tx_inscription_collects));
       }
+      inscription_collects.pop();
+    }
+    let mut brc20_updater = BRC20Updater::new(&brc20_database, index.options.chain().network());
+
+    for (txid, brc20_transaction) in inscription_collects {
+      brc20_action_count +=
+        brc20_updater.index_transaction(self.height, txid, brc20_transaction)?;
     }
 
-    inscription_collects
-      .iter()
-      .for_each(|data| match data.get_action() {
-        Action::Inscribe(to_script) => {
-          let to = Address::from_script(&to_script, index.options.chain().network())
-            .map_or("{not-standard}".to_string(), |v| v.to_string());
-          log::info!(
-            "found inscribe action {} --> receiver {}",
-            data.get_inscription_id().to_string(),
-            to
-          )
-        }
-        Action::Transfer(from_script, to_script) => {
-          let from = Address::from_script(&from_script, index.options.chain().network())
-            .map_or("{not-standard}".to_string(), |v| v.to_string());
-          let to = Address::from_script(&to_script, index.options.chain().network())
-            .map_or("{not-standard}".to_string(), |v| v.to_string());
-          log::info!(
-            "found first transfer action {}, from {} --> to {}",
-            data.get_inscription_id().to_string(),
-            from,
-            to
-          )
-        }
-      });
-
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
+
+    statistic_to_count.insert(&Statistic::BRC20ActionCount.key(), &brc20_action_count)?;
 
     height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
 

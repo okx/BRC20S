@@ -1,18 +1,33 @@
-use super::Tick;
-use crate::brc20::num::Num;
-use crate::brc20::{Error, Ledger};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Transfer {
   #[serde(rename = "tick")]
-  pub tick: Tick,
+  pub tick: String,
   #[serde(rename = "amt")]
-  pub amount: Num,
+  pub amount: String,
 }
 
-impl Transfer {
-  pub(super) fn update_ledger<L: Ledger>(&self, ledger: &mut L) -> Result<(), Error<L>> {
-    todo!("not implemented")
+#[cfg(test)]
+mod tests {
+
+  #[test]
+  fn test_serialize() {
+    todo!("sss")
+  }
+
+  #[test]
+  fn test_deserialize() {
+    todo!("sss")
+  }
+
+  #[test]
+  fn test_loss_require_key() {
+    todo!("sss")
+  }
+
+  #[test]
+  fn test_duplicate_key() {
+    todo!("sss")
   }
 }

@@ -1,6 +1,6 @@
 use crate::brc20::error::BRC20Error;
 use crate::brc20::params::MAX_DECIMAL_WIDTH;
-use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::{Decimal, MathematicalOps};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -61,6 +61,22 @@ impl Num {
     )?))
   }
 
+  pub fn checked_to_u8(&self) -> Result<u8, BRC20Error> {
+    Ok(self.0.clone().to_u8().ok_or(BRC20Error::Overflow {
+      op: String::from("to_u8"),
+      org: self.clone(),
+      other: Num(Decimal::from_u8(u8::MAX).unwrap()),
+    })?)
+  }
+
+  pub fn checked_to_u128(&self) -> Result<u128, BRC20Error> {
+    Ok(self.0.clone().to_u128().ok_or(BRC20Error::Overflow {
+      op: String::from("to_u128"),
+      org: self.clone(),
+      other: Num(Decimal::from_u128(u128::MAX).unwrap()),
+    })?)
+  }
+
   pub fn rescale(&mut self, scale: u32) {
     self.0.rescale(scale)
   }
@@ -69,6 +85,18 @@ impl Num {
 impl From<Decimal> for Num {
   fn from(num: Decimal) -> Self {
     Num(num)
+  }
+}
+
+impl From<u64> for Num {
+  fn from(n: u64) -> Self {
+    Num(Decimal::from_u64(n).unwrap())
+  }
+}
+
+impl From<u128> for Num {
+  fn from(n: u128) -> Self {
+    Num(Decimal::from_u128(n).unwrap())
   }
 }
 

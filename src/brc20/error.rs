@@ -1,5 +1,5 @@
-use crate::brc20::num::Num;
 use crate::brc20::Ledger;
+use crate::{brc20::num::Num, InscriptionId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
@@ -34,9 +34,6 @@ pub enum BRC20Error {
   #[error("tick not found: {0}")]
   TickNotFound(String),
 
-  #[error("inscription not found: {0}")]
-  InscriptionNotFound(String),
-
   #[error("invaild mint limit")]
   InvalidMintLimit,
 
@@ -55,6 +52,9 @@ pub enum BRC20Error {
   #[error("invalid decimals {0}")]
   InvalidDecimals(u8),
 
+  #[error("inscribe transfer overflow {0} range: (0, supply]")]
+  InscribeTransferOverflow(Num),
+
   #[error("invalid max supply: {0}")]
   InvalidMaxSupply(Num),
 
@@ -66,6 +66,18 @@ pub enum BRC20Error {
 
   #[error("insufficient balance")]
   InsufficientBalance,
+
+  #[error("mint amout exceed limit: {0}")]
+  MintAmountExceedLimit(String),
+
+  #[error("transferable inscription not found: {0}")]
+  TransferableNotFound(InscriptionId),
+
+  #[error("invalid inscribe inscription to coinbase")]
+  InscribeToCoinbase,
+
+  #[error("transferable owner not match {0}")]
+  TransferableOwnerNotMatch(InscriptionId),
 }
 
 impl<L: Ledger> From<JSONError> for Error<L> {

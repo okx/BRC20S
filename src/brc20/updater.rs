@@ -1,320 +1,396 @@
+use std::str::FromStr;
+
 use super::{
-  deserialize_brc20,
-  ledger::{BRC20Balance, BRC20TokenInfo},
-  Deploy, Error, Ledger, Mint, Num, Operation, Transfer,
+  ActionReceipt, BRC20Event, Balance, Deploy, DeployEvent, Error, Ledger, Mint, MintEvent, Num,
+  Operation, Tick, TokenInfo, Transfer, TransferPhase1Event, TransferPhase2Event, TransferableLog,
 };
 use crate::{
-  brc20::error::{BRC20Error, JSONError},
-  Address, Index, Inscription, InscriptionId, Txid,
+  brc20::{error::BRC20Error, params::MAX_DECIMAL_WIDTH, ScriptKey},
+  InscriptionId, SatPoint, Txid,
 };
-use bitcoin::{hashes::hex::ToHex, Script};
+use bitcoin::{Network, Script};
 use rust_decimal::Decimal;
 
-#[derive(Debug, Clone)]
 pub enum Action {
-  Inscribe(Script),
-  Transfer(Script, Script),
+  Inscribe(InscribeAction),
+  Transfer(TransferAction),
 }
 impl Action {
-  pub fn set_to(&mut self, to: Script) {
+  pub fn set_to(&mut self, to: Option<Script>) {
     match self {
-      Action::Inscribe(to_script) => *to_script = to,
-      Action::Transfer(_, to_script) => *to_script = to,
+      Action::Inscribe(inscribe) => inscribe.to_script = to,
+      Action::Transfer(transfer) => transfer.to_script = to,
     }
   }
 }
+
+pub struct InscribeAction {
+  pub operation: Operation,
+  pub to_script: Option<Script>,
+}
+
+pub struct TransferAction {
+  pub from_script: Script,
+  pub to_script: Option<Script>,
+}
+
 pub struct InscriptionData {
-  pub(crate) txid: Txid,
-  pub(crate) inscription_id: InscriptionId,
-  pub(crate) inscription: Inscription,
-  pub(crate) action: Action,
+  pub txid: Txid,
+  pub inscription_id: InscriptionId,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: Option<SatPoint>,
+  pub action: Action,
 }
 
-impl InscriptionData {
-  pub fn get_inscription_id(&self) -> InscriptionId {
-    self.inscription_id
-  }
-
-  pub fn get_action(&self) -> Action {
-    self.action.clone()
-  }
-
-  pub fn set_action(&mut self, action: Action) {
-    self.action = action;
-  }
+pub struct BRC20Updater<'a, L: Ledger> {
+  ledger: &'a L,
+  network: Network,
 }
-
-pub(super) struct Updater<'a, L: Ledger> {
-  ledger: &'a mut L,
-  index: &'a Index,
-}
-impl<'a, L: Ledger> Updater<'a, L>
+impl<'a, L: Ledger> BRC20Updater<'a, L>
 where
   Error<L>: From<<L as Ledger>::Error>,
 {
-  pub fn new(ledger: &'a mut L, index: &'a Index) -> Self {
-    Self { ledger, index }
+  pub fn new(ledger: &'a L, network: Network) -> Self {
+    Self { ledger, network }
   }
 
   pub fn index_transaction(
     &mut self,
+    block_number: u64,
     txid: Txid,
-    transactions: Vec<InscriptionData>,
-  ) -> Result<(), Error<L>> {
-    for transaction in transactions {
-      match transaction.get_action() {
-        Action::Inscribe(to_script) => {
-          let operation = deserialize_brc20(
-            std::str::from_utf8(
-              transaction
-                .inscription
-                .body()
-                .ok_or(JSONError::InvalidJson)?,
-            )
-            .ok()
-            .ok_or(JSONError::InvalidJson)?,
-          )?;
-
-          match operation {
-            Operation::Deploy(deploy) => {
-              self.process_deploy_operation(deploy, transaction.inscription_id, to_script)?;
-              todo!("not implemented")
-            }
-            Operation::Mint(mint) => {
-              self.process_mint_operation(mint, transaction.inscription_id, to_script)?;
-              todo!("not implemented")
-            }
-            Operation::Transfer(transfer) => {
-              self.process_inscribe_transfer_operation(
-                transfer,
-                transaction.inscription_id,
-                to_script,
-              )?;
-              todo!("not implemented")
-            }
+    operations: Vec<InscriptionData>,
+  ) -> Result<usize, Error<L>> {
+    let mut receipts = Vec::new();
+    for operation in operations {
+      let result = match operation.action {
+        Action::Inscribe(inscribe) => match inscribe.operation {
+          Operation::Deploy(deploy) => self.process_deploy(
+            deploy,
+            block_number,
+            operation.inscription_id,
+            inscribe.to_script,
+          ),
+          Operation::Mint(mint) => self.process_mint(
+            mint,
+            block_number,
+            operation.inscription_id,
+            inscribe.to_script,
+          ),
+          Operation::Transfer(transfer) => {
+            self.process_inscribe_transfer(transfer, operation.inscription_id, inscribe.to_script)
           }
+        },
+        Action::Transfer(transfer) => self.process_transfer(
+          operation.inscription_id,
+          transfer.from_script,
+          transfer.to_script,
+        ),
+      };
+
+      // 这里只有BRC20Error 认为是协议error，记录到event中
+      let result = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC20Error(e)) => Err(e),
+        Err(e) => {
+          return Err(e);
         }
-        Action::Transfer(from_script, to_script) => {
-          self.process_transfer_operation(transaction.inscription_id, from_script, to_script)?;
-          todo!("not implemented")
-        }
-      }
+      };
+
+      receipts.push(ActionReceipt {
+        inscription_id: operation.inscription_id,
+        old_satpoint: operation.old_satpoint,
+        new_satpoint: operation.new_satpoint,
+        result,
+      });
     }
-    todo!("ssss")
+    self.ledger.save_transaction_receipts(txid, &receipts)?;
+    Ok(receipts.len())
   }
 
-  fn process_deploy_operation(
+  fn process_deploy(
     &mut self,
     deploy: Deploy,
+    block_number: u64,
     inscription_id: InscriptionId,
-    to: Script,
-  ) -> Result<(), Error<L>> {
-    let lower_tick = deploy.tick.to_lowercase();
+    to_script: Option<Script>,
+  ) -> Result<BRC20Event, Error<L>> {
+    let to_script = to_script.ok_or(BRC20Error::InscribeToCoinbase)?;
 
-    if let Some(_) = self.ledger.get_token_info(lower_tick.as_str())? {
-      return Err(Error::BRC20Error(BRC20Error::DuplicateTick(lower_tick)));
+    let tick = deploy.tick.parse::<Tick>()?;
+    let lower_tick = tick.to_lowercase();
+
+    if let Some(_) = self.ledger.get_token_info(lower_tick)? {
+      return Err(Error::BRC20Error(BRC20Error::DuplicateTick(
+        lower_tick.to_string(),
+      )));
     }
-    let u_supply = deploy
-      .max_supply
-      .checked_mul(Into::<Num>::into(Decimal::TEN).checked_powu(deploy.decimals as u64)?)?;
 
-    let u_mint_limit = if let Some(mint) = deploy.mint_limit {
-      mint.checked_mul(Into::<Num>::into(Decimal::TEN).checked_powu(deploy.decimals as u64)?)?
-    } else {
-      u_supply.clone()
-    };
+    let dec = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
+      .checked_to_u8()?;
+    let base = Into::<Num>::into(Decimal::TEN).checked_powu(dec as u64)?;
 
-    if u_mint_limit > u_supply {
+    let supply = Num::from_str(&deploy.max_supply)?;
+
+    if supply > Into::<Num>::into(u64::MAX) {
+      return Err(Error::BRC20Error(BRC20Error::InvalidMaxSupply(supply)));
+    }
+
+    let limit = Num::from_str(&deploy.mint_limit.map_or(deploy.max_supply, |v| v))?;
+
+    if limit > supply {
       return Err(Error::BRC20Error(BRC20Error::InvalidMintLimit));
     }
-    let token_info = BRC20TokenInfo {
-      inscription_id: inscription_id.to_string(),
-      tick: deploy.tick.to_string(),
-      decimal: deploy.decimals,
-      supply: u_supply,
-      limit_per_mint: u_mint_limit,
-      minted: Num::new(Decimal::ZERO),
-      deploy_by: to.to_hex(),
-    };
 
-    self
-      .ledger
-      .set_token_info(lower_tick.as_str(), token_info)?;
+    let supply = supply.checked_mul(base)?.checked_to_u128()?;
+    let limit = limit.checked_mul(base)?.checked_to_u128()?;
 
-    todo!("ss")
+    let script_key = ScriptKey::from_script(&to_script, self.network);
+
+    self.ledger.insert_token_info(
+      lower_tick,
+      TokenInfo {
+        inscription_id,
+        tick,
+        decimal: dec,
+        supply,
+        limit_per_mint: limit,
+        minted: 0 as u128,
+        deploy_by: script_key,
+        deployed_number: block_number,
+        latest_mint_number: 0 as u64,
+      },
+    )?;
+
+    Ok(BRC20Event::Deploy(DeployEvent {
+      supply,
+      limit_per_mint: limit,
+      decimal: dec,
+      tick,
+      deploy: script_key,
+    }))
   }
 
-  fn process_mint_operation(
+  fn process_mint(
     &mut self,
     mint: Mint,
+    block_number: u64,
     inscription_id: InscriptionId,
-    to_script: Script,
-  ) -> Result<(), Error<L>> {
-    let lower_tick = mint.tick.to_lowercase();
+    to_script: Option<Script>,
+  ) -> Result<BRC20Event, Error<L>> {
+    let to_script = to_script.ok_or(BRC20Error::InscribeToCoinbase)?;
+    let tick = mint.tick.parse::<Tick>()?;
+    let lower_tick = tick.to_lowercase();
 
     let mut token_info = self
       .ledger
-      .get_token_info(lower_tick.as_str())?
-      .ok_or(BRC20Error::TickNotFound(lower_tick.clone()))?;
+      .get_token_info(lower_tick)?
+      .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
 
-    if token_info.minted > token_info.supply {
-      return Err(Error::BRC20Error(BRC20Error::TickMintOut(token_info.tick)));
+    let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
+
+    let mut amt = Num::from_str(&mint.amount)?.checked_mul(base)?;
+
+    if amt > Into::<Num>::into(token_info.limit_per_mint) {
+      return Err(Error::BRC20Error(BRC20Error::MintAmountExceedLimit(
+        token_info.limit_per_mint.to_string(),
+      )));
+    }
+    let minted = Into::<Num>::into(token_info.minted);
+    let supply = Into::<Num>::into(token_info.supply);
+
+    if minted >= supply {
+      return Err(Error::BRC20Error(BRC20Error::TickMintOut(
+        token_info.tick.to_string(),
+      )));
     }
 
-    let mut u_amt = mint
-      .amount
-      .checked_mul(Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?)?;
     // cut off any excess.
-    u_amt = if u_amt.checked_add(token_info.minted)? > token_info.supply {
-      token_info.supply.checked_sub(token_info.minted)?
+    let mut msg = None;
+    amt = if amt.checked_add(minted)? > supply {
+      let new = supply.checked_sub(minted)?;
+      msg = Some(format!(
+        "amt has been cut off to fit the supply! origin: {}, now: {}",
+        amt.to_string(),
+        new.to_string()
+      ));
+      new
     } else {
-      u_amt
+      amt
     };
 
     // get or initialize user balance.
-    let script_key = Address::from_script(&to_script, self.index.get_chain_network())
-      .map_or(to_script.to_hex(), |v| v.to_string());
-    let mut script_balance = if let Some(balance) = self.ledger.get_balance(script_key.as_str())? {
-      balance
-    } else {
-      BRC20Balance::new()
-    };
+    let script_key = ScriptKey::from_script(&to_script, self.network);
+    let mut balance = self
+      .ledger
+      .get_balance(script_key, lower_tick)?
+      .map_or(Balance::new(), |v| v);
 
-    // add amount to available balance. and store to database.
-    script_balance.available = script_balance.available.checked_add(u_amt)?;
+    // add amount to available balance.
+    balance.overall_balance = Into::<Num>::into(balance.overall_balance)
+      .checked_add(amt)?
+      .checked_to_u128()?;
+
+    // store to database.
     self
       .ledger
-      .set_balance(script_key.as_str(), script_balance)?;
+      .update_token_balance(script_key, lower_tick, balance)?;
 
     // update token minted.
-    token_info.minted = token_info.minted.checked_add(u_amt.clone())?;
+    let minted = minted.checked_add(amt)?.checked_to_u128()?;
     self
       .ledger
-      .set_token_info(lower_tick.as_str(), token_info)?;
+      .update_mint_token_info(lower_tick, minted, block_number)?;
 
-    // BRC20Event::Mint {
-    //   event: MintEvent {},
-    //   status:
-    // }
-    todo!("sss")
+    Ok(BRC20Event::Mint(MintEvent {
+      tick: token_info.tick,
+      to: script_key,
+      amount: minted,
+      msg,
+    }))
   }
 
-  fn process_inscribe_transfer_operation(
+  fn process_inscribe_transfer(
     &mut self,
     transfer: Transfer,
     inscription_id: InscriptionId,
-    to_script: Script,
-  ) -> Result<(), Error<L>> {
-    let lower_tick = transfer.tick.to_lowercase();
+    to_script: Option<Script>,
+  ) -> Result<BRC20Event, Error<L>> {
+    let to_script = to_script.ok_or(BRC20Error::InscribeToCoinbase)?;
+    let tick = transfer.tick.parse::<Tick>()?;
+    let lower_tick = tick.to_lowercase();
 
     let token_info = self
       .ledger
-      .get_token_info(lower_tick.as_str())?
-      .ok_or(BRC20Error::TickNotFound(lower_tick))?;
+      .get_token_info(lower_tick)?
+      .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
 
-    let mut u_amt = transfer
-      .amount
-      .checked_mul(Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?)?;
+    let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
 
-    let script_key = Address::from_script(&to_script, self.index.get_chain_network())
-      .map_or(to_script.to_hex(), |v| v.to_string());
-    let mut script_balance = if let Some(balance) = self.ledger.get_balance(script_key.as_str())? {
-      balance
-    } else {
-      BRC20Balance::new()
-    };
+    let mut amt = Num::from_str(&transfer.amount)?.checked_mul(base)?;
 
-    script_balance.available =
-      if let Some(balance) = script_balance.available.checked_sub(u_amt).ok() {
-        balance
-      } else {
-        return Err(Error::BRC20Error(BRC20Error::InsufficientBalance));
-      };
+    if amt <= Into::<Num>::into(0 as u128) || amt > Into::<Num>::into(token_info.supply) {
+      return Err(Error::BRC20Error(BRC20Error::InscribeTransferOverflow(amt)));
+    }
 
-    script_balance.transferable =
-      if let Some(balance) = script_balance.transferable.checked_add(u_amt).ok() {
-        balance
-      } else {
-        return Err(Error::BRC20Error(BRC20Error::InsufficientBalance));
-      };
+    let script_key = ScriptKey::from_script(&to_script, self.network);
+    let mut balance = self
+      .ledger
+      .get_balance(script_key, lower_tick)?
+      .map_or(Balance::new(), |v| v);
+
+    let overall = Into::<Num>::into(balance.overall_balance);
+    let transferable = Into::<Num>::into(balance.transferable_balance);
+
+    if overall.checked_sub(transferable)? < amt {
+      return Err(Error::BRC20Error(BRC20Error::InsufficientBalance));
+    }
+
+    balance.transferable_balance = transferable.checked_add(amt)?.checked_to_u128()?;
+
+    let amt = amt.checked_to_u128()?;
 
     self
       .ledger
-      .set_balance(script_key.as_str(), script_balance)?;
-    todo!("ssss")
+      .update_token_balance(script_key, lower_tick, balance)?;
+
+    self.ledger.insert_transferable(
+      script_key,
+      lower_tick,
+      TransferableLog {
+        inscription_id,
+        amount: amt,
+        tick: token_info.tick,
+        owner: script_key,
+      },
+    )?;
+
+    Ok(BRC20Event::TransferPhase1(TransferPhase1Event {
+      tick: token_info.tick,
+      owner: script_key,
+      amount: amt,
+    }))
   }
 
-  fn process_transfer_operation(
+  fn process_transfer(
     &mut self,
     inscription_id: InscriptionId,
     from_script: Script,
-    to_script: Script,
-  ) -> Result<(), Error<L>> {
-    // let transferable_inscription = self
-    //   .ledger
-    //   .get_transferable_inscription(inscription_id)?
-    //   .ok_or(BRC20Error::InscriptionNotFound(inscription_id.to_string()))?;
+    to_script: Option<Script>,
+  ) -> Result<BRC20Event, Error<L>> {
+    let from_key = ScriptKey::from_script(&from_script, self.network);
+    let transferable = self
+      .ledger
+      .get_transferable_by_id(from_key, inscription_id)?
+      .ok_or(BRC20Error::TransferableNotFound(inscription_id))?;
 
-    // let lower_tick = transferable_inscription.tick.to_lowercase();
+    let amt = Into::<Num>::into(transferable.amount);
 
-    // let token_info = self
-    //   .ledger
-    //   .get_token_info(lower_tick.as_str())?
-    //   .ok_or(BRC20Error::TickNotFound(lower_tick.clone()))?;
+    if transferable.owner != from_key {
+      return Err(Error::BRC20Error(BRC20Error::TransferableOwnerNotMatch(
+        inscription_id,
+      )));
+    }
 
-    // let from_script_key = self.parse_script_tick(&from_script, lower_tick.as_str());
-    // let mut from_script_balance =
-    //   if let Some(balance) = self.ledger.get_balance(from_script_key.as_str())? {
-    //     &balance
-    //   } else {
-    //     &BRC20Balance::new()
-    //   };
+    let lower_tick = transferable.tick.to_lowercase();
 
-    // let to_script_key = self.parse_script_tick(&from_script, lower_tick.as_str());
-    // let mut to_script_balance = if from_script_key == to_script_key {
-    //   from_script_balance
-    // } else {
-    //   if let Some(balance) = self.ledger.get_balance(to_script_key.as_str())? {
-    //     &balance
-    //   } else {
-    //     &BRC20Balance::new()
-    //   }
-    // };
+    let token_info = self
+      .ledger
+      .get_token_info(lower_tick)?
+      .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
 
-    // from_script_balance.transferable = if let Some(balance) = from_script_balance
-    //   .transferable
-    //   .checked_sub(transferable_inscription.amount)
-    //   .ok()
-    // {
-    //   balance
-    // } else {
-    //   return Err(Error::BRC20Error(BRC20Error::InsufficientBalance));
-    // };
+    // update from key balance.
+    let mut from_balance = self
+      .ledger
+      .get_balance(from_key, lower_tick)?
+      .map_or(Balance::new(), |v| v);
 
-    // to_script_balance.available = if let Some(balance) = to_script_balance
-    //   .available
-    //   .checked_add(transferable_inscription.amount)
-    //   .ok()
-    // {
-    //   balance
-    // } else {
-    //   return Err(Error::BRC20Error(BRC20Error::BalanceOverflow));
-    // };
+    let from_overall = Into::<Num>::into(from_balance.overall_balance);
+    let from_transferable = Into::<Num>::into(from_balance.transferable_balance);
 
-    // self
-    //   .ledger
-    //   .set_balance(from_script_key.as_str(), *from_script_balance)?;
+    let from_overall = from_overall.checked_sub(amt)?.checked_to_u128()?;
+    let from_transferable = from_transferable.checked_sub(amt)?.checked_to_u128()?;
 
-    // self
-    //   .ledger
-    //   .set_balance(to_script_key.as_str(), *to_script_balance)?;
+    from_balance.overall_balance = from_overall;
+    from_balance.transferable_balance = from_transferable;
 
-    todo!("sss")
-  }
+    self
+      .ledger
+      .update_token_balance(from_key, lower_tick, from_balance)?;
 
-  fn parse_script_tick(&mut self, script: &Script, tick: &str) -> String {
-    let script_key = Address::from_script(script, self.index.get_chain_network())
-      .map_or(script.to_hex(), |v| v.to_string());
-    format!("{}_{}", script_key, tick.to_lowercase())
+    // redirect receiver to sender if transfer to conibase.
+    let mut msg = None;
+    let to_script = if let None = to_script {
+      msg = Some(format!(
+        "redirect receiver to sender, reason: transfer inscription to coinbase"
+      ));
+      from_script
+    } else {
+      to_script.unwrap()
+    };
+    // update to key balance.
+    let to_key = ScriptKey::from_script(&to_script, self.network);
+    let mut to_balance = self
+      .ledger
+      .get_balance(to_key, lower_tick)?
+      .map_or(Balance::new(), |v| v);
+
+    let to_overall = Into::<Num>::into(to_balance.overall_balance);
+    to_balance.overall_balance = to_overall.checked_add(amt)?.checked_to_u128()?;
+
+    self
+      .ledger
+      .update_token_balance(to_key, lower_tick, to_balance)?;
+
+    self
+      .ledger
+      .remove_transferable(from_key, lower_tick, inscription_id)?;
+
+    Ok(BRC20Event::TransferPhase2(TransferPhase2Event {
+      from: from_key,
+      to: to_key,
+      msg,
+      tick: token_info.tick,
+      amount: amt.checked_to_u128()?,
+    }))
   }
 }

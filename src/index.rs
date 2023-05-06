@@ -69,6 +69,7 @@ pub(crate) enum Statistic {
   LostSats = 2,
   OutputsTraversed = 3,
   SatRanges = 4,
+  BRC20ActionCount = 5,
 }
 
 impl Statistic {

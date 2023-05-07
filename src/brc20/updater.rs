@@ -125,7 +125,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
       .map_err(|e| Error::LedgerError(e))?
     {
       return Err(Error::BRC20Error(BRC20Error::DuplicateTick(
-        lower_tick.to_string(),
+        lower_tick.hex(),
       )));
     }
 
@@ -190,7 +190,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
       .ledger
       .get_token_info(&lower_tick)
       .map_err(|e| Error::LedgerError(e))?
-      .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
+      .ok_or(BRC20Error::TickNotFound(lower_tick.hex()))?;
 
     let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
 
@@ -206,7 +206,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     if minted >= supply {
       return Err(Error::BRC20Error(BRC20Error::TickMintOut(
-        token_info.tick.to_string(),
+        token_info.tick.hex(),
       )));
     }
 
@@ -272,7 +272,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
       .ledger
       .get_token_info(&lower_tick)
       .map_err(|e| Error::LedgerError(e))?
-      .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
+      .ok_or(BRC20Error::TickNotFound(lower_tick.hex()))?;
 
     let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
 
@@ -350,7 +350,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
       .ledger
       .get_token_info(&lower_tick)
       .map_err(|e| Error::LedgerError(e))?
-      .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
+      .ok_or(BRC20Error::TickNotFound(lower_tick.hex()))?;
 
     // update from key balance.
     let mut from_balance = self

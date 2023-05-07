@@ -90,7 +90,7 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
       self
         .wtx
         .open_table(BRC20_TOKEN)?
-        .get(tick.to_lowercase().as_str())?
+        .get(tick.to_lowercase().hex().as_str())?
         .map(|v| bincode::deserialize::<TokenInfo>(v.value()).unwrap()),
     )
   }
@@ -113,7 +113,7 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
    */
   fn insert_token_info(&self, tick: &Tick, new_info: &TokenInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC20_TOKEN)?.insert(
-      tick.to_lowercase().as_str(),
+      tick.to_lowercase().hex().as_str(),
       bincode::serialize(new_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -133,13 +133,13 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut info = self
       .get_token_info(tick)?
-      .expect(&format!("token {} not exist", tick.as_str()));
+      .expect(&format!("token {} not exist", tick.hex()));
 
     info.minted += minted_amt;
     info.latest_mint_number = minted_block_number;
 
     self.wtx.open_table(BRC20_TOKEN)?.insert(
-      tick.to_lowercase().as_str(),
+      tick.to_lowercase().hex().as_str(),
       bincode::serialize(&info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -481,9 +481,9 @@ mod tests {
     brc20db.insert_token_info(&expect3.tick, &expect3).unwrap();
 
     let mut infos = brc20db.get_tokens_info().unwrap();
-    infos.sort_by(|a, b| a.tick.as_str().cmp(b.tick.as_str()));
+    infos.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
     let mut expect = vec![expect1, expect2, expect3];
-    expect.sort_by(|a, b| a.tick.as_str().cmp(b.tick.as_str()));
+    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
     assert_eq!(infos, expect);
   }
 
@@ -908,14 +908,14 @@ mod tests {
       .unwrap();
 
     let mut transferable_logs = brc20db.get_transferable(&script1).unwrap();
-    transferable_logs.sort_by(|a, b| a.tick.as_str().cmp(b.tick.as_str()));
+    transferable_logs.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
     let mut expect = vec![
       transferable_log11,
       transferable_log12,
       transferable_log13,
       transferable_log14,
     ]; // there's no transferable_log21
-    expect.sort_by(|a, b| a.tick.as_str().cmp(b.tick.as_str()));
+    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
     assert_eq!(transferable_logs, expect);
   }
 

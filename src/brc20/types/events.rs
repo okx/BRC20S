@@ -2,7 +2,7 @@ use super::{super::error::*, *};
 use crate::{InscriptionId, SatPoint};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct ActionReceipt {
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
@@ -10,7 +10,7 @@ pub struct ActionReceipt {
   pub result: Result<BRC20Event, BRC20Error>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub enum BRC20Event {
   Deploy(DeployEvent),
   Mint(MintEvent),
@@ -18,7 +18,7 @@ pub enum BRC20Event {
   TransferPhase2(TransferPhase2Event),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct DeployEvent {
   pub supply: u128,
   pub limit_per_mint: u128,
@@ -27,7 +27,7 @@ pub struct DeployEvent {
   pub deploy: ScriptKey,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct MintEvent {
   pub tick: Tick,
   pub to: ScriptKey,
@@ -35,7 +35,7 @@ pub struct MintEvent {
   pub msg: Option<String>, // 如果做了amount截取，这里进行通知
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct TransferPhase1Event {
   pub tick: Tick,
   pub owner: ScriptKey,
@@ -43,7 +43,7 @@ pub struct TransferPhase1Event {
 }
 
 // transfer2如果将铭文转入矿工费这种情况是status是None、to地址为自己（表示自己给自己转账），在Transfer2Event中有个msg用来表示行为差异
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct TransferPhase2Event {
   pub tick: Tick,
   pub from: ScriptKey,

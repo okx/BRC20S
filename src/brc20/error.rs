@@ -11,7 +11,7 @@ pub enum Error<L: Ledger> {
   LedgerError(<L as Ledger>::Error),
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub enum JSONError {
   #[error("invalid json string")]
   InvalidJson,

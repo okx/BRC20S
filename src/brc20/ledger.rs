@@ -38,7 +38,7 @@ pub trait Ledger {
     &self,
     script_key: &ScriptKey,
     tick: &Tick,
-    new_balance: Balance,
+    new_balance: &Balance,
   ) -> Result<(), Self::Error>;
 
   // ------token相关------
@@ -76,12 +76,12 @@ pub trait Ledger {
   // ------event相关------
 
   // 获取当前交易内的所有events
-  fn get_transaction_receipts(&self, txid: Txid) -> Result<Vec<ActionReceipt>, Self::Error>;
+  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<ActionReceipt>, Self::Error>;
 
   // 保存当前交易所有的events
   fn save_transaction_receipts(
     &self,
-    txid: Txid,
+    txid: &Txid,
     receipts: &[ActionReceipt],
   ) -> Result<(), Self::Error>;
 
@@ -91,7 +91,7 @@ pub trait Ledger {
    * 1. tick 小写
    * 2. 没有key或数据返回空数组
    */
-  fn get_transferable(&self, script: ScriptKey) -> Result<Vec<TransferableLog>, Self::Error>;
+  fn get_transferable(&self, script: &ScriptKey) -> Result<Vec<TransferableLog>, Self::Error>;
 
   /**
    * 根据ScriptKey和tick组合成key，查询出所有的TransferableLog
@@ -100,8 +100,8 @@ pub trait Ledger {
    */
   fn get_transferable_by_tick(
     &self,
-    script: ScriptKey,
-    tick: Tick,
+    script: &ScriptKey,
+    tick: &Tick,
   ) -> Result<Vec<TransferableLog>, Self::Error>;
 
   /**
@@ -110,7 +110,7 @@ pub trait Ledger {
   fn get_transferable_by_id(
     &self,
     script: &ScriptKey,
-    inscription_id: InscriptionId,
+    inscription_id: &InscriptionId,
   ) -> Result<Option<TransferableLog>, Self::Error>;
 
   /**
@@ -123,7 +123,7 @@ pub trait Ledger {
     &self,
     script: &ScriptKey,
     tick: &Tick,
-    inscription: &TransferableLog,
+    inscription: TransferableLog,
   ) -> Result<(), Self::Error>;
 
   /**

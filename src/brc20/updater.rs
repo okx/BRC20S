@@ -103,7 +103,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
         result,
       });
     }
-    self.ledger.save_transaction_receipts(txid, &receipts)?;
+    self.ledger.save_transaction_receipts(&txid, &receipts)?;
     Ok(receipts.len())
   }
 
@@ -240,7 +240,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
     // store to database.
     self
       .ledger
-      .update_token_balance(&script_key, &lower_tick, balance)
+      .update_token_balance(&script_key, &lower_tick, &balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     // update token minted.
@@ -302,7 +302,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&script_key, &lower_tick, balance)
+      .update_token_balance(&script_key, &lower_tick, &balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     let inscription = TransferableLog {
@@ -313,7 +313,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
     };
     self
       .ledger
-      .insert_transferable(&inscription.owner, &lower_tick, &inscription)
+      .insert_transferable(&inscription.owner, &lower_tick, inscription.clone())
       .map_err(|e| Error::LedgerError(e))?;
 
     Ok(BRC20Event::TransferPhase1(TransferPhase1Event {
@@ -332,7 +332,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
     let from_key = ScriptKey::from_script(&from_script, self.network);
     let transferable = self
       .ledger
-      .get_transferable_by_id(&from_key, inscription_id)
+      .get_transferable_by_id(&from_key, &inscription_id)
       .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC20Error::TransferableNotFound(inscription_id))?;
 
@@ -370,7 +370,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&from_key, &lower_tick, from_balance)
+      .update_token_balance(&from_key, &lower_tick, &from_balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     // redirect receiver to sender if transfer to conibase.
@@ -396,7 +396,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&to_key, &lower_tick, to_balance)
+      .update_token_balance(&to_key, &lower_tick, &to_balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     self

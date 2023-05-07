@@ -1,8 +1,8 @@
 use super::{super::error::*, *};
 use crate::{InscriptionId, SatPoint};
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Deserialize, Serialize)]
 
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ActionReceipt {
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
@@ -10,6 +10,7 @@ pub struct ActionReceipt {
   pub result: Result<BRC20Event, BRC20Error>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
 pub enum BRC20Event {
   Deploy(DeployEvent),
   Mint(MintEvent),

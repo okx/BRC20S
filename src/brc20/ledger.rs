@@ -14,7 +14,7 @@ pub trait Ledger {
    * 3. 存入数据库的Key格式类似于bc1p....._tick 或xxxxxxxxx...._tick方便使用范围去查询
    * 4. 查询某个key下面所有的余额数据，传入key,根据规则1进行解析，并去数据库中使用range方式匹配出一系列key，xxxx_[0,4]。
    */
-  fn get_balances(&self, script_key: ScriptKey) -> Result<Vec<Balance>, Self::Error>;
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error>;
 
   /**
    * 查询某个用户下某个token余额信息
@@ -22,7 +22,11 @@ pub trait Ledger {
    * 2. tick在内部需要转换成小写to_lowercase()
    * 3. 进行数据库查询，返回结果
    */
-  fn get_balance(&self, script_key: ScriptKey, tick: Tick) -> Result<Option<Balance>, Self::Error>;
+  fn get_balance(
+    &self,
+    script_key: &ScriptKey,
+    tick: &Tick,
+  ) -> Result<Option<Balance>, Self::Error>;
 
   /**
    * 更新某个token的balance
@@ -32,8 +36,8 @@ pub trait Ledger {
    */
   fn update_token_balance(
     &self,
-    script_key: ScriptKey,
-    tick: Tick,
+    script_key: &ScriptKey,
+    tick: &Tick,
     new_balance: Balance,
   ) -> Result<(), Self::Error>;
 
@@ -44,7 +48,7 @@ pub trait Ledger {
    * 1. tick在内部需要转换成小写to_lowercase()
    * 2. TokenInfo内的Tick不需要
    */
-  fn get_token_info(&self, tick: Tick) -> Result<Option<TokenInfo>, Self::Error>;
+  fn get_token_info(&self, tick: &Tick) -> Result<Option<TokenInfo>, Self::Error>;
 
   /**
    * 获取token表里的某个数据
@@ -54,7 +58,7 @@ pub trait Ledger {
   /**
    * 直接插入一条token数据
    */
-  fn insert_token_info(&self, tick: Tick, new_info: TokenInfo) -> Result<(), Self::Error>;
+  fn insert_token_info(&self, tick: &Tick, new_info: &TokenInfo) -> Result<(), Self::Error>;
 
   /**
    * 更新token表里的某个token的的minted数据和区块高度
@@ -64,7 +68,7 @@ pub trait Ledger {
    */
   fn update_mint_token_info(
     &self,
-    tick: Tick,
+    tick: &Tick,
     minted_amt: u128,
     minted_block_number: u64,
   ) -> Result<(), Self::Error>;
@@ -105,7 +109,7 @@ pub trait Ledger {
    */
   fn get_transferable_by_id(
     &self,
-    script: ScriptKey,
+    script: &ScriptKey,
     inscription_id: InscriptionId,
   ) -> Result<Option<TransferableLog>, Self::Error>;
 
@@ -117,9 +121,9 @@ pub trait Ledger {
    */
   fn insert_transferable(
     &self,
-    script: ScriptKey,
-    tick: Tick,
-    inscription: TransferableLog,
+    script: &ScriptKey,
+    tick: &Tick,
+    inscription: &TransferableLog,
   ) -> Result<(), Self::Error>;
 
   /**
@@ -130,8 +134,8 @@ pub trait Ledger {
    */
   fn remove_transferable(
     &self,
-    script: ScriptKey,
-    tick: Tick,
+    script: &ScriptKey,
+    tick: &Tick,
     inscription_id: InscriptionId,
   ) -> Result<(), Self::Error>;
 }

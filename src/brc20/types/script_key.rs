@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 // 用做数据库的key
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum ScriptKey {
   Address(Address),
   ScriptHash(ScriptHash),
@@ -28,8 +28,8 @@ impl Display for ScriptKey {
       f,
       "{}",
       match self {
-        ScriptKey::Address(address) => address.to_string().as_str(),
-        ScriptKey::ScriptHash(script_hash) => script_hash.to_string().as_str(),
+        ScriptKey::Address(address) => address.to_string(),
+        ScriptKey::ScriptHash(script_hash) => script_hash.to_string(),
       }
     )
   }

@@ -1,7 +1,7 @@
 use crate::brc20::{ledger::Ledger, *};
 use crate::InscriptionId;
 use bitcoin::Txid;
-use redb::{ReadableTable, TableDefinition, WriteTransaction};
+use redb::{TableDefinition, WriteTransaction};
 
 const BRC20_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_BALANCES");
 const BRC20_TOKEN: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_TOKEN");
@@ -29,7 +29,7 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
    * 3. 存入数据库的Key格式类似于bc1p....._tick 或xxxxxxxxx...._tick方便使用范围去查询
    * 4. 查询某个key下面所有的余额数据，传入key,根据规则1进行解析，并去数据库中使用range方式匹配出一系列key，xxxx_[0,4]。
    */
-  fn get_balances(&self, script_key: ScriptKey) -> Result<Vec<Balance>, Self::Error> {
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error> {
     todo!("get_balances")
     // Ok(
     //   self
@@ -46,7 +46,11 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
    * 2. tick在内部需要转换成小写to_lowercase()
    * 3. 进行数据库查询，返回结果
    */
-  fn get_balance(&self, script_key: ScriptKey, tick: Tick) -> Result<Option<Balance>, Self::Error> {
+  fn get_balance(
+    &self,
+    script_key: &ScriptKey,
+    tick: &Tick,
+  ) -> Result<Option<Balance>, Self::Error> {
     todo!("get_balancs")
     // Ok(
     //   self
@@ -65,8 +69,8 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
    */
   fn update_token_balance(
     &self,
-    script_key: ScriptKey,
-    tick: Tick,
+    script_key: &ScriptKey,
+    tick: &Tick,
     new_balance: Balance,
   ) -> Result<(), Self::Error> {
     todo!("get_balancs")
@@ -84,7 +88,7 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
    * 1. tick在内部需要转换成小写to_lowercase()
    * 2. TokenInfo内的Tick不需要
    */
-  fn get_token_info(&self, tick: Tick) -> Result<Option<TokenInfo>, Self::Error> {
+  fn get_token_info(&self, tick: &Tick) -> Result<Option<TokenInfo>, Self::Error> {
     todo!("get_balancs")
   }
 
@@ -97,7 +101,7 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
   /**
    * 直接插入一条token数据
    */
-  fn insert_token_info(&self, tick: Tick, new_info: TokenInfo) -> Result<(), Self::Error> {
+  fn insert_token_info(&self, tick: &Tick, new_info: &TokenInfo) -> Result<(), Self::Error> {
     todo!("get_balancs")
   }
 
@@ -109,7 +113,7 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
    */
   fn update_mint_token_info(
     &self,
-    tick: Tick,
+    tick: &Tick,
     minted_amt: u128,
     minted_block_number: u64,
   ) -> Result<(), Self::Error> {
@@ -154,7 +158,7 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
 
   fn get_transferable_by_id(
     &self,
-    script: ScriptKey,
+    script: &ScriptKey,
     inscription_id: InscriptionId,
   ) -> Result<Option<TransferableLog>, Self::Error> {
     todo!("get_balancs")
@@ -168,9 +172,9 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
    */
   fn insert_transferable(
     &self,
-    script: ScriptKey,
-    tick: Tick,
-    inscription: TransferableLog,
+    script: &ScriptKey,
+    tick: &Tick,
+    inscription: &TransferableLog,
   ) -> Result<(), Self::Error> {
     todo!("get_balancs")
   }
@@ -183,8 +187,8 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
    */
   fn remove_transferable(
     &self,
-    script: ScriptKey,
-    tick: Tick,
+    script: &ScriptKey,
+    tick: &Tick,
     inscription_id: InscriptionId,
   ) -> Result<(), Self::Error> {
     todo!("get_balancs")

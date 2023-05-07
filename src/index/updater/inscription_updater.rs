@@ -210,7 +210,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     inscriptions_collector.sort_by_key(|key| key.0);
 
     let mut inscriptions = inscriptions.into_iter().peekable();
-    let mut collector_iterator = inscriptions_collector.iter_mut();
     let mut output_value = 0;
     for (vout, tx_out) in tx.output.iter().enumerate() {
       let end = output_value + tx_out.value;
@@ -231,10 +230,11 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let flotsam = inscriptions.next().unwrap();
         self.update_inscription_location(input_sat_ranges, flotsam, new_satpoint)?;
 
-        let data_value = match collector_iterator.find(|key: &&mut (u64, InscriptionData)| {
-          key.1.inscription_id == flotsam.clone().inscription_id
-        }) {
-          Some(value) => Ok(Some(value.1)),
+        let data_value = match inscriptions_collector
+          .iter_mut()
+          .find(|key| key.1.inscription_id == flotsam.clone().inscription_id)
+        {
+          Some(value) => Ok(Some(&mut value.1)),
           None => {
             if is_coinbase {
               Ok(None)
@@ -248,9 +248,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         }?;
 
         if let Some(inscription_data) = data_value {
-          let mut action = inscription_data.action;
+          let action = &mut inscription_data.action;
           action.set_to(Some(tx_out.script_pubkey.clone()));
-          inscription_data.action = action;
+          inscription_data.action = action.clone();
           inscription_data.new_satpoint = Some(new_satpoint);
         }
       }

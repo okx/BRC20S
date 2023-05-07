@@ -11,6 +11,7 @@ use crate::{
 use bitcoin::{Network, Script};
 use rust_decimal::Decimal;
 
+#[derive(Clone)]
 pub enum Action {
   Inscribe(InscribeAction),
   Transfer(TransferAction),
@@ -24,11 +25,13 @@ impl Action {
   }
 }
 
+#[derive(Clone)]
 pub struct InscribeAction {
   pub operation: Operation,
   pub to_script: Option<Script>,
 }
 
+#[derive(Clone)]
 pub struct TransferAction {
   pub from_script: Script,
   pub to_script: Option<Script>,
@@ -46,10 +49,7 @@ pub struct BRC20Updater<'a, L: Ledger> {
   ledger: &'a L,
   network: Network,
 }
-impl<'a, L: Ledger> BRC20Updater<'a, L>
-where
-  Error<L>: From<<L as Ledger>::Error>,
-{
+impl<'a, L: Ledger> BRC20Updater<'a, L> {
   pub fn new(ledger: &'a L, network: Network) -> Self {
     Self { ledger, network }
   }
@@ -59,7 +59,7 @@ where
     block_number: u64,
     txid: Txid,
     operations: Vec<InscriptionData>,
-  ) -> Result<usize, Error<L>> {
+  ) -> Result<usize, <L as Ledger>::Error> {
     let mut receipts = Vec::new();
     for operation in operations {
       let result = match operation.action {
@@ -91,7 +91,7 @@ where
       let result = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC20Error(e)) => Err(e),
-        Err(e) => {
+        Err(Error::LedgerError(e)) => {
           return Err(e);
         }
       };
@@ -119,7 +119,11 @@ where
     let tick = deploy.tick.parse::<Tick>()?;
     let lower_tick = tick.to_lowercase();
 
-    if let Some(_) = self.ledger.get_token_info(lower_tick)? {
+    if let Some(_) = self
+      .ledger
+      .get_token_info(&lower_tick)
+      .map_err(|e| Error::LedgerError(e))?
+    {
       return Err(Error::BRC20Error(BRC20Error::DuplicateTick(
         lower_tick.to_string(),
       )));
@@ -146,27 +150,28 @@ where
 
     let script_key = ScriptKey::from_script(&to_script, self.network);
 
-    self.ledger.insert_token_info(
-      lower_tick,
-      TokenInfo {
-        inscription_id,
-        tick,
-        decimal: dec,
-        supply,
-        limit_per_mint: limit,
-        minted: 0 as u128,
-        deploy_by: script_key,
-        deployed_number: block_number,
-        latest_mint_number: 0 as u64,
-      },
-    )?;
+    let new_info = TokenInfo {
+      inscription_id,
+      tick,
+      decimal: dec,
+      supply,
+      limit_per_mint: limit,
+      minted: 0 as u128,
+      deploy_by: script_key,
+      deployed_number: block_number,
+      latest_mint_number: 0 as u64,
+    };
+    self
+      .ledger
+      .insert_token_info(&lower_tick, &new_info)
+      .map_err(|e| Error::LedgerError(e))?;
 
     Ok(BRC20Event::Deploy(DeployEvent {
       supply,
       limit_per_mint: limit,
       decimal: dec,
-      tick,
-      deploy: script_key,
+      tick: new_info.tick,
+      deploy: new_info.deploy_by,
     }))
   }
 
@@ -183,7 +188,8 @@ where
 
     let mut token_info = self
       .ledger
-      .get_token_info(lower_tick)?
+      .get_token_info(&lower_tick)
+      .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
 
     let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
@@ -222,7 +228,8 @@ where
     let script_key = ScriptKey::from_script(&to_script, self.network);
     let mut balance = self
       .ledger
-      .get_balance(script_key, lower_tick)?
+      .get_balance(&script_key, &lower_tick)
+      .map_err(|e| Error::LedgerError(e))?
       .map_or(Balance::new(), |v| v);
 
     // add amount to available balance.
@@ -233,13 +240,15 @@ where
     // store to database.
     self
       .ledger
-      .update_token_balance(script_key, lower_tick, balance)?;
+      .update_token_balance(&script_key, &lower_tick, balance)
+      .map_err(|e| Error::LedgerError(e))?;
 
     // update token minted.
     let minted = minted.checked_add(amt)?.checked_to_u128()?;
     self
       .ledger
-      .update_mint_token_info(lower_tick, minted, block_number)?;
+      .update_mint_token_info(&lower_tick, minted, block_number)
+      .map_err(|e| Error::LedgerError(e))?;
 
     Ok(BRC20Event::Mint(MintEvent {
       tick: token_info.tick,
@@ -261,7 +270,8 @@ where
 
     let token_info = self
       .ledger
-      .get_token_info(lower_tick)?
+      .get_token_info(&lower_tick)
+      .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
 
     let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
@@ -275,7 +285,8 @@ where
     let script_key = ScriptKey::from_script(&to_script, self.network);
     let mut balance = self
       .ledger
-      .get_balance(script_key, lower_tick)?
+      .get_balance(&script_key, &lower_tick)
+      .map_err(|e| Error::LedgerError(e))?
       .map_or(Balance::new(), |v| v);
 
     let overall = Into::<Num>::into(balance.overall_balance);
@@ -291,22 +302,23 @@ where
 
     self
       .ledger
-      .update_token_balance(script_key, lower_tick, balance)?;
+      .update_token_balance(&script_key, &lower_tick, balance)
+      .map_err(|e| Error::LedgerError(e))?;
 
-    self.ledger.insert_transferable(
-      script_key,
-      lower_tick,
-      TransferableLog {
-        inscription_id,
-        amount: amt,
-        tick: token_info.tick,
-        owner: script_key,
-      },
-    )?;
-
-    Ok(BRC20Event::TransferPhase1(TransferPhase1Event {
+    let inscription = TransferableLog {
+      inscription_id,
+      amount: amt,
       tick: token_info.tick,
       owner: script_key,
+    };
+    self
+      .ledger
+      .insert_transferable(&inscription.owner, &lower_tick, &inscription)
+      .map_err(|e| Error::LedgerError(e))?;
+
+    Ok(BRC20Event::TransferPhase1(TransferPhase1Event {
+      tick: inscription.tick,
+      owner: inscription.owner,
       amount: amt,
     }))
   }
@@ -320,7 +332,8 @@ where
     let from_key = ScriptKey::from_script(&from_script, self.network);
     let transferable = self
       .ledger
-      .get_transferable_by_id(from_key, inscription_id)?
+      .get_transferable_by_id(&from_key, inscription_id)
+      .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC20Error::TransferableNotFound(inscription_id))?;
 
     let amt = Into::<Num>::into(transferable.amount);
@@ -335,13 +348,15 @@ where
 
     let token_info = self
       .ledger
-      .get_token_info(lower_tick)?
+      .get_token_info(&lower_tick)
+      .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC20Error::TickNotFound(lower_tick.to_string()))?;
 
     // update from key balance.
     let mut from_balance = self
       .ledger
-      .get_balance(from_key, lower_tick)?
+      .get_balance(&from_key, &lower_tick)
+      .map_err(|e| Error::LedgerError(e))?
       .map_or(Balance::new(), |v| v);
 
     let from_overall = Into::<Num>::into(from_balance.overall_balance);
@@ -355,7 +370,8 @@ where
 
     self
       .ledger
-      .update_token_balance(from_key, lower_tick, from_balance)?;
+      .update_token_balance(&from_key, &lower_tick, from_balance)
+      .map_err(|e| Error::LedgerError(e))?;
 
     // redirect receiver to sender if transfer to conibase.
     let mut msg = None;
@@ -371,7 +387,8 @@ where
     let to_key = ScriptKey::from_script(&to_script, self.network);
     let mut to_balance = self
       .ledger
-      .get_balance(to_key, lower_tick)?
+      .get_balance(&to_key, &lower_tick)
+      .map_err(|e| Error::LedgerError(e))?
       .map_or(Balance::new(), |v| v);
 
     let to_overall = Into::<Num>::into(to_balance.overall_balance);
@@ -379,11 +396,13 @@ where
 
     self
       .ledger
-      .update_token_balance(to_key, lower_tick, to_balance)?;
+      .update_token_balance(&to_key, &lower_tick, to_balance)
+      .map_err(|e| Error::LedgerError(e))?;
 
     self
       .ledger
-      .remove_transferable(from_key, lower_tick, inscription_id)?;
+      .remove_transferable(&from_key, &lower_tick, inscription_id)
+      .map_err(|e| Error::LedgerError(e))?;
 
     Ok(BRC20Event::TransferPhase2(TransferPhase2Event {
       from: from_key,

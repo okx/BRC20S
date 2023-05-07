@@ -4,9 +4,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: Ledger> {
-  #[error("json parse error: {0}")]
-  JSONError(JSONError),
-
   #[error("brc20 error: {0}")]
   BRC20Error(BRC20Error),
 
@@ -78,12 +75,6 @@ pub enum BRC20Error {
 
   #[error("transferable owner not match {0}")]
   TransferableOwnerNotMatch(InscriptionId),
-}
-
-impl<L: Ledger> From<JSONError> for Error<L> {
-  fn from(e: JSONError) -> Self {
-    Self::JSONError(e)
-  }
 }
 
 impl<L: Ledger> From<BRC20Error> for Error<L> {

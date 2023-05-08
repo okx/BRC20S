@@ -943,7 +943,7 @@ impl Index {
   pub(crate) fn brc20_get_all_balance_by_address(
     &self,
     address: &bitcoin::Address,
-  ) -> Result<Vec<brc20::Balance>> {
+  ) -> Result<Vec<(brc20::Tick, brc20::Balance)>> {
     let wtx = self.database.begin_write().unwrap();
     let brc20_db = crate::okx::BRC20Database::new(&wtx);
     let all_balance = brc20_db.get_balances(&brc20::ScriptKey::from_address(address.clone()))?;

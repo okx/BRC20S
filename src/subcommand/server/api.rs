@@ -286,8 +286,8 @@ pub(crate) async fn brc20_all_balance(
   Json(ApiResponse::ok(AllBalance {
     balance: all_balance
       .iter()
-      .map(|bal| Balance {
-        tick: "".to_string(),
+      .map(|(tick, bal)| Balance {
+        tick: std::str::from_utf8(tick.as_bytes()).unwrap().to_string(),
         available_balance: (bal.overall_balance - bal.transferable_balance).to_string(),
         transferable_balance: bal.transferable_balance.to_string(),
         overall_balance: bal.overall_balance.to_string(),

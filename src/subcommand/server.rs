@@ -178,6 +178,10 @@ impl Server {
           "/brc20/tick/:tick/address/:address/balance",
           get(brc20_balance),
         )
+        .route(
+          "/brc20/tick/:tick/address/:address/transferable",
+          get(brc20_transferable),
+        )
         .route("/brc20/tx/:txid", get(brc20_tx_events))
         .route("/brc20/block/:block_hash", get(brc20_block_events))
         .layer(Extension(index))
@@ -2515,12 +2519,25 @@ mod tests {
   fn brc20_endpoint() {
     let test_server = TestServer::new();
 
-    let response = test_server.get("/brc20/tick/🍎");
+    for url in ["/brc20/tick/🍎", "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance"] {
 
-    println!("{:?}", response.status());
+      println!("{}", url);
 
-    let json_text = response.text().unwrap();
+      let response = test_server.get(url);
 
-    println!("{}", json_text);
+      println!("{:?}", response.status());
+
+      let json_text = response.text().unwrap();
+
+      println!("{}", json_text);
+    }
+
+    // let response = test_server.get("/brc20/tick/🍎");
+    //
+    // println!("{:?}", response.status());
+    //
+    // let json_text = response.text().unwrap();
+    //
+    // println!("{}", json_text);
   }
 }

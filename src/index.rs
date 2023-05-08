@@ -1,4 +1,5 @@
 use crate::brc20::ledger::Ledger;
+use crate::brc20::ScriptKey;
 use {
   self::{
     entry::{
@@ -939,7 +940,40 @@ impl Index {
     Ok(bal)
   }
 
-  pub(crate) fn brc20_get_tx_events_by_txid() {}
+  pub(crate) fn brc20_get_tx_events_by_txid(
+    &self,
+    txid: &bitcoin::Txid,
+  ) -> Result<Vec<brc20::ActionReceipt>> {
+    let wtx = self.database.begin_write().unwrap();
+    let brc20_db = crate::okx::BRC20Database::new(&wtx);
+    let res = brc20_db.get_transaction_receipts(txid)?;
+    return Ok(res);
+  }
+
+  // pub(crate) fn brc20_get_block_events_by_blockhash(
+  //   &self,
+  //   blockhash: bitcoin::BlockHash,
+  // ) -> Result<Vec<brc20::ActionReceipt>> {
+  //   let wtx = self.database.begin_write().unwrap();
+  //   let brc20_db = crate::okx::BRC20Database::new(&wtx);
+  //   let res = brc20_db.get_block_receipts(&blockhash)?;
+  //   return Ok(res);
+  // }
+
+  pub(crate) fn brc20_get_tick_transferable_by_address(
+    &self,
+    tick: &str,
+    address: &bitcoin::Address,
+  ) -> Result<Vec<brc20::TransferableLog>> {
+    let wtx = self.database.begin_write().unwrap();
+    let brc20_db = crate::okx::BRC20Database::new(&wtx);
+    let res = brc20_db.get_transferable_by_tick(
+      &ScriptKey::from_address(address.clone()),
+      &brc20::Tick::from_str(tick)?,
+    )?;
+
+    Ok(res)
+  }
 }
 
 #[cfg(test)]

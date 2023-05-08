@@ -553,7 +553,7 @@ impl Updater {
 
     for (txid, brc20_transaction) in inscription_collects {
       brc20_action_count +=
-        brc20_updater.index_transaction(self.height, txid, brc20_transaction)?;
+        brc20_updater.index_transaction(self.height, txid, brc20_transaction)? as u64;
     }
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;

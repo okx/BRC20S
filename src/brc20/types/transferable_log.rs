@@ -1,7 +1,7 @@
 use super::*;
 use crate::InscriptionId;
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TransferableLog {
   pub inscription_id: InscriptionId,
   pub amount: u128,

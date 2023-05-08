@@ -1,6 +1,5 @@
 mod deploy;
 mod mint;
-mod tick;
 mod transfer;
 
 use crate::brc20::error::JSONError;
@@ -10,7 +9,7 @@ use serde_json::{json, Value};
 
 pub use self::{deploy::Deploy, mint::Mint, transfer::Transfer};
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(tag = "op")]
 pub enum Operation {
   #[serde(rename = "deploy")]
@@ -109,8 +108,8 @@ mod tests {
     assert_eq!(
       deserialize_brc20(json_str).unwrap(),
       Operation::Mint(Mint {
-        tick: Tick::from("smol"),
-        amount: Num::from_str("33").unwrap()
+        tick: String::from("smol"),
+        amount: String::from("33"),
       })
     )
   }

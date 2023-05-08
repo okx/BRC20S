@@ -10,7 +10,7 @@ mod types;
 mod updater;
 
 pub use self::{
-  error::Error,
+  error::{BRC20Error, Error},
   num::Num,
   operation::{deserialize_brc20, Deploy, Mint, Operation, Transfer},
   types::*,

@@ -6,7 +6,7 @@ use std::fmt::{Debug, Display};
 pub trait Ledger {
   type Error: Debug + Display;
 
-  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error>;
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error>;
 
   fn get_balance(
     &self,
@@ -18,7 +18,7 @@ pub trait Ledger {
     &self,
     script_key: &ScriptKey,
     tick: &Tick,
-    new_balance: &Balance,
+    new_balance: Balance,
   ) -> Result<(), Self::Error>;
 
   fn get_token_info(&self, tick: &Tick) -> Result<Option<TokenInfo>, Self::Error>;

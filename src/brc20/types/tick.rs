@@ -37,6 +37,10 @@ impl Tick {
     Self::from_str(self.as_str().to_lowercase().as_str()).unwrap()
   }
 
+  pub fn as_bytes(&self) -> &[u8] {
+    self.0.as_slice()
+  }
+
   pub fn hex(&self) -> String {
     hex::encode(&self.0)
   }

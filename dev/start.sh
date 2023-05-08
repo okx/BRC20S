@@ -22,4 +22,4 @@ if [ "" == "$BTC_NODE_URL" ]; then
 fi
 
 
-cargo run -- --rpc-url $BTC_NODE_URL --bitcoin-rpc-user $BTC_RPC_USER --bitcoin-rpc-pass $BTC_RPC_PASS --data-dir $DIR/data server
+cargo run -- --rpc-url $BTC_NODE_URL --bitcoin-rpc-user $BTC_RPC_USER --bitcoin-rpc-pass $BTC_RPC_PASS --data-dir $DIR/data --first-inscription-height=779832  server

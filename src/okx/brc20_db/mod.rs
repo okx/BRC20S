@@ -1,7 +1,11 @@
+mod storage_balance;
+
 use crate::brc20::{ledger::Ledger, *};
 use crate::InscriptionId;
 use bitcoin::Txid;
 use redb::{ReadableTable, TableDefinition, WriteTransaction};
+use std::str::FromStr;
+use self::storage_balance::StoreBalance;
 
 const BRC20_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_BALANCES");
 const BRC20_TOKEN: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_TOKEN");
@@ -22,13 +26,16 @@ impl<'db, 'a> BRC20Database<'db, 'a> {
 impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
   type Error = redb::Error;
 
-  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error> {
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error> {
     Ok(
       self
         .wtx
         .open_table(BRC20_BALANCES)?
         .range(min_script_tick_key(script_key).as_str()..max_script_tick_key(&script_key).as_str())?
-        .map(|(_, data)| bincode::deserialize::<Balance>(data.value()).unwrap())
+        .map(|(_, data)| {
+            let bal = bincode::deserialize::<StoreBalance>(data.value()).unwrap();
+          (bal.tick, bal.balance)
+        })
         .collect(),
     )
   }
@@ -43,7 +50,11 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
         .wtx
         .open_table(BRC20_BALANCES)?
         .get(script_tick_key(script_key, tick).as_str())?
-        .map(|v| bincode::deserialize::<Balance>(v.value()).unwrap()),
+        .map(|v| {
+          let bal = bincode::deserialize::<StoreBalance>(v.value()).unwrap();
+          assert_eq!(&bal.tick, tick);
+          bal.balance
+        }),
     )
   }
 
@@ -51,11 +62,12 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
     &self,
     script_key: &ScriptKey,
     tick: &Tick,
-    new_balance: &Balance,
+    new_balance: Balance,
   ) -> Result<(), Self::Error> {
+    let bal = StoreBalance{ tick: tick.clone(), balance: new_balance };
     self.wtx.open_table(BRC20_BALANCES)?.insert(
       script_tick_key(script_key, tick).as_str(),
-      bincode::serialize(new_balance).unwrap().as_slice(),
+      bincode::serialize(&bal).unwrap().as_slice(),
     )?;
     Ok(())
   }
@@ -268,13 +280,13 @@ mod tests {
       transferable_balance: 30,
     };
     brc20db
-      .update_token_balance(&script, &tick1, &expect_balance1)
+      .update_token_balance(&script, &tick1, expect_balance1.clone())
       .unwrap();
     brc20db
-      .update_token_balance(&script, &tick2, &expect_balance2)
+      .update_token_balance(&script, &tick2, expect_balance2.clone())
       .unwrap();
     brc20db
-      .update_token_balance(&script, &tick3, &expect_balance3)
+      .update_token_balance(&script, &tick3, expect_balance3.clone())
       .unwrap();
 
     let script2 =
@@ -285,13 +297,17 @@ mod tests {
       transferable_balance: 30,
     };
     brc20db
-      .update_token_balance(&script2, &tick1, &expect_balance22)
+      .update_token_balance(&script2, &tick1, expect_balance22.clone())
       .unwrap();
 
     let mut all_balances = brc20db.get_balances(&script).unwrap();
-    all_balances.sort();
-    let mut expect = vec![expect_balance2, expect_balance1, expect_balance3];
-    expect.sort();
+    all_balances.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
+    let mut expect = vec![
+      (tick2, expect_balance2),
+      (tick1, expect_balance1),
+      (tick3, expect_balance3),
+    ];
+    expect.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
     assert_eq!(all_balances, expect);
   }
 
@@ -312,7 +328,7 @@ mod tests {
     };
 
     brc20db
-      .update_token_balance(&script, &lower_tick, &expect_balance)
+      .update_token_balance(&script, &lower_tick, expect_balance.clone())
       .unwrap();
 
     let upper_tick = Tick::from_str("ABCd").unwrap();
@@ -341,7 +357,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       supply: 100,
       minted: 10,
       limit_per_mint: 10,
@@ -371,7 +387,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       supply: 100,
       minted: 10,
       limit_per_mint: 10,
@@ -387,7 +403,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       supply: 200,
       minted: 20,
       limit_per_mint: 20,
@@ -403,7 +419,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "3111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       supply: 300,
       minted: 30,
       limit_per_mint: 20,
@@ -439,7 +455,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       supply: 100,
       minted: 10,
       limit_per_mint: 10,
@@ -483,16 +499,16 @@ mod tests {
         inscription_id: InscriptionId::from_str(
           "1111111111111111111111111111111111111111111111111111111111111111i1",
         )
-        .unwrap(),
+          .unwrap(),
         old_satpoint: SatPoint::from_str(
           "1111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
-        .unwrap(),
+          .unwrap(),
         new_satpoint: Some(
           SatPoint::from_str(
             "2111111111111111111111111111111111111111111111111111111111111111:1:1",
           )
-          .unwrap(),
+            .unwrap(),
         ),
         result: Err(BRC20Error::InvalidTickLen(5)),
       },
@@ -500,16 +516,16 @@ mod tests {
         inscription_id: InscriptionId::from_str(
           "2111111111111111111111111111111111111111111111111111111111111111i1",
         )
-        .unwrap(),
+          .unwrap(),
         old_satpoint: SatPoint::from_str(
           "2111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
-        .unwrap(),
+          .unwrap(),
         new_satpoint: Some(
           SatPoint::from_str(
             "3111111111111111111111111111111111111111111111111111111111111111:1:1",
           )
-          .unwrap(),
+            .unwrap(),
         ),
         result: Ok(BRC20Event::Mint(MintEvent {
           tick: Tick::from_str("maEd").unwrap(),
@@ -524,16 +540,16 @@ mod tests {
         inscription_id: InscriptionId::from_str(
           "3111111111111111111111111111111111111111111111111111111111111111i1",
         )
-        .unwrap(),
+          .unwrap(),
         old_satpoint: SatPoint::from_str(
           "4111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
-        .unwrap(),
+          .unwrap(),
         new_satpoint: Some(
           SatPoint::from_str(
             "4111111111111111111111111111111111111111111111111111111111111111:1:1",
           )
-          .unwrap(),
+            .unwrap(),
         ),
         result: Ok(BRC20Event::TransferPhase2(TransferPhase2Event {
           tick: Tick::from_str("mmmm").unwrap(),
@@ -569,7 +585,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "3111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -580,7 +596,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 20,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -636,7 +652,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "3111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -647,7 +663,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 20,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -716,7 +732,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -727,7 +743,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -766,7 +782,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 10,
       tick: tick1.clone(),
       owner: ScriptKey::from_address(
@@ -777,7 +793,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1211111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 30,
       tick: tick1.clone(),
       owner: ScriptKey::from_address(
@@ -797,7 +813,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1311111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 10,
       tick: tick2.clone(),
       owner: ScriptKey::from_address(
@@ -808,7 +824,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1411111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 30,
       tick: tick2.clone(),
       owner: ScriptKey::from_address(
@@ -829,7 +845,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 30,
       tick: Tick::from_str("m333").unwrap(),
       owner: ScriptKey::from_address(
@@ -873,7 +889,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -884,7 +900,7 @@ mod tests {
       inscription_id: InscriptionId::from_str(
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
-      .unwrap(),
+        .unwrap(),
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(

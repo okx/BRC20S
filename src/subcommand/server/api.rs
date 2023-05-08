@@ -2,6 +2,7 @@ use super::error::ApiError;
 use super::*;
 use crate::brc20::ActionReceipt;
 use axum::Json;
+use log::log;
 
 const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 
@@ -191,6 +192,7 @@ pub(crate) async fn brc20_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick): Path<String>,
 ) -> Json<ApiResponse<TickInfo>> {
+  log::info!("brc20_tick_info: {}", tick);
   if tick.as_bytes().len() != 4 {
     return Json(ApiResponse::api_err(&ApiError::BadRequest(
       ERR_TICK_LENGTH.to_string(),

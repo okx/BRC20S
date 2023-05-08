@@ -926,6 +926,13 @@ impl Index {
     Ok(info)
   }
 
+  pub(crate) fn brc20_get_all_tick_info(&self) -> Result<Vec<brc20::TokenInfo>> {
+    let wtx = self.database.begin_write().unwrap();
+    let brc20_db = crate::okx::BRC20Database::new(&wtx);
+    let info = brc20_db.get_tokens_info()?;
+    Ok(info)
+  }
+
   pub(crate) fn brc20_get_balance_by_address(
     &self,
     tick: &str,

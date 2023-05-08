@@ -1,6 +1,5 @@
 use super::error::ApiError;
 use super::*;
-use crate::brc20::ActionReceipt;
 use axum::Json;
 
 const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
@@ -18,6 +17,25 @@ pub struct TickInfo {
   pub txid: String,
   pub deploy_height: u64,
   pub deploy_blocktime: u64,
+}
+
+impl From<&brc20::TokenInfo> for TickInfo {
+  fn from(tick_info: &brc20::TokenInfo) -> Self {
+    Self {
+      tick: std::str::from_utf8(tick_info.tick.as_bytes())
+        .unwrap()
+        .to_string(),
+      inscription_id: tick_info.inscription_id.to_string(),
+      supply: tick_info.supply.to_string(),
+      limit_per_mint: tick_info.limit_per_mint.to_string(),
+      minted: tick_info.minted.to_string(),
+      decimal: tick_info.decimal as u64,
+      deploy_by: tick_info.deploy_by.to_string(),
+      txid: tick_info.inscription_id.txid.to_string(),
+      deploy_height: tick_info.deployed_number,
+      deploy_blocktime: 1234, // TODO: get blocktime from block
+    }
+  }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -43,7 +61,7 @@ pub struct TxEvents {
 }
 
 impl From<&brc20::ActionReceipt> for TxEvent {
-  fn from(event: &ActionReceipt) -> Self {
+  fn from(event: &brc20::ActionReceipt) -> Self {
     match &event.result {
       Ok(result) => match result {
         brc20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
@@ -207,24 +225,29 @@ pub(crate) async fn brc20_tick_info(
     return Json(ApiResponse::api_err(&ApiError::not_found("tick not found")));
   }
 
-  let tick_info = tick_info.unwrap();
+  let tick_info = &tick_info.unwrap();
 
   if tick_info.tick != brc20::Tick::from_str(&tick).unwrap() {
     return Json(ApiResponse::api_err(&ApiError::internal("db: not match")));
   }
 
-  Json(ApiResponse::ok(TickInfo {
-    tick,
-    inscription_id: tick_info.inscription_id.to_string(),
-    supply: tick_info.supply.to_string(),
-    limit_per_mint: tick_info.limit_per_mint.to_string(),
-    minted: tick_info.minted.to_string(),
-    decimal: tick_info.decimal as u64,
-    deploy_by: tick_info.deploy_by.to_string(),
-    txid: tick_info.inscription_id.txid.to_string(),
-    deploy_height: tick_info.deployed_number,
-    deploy_blocktime: 1234,
-  }))
+  Json(ApiResponse::ok(tick_info.into()))
+}
+
+pub(crate) async fn brc20_all_tick_info(
+  Extension(index): Extension<Arc<Index>>,
+) -> Json<ApiResponse<Vec<TickInfo>>> {
+  let all_tick_info = match index.brc20_get_all_tick_info() {
+    Ok(all_tick_info) => all_tick_info,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  Json(ApiResponse::ok(
+    all_tick_info
+      .into_iter()
+      .map(|ref tick_info| tick_info.into())
+      .collect(),
+  ))
 }
 
 pub(crate) async fn brc20_balance(

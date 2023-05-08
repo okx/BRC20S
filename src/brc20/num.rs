@@ -269,4 +269,18 @@ mod tests {
     num.rescale(2);
     assert_eq!(num.to_string(), "1.13");
   }
+
+  #[test]
+  fn test_to_u8() {
+    assert_eq!(Num::from_str("2").unwrap().checked_to_u8().unwrap(), 2);
+    assert_eq!(Num::from_str("255").unwrap().checked_to_u8().unwrap(), 255);
+    assert_eq!(
+      Num::from_str("256").unwrap().checked_to_u8().unwrap_err(),
+      BRC20Error::Overflow {
+        op: String::from("to_u8"),
+        org: Num::from_str("256").unwrap(),
+        other: Num(Decimal::from_u8(u8::MAX).unwrap()),
+      }
+    );
+  }
 }

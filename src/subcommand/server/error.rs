@@ -45,3 +45,30 @@ impl From<Error> for ServerError {
     Self::Internal(error)
   }
 }
+
+#[repr(i32)]
+pub(crate) enum ApiError {
+  NoError = 0,
+  Internal(String) = 1,
+  BadRequest(String) = 2,
+  NotFound(String) = 3,
+}
+
+impl ApiError {
+  pub(crate) fn code(&self) -> i32 {
+    match self {
+      Self::NoError => 0,
+      Self::Internal(_) => 1,
+      Self::BadRequest(_) => 2,
+      Self::NotFound(_) => 3,
+    }
+  }
+
+  pub(crate) fn not_found<S: Into<String>>(message: S) -> Self {
+    Self::NotFound(message.into())
+  }
+
+  pub(crate) fn internal<S: Into<String>>(message: S) -> Self {
+    Self::Internal(message.into())
+  }
+}

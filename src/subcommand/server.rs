@@ -36,7 +36,12 @@ use {
   },
 };
 
+mod api;
 mod error;
+mod response;
+
+use self::api::*;
+use self::response::ApiResponse;
 
 enum BlockQuery {
   Height(u64),
@@ -168,6 +173,13 @@ impl Server {
         .route("/static/*path", get(Self::static_asset))
         .route("/status", get(Self::status))
         .route("/tx/:txid", get(Self::transaction))
+        .route("/brc20/tick/:tick", get(brc20_tick_info))
+        .route(
+          "/brc20/tick/:tick/address/:address/balance",
+          get(brc20_balance),
+        )
+        .route("/brc20/tx/:txid", get(brc20_tx_events))
+        .route("/brc20/block/:block_hash", get(brc20_block_events))
         .layer(Extension(index))
         .layer(Extension(page_config))
         .layer(Extension(Arc::new(config)))
@@ -2497,5 +2509,18 @@ mod tests {
       StatusCode::OK,
       &fs::read_to_string("templates/preview-unknown.html").unwrap(),
     );
+  }
+
+  #[test]
+  fn brc20_endpoint() {
+    let test_server = TestServer::new();
+
+    let response = test_server.get("/brc20/tick/🍎");
+
+    println!("{:?}", response.status());
+
+    let json_text = response.text().unwrap();
+
+    println!("{}", json_text);
   }
 }

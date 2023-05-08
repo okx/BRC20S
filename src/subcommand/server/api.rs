@@ -221,7 +221,9 @@ pub(crate) async fn brc20_tx_events(
       .map(|event| match &event.result {
         Ok(result) => match result {
           brc20::BRC20Event::Deploy(deploy_event) => TxEvent::Deploy(DeployEvent {
-            tick: deploy_event.tick.to_string(),
+            tick: std::str::from_utf8(deploy_event.tick.as_bytes())
+              .unwrap()
+              .to_string(),
             inscription_id: event.inscription_id.to_string(),
             supply: deploy_event.supply.to_string(),
             limit_per_mint: deploy_event.limit_per_mint.to_string(),
@@ -231,7 +233,9 @@ pub(crate) async fn brc20_tx_events(
             msg: "ok".to_string(),
           }),
           brc20::BRC20Event::Mint(mint_event) => TxEvent::Mint(MintEvent {
-            tick: mint_event.tick.to_string(),
+            tick: std::str::from_utf8(mint_event.tick.as_bytes())
+              .unwrap()
+              .to_string(),
             inscription_id: event.inscription_id.to_string(),
             amount: mint_event.amount.to_string(),
             to: mint_event.to.to_string(),
@@ -240,7 +244,9 @@ pub(crate) async fn brc20_tx_events(
           }),
           brc20::BRC20Event::TransferPhase1(trans1) => {
             TxEvent::InscribeTransfer(InscribeTransferEvent {
-              tick: trans1.tick.to_string(),
+              tick: std::str::from_utf8(trans1.tick.as_bytes())
+                .unwrap()
+                .to_string(),
               inscription_id: event.inscription_id.to_string(),
               amount: trans1.amount.to_string(),
               owner: trans1.owner.to_string(),
@@ -248,8 +254,10 @@ pub(crate) async fn brc20_tx_events(
               msg: "ok".to_string(),
             })
           }
-          brc20::BRC20Event::TransferPhase2(Trans2) => TxEvent::Transfer(TransferEvent {
-            tick: trans2.tick.to_string(),
+          brc20::BRC20Event::TransferPhase2(trans2) => TxEvent::Transfer(TransferEvent {
+            tick: std::str::from_utf8(trans2.tick.as_bytes())
+              .unwrap()
+              .to_string(),
             inscription_id: event.inscription_id.to_string(),
             amount: trans2.amount.to_string(),
             from: trans2.from.to_string(),

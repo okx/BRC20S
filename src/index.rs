@@ -940,6 +940,16 @@ impl Index {
     Ok(bal)
   }
 
+  pub(crate) fn brc20_get_all_balance_by_address(
+    &self,
+    address: &bitcoin::Address,
+  ) -> Result<Vec<brc20::Balance>> {
+    let wtx = self.database.begin_write().unwrap();
+    let brc20_db = crate::okx::BRC20Database::new(&wtx);
+    let all_balance = brc20_db.get_balances(&brc20::ScriptKey::from_address(address.clone()))?;
+    Ok(all_balance)
+  }
+
   pub(crate) fn brc20_get_tx_events_by_txid(
     &self,
     txid: &bitcoin::Txid,
@@ -981,6 +991,17 @@ impl Index {
       &ScriptKey::from_address(address.clone()),
       &brc20::Tick::from_str(tick)?,
     )?;
+
+    Ok(res)
+  }
+
+  pub(crate) fn brc20_get_all_transferable_by_address(
+    &self,
+    address: &bitcoin::Address,
+  ) -> Result<Vec<brc20::TransferableLog>> {
+    let wtx = self.database.begin_write().unwrap();
+    let brc20_db = crate::okx::BRC20Database::new(&wtx);
+    let res = brc20_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
 
     Ok(res)
   }

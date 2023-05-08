@@ -31,6 +31,12 @@ pub struct Balance {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AllBalance {
+  pub balance: Vec<Balance>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TxEvents {
   pub events: Vec<TxEvent>,
   pub txid: String,
@@ -178,6 +184,7 @@ pub struct TransferableInscriptions {
 pub struct TransferableInscription {
   pub id: String,
   pub amount: String,
+  pub tick: String,
 }
 
 pub(crate) async fn brc20_tick_info(
@@ -262,6 +269,33 @@ pub(crate) async fn brc20_balance(
   }))
 }
 
+pub(crate) async fn brc20_all_balance(
+  Extension(index): Extension<Arc<Index>>,
+  Path(address): Path<String>,
+) -> Json<ApiResponse<AllBalance>> {
+  let address: bitcoin::Address = match address.parse() {
+    Ok(address) => address,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
+  };
+
+  let all_balance = match index.brc20_get_all_balance_by_address(&address) {
+    Ok(balance) => balance,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  Json(ApiResponse::ok(AllBalance {
+    balance: all_balance
+      .iter()
+      .map(|bal| Balance {
+        tick: "".to_string(),
+        available_balance: (bal.overall_balance - bal.transferable_balance).to_string(),
+        transferable_balance: bal.transferable_balance.to_string(),
+        overall_balance: bal.overall_balance.to_string(),
+      })
+      .collect(),
+  }))
+}
+
 pub(crate) async fn brc20_tx_events(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
@@ -332,6 +366,33 @@ pub(crate) async fn brc20_transferable(
       .map(|i| TransferableInscription {
         id: i.inscription_id.to_string(),
         amount: i.amount.to_string(),
+        tick: tick.clone(),
+      })
+      .collect(),
+  }))
+}
+
+pub(crate) async fn brc20_all_transferable(
+  Extension(index): Extension<Arc<Index>>,
+  Path(address): Path<String>,
+) -> Json<ApiResponse<TransferableInscriptions>> {
+  let address: bitcoin::Address = match address.parse() {
+    Ok(address) => address,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
+  };
+
+  let transferable = match index.brc20_get_all_transferable_by_address(&address) {
+    Ok(balance) => balance,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  Json(ApiResponse::ok(TransferableInscriptions {
+    inscriptions: transferable
+      .iter()
+      .map(|i| TransferableInscription {
+        id: i.inscription_id.to_string(),
+        amount: i.amount.to_string(),
+        tick: std::str::from_utf8(i.tick.as_bytes()).unwrap().to_string(),
       })
       .collect(),
   }))

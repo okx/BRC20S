@@ -73,7 +73,7 @@ impl Num {
     Ok(self.0.clone().to_u128().ok_or(BRC20Error::Overflow {
       op: String::from("to_u128"),
       org: self.clone(),
-      other: Num(Decimal::from_u128(u128::MAX).unwrap()),
+      other: Num(Decimal::from_u128(u64::MAX as u128).unwrap()), // TODO: change overflow error to others
     })?)
   }
 

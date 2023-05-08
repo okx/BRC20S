@@ -36,12 +36,16 @@ use {
   },
 };
 
+
 mod api;
+
 mod error;
 mod response;
 
 use self::api::*;
 use self::response::ApiResponse;
+
+use crate::index::{GLOBAL_SAVEPOINTS, SAVEPOINT_INTERVAL};
 
 enum BlockQuery {
   Height(u64),
@@ -130,12 +134,31 @@ pub(crate) struct Server {
 
 impl Server {
   pub(crate) fn run(self, options: Options, index: Arc<Index>, handle: Handle) -> Result {
+    #[cfg(feature = "rollback")]
+    unsafe {index.backup_at_init()?;}
+
     Runtime::new()?.block_on(async {
       let clone = index.clone();
       thread::spawn(move || loop {
         if let Err(error) = clone.update() {
           log::warn!("{error}");
+
+          #[cfg(feature = "rollback")]
+          if clone.is_reorged() {
+            let height = clone.height().unwrap().unwrap().n();
+            unsafe {
+              loop {
+                let hsp = GLOBAL_SAVEPOINTS.get_mut().unwrap().pop_front().expect("savepoint not found");
+                if hsp.0 + 2* SAVEPOINT_INTERVAL > height || GLOBAL_SAVEPOINTS.get().unwrap().len() == 0 {
+                  clone.restore_savepoint(hsp.1).expect("restore savepoint error");
+                  break;
+                }
+              }
+            }
+            clone.reset_reorged()
+          }
         }
+
         thread::sleep(Duration::from_millis(5000));
       });
 

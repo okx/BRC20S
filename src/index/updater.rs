@@ -9,6 +9,8 @@ use {
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
 };
 
+use crate::index::{GLOBAL_SAVEPOINTS, SAVEPOINT_INTERVAL};
+
 mod inscription_updater;
 
 struct BlockData {
@@ -135,6 +137,40 @@ impl Updater {
       }
 
       uncommitted += 1;
+
+      #[cfg(feature = "rollback")]
+      {
+        // fast sync mode means no less than 6 blocks behind to the latest height
+        let is_fast_sync = {
+          if let Ok(count) = index.client.get_block_count() {
+            if count <= self.height + SAVEPOINT_INTERVAL {
+              false
+            } else {
+              true
+            }
+          } else {
+            log::warn!("Failed to fetch latest block height");
+            true
+          }
+        };
+        // make savepoint every 6 block
+        // commit must be done before making savepoint
+        // do not make savepoint in fast sync mode
+        if !is_fast_sync && self.height % SAVEPOINT_INTERVAL == 0 {
+          self.commit(wtx, value_cache)?;
+          value_cache = HashMap::new();
+          uncommitted = 0;
+          wtx = index.begin_write()?;
+          let sp = wtx.savepoint()?;
+          unsafe {
+            let savepoints = GLOBAL_SAVEPOINTS.get_mut().unwrap();
+            savepoints.push_back(HeightSavepoint(self.height, sp));
+            if savepoints.len() > 2 {
+              drop(savepoints.pop_front().unwrap().1);
+            }
+          }
+       }
+      }
 
       if uncommitted == 5000 {
         self.commit(wtx, value_cache)?;

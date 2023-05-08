@@ -950,15 +950,25 @@ impl Index {
     return Ok(res);
   }
 
-  // pub(crate) fn brc20_get_block_events_by_blockhash(
-  //   &self,
-  //   blockhash: bitcoin::BlockHash,
-  // ) -> Result<Vec<brc20::ActionReceipt>> {
-  //   let wtx = self.database.begin_write().unwrap();
-  //   let brc20_db = crate::okx::BRC20Database::new(&wtx);
-  //   let res = brc20_db.get_block_receipts(&blockhash)?;
-  //   return Ok(res);
-  // }
+  pub(crate) fn brc20_get_block_events_by_blockhash(
+    &self,
+    blockhash: bitcoin::BlockHash,
+  ) -> Result<Vec<(bitcoin::Txid, Vec<brc20::ActionReceipt>)>> {
+    let wtx = self.database.begin_write().unwrap();
+    let brc20_db = crate::okx::BRC20Database::new(&wtx);
+
+    let block = self.client.get_block(&blockhash)?;
+    let mut result = Vec::new();
+
+    for tx in &block.txdata {
+      result.push((
+        tx.txid().clone(),
+        brc20_db.get_transaction_receipts(&tx.txid())?,
+      ));
+    }
+
+    Ok(result)
+  }
 
   pub(crate) fn brc20_get_tick_transferable_by_address(
     &self,

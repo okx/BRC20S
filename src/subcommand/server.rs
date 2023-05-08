@@ -2519,7 +2519,13 @@ mod tests {
   fn brc20_endpoint() {
     let test_server = TestServer::new();
 
-    for url in ["/brc20/tick/🍎", "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance"] {
+    for url in [
+      "/brc20/tick/🍎",
+      "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
+      "/brc20/tx/b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735",
+      "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable",
+      "/brc20/block/00000000000000000003a337a676b0101f3f7ef7dcbc01debb69f85c6da04dcf"
+    ] {
 
       println!("{}", url);
 

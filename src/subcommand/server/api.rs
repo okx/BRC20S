@@ -1,5 +1,6 @@
 use super::error::ApiError;
 use super::*;
+use crate::brc20::ActionReceipt;
 use axum::Json;
 
 const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
@@ -33,6 +34,65 @@ pub struct Balance {
 pub struct TxEvents {
   pub events: Vec<TxEvent>,
   pub txid: String,
+}
+
+impl From<&brc20::ActionReceipt> for TxEvent {
+  fn from(event: &ActionReceipt) -> Self {
+    match &event.result {
+      Ok(result) => match result {
+        brc20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
+          tick: std::str::from_utf8(deploy_event.tick.as_bytes())
+            .unwrap()
+            .to_string(),
+          inscription_id: event.inscription_id.to_string(),
+          supply: deploy_event.supply.to_string(),
+          limit_per_mint: deploy_event.limit_per_mint.to_string(),
+          decimal: deploy_event.decimal as u64,
+          deploy_by: deploy_event.deploy.to_string(),
+          valid: true,
+          msg: "ok".to_string(),
+        }),
+        brc20::BRC20Event::Mint(mint_event) => Self::Mint(MintEvent {
+          tick: std::str::from_utf8(mint_event.tick.as_bytes())
+            .unwrap()
+            .to_string(),
+          inscription_id: event.inscription_id.to_string(),
+          amount: mint_event.amount.to_string(),
+          to: mint_event.to.to_string(),
+          valid: true,
+          msg: "ok".to_string(),
+        }),
+        brc20::BRC20Event::TransferPhase1(trans1) => {
+          Self::InscribeTransfer(InscribeTransferEvent {
+            tick: std::str::from_utf8(trans1.tick.as_bytes())
+              .unwrap()
+              .to_string(),
+            inscription_id: event.inscription_id.to_string(),
+            amount: trans1.amount.to_string(),
+            owner: trans1.owner.to_string(),
+            valid: true,
+            msg: "ok".to_string(),
+          })
+        }
+        brc20::BRC20Event::TransferPhase2(trans2) => Self::Transfer(TransferEvent {
+          tick: std::str::from_utf8(trans2.tick.as_bytes())
+            .unwrap()
+            .to_string(),
+          inscription_id: event.inscription_id.to_string(),
+          amount: trans2.amount.to_string(),
+          from: trans2.from.to_string(),
+          to: trans2.to.to_string(),
+          valid: true,
+          msg: "ok".to_string(),
+        }),
+      },
+      Err(err) => Self::Error(ErrorEvent {
+        inscription_id: event.inscription_id.to_string(),
+        valid: false,
+        msg: err.to_string(),
+      }),
+    }
+  }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -216,63 +276,7 @@ pub(crate) async fn brc20_tx_events(
   };
   Json(ApiResponse::ok(TxEvents {
     txid: txid.to_string(),
-    events: tx_events
-      .iter()
-      .map(|event| match &event.result {
-        Ok(result) => match result {
-          brc20::BRC20Event::Deploy(deploy_event) => TxEvent::Deploy(DeployEvent {
-            tick: std::str::from_utf8(deploy_event.tick.as_bytes())
-              .unwrap()
-              .to_string(),
-            inscription_id: event.inscription_id.to_string(),
-            supply: deploy_event.supply.to_string(),
-            limit_per_mint: deploy_event.limit_per_mint.to_string(),
-            decimal: deploy_event.decimal as u64,
-            deploy_by: deploy_event.deploy.to_string(),
-            valid: true,
-            msg: "ok".to_string(),
-          }),
-          brc20::BRC20Event::Mint(mint_event) => TxEvent::Mint(MintEvent {
-            tick: std::str::from_utf8(mint_event.tick.as_bytes())
-              .unwrap()
-              .to_string(),
-            inscription_id: event.inscription_id.to_string(),
-            amount: mint_event.amount.to_string(),
-            to: mint_event.to.to_string(),
-            valid: true,
-            msg: "ok".to_string(),
-          }),
-          brc20::BRC20Event::TransferPhase1(trans1) => {
-            TxEvent::InscribeTransfer(InscribeTransferEvent {
-              tick: std::str::from_utf8(trans1.tick.as_bytes())
-                .unwrap()
-                .to_string(),
-              inscription_id: event.inscription_id.to_string(),
-              amount: trans1.amount.to_string(),
-              owner: trans1.owner.to_string(),
-              valid: true,
-              msg: "ok".to_string(),
-            })
-          }
-          brc20::BRC20Event::TransferPhase2(trans2) => TxEvent::Transfer(TransferEvent {
-            tick: std::str::from_utf8(trans2.tick.as_bytes())
-              .unwrap()
-              .to_string(),
-            inscription_id: event.inscription_id.to_string(),
-            amount: trans2.amount.to_string(),
-            from: trans2.from.to_string(),
-            to: trans2.to.to_string(),
-            valid: true,
-            msg: "ok".to_string(),
-          }),
-        },
-        Err(err) => TxEvent::Error(ErrorEvent {
-          inscription_id: event.inscription_id.to_string(),
-          valid: false,
-          msg: err.to_string(),
-        }),
-      })
-      .collect(),
+    events: tx_events.iter().map(|event| event.into()).collect(),
   }))
 }
 
@@ -280,7 +284,25 @@ pub(crate) async fn brc20_block_events(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,
 ) -> Json<ApiResponse<BlockEvents>> {
-  todo!();
+  let blockhash = match bitcoin::BlockHash::from_str(&block_hash) {
+    Ok(blockhash) => blockhash,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
+  };
+
+  let block_events = match index.brc20_get_block_events_by_blockhash(blockhash) {
+    Ok(block_events) => block_events,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  Json(ApiResponse::ok(BlockEvents {
+    block: block_events
+      .iter()
+      .map(|(txid, events)| TxEvents {
+        txid: txid.to_string(),
+        events: events.iter().map(|event| event.into()).collect(),
+      })
+      .collect(),
+  }))
 }
 
 pub(crate) async fn brc20_transferable(

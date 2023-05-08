@@ -6,8 +6,6 @@ use redb::{ReadableTable, TableDefinition, WriteTransaction};
 const BRC20_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_BALANCES");
 const BRC20_TOKEN: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_TOKEN");
 const BRC20_EVENTS: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_EVENTS");
-const BRC20_ADDRESS_TO_TRANSFERABLE_INSCRIPTIONS: TableDefinition<&str, &[u8]> =
-  TableDefinition::new("BRC20_ADDRESS_TO_TRANSFERABLE_INSCRIPTIONS");
 const BRC20_TRANSFERABLELOG: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC20_TRANSFERABLELOG");
 

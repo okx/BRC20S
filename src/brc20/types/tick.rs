@@ -6,7 +6,7 @@ use std::{
   str::FromStr,
 };
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tick([u8; TICK_BYTE_COUNT]);
 
 impl FromStr for Tick {
@@ -19,6 +19,16 @@ impl FromStr for Tick {
       return Err(BRC20Error::InvalidTickLen(bytes.len()));
     }
     Ok(Self(bytes.try_into().unwrap()))
+  }
+}
+
+impl PartialEq for Tick {
+  fn eq(&self, other: &Self) -> bool {
+    self.to_lowercase().0 == other.to_lowercase().0
+  }
+
+  fn ne(&self, other: &Self) -> bool {
+    !self.eq(other)
   }
 }
 
@@ -46,5 +56,16 @@ impl Tick {
     // so it could be calling unwrap when convert to str
     std::str::from_utf8(self.0.as_slice()).unwrap()
   }
+}
 
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_tick_compare_ignore_case() {
+    assert_eq!(Tick::from_str("aBc1"), Tick::from_str("AbC1"));
+
+    assert_ne!(Tick::from_str("aBc1"), Tick::from_str("aBc2"));
+  }
 }

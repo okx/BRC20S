@@ -192,7 +192,7 @@ pub(crate) async fn brc20_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick): Path<String>,
 ) -> Json<ApiResponse<TickInfo>> {
-  log::info!("brc20_tick_info: {}", tick);
+  log::debug!("rpc: get brc20_tick_info: {}", tick);
   if tick.as_bytes().len() != 4 {
     return Json(ApiResponse::api_err(&ApiError::BadRequest(
       ERR_TICK_LENGTH.to_string(),
@@ -204,6 +204,8 @@ pub(crate) async fn brc20_tick_info(
     Ok(tick_info) => tick_info,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+
+  log::debug!("rpc: get brc20_tick_info: {:?} {:?}", tick, tick_info);
 
   if tick_info.is_none() {
     return Json(ApiResponse::api_err(&ApiError::not_found("tick not found")));

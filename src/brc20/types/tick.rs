@@ -2,7 +2,6 @@ use super::super::error::BRC20Error;
 use crate::brc20::params::TICK_BYTE_COUNT;
 use serde::{Deserialize, Serialize};
 use std::{
-  fmt::{self, Display, Formatter},
   str::FromStr,
 };
 

@@ -240,7 +240,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
     // store to database.
     self
       .ledger
-      .update_token_balance(&script_key, &lower_tick, &balance)
+      .update_token_balance(&script_key, &lower_tick, balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     // update token minted.
@@ -302,7 +302,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&script_key, &lower_tick, &balance)
+      .update_token_balance(&script_key, &lower_tick, balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     let inscription = TransferableLog {
@@ -370,7 +370,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&from_key, &lower_tick, &from_balance)
+      .update_token_balance(&from_key, &lower_tick, from_balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     // redirect receiver to sender if transfer to conibase.
@@ -396,7 +396,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&to_key, &lower_tick, &to_balance)
+      .update_token_balance(&to_key, &lower_tick, to_balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     self

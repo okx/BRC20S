@@ -1,3 +1,4 @@
+use crate::brc20::ledger::Ledger;
 use {
   self::{
     entry::{
@@ -69,6 +70,7 @@ pub(crate) enum Statistic {
   LostSats = 2,
   OutputsTraversed = 3,
   SatRanges = 4,
+  BRC20ActionCount = 5,
 }
 
 impl Statistic {
@@ -230,6 +232,10 @@ impl Index {
       reorged: AtomicBool::new(false),
       options: options.clone(),
     })
+  }
+
+  pub(crate) fn get_chain_network(&self) -> Network {
+    self.options.chain().network()
   }
 
   pub(crate) fn get_unspent_outputs(&self, _wallet: Wallet) -> Result<BTreeMap<OutPoint, Amount>> {
@@ -569,6 +575,30 @@ impl Index {
     }
   }
 
+  pub(crate) fn get_transaction_with_retries(&self, txid: Txid) -> Result<Option<Transaction>> {
+    let mut errors = 0;
+    loop {
+      match self.client.get_raw_transaction(&txid, None).into_option() {
+        Err(err) => {
+          if cfg!(test) {
+            return Err(err);
+          }
+          errors += 1;
+          let seconds = 1 << errors;
+          log::warn!("failed to fetch transaction {txid}, retrying in {seconds}s: {err}");
+
+          if seconds > 120 {
+            log::error!("would sleep for more than 120s, giving up");
+            return Err(err);
+          }
+
+          thread::sleep(Duration::from_secs(seconds));
+        }
+        Ok(result) => return Ok(result),
+      }
+    }
+  }
+
   pub(crate) fn get_transaction_blockhash(&self, txid: Txid) -> Result<Option<BlockHash>> {
     Ok(
       self
@@ -887,6 +917,29 @@ impl Index {
         .map(|(satpoint, id)| (Entry::load(*satpoint.value()), Entry::load(*id.value()))),
     )
   }
+
+  pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<brc20::TokenInfo>> {
+    let wtx = self.database.begin_write().unwrap();
+    let brc20_db = crate::okx::BRC20Database::new(&wtx);
+    let info = brc20_db.get_token_info(&brc20::Tick::from_str(name)?)?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc20_get_balance_by_address(
+    &self,
+    tick: &str,
+    address: &bitcoin::Address,
+  ) -> Result<Option<brc20::Balance>> {
+    let wtx = self.database.begin_write().unwrap();
+    let brc20_db = crate::okx::BRC20Database::new(&wtx);
+    let bal = brc20_db.get_balance(
+      &brc20::ScriptKey::from_address(address.clone()),
+      &brc20::Tick::from_str(tick)?,
+    )?;
+    Ok(bal)
+  }
+
+  pub(crate) fn brc20_get_tx_events_by_txid() {}
 }
 
 #[cfg(test)]

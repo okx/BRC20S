@@ -96,6 +96,7 @@ macro_rules! tprintln {
 
 mod arguments;
 mod blocktime;
+mod brc20;
 mod chain;
 mod config;
 mod decimal;
@@ -109,6 +110,7 @@ mod inscription;
 mod inscription_id;
 mod media;
 mod object;
+mod okx;
 mod options;
 mod outgoing;
 mod page_config;

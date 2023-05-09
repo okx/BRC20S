@@ -72,12 +72,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
             operation.inscription_id,
             inscribe.to_script,
           ),
-          Operation::Mint(mint) => self.process_mint(
-            mint,
-            block_number,
-            operation.inscription_id,
-            inscribe.to_script,
-          ),
+          Operation::Mint(mint) => self.process_mint(mint, block_number, inscribe.to_script),
           Operation::Transfer(transfer) => {
             self.process_inscribe_transfer(transfer, operation.inscription_id, inscribe.to_script)
           }
@@ -186,14 +181,13 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
     &mut self,
     mint: Mint,
     block_number: u64,
-    inscription_id: InscriptionId,
     to_script: Option<Script>,
   ) -> Result<BRC20Event, Error<L>> {
     let to_script = to_script.ok_or(BRC20Error::InscribeToCoinbase)?;
     let tick = mint.tick.parse::<Tick>()?;
     let lower_tick = tick.to_lowercase();
 
-    let mut token_info = self
+    let token_info = self
       .ledger
       .get_token_info(&lower_tick)
       .map_err(|e| Error::LedgerError(e))?
@@ -260,7 +254,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
     Ok(BRC20Event::Mint(MintEvent {
       tick: token_info.tick,
       to: script_key,
-      amount: minted,
+      amount: amt.checked_to_u128()?,
       msg,
     }))
   }
@@ -283,7 +277,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
 
-    let mut amt = Num::from_str(&transfer.amount)?.checked_mul(base)?;
+    let amt = Num::from_str(&transfer.amount)?.checked_mul(base)?;
 
     if amt <= Into::<Num>::into(0 as u128) || amt > Into::<Num>::into(token_info.supply) {
       return Err(Error::BRC20Error(BRC20Error::InscribeTransferOverflow(amt)));

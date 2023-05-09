@@ -1,5 +1,6 @@
 use crate::brc20::ledger::LedgerRead;
 use crate::brc20::ScriptKey;
+
 use {
   self::{
     entry::{
@@ -25,6 +26,9 @@ mod fetcher;
 mod rtx;
 mod updater;
 
+use once_cell::sync::OnceCell;
+use redb::Savepoint;
+
 const SCHEMA_VERSION: u64 = 3;
 
 macro_rules! define_table {
@@ -44,6 +48,12 @@ define_table! { SAT_TO_INSCRIPTION_ID, u64, &InscriptionIdValue }
 define_table! { SAT_TO_SATPOINT, u64, &SatPointValue }
 define_table! { STATISTIC_TO_COUNT, u64, u64 }
 define_table! { WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP, u64, u128 }
+
+pub(crate) struct HeightSavepoint(pub u64, pub Savepoint);
+
+pub(crate) static mut GLOBAL_SAVEPOINTS: OnceCell<VecDeque<HeightSavepoint>> = OnceCell::new();
+
+pub(crate) const SAVEPOINT_INTERVAL: u64 = 6;
 
 pub(crate) struct Index {
   client: Client,
@@ -370,6 +380,29 @@ impl Index {
 
   pub(crate) fn is_reorged(&self) -> bool {
     self.reorged.load(atomic::Ordering::Relaxed)
+  }
+
+  pub(crate) fn reset_reorged(&self) {
+    self.reorged.store(false, atomic::Ordering::Relaxed);
+  }
+
+  pub(crate) unsafe fn backup_at_init(&self) -> Result {
+    let height = self.height().unwrap().unwrap_or(Height(0)).n();
+    GLOBAL_SAVEPOINTS.get_or_init(|| VecDeque::new());
+    let wtx = self.begin_write()?;
+    let sp = wtx.savepoint()?;
+    GLOBAL_SAVEPOINTS
+      .get_mut()
+      .unwrap()
+      .push_back(HeightSavepoint(height, sp));
+    wtx.commit()?;
+    Ok(())
+  }
+
+  pub(crate) fn restore_savepoint(&self, sp: &Savepoint) -> Result {
+    let mut wtx = self.begin_write()?;
+    wtx.restore_savepoint(sp)?;
+    Ok(())
   }
 
   fn begin_read(&self) -> Result<rtx::Rtx> {

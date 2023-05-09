@@ -79,6 +79,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
+          inscription_number: None,
           supply: deploy_event.supply.to_string(),
           limit_per_mint: deploy_event.limit_per_mint.to_string(),
           decimal: deploy_event.decimal as u64,
@@ -91,6 +92,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
+          inscription_number: None,
           amount: mint_event.amount.to_string(),
           to: mint_event.to.to_string(),
           valid: true,
@@ -102,6 +104,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
               .unwrap()
               .to_string(),
             inscription_id: event.inscription_id.to_string(),
+            inscription_number: None,
             amount: trans1.amount.to_string(),
             owner: trans1.owner.to_string(),
             valid: true,
@@ -113,6 +116,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
+          inscription_number: None,
           amount: trans2.amount.to_string(),
           from: trans2.from.to_string(),
           to: trans2.to.to_string(),
@@ -122,6 +126,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
       },
       Err(err) => Self::Error(ErrorEvent {
         inscription_id: event.inscription_id.to_string(),
+        inscription_number: None,
         valid: false,
         msg: err.to_string(),
       }),
@@ -140,10 +145,34 @@ pub enum TxEvent {
   Error(ErrorEvent),
 }
 
+impl TxEvent {
+  pub fn set_inscription_number(&mut self, number: Option<String>) {
+    match self {
+      TxEvent::Deploy(event) => {
+        event.inscription_number = number;
+      }
+      TxEvent::Mint(event) => {
+        event.inscription_number = number;
+      }
+      TxEvent::InscribeTransfer(event) => {
+        event.inscription_number = number;
+      }
+      TxEvent::Transfer(event) => {
+        event.inscription_number = number;
+      }
+      TxEvent::Error(event) => {
+        event.inscription_number = number;
+      }
+    }
+  }
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorEvent {
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub valid: bool,
   pub msg: String,
 }
@@ -153,6 +182,8 @@ pub struct ErrorEvent {
 pub struct DeployEvent {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub supply: String,
   pub limit_per_mint: String,
   pub decimal: u64,
@@ -166,6 +197,8 @@ pub struct DeployEvent {
 pub struct MintEvent {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub amount: String,
   pub to: String,
   pub valid: bool,
@@ -177,6 +210,8 @@ pub struct MintEvent {
 pub struct InscribeTransferEvent {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub amount: String,
   pub owner: String,
   pub valid: bool,
@@ -188,6 +223,8 @@ pub struct InscribeTransferEvent {
 pub struct TransferEvent {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub amount: String,
   pub from: String,
   pub to: String,
@@ -374,10 +411,23 @@ pub(crate) async fn brc20_tx_events(
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
   log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
-  Json(ApiResponse::ok(TxEvents {
+  let mut result = TxEvents {
     txid: txid.to_string(),
-    events: tx_events.iter().map(|event| event.into()).collect(),
-  }))
+    events: vec![],
+  };
+  for event in &tx_events {
+    let mut json_event: TxEvent = event.into();
+    let inscription = match index.get_inscription_entry(event.inscription_id) {
+      Ok(inscription) => inscription,
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    if !inscription.is_none() {
+      let inscription = inscription.unwrap();
+      json_event.set_inscription_number(Some(inscription.number.to_string()));
+    }
+    result.events.push(json_event)
+  }
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_block_events(
@@ -400,15 +450,29 @@ pub(crate) async fn brc20_block_events(
     block_events
   );
 
-  Json(ApiResponse::ok(BlockEvents {
-    block: block_events
-      .iter()
-      .map(|(txid, events)| TxEvents {
-        txid: txid.to_string(),
-        events: events.iter().map(|event| event.into()).collect(),
-      })
-      .collect(),
-  }))
+  let mut result = BlockEvents { block: vec![] };
+
+  for (txid, events) in block_events {
+    let mut tx_events = TxEvents {
+      txid: txid.to_string(),
+      events: vec![],
+    };
+    for event in &events {
+      let mut json_event: TxEvent = event.into();
+      let inscription = match index.get_inscription_entry(event.inscription_id) {
+        Ok(inscription) => inscription,
+        Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+      };
+      if !inscription.is_none() {
+        let inscription = inscription.unwrap();
+        json_event.set_inscription_number(Some(inscription.number.to_string()));
+      }
+      tx_events.events.push(json_event)
+    }
+    result.block.push(tx_events);
+  }
+
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_transferable(

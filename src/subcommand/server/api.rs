@@ -453,18 +453,26 @@ pub(crate) async fn brc20_block_events(
     Ok(block_events) => block_events,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  if block_events.is_none() {
+    return Json(ApiResponse::api_err(&ApiError::not_found(
+      "block not found",
+    )));
+  }
+  let block_events = block_events.unwrap();
   log::debug!(
     "rpc: get brc20_block_events: {} {:?}",
     block_hash,
     block_events
   );
 
-  let mut result = BlockEvents { block: vec![] };
+  let mut result = BlockEvents {
+    block: Vec::with_capacity(block_events.len()),
+  };
 
   for (txid, events) in block_events {
     let mut tx_events = TxEvents {
       txid: txid.to_string(),
-      events: vec![],
+      events: Vec::with_capacity(events.len()),
     };
     for event in &events {
       let mut json_event: TxEvent = event.into();

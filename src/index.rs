@@ -984,21 +984,31 @@ impl Index {
   pub(crate) fn brc20_get_block_events_by_blockhash(
     &self,
     blockhash: bitcoin::BlockHash,
-  ) -> Result<Vec<(bitcoin::Txid, Vec<brc20::ActionReceipt>)>> {
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20::ActionReceipt>)>>> {
+    let parsed_height = self.height()?;
+    if parsed_height.is_none() {
+      return Ok(None);
+    }
+    let parsed_height = parsed_height.unwrap().0;
+    let block = self.client.get_block_info(&blockhash)?;
+    if block.height as u64 > parsed_height {
+      return Ok(None);
+    }
+
     let wtx = self.database.begin_write().unwrap();
     let brc20_db = crate::okx::BRC20Database::new(&wtx);
 
-    let block = self.client.get_block(&blockhash)?;
     let mut result = Vec::new();
 
-    for tx in &block.txdata {
-      result.push((
-        tx.txid().clone(),
-        brc20_db.get_transaction_receipts(&tx.txid())?,
-      ));
+    for txid in &block.tx {
+      let tx_events = brc20_db.get_transaction_receipts(txid)?;
+      if tx_events.len() == 0 {
+        continue;
+      }
+      result.push((txid.clone(), tx_events));
     }
 
-    Ok(result)
+    Ok(Some(result))
   }
 
   pub(crate) fn brc20_get_tick_transferable_by_address(

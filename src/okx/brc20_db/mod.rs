@@ -369,6 +369,7 @@ mod tests {
         Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
       ),
       deployed_number: 99,
+      deployed_timestamp: 11222,
       latest_mint_number: 101,
     };
 
@@ -399,6 +400,7 @@ mod tests {
         Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
       ),
       deployed_number: 99,
+      deployed_timestamp: 11222,
       latest_mint_number: 101,
     };
     let expect2 = TokenInfo {
@@ -415,6 +417,7 @@ mod tests {
         Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
       ),
       deployed_number: 299,
+      deployed_timestamp: 33222,
       latest_mint_number: 2101,
     };
     let expect3 = TokenInfo {
@@ -431,6 +434,7 @@ mod tests {
         Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
       ),
       deployed_number: 399,
+      deployed_timestamp: 33222,
       latest_mint_number: 3101,
     };
 
@@ -467,6 +471,7 @@ mod tests {
         Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
       ),
       deployed_number: 99,
+      deployed_timestamp: 33222,
       latest_mint_number: 101,
     };
 

@@ -57,6 +57,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
   pub fn index_transaction(
     &mut self,
     block_number: u64,
+    block_time: u32,
     txid: Txid,
     operations: Vec<InscriptionData>,
   ) -> Result<usize, <L as Ledger>::Error> {
@@ -67,6 +68,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
           Operation::Deploy(deploy) => self.process_deploy(
             deploy,
             block_number,
+            block_time,
             operation.inscription_id,
             inscribe.to_script,
           ),
@@ -111,6 +113,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
     &mut self,
     deploy: Deploy,
     block_number: u64,
+    block_time: u32,
     inscription_id: InscriptionId,
     to_script: Option<Script>,
   ) -> Result<BRC20Event, Error<L>> {
@@ -162,6 +165,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
       minted: 0 as u128,
       deploy_by: script_key,
       deployed_number: block_number,
+      deployed_timestamp: block_time,
       latest_mint_number: 0 as u64,
     };
     self

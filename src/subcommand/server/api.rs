@@ -10,6 +10,8 @@ const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 pub struct TickInfo {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub supply: String,
   pub limit_per_mint: String,
   pub minted: String,
@@ -20,6 +22,12 @@ pub struct TickInfo {
   pub deploy_blocktime: u64,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AllTickInfo {
+  pub tokens: Vec<TickInfo>,
+}
+
 impl From<&brc20::TokenInfo> for TickInfo {
   fn from(tick_info: &brc20::TokenInfo) -> Self {
     Self {
@@ -27,6 +35,7 @@ impl From<&brc20::TokenInfo> for TickInfo {
         .unwrap()
         .to_string(),
       inscription_id: tick_info.inscription_id.to_string(),
+      inscription_number: None,
       supply: tick_info.supply.to_string(),
       limit_per_mint: tick_info.limit_per_mint.to_string(),
       minted: tick_info.minted.to_string(),
@@ -235,12 +244,22 @@ pub(crate) async fn brc20_tick_info(
     return Json(ApiResponse::api_err(&ApiError::internal("db: not match")));
   }
 
-  Json(ApiResponse::ok(tick_info.into()))
+  let mut result: TickInfo = tick_info.into();
+  let inscription = match index.get_inscription_entry(tick_info.inscription_id) {
+    Ok(inscription) => inscription,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+  if !inscription.is_none() {
+    let inscription = inscription.unwrap();
+    result.inscription_number = Some(inscription.number.to_string());
+  }
+
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_all_tick_info(
   Extension(index): Extension<Arc<Index>>,
-) -> Json<ApiResponse<Vec<TickInfo>>> {
+) -> Json<ApiResponse<AllTickInfo>> {
   log::debug!("rpc: get brc20_all_tick_info");
   let all_tick_info = match index.brc20_get_all_tick_info() {
     Ok(all_tick_info) => all_tick_info,
@@ -248,12 +267,22 @@ pub(crate) async fn brc20_all_tick_info(
   };
   log::debug!("rpc: get brc20_all_tick_info: {:?}", all_tick_info);
 
-  Json(ApiResponse::ok(
-    all_tick_info
-      .into_iter()
-      .map(|ref tick_info| tick_info.into())
-      .collect(),
-  ))
+  let mut result = AllTickInfo { tokens: vec![] };
+
+  for ref tick in all_tick_info {
+    let mut json_tick: TickInfo = tick.into();
+    let inscription = match index.get_inscription_entry(tick.inscription_id) {
+      Ok(inscription) => inscription,
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    if !inscription.is_none() {
+      let inscription = inscription.unwrap();
+      json_tick.inscription_number = Some(inscription.number.to_string());
+      result.tokens.push(json_tick)
+    }
+  }
+
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_balance(

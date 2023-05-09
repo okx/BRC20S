@@ -317,7 +317,7 @@ pub(crate) async fn brc20_all_tick_info(
     if !inscription.is_none() {
       let inscription = inscription.unwrap();
       json_tick.inscription_number = Some(inscription.number.to_string());
-      result.tokens.push(json_tick)
+      result.tokens.push(json_tick);
     }
   }
 
@@ -434,7 +434,7 @@ pub(crate) async fn brc20_tx_events(
       let inscription = inscription.unwrap();
       json_event.set_inscription_number(Some(inscription.number.to_string()));
     }
-    result.events.push(json_event)
+    result.events.push(json_event);
   }
   Json(ApiResponse::ok(result))
 }
@@ -484,7 +484,7 @@ pub(crate) async fn brc20_block_events(
         let inscription = inscription.unwrap();
         json_event.set_inscription_number(Some(inscription.number.to_string()));
       }
-      tx_events.events.push(json_event)
+      tx_events.events.push(json_event);
     }
     result.block.push(tx_events);
   }

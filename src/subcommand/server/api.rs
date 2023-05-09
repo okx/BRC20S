@@ -34,7 +34,7 @@ impl From<&brc20::TokenInfo> for TickInfo {
       deploy_by: tick_info.deploy_by.to_string(),
       txid: tick_info.inscription_id.txid.to_string(),
       deploy_height: tick_info.deployed_number,
-      deploy_blocktime: 1234, // TODO: get blocktime from block
+      deploy_blocktime: tick_info.deployed_timestamp as u64,
     }
   }
 }

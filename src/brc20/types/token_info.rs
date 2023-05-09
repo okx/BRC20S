@@ -11,5 +11,6 @@ pub struct TokenInfo {
   pub decimal: u8,
   pub deploy_by: ScriptKey,
   pub deployed_number: u64,
+  pub deployed_timestamp: u32,
   pub latest_mint_number: u64,
 }

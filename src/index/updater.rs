@@ -143,7 +143,7 @@ impl Updater {
         // fast sync mode means no less than 6 blocks behind to the latest height
         let is_fast_sync = {
           if let Ok(count) = index.client.get_block_count() {
-            if count <= self.height + SAVEPOINT_INTERVAL {
+            if count <= self.height + 3 * SAVEPOINT_INTERVAL {
               false
             } else {
               true

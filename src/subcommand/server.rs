@@ -149,7 +149,6 @@ impl Server {
             unsafe {
               loop {
                 let hsp = GLOBAL_SAVEPOINTS.get().unwrap().back().expect("savepoint not found");
-                //let hsp = GLOBAL_SAVEPOINTS.get_mut().unwrap().pop_back().expect("savepoint not found");
                 if hsp.0 + SAVEPOINT_INTERVAL <= height || GLOBAL_SAVEPOINTS.get().unwrap().len() == 1 {
                   clone.restore_savepoint(&hsp.1).expect("restore savepoint error");
                   break;

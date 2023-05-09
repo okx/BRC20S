@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
 use super::{
-  ActionReceipt, BRC20Event, Balance, Deploy, DeployEvent, Error, Ledger, Mint, MintEvent, Num,
-  Operation, Tick, TokenInfo, Transfer, TransferPhase1Event, TransferPhase2Event, TransferableLog,
+  ActionReceipt, BRC20Event, Balance, Deploy, DeployEvent, Error, LedgerRead, LedgerReadWrite,
+  Mint, MintEvent, Num, Operation, Tick, TokenInfo, Transfer, TransferPhase1Event,
+  TransferPhase2Event, TransferableLog,
 };
 use crate::{
   brc20::{error::BRC20Error, params::MAX_DECIMAL_WIDTH, ScriptKey},
@@ -45,11 +46,11 @@ pub struct InscriptionData {
   pub action: Action,
 }
 
-pub struct BRC20Updater<'a, L: Ledger> {
+pub struct BRC20Updater<'a, L: LedgerReadWrite> {
   ledger: &'a L,
   network: Network,
 }
-impl<'a, L: Ledger> BRC20Updater<'a, L> {
+impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
   pub fn new(ledger: &'a L, network: Network) -> Self {
     Self { ledger, network }
   }
@@ -60,7 +61,7 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
     block_time: u32,
     txid: Txid,
     operations: Vec<InscriptionData>,
-  ) -> Result<usize, <L as Ledger>::Error> {
+  ) -> Result<usize, <L as LedgerRead>::Error> {
     let mut receipts = Vec::new();
     for operation in operations {
       let result = match operation.action {

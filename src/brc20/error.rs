@@ -1,14 +1,14 @@
-use crate::brc20::Ledger;
+use crate::brc20::LedgerRead;
 use crate::{brc20::num::Num, InscriptionId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<L: Ledger> {
+pub enum Error<L: LedgerRead> {
   #[error("brc20 error: {0}")]
   BRC20Error(BRC20Error),
 
   #[error("ledger error: {0}")]
-  LedgerError(<L as Ledger>::Error),
+  LedgerError(<L as LedgerRead>::Error),
 }
 
 #[derive(Debug, PartialEq, thiserror::Error)]
@@ -77,7 +77,7 @@ pub enum BRC20Error {
   TransferableOwnerNotMatch(InscriptionId),
 }
 
-impl<L: Ledger> From<BRC20Error> for Error<L> {
+impl<L: LedgerRead> From<BRC20Error> for Error<L> {
   fn from(e: BRC20Error) -> Self {
     Self::BRC20Error(e)
   }

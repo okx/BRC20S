@@ -241,10 +241,12 @@ pub(crate) async fn brc20_tick_info(
 pub(crate) async fn brc20_all_tick_info(
   Extension(index): Extension<Arc<Index>>,
 ) -> Json<ApiResponse<Vec<TickInfo>>> {
+  log::debug!("rpc: get brc20_all_tick_info");
   let all_tick_info = match index.brc20_get_all_tick_info() {
     Ok(all_tick_info) => all_tick_info,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  log::debug!("rpc: get brc20_all_tick_info: {:?}", all_tick_info);
 
   Json(ApiResponse::ok(
     all_tick_info
@@ -258,6 +260,7 @@ pub(crate) async fn brc20_balance(
   Extension(index): Extension<Arc<Index>>,
   Path((tick, address)): Path<(String, String)>,
 ) -> Json<ApiResponse<Balance>> {
+  log::debug!("rpc: get brc20_balance: {} {}", tick, address);
   if tick.as_bytes().len() != 4 {
     return Json(ApiResponse::api_err(&ApiError::BadRequest(
       ERR_TICK_LENGTH.to_string(),
@@ -288,6 +291,8 @@ pub(crate) async fn brc20_balance(
     return Json(ApiResponse::api_err(&ApiError::internal("balance error")));
   }
 
+  log::debug!("rpc: get brc20_balance: {} {} {:?}", tick, address, balance);
+
   Json(ApiResponse::ok(Balance {
     tick,
     available_balance: available_balance.to_string(),
@@ -300,6 +305,7 @@ pub(crate) async fn brc20_all_balance(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
 ) -> Json<ApiResponse<AllBalance>> {
+  log::debug!("rpc: get brc20_all_balance: {}", address);
   let address: bitcoin::Address = match address.parse() {
     Ok(address) => address,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
@@ -309,6 +315,8 @@ pub(crate) async fn brc20_all_balance(
     Ok(balance) => balance,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+
+  log::debug!("rpc: get brc20_all_balance: {} {:?}", address, all_balance);
 
   Json(ApiResponse::ok(AllBalance {
     balance: all_balance
@@ -327,6 +335,7 @@ pub(crate) async fn brc20_tx_events(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
 ) -> Json<ApiResponse<TxEvents>> {
+  log::debug!("rpc: get brc20_tx_events: {}", txid);
   let txid = match bitcoin::Txid::from_str(&txid) {
     Ok(txid) => txid,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
@@ -335,6 +344,7 @@ pub(crate) async fn brc20_tx_events(
     Ok(tx_events) => tx_events,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
   Json(ApiResponse::ok(TxEvents {
     txid: txid.to_string(),
     events: tx_events.iter().map(|event| event.into()).collect(),
@@ -345,6 +355,7 @@ pub(crate) async fn brc20_block_events(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,
 ) -> Json<ApiResponse<BlockEvents>> {
+  log::debug!("rpc: get brc20_block_events: {}", block_hash);
   let blockhash = match bitcoin::BlockHash::from_str(&block_hash) {
     Ok(blockhash) => blockhash,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
@@ -354,6 +365,11 @@ pub(crate) async fn brc20_block_events(
     Ok(block_events) => block_events,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  log::debug!(
+    "rpc: get brc20_block_events: {} {:?}",
+    block_hash,
+    block_events
+  );
 
   Json(ApiResponse::ok(BlockEvents {
     block: block_events
@@ -370,6 +386,7 @@ pub(crate) async fn brc20_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path((tick, address)): Path<(String, String)>,
 ) -> Json<ApiResponse<TransferableInscriptions>> {
+  log::debug!("rpc: get brc20_transferable: {} {}", tick, address);
   if tick.as_bytes().len() != 4 {
     return Json(ApiResponse::api_err(&ApiError::BadRequest(
       ERR_TICK_LENGTH.to_string(),
@@ -386,6 +403,12 @@ pub(crate) async fn brc20_transferable(
     Ok(balance) => balance,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  log::debug!(
+    "rpc: get brc20_transferable: {} {} {:?}",
+    tick,
+    address,
+    transferable
+  );
 
   Json(ApiResponse::ok(TransferableInscriptions {
     inscriptions: transferable
@@ -403,6 +426,7 @@ pub(crate) async fn brc20_all_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
 ) -> Json<ApiResponse<TransferableInscriptions>> {
+  log::debug!("rpc: get brc20_all_transferable: {}", address);
   let address: bitcoin::Address = match address.parse() {
     Ok(address) => address,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
@@ -412,6 +436,11 @@ pub(crate) async fn brc20_all_transferable(
     Ok(balance) => balance,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  log::debug!(
+    "rpc: get brc20_all_transferable: {} {:?}",
+    address,
+    transferable
+  );
 
   Json(ApiResponse::ok(TransferableInscriptions {
     inscriptions: transferable

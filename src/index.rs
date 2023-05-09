@@ -386,12 +386,15 @@ impl Index {
     self.reorged.store(false, atomic::Ordering::Relaxed);
   }
 
-  pub(crate) unsafe fn backup_at_init(&self) ->Result {
+  pub(crate) unsafe fn backup_at_init(&self) -> Result {
     let height = self.height().unwrap().unwrap_or(Height(0)).n();
     GLOBAL_SAVEPOINTS.get_or_init(|| VecDeque::new());
     let wtx = self.begin_write()?;
     let sp = wtx.savepoint()?;
-    GLOBAL_SAVEPOINTS.get_mut().unwrap().push_back(HeightSavepoint(height, sp));
+    GLOBAL_SAVEPOINTS
+      .get_mut()
+      .unwrap()
+      .push_back(HeightSavepoint(height, sp));
     wtx.commit()?;
     Ok(())
   }

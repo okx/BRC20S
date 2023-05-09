@@ -140,7 +140,7 @@ impl Updater {
 
       #[cfg(feature = "rollback")]
       {
-        // fast sync mode means no less than 6 blocks behind to the latest height
+        // fast sync mode means no less than 18 blocks behind to the latest height
         let is_fast_sync = {
           if let Ok(count) = index.client.get_block_count() {
             if count <= self.height + 3 * SAVEPOINT_INTERVAL {
@@ -169,7 +169,7 @@ impl Updater {
               drop(savepoints.pop_front().unwrap().1);
             }
           }
-       }
+        }
       }
 
       if uncommitted == 5000 {

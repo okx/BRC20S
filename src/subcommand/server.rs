@@ -36,7 +36,6 @@ use {
   },
 };
 
-
 mod api;
 
 mod error;
@@ -135,7 +134,9 @@ pub(crate) struct Server {
 impl Server {
   pub(crate) fn run(self, options: Options, index: Arc<Index>, handle: Handle) -> Result {
     #[cfg(feature = "rollback")]
-    unsafe {index.backup_at_init()?;}
+    unsafe {
+      index.backup_at_init()?;
+    }
 
     Runtime::new()?.block_on(async {
       let clone = index.clone();
@@ -148,9 +149,17 @@ impl Server {
             let height = clone.height().unwrap().unwrap().n();
             unsafe {
               loop {
-                let hsp = GLOBAL_SAVEPOINTS.get().unwrap().back().expect("savepoint not found");
-                if hsp.0 + SAVEPOINT_INTERVAL <= height || GLOBAL_SAVEPOINTS.get().unwrap().len() == 1 {
-                  clone.restore_savepoint(&hsp.1).expect("restore savepoint error");
+                let hsp = GLOBAL_SAVEPOINTS
+                  .get()
+                  .unwrap()
+                  .back()
+                  .expect("savepoint not found");
+                if hsp.0 + SAVEPOINT_INTERVAL <= height
+                  || GLOBAL_SAVEPOINTS.get().unwrap().len() == 1
+                {
+                  clone
+                    .restore_savepoint(&hsp.1)
+                    .expect("restore savepoint error");
                   break;
                 }
                 drop(GLOBAL_SAVEPOINTS.get_mut().unwrap().pop_back().unwrap().1)

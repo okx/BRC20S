@@ -17,7 +17,7 @@ pub use self::{
   updater::{Action, BRC20Updater, InscribeAction, InscriptionData, TransferAction},
 };
 
-use ledger::Ledger;
+use ledger::{LedgerRead, LedgerReadWrite};
 
 pub fn deserialize_brc20_operation(inscription: Inscription) -> Result<Operation> {
   Ok(deserialize_brc20(std::str::from_utf8(

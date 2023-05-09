@@ -1,9 +1,9 @@
 use super::super::error::BRC20Error;
 use crate::brc20::params::TICK_BYTE_COUNT;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Tick([u8; TICK_BYTE_COUNT]);
 
 impl FromStr for Tick {
@@ -30,6 +30,12 @@ impl PartialEq for Tick {
 }
 
 impl Tick {
+  pub fn as_str(&self) -> &str {
+    // NOTE: Tick comes from &str by from_str,
+    // so it could be calling unwrap when convert to str
+    std::str::from_utf8(self.0.as_slice()).unwrap()
+  }
+
   pub fn to_lowercase(&self) -> Tick {
     Self::from_str(self.as_str().to_lowercase().as_str()).unwrap()
   }
@@ -51,11 +57,22 @@ impl Tick {
   }
 }
 
-impl Tick {
-  pub fn as_str(&self) -> &str {
-    // NOTE: Tick comes from &str by from_str,
-    // so it could be calling unwrap when convert to str
-    std::str::from_utf8(self.0.as_slice()).unwrap()
+impl Serialize for Tick {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    self.as_str().serialize(serializer)
+  }
+}
+
+impl<'de> Deserialize<'de> for Tick {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    Self::from_str(&String::deserialize(deserializer)?)
+      .map_err(|e| de::Error::custom(format!("deserialize tick error: {}", e)))
   }
 }
 
@@ -68,5 +85,19 @@ mod tests {
     assert_eq!(Tick::from_str("aBc1"), Tick::from_str("AbC1"));
 
     assert_ne!(Tick::from_str("aBc1"), Tick::from_str("aBc2"));
+  }
+
+  #[test]
+  fn test_tick_serialize() {
+    let obj = Tick::from_str("Ab1;").unwrap();
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""Ab1;""##);
+  }
+
+  #[test]
+  fn test_tick_deserialize() {
+    assert_eq!(
+      serde_json::from_str::<Tick>(r##""Ab1;""##).unwrap(),
+      Tick::from_str("Ab1;").unwrap()
+    );
   }
 }

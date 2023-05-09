@@ -114,7 +114,7 @@ impl<'db, 'a> Ledger for BRC20Database<'db, 'a> {
       .get_token_info(tick)?
       .expect(&format!("token {} not exist", tick.hex()));
 
-    info.minted += minted_amt;
+    info.minted = minted_amt;
     info.latest_mint_number = minted_block_number;
 
     self.wtx.open_table(BRC20_TOKEN)?.insert(

@@ -5,7 +5,6 @@ use crate::brc20::{ledger::Ledger, *};
 use crate::InscriptionId;
 use bitcoin::Txid;
 use redb::{ReadableTable, TableDefinition, WriteTransaction};
-use std::str::FromStr;
 
 const BRC20_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_BALANCES");
 const BRC20_TOKEN: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_TOKEN");

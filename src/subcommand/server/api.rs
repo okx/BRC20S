@@ -412,10 +412,17 @@ pub(crate) async fn brc20_tx_events(
     Ok(tx_events) => tx_events,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  if tx_events.is_none() {
+    return Json(ApiResponse::api_err(&ApiError::not_found(
+      "tx events not found",
+    )));
+  }
+  let tx_events = tx_events.unwrap();
   log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
+
   let mut result = TxEvents {
     txid: txid.to_string(),
-    events: vec![],
+    events: Vec::with_capacity(tx_events.len()),
   };
   for event in &tx_events {
     let mut json_event: TxEvent = event.into();

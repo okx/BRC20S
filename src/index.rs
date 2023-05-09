@@ -960,11 +960,25 @@ impl Index {
   pub(crate) fn brc20_get_tx_events_by_txid(
     &self,
     txid: &bitcoin::Txid,
-  ) -> Result<Vec<brc20::ActionReceipt>> {
+  ) -> Result<Option<Vec<brc20::ActionReceipt>>> {
     let wtx = self.database.begin_write().unwrap();
     let brc20_db = crate::okx::BRC20Database::new(&wtx);
     let res = brc20_db.get_transaction_receipts(txid)?;
-    return Ok(res);
+
+    if res.len() == 0 {
+      let tx = self.client.get_raw_transaction_info(txid, None)?;
+      if let Some(tx_blockhash) = tx.blockhash {
+        let tx_bh = self.client.get_block_header_info(&tx_blockhash)?;
+        let parsed_height = self.height()?;
+        if parsed_height.is_none() || tx_bh.height as u64 > parsed_height.unwrap().0 {
+          return Ok(None);
+        }
+      } else {
+        return Err(anyhow!("can't get tx block hash: {txid}"));
+      }
+    }
+
+    return Ok(Some(res));
   }
 
   pub(crate) fn brc20_get_block_events_by_blockhash(

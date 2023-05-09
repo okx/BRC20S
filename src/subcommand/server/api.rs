@@ -1,7 +1,7 @@
 use super::error::ApiError;
 use super::*;
-use crate::brc20::ActionReceipt;
 use axum::Json;
+use log::log;
 
 const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 
@@ -10,6 +10,8 @@ const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 pub struct TickInfo {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub supply: String,
   pub limit_per_mint: String,
   pub minted: String,
@@ -18,6 +20,32 @@ pub struct TickInfo {
   pub txid: String,
   pub deploy_height: u64,
   pub deploy_blocktime: u64,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AllTickInfo {
+  pub tokens: Vec<TickInfo>,
+}
+
+impl From<&brc20::TokenInfo> for TickInfo {
+  fn from(tick_info: &brc20::TokenInfo) -> Self {
+    Self {
+      tick: std::str::from_utf8(tick_info.tick.as_bytes())
+        .unwrap()
+        .to_string(),
+      inscription_id: tick_info.inscription_id.to_string(),
+      inscription_number: None,
+      supply: tick_info.supply.to_string(),
+      limit_per_mint: tick_info.limit_per_mint.to_string(),
+      minted: tick_info.minted.to_string(),
+      decimal: tick_info.decimal as u64,
+      deploy_by: tick_info.deploy_by.to_string(),
+      txid: tick_info.inscription_id.txid.to_string(),
+      deploy_height: tick_info.deployed_number,
+      deploy_blocktime: tick_info.deployed_timestamp as u64,
+    }
+  }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -43,7 +71,7 @@ pub struct TxEvents {
 }
 
 impl From<&brc20::ActionReceipt> for TxEvent {
-  fn from(event: &ActionReceipt) -> Self {
+  fn from(event: &brc20::ActionReceipt) -> Self {
     match &event.result {
       Ok(result) => match result {
         brc20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
@@ -51,6 +79,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
+          inscription_number: None,
           supply: deploy_event.supply.to_string(),
           limit_per_mint: deploy_event.limit_per_mint.to_string(),
           decimal: deploy_event.decimal as u64,
@@ -63,6 +92,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
+          inscription_number: None,
           amount: mint_event.amount.to_string(),
           to: mint_event.to.to_string(),
           valid: true,
@@ -74,6 +104,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
               .unwrap()
               .to_string(),
             inscription_id: event.inscription_id.to_string(),
+            inscription_number: None,
             amount: trans1.amount.to_string(),
             owner: trans1.owner.to_string(),
             valid: true,
@@ -85,6 +116,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
+          inscription_number: None,
           amount: trans2.amount.to_string(),
           from: trans2.from.to_string(),
           to: trans2.to.to_string(),
@@ -94,6 +126,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
       },
       Err(err) => Self::Error(ErrorEvent {
         inscription_id: event.inscription_id.to_string(),
+        inscription_number: None,
         valid: false,
         msg: err.to_string(),
       }),
@@ -112,10 +145,34 @@ pub enum TxEvent {
   Error(ErrorEvent),
 }
 
+impl TxEvent {
+  pub fn set_inscription_number(&mut self, number: Option<String>) {
+    match self {
+      TxEvent::Deploy(event) => {
+        event.inscription_number = number;
+      }
+      TxEvent::Mint(event) => {
+        event.inscription_number = number;
+      }
+      TxEvent::InscribeTransfer(event) => {
+        event.inscription_number = number;
+      }
+      TxEvent::Transfer(event) => {
+        event.inscription_number = number;
+      }
+      TxEvent::Error(event) => {
+        event.inscription_number = number;
+      }
+    }
+  }
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorEvent {
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub valid: bool,
   pub msg: String,
 }
@@ -125,6 +182,8 @@ pub struct ErrorEvent {
 pub struct DeployEvent {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub supply: String,
   pub limit_per_mint: String,
   pub decimal: u64,
@@ -138,6 +197,8 @@ pub struct DeployEvent {
 pub struct MintEvent {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub amount: String,
   pub to: String,
   pub valid: bool,
@@ -149,6 +210,8 @@ pub struct MintEvent {
 pub struct InscribeTransferEvent {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub amount: String,
   pub owner: String,
   pub valid: bool,
@@ -160,6 +223,8 @@ pub struct InscribeTransferEvent {
 pub struct TransferEvent {
   pub tick: String,
   pub inscription_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<String>,
   pub amount: String,
   pub from: String,
   pub to: String,
@@ -183,6 +248,8 @@ pub struct TransferableInscriptions {
 #[serde(rename_all = "camelCase")]
 pub struct TransferableInscription {
   pub id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub number: Option<String>,
   pub amount: String,
   pub tick: String,
 }
@@ -191,6 +258,7 @@ pub(crate) async fn brc20_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick): Path<String>,
 ) -> Json<ApiResponse<TickInfo>> {
+  log::debug!("rpc: get brc20_tick_info: {}", tick);
   if tick.as_bytes().len() != 4 {
     return Json(ApiResponse::api_err(&ApiError::BadRequest(
       ERR_TICK_LENGTH.to_string(),
@@ -203,34 +271,64 @@ pub(crate) async fn brc20_tick_info(
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
 
+  log::debug!("rpc: get brc20_tick_info: {:?} {:?}", tick, tick_info);
+
   if tick_info.is_none() {
     return Json(ApiResponse::api_err(&ApiError::not_found("tick not found")));
   }
 
-  let tick_info = tick_info.unwrap();
+  let tick_info = &tick_info.unwrap();
 
   if tick_info.tick != brc20::Tick::from_str(&tick).unwrap() {
     return Json(ApiResponse::api_err(&ApiError::internal("db: not match")));
   }
 
-  Json(ApiResponse::ok(TickInfo {
-    tick,
-    inscription_id: tick_info.inscription_id.to_string(),
-    supply: tick_info.supply.to_string(),
-    limit_per_mint: tick_info.limit_per_mint.to_string(),
-    minted: tick_info.minted.to_string(),
-    decimal: tick_info.decimal as u64,
-    deploy_by: tick_info.deploy_by.to_string(),
-    txid: tick_info.inscription_id.txid.to_string(),
-    deploy_height: tick_info.deployed_number,
-    deploy_blocktime: 1234,
-  }))
+  let mut result: TickInfo = tick_info.into();
+  let inscription = match index.get_inscription_entry(tick_info.inscription_id) {
+    Ok(inscription) => inscription,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+  if !inscription.is_none() {
+    let inscription = inscription.unwrap();
+    result.inscription_number = Some(inscription.number.to_string());
+  }
+
+  Json(ApiResponse::ok(result))
+}
+
+pub(crate) async fn brc20_all_tick_info(
+  Extension(index): Extension<Arc<Index>>,
+) -> Json<ApiResponse<AllTickInfo>> {
+  log::debug!("rpc: get brc20_all_tick_info");
+  let all_tick_info = match index.brc20_get_all_tick_info() {
+    Ok(all_tick_info) => all_tick_info,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+  log::debug!("rpc: get brc20_all_tick_info: {:?}", all_tick_info);
+
+  let mut result = AllTickInfo { tokens: vec![] };
+
+  for ref tick in all_tick_info {
+    let mut json_tick: TickInfo = tick.into();
+    let inscription = match index.get_inscription_entry(tick.inscription_id) {
+      Ok(inscription) => inscription,
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    if !inscription.is_none() {
+      let inscription = inscription.unwrap();
+      json_tick.inscription_number = Some(inscription.number.to_string());
+      result.tokens.push(json_tick);
+    }
+  }
+
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_balance(
   Extension(index): Extension<Arc<Index>>,
   Path((tick, address)): Path<(String, String)>,
 ) -> Json<ApiResponse<Balance>> {
+  log::debug!("rpc: get brc20_balance: {} {}", tick, address);
   if tick.as_bytes().len() != 4 {
     return Json(ApiResponse::api_err(&ApiError::BadRequest(
       ERR_TICK_LENGTH.to_string(),
@@ -261,6 +359,8 @@ pub(crate) async fn brc20_balance(
     return Json(ApiResponse::api_err(&ApiError::internal("balance error")));
   }
 
+  log::debug!("rpc: get brc20_balance: {} {} {:?}", tick, address, balance);
+
   Json(ApiResponse::ok(Balance {
     tick,
     available_balance: available_balance.to_string(),
@@ -273,6 +373,7 @@ pub(crate) async fn brc20_all_balance(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
 ) -> Json<ApiResponse<AllBalance>> {
+  log::debug!("rpc: get brc20_all_balance: {}", address);
   let address: bitcoin::Address = match address.parse() {
     Ok(address) => address,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
@@ -282,6 +383,8 @@ pub(crate) async fn brc20_all_balance(
     Ok(balance) => balance,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+
+  log::debug!("rpc: get brc20_all_balance: {} {:?}", address, all_balance);
 
   Json(ApiResponse::ok(AllBalance {
     balance: all_balance
@@ -300,6 +403,7 @@ pub(crate) async fn brc20_tx_events(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
 ) -> Json<ApiResponse<TxEvents>> {
+  log::debug!("rpc: get brc20_tx_events: {}", txid);
   let txid = match bitcoin::Txid::from_str(&txid) {
     Ok(txid) => txid,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
@@ -308,16 +412,38 @@ pub(crate) async fn brc20_tx_events(
     Ok(tx_events) => tx_events,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
-  Json(ApiResponse::ok(TxEvents {
+  if tx_events.is_none() {
+    return Json(ApiResponse::api_err(&ApiError::not_found(
+      "tx events not found",
+    )));
+  }
+  let tx_events = tx_events.unwrap();
+  log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
+
+  let mut result = TxEvents {
     txid: txid.to_string(),
-    events: tx_events.iter().map(|event| event.into()).collect(),
-  }))
+    events: Vec::with_capacity(tx_events.len()),
+  };
+  for event in &tx_events {
+    let mut json_event: TxEvent = event.into();
+    let inscription = match index.get_inscription_entry(event.inscription_id) {
+      Ok(inscription) => inscription,
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    if !inscription.is_none() {
+      let inscription = inscription.unwrap();
+      json_event.set_inscription_number(Some(inscription.number.to_string()));
+    }
+    result.events.push(json_event);
+  }
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_block_events(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,
 ) -> Json<ApiResponse<BlockEvents>> {
+  log::debug!("rpc: get brc20_block_events: {}", block_hash);
   let blockhash = match bitcoin::BlockHash::from_str(&block_hash) {
     Ok(blockhash) => blockhash,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
@@ -327,22 +453,50 @@ pub(crate) async fn brc20_block_events(
     Ok(block_events) => block_events,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  if block_events.is_none() {
+    return Json(ApiResponse::api_err(&ApiError::not_found(
+      "block not found",
+    )));
+  }
+  let block_events = block_events.unwrap();
+  log::debug!(
+    "rpc: get brc20_block_events: {} {:?}",
+    block_hash,
+    block_events
+  );
 
-  Json(ApiResponse::ok(BlockEvents {
-    block: block_events
-      .iter()
-      .map(|(txid, events)| TxEvents {
-        txid: txid.to_string(),
-        events: events.iter().map(|event| event.into()).collect(),
-      })
-      .collect(),
-  }))
+  let mut result = BlockEvents {
+    block: Vec::with_capacity(block_events.len()),
+  };
+
+  for (txid, events) in block_events {
+    let mut tx_events = TxEvents {
+      txid: txid.to_string(),
+      events: Vec::with_capacity(events.len()),
+    };
+    for event in &events {
+      let mut json_event: TxEvent = event.into();
+      let inscription = match index.get_inscription_entry(event.inscription_id) {
+        Ok(inscription) => inscription,
+        Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+      };
+      if !inscription.is_none() {
+        let inscription = inscription.unwrap();
+        json_event.set_inscription_number(Some(inscription.number.to_string()));
+      }
+      tx_events.events.push(json_event);
+    }
+    result.block.push(tx_events);
+  }
+
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path((tick, address)): Path<(String, String)>,
 ) -> Json<ApiResponse<TransferableInscriptions>> {
+  log::debug!("rpc: get brc20_transferable: {} {}", tick, address);
   if tick.as_bytes().len() != 4 {
     return Json(ApiResponse::api_err(&ApiError::BadRequest(
       ERR_TICK_LENGTH.to_string(),
@@ -359,23 +513,42 @@ pub(crate) async fn brc20_transferable(
     Ok(balance) => balance,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  log::debug!(
+    "rpc: get brc20_transferable: {} {} {:?}",
+    tick,
+    address,
+    transferable
+  );
 
-  Json(ApiResponse::ok(TransferableInscriptions {
-    inscriptions: transferable
-      .iter()
-      .map(|i| TransferableInscription {
-        id: i.inscription_id.to_string(),
-        amount: i.amount.to_string(),
-        tick: tick.clone(),
-      })
-      .collect(),
-  }))
+  let mut result = TransferableInscriptions {
+    inscriptions: Vec::with_capacity(transferable.len()),
+  };
+  for trans in &transferable {
+    let mut ins = TransferableInscription {
+      id: trans.inscription_id.to_string(),
+      number: None,
+      amount: trans.amount.to_string(),
+      tick: tick.clone(),
+    };
+    let inscription = match index.get_inscription_entry(trans.inscription_id) {
+      Ok(inscription) => inscription,
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    if !inscription.is_none() {
+      let inscription = inscription.unwrap();
+      ins.number = Some(inscription.number.to_string());
+    }
+    result.inscriptions.push(ins);
+  }
+
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_all_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
 ) -> Json<ApiResponse<TransferableInscriptions>> {
+  log::debug!("rpc: get brc20_all_transferable: {}", address);
   let address: bitcoin::Address = match address.parse() {
     Ok(address) => address,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
@@ -385,15 +558,34 @@ pub(crate) async fn brc20_all_transferable(
     Ok(balance) => balance,
     Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
   };
+  log::debug!(
+    "rpc: get brc20_all_transferable: {} {:?}",
+    address,
+    transferable
+  );
 
-  Json(ApiResponse::ok(TransferableInscriptions {
-    inscriptions: transferable
-      .iter()
-      .map(|i| TransferableInscription {
-        id: i.inscription_id.to_string(),
-        amount: i.amount.to_string(),
-        tick: std::str::from_utf8(i.tick.as_bytes()).unwrap().to_string(),
-      })
-      .collect(),
-  }))
+  let mut result = TransferableInscriptions {
+    inscriptions: Vec::with_capacity(transferable.len()),
+  };
+  for trans in &transferable {
+    let mut ins = TransferableInscription {
+      id: trans.inscription_id.to_string(),
+      number: None,
+      amount: trans.amount.to_string(),
+      tick: std::str::from_utf8(trans.tick.as_bytes())
+        .unwrap()
+        .to_string(),
+    };
+    let inscription = match index.get_inscription_entry(trans.inscription_id) {
+      Ok(inscription) => inscription,
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    if !inscription.is_none() {
+      let inscription = inscription.unwrap();
+      ins.number = Some(inscription.number.to_string());
+    }
+    result.inscriptions.push(ins);
+  }
+
+  Json(ApiResponse::ok(result))
 }

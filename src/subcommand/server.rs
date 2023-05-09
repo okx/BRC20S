@@ -207,6 +207,7 @@ impl Server {
         .route("/status", get(Self::status))
         .route("/tx/:txid", get(Self::transaction))
         .route("/brc20/tick/:tick", get(brc20_tick_info))
+        .route("/brc20/tick", get(brc20_all_tick_info))
         .route(
           "/brc20/tick/:tick/address/:address/balance",
           get(brc20_balance),
@@ -2559,6 +2560,7 @@ mod tests {
 
     for url in [
       "/brc20/tick/🍎",
+      "/brc20/tick",
       "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
       "/brc20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
       "/brc20/tx/b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735",

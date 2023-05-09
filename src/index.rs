@@ -1,4 +1,4 @@
-use crate::brc20::ledger::Ledger;
+use crate::brc20::ledger::LedgerRead;
 use crate::brc20::ScriptKey;
 use {
   self::{

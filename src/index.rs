@@ -387,17 +387,18 @@ impl Index {
   }
 
   pub(crate) unsafe fn backup_at_init(&self) ->Result {
+    let height = self.height().unwrap().unwrap_or(Height(0)).n();
     GLOBAL_SAVEPOINTS.get_or_init(|| VecDeque::new());
     let wtx = self.begin_write()?;
     let sp = wtx.savepoint()?;
-    GLOBAL_SAVEPOINTS.get_mut().unwrap().push_back(HeightSavepoint(0, sp));
+    GLOBAL_SAVEPOINTS.get_mut().unwrap().push_back(HeightSavepoint(height, sp));
     wtx.commit()?;
     Ok(())
   }
 
-  pub(crate) fn restore_savepoint(&self, sp: Savepoint) -> Result {
+  pub(crate) fn restore_savepoint(&self, sp: &Savepoint) -> Result {
     let mut wtx = self.begin_write()?;
-    wtx.restore_savepoint(&sp)?;
+    wtx.restore_savepoint(sp)?;
     Ok(())
   }
 

@@ -201,6 +201,15 @@ impl Server {
           "/brc20/tick/:tick/address/:address/balance",
           get(brc20_balance),
         )
+        .route("/brc20/address/:address/balance", get(brc20_all_balance))
+        .route(
+          "/brc20/tick/:tick/address/:address/transferable",
+          get(brc20_transferable),
+        )
+        .route(
+          "/brc20/address/:address/transferable",
+          get(brc20_all_transferable),
+        )
         .route("/brc20/tx/:txid", get(brc20_tx_events))
         .route("/brc20/block/:block_hash", get(brc20_block_events))
         .layer(Extension(index))
@@ -2538,12 +2547,33 @@ mod tests {
   fn brc20_endpoint() {
     let test_server = TestServer::new();
 
-    let response = test_server.get("/brc20/tick/🍎");
+    for url in [
+      "/brc20/tick/🍎",
+      "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
+      "/brc20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
+      "/brc20/tx/b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735",
+      "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable",
+      "/brc20/block/00000000000000000003a337a676b0101f3f7ef7dcbc01debb69f85c6da04dcf",
+      "/brc20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable"
+    ] {
 
-    println!("{:?}", response.status());
+      println!("{}", url);
 
-    let json_text = response.text().unwrap();
+      let response = test_server.get(url);
 
-    println!("{}", json_text);
+      println!("{:?}", response.status());
+
+      let json_text = response.text().unwrap();
+
+      println!("{}", json_text);
+    }
+
+    // let response = test_server.get("/brc20/tick/🍎");
+    //
+    // println!("{:?}", response.status());
+    //
+    // let json_text = response.text().unwrap();
+    //
+    // println!("{}", json_text);
   }
 }

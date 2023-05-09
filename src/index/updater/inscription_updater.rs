@@ -126,7 +126,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
                     inscription_id.txid
                   ))?
               };
-              if let Ok(operation) =
+              if let Ok(_) =
                 deserialize_brc20_operation(Inscription::from_transaction(&inscribe_tx).unwrap())
               {
                 inscriptions_collector.push((
@@ -230,24 +230,13 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let flotsam = inscriptions.next().unwrap();
         self.update_inscription_location(input_sat_ranges, flotsam, new_satpoint)?;
 
-        let data_value = match inscriptions_collector
+        if let Some(inscription_data) = inscriptions_collector
           .iter_mut()
-          .find(|key| key.1.inscription_id == flotsam.clone().inscription_id)
+          .find(|key: &&mut (u64, InscriptionData)| {
+            key.1.inscription_id == flotsam.clone().inscription_id
+          })
+          .map(|value| &mut value.1)
         {
-          Some(value) => Ok(Some(&mut value.1)),
-          None => {
-            if is_coinbase {
-              Ok(None)
-            } else {
-              Err(anyhow!(
-                "failed to find inscription data for {}",
-                flotsam.inscription_id
-              ))
-            }
-          }
-        }?;
-
-        if let Some(inscription_data) = data_value {
           let action = &mut inscription_data.action;
           action.set_to(Some(tx_out.script_pubkey.clone()));
           inscription_data.action = action.clone();

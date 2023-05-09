@@ -131,6 +131,9 @@ impl<'a, L: Ledger> BRC20Updater<'a, L> {
 
     let dec = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
       .checked_to_u8()?;
+    if dec > MAX_DECIMAL_WIDTH {
+      return Err(Error::BRC20Error(BRC20Error::InvalidDecimals(dec)));
+    }
     let base = Into::<Num>::into(Decimal::TEN).checked_powu(dec as u64)?;
 
     let supply = Num::from_str(&deploy.max_supply)?;

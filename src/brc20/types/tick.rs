@@ -1,9 +1,7 @@
 use super::super::error::BRC20Error;
 use crate::brc20::params::TICK_BYTE_COUNT;
 use serde::{Deserialize, Serialize};
-use std::{
-  str::FromStr,
-};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tick([u8; TICK_BYTE_COUNT]);

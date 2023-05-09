@@ -248,6 +248,8 @@ pub struct TransferableInscriptions {
 #[serde(rename_all = "camelCase")]
 pub struct TransferableInscription {
   pub id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub number: Option<String>,
   pub amount: String,
   pub tick: String,
 }
@@ -503,16 +505,28 @@ pub(crate) async fn brc20_transferable(
     transferable
   );
 
-  Json(ApiResponse::ok(TransferableInscriptions {
-    inscriptions: transferable
-      .iter()
-      .map(|i| TransferableInscription {
-        id: i.inscription_id.to_string(),
-        amount: i.amount.to_string(),
-        tick: tick.clone(),
-      })
-      .collect(),
-  }))
+  let mut result = TransferableInscriptions {
+    inscriptions: Vec::with_capacity(transferable.len()),
+  };
+  for trans in &transferable {
+    let mut ins = TransferableInscription {
+      id: trans.inscription_id.to_string(),
+      number: None,
+      amount: trans.amount.to_string(),
+      tick: tick.clone(),
+    };
+    let inscription = match index.get_inscription_entry(trans.inscription_id) {
+      Ok(inscription) => inscription,
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    if !inscription.is_none() {
+      let inscription = inscription.unwrap();
+      ins.number = Some(inscription.number.to_string());
+    }
+    result.inscriptions.push(ins);
+  }
+
+  Json(ApiResponse::ok(result))
 }
 
 pub(crate) async fn brc20_all_transferable(
@@ -535,14 +549,28 @@ pub(crate) async fn brc20_all_transferable(
     transferable
   );
 
-  Json(ApiResponse::ok(TransferableInscriptions {
-    inscriptions: transferable
-      .iter()
-      .map(|i| TransferableInscription {
-        id: i.inscription_id.to_string(),
-        amount: i.amount.to_string(),
-        tick: std::str::from_utf8(i.tick.as_bytes()).unwrap().to_string(),
-      })
-      .collect(),
-  }))
+  let mut result = TransferableInscriptions {
+    inscriptions: Vec::with_capacity(transferable.len()),
+  };
+  for trans in &transferable {
+    let mut ins = TransferableInscription {
+      id: trans.inscription_id.to_string(),
+      number: None,
+      amount: trans.amount.to_string(),
+      tick: std::str::from_utf8(trans.tick.as_bytes())
+        .unwrap()
+        .to_string(),
+    };
+    let inscription = match index.get_inscription_entry(trans.inscription_id) {
+      Ok(inscription) => inscription,
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    if !inscription.is_none() {
+      let inscription = inscription.unwrap();
+      ins.number = Some(inscription.number.to_string());
+    }
+    result.inscriptions.push(ins);
+  }
+
+  Json(ApiResponse::ok(result))
 }

@@ -1,6 +1,6 @@
 use crate::brc20::error::BRC20Error;
 use crate::brc20::params::MAX_DECIMAL_WIDTH;
-use bigdecimal::num_bigint::{BigInt, Sign};
+use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
 use bigdecimal::{BigDecimal, FromPrimitive, ToPrimitive, Zero};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -59,11 +59,18 @@ impl Num {
   }
 
   pub fn checked_to_u128(&self) -> Result<u128, BRC20Error> {
-    Ok(self.0.clone().to_u128().ok_or(BRC20Error::Overflow {
-      op: String::from("to_u128"),
-      org: self.clone(),
-      other: Self(BigDecimal::from(BigInt::from(u128::MAX))), // TODO: change overflow error to others
-    })?)
+    Ok(
+      self
+        .0
+        .to_bigint()
+        .unwrap()
+        .to_u128()
+        .ok_or(BRC20Error::Overflow {
+          op: String::from("to_u128"),
+          org: self.clone(),
+          other: Self(BigDecimal::from(BigInt::from(u128::MAX))), // TODO: change overflow error to others
+        })?,
+    )
   }
 }
 
@@ -275,5 +282,11 @@ mod tests {
       n.checked_powu(18).unwrap(),
       Num::from_str("1000000000000000000").unwrap()
     );
+  }
+
+  #[test]
+  fn test_checked_to_u128() {
+    let n = Num::from_str(&format!("{}", u128::MAX)).unwrap();
+    assert_eq!(n.checked_to_u128().unwrap(), u128::MAX);
   }
 }

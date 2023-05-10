@@ -1,71 +1,60 @@
 use crate::brc20::error::BRC20Error;
 use crate::brc20::params::MAX_DECIMAL_WIDTH;
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
-use rust_decimal::{Decimal, MathematicalOps};
+use bigdecimal::num_bigint::{BigInt, Sign};
+use bigdecimal::{BigDecimal, FromPrimitive, ToPrimitive, Zero};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 
-#[derive(PartialEq, PartialOrd, Debug, Clone, Copy)]
-pub struct Num(Decimal);
+#[derive(PartialEq, PartialOrd, Debug, Clone)]
+pub struct Num(BigDecimal);
 
 impl Num {
-  pub fn new(num: Decimal) -> Self {
+  pub fn new(num: BigDecimal) -> Self {
     Self(num)
   }
 
-  pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, BRC20Error> {
-    Ok(Self(
-      Decimal::from_str_radix(str, radix).map_err(|e| BRC20Error::InvalidNum(e.to_string()))?,
-    ))
+  pub fn checked_add(&self, other: &Num) -> Result<Self, BRC20Error> {
+    Ok(Self(self.0.clone() + &other.0))
   }
 
-  pub fn checked_add(&self, other: Num) -> Result<Self, BRC20Error> {
-    Ok(Self(self.0.clone().checked_add(other.0).ok_or(
-      BRC20Error::Overflow {
-        op: String::from("checked_add"),
-        org: self.clone(),
-        other,
-      },
-    )?))
-  }
-
-  pub fn checked_sub(&self, other: Num) -> Result<Self, BRC20Error> {
-    Ok(Self(self.0.clone().checked_sub(other.0).ok_or(
-      BRC20Error::Overflow {
+  pub fn checked_sub(&self, other: &Num) -> Result<Self, BRC20Error> {
+    if self.0 < other.0 {
+      return Err(BRC20Error::Overflow {
         op: String::from("checked_sub"),
         org: self.clone(),
-        other,
-      },
-    )?))
+        other: other.clone(),
+      });
+    }
+
+    Ok(Self(self.0.clone() - &other.0))
   }
 
-  pub fn checked_mul(&self, other: Num) -> Result<Self, BRC20Error> {
-    Ok(Self(self.0.clone().checked_mul(other.0).ok_or(
-      BRC20Error::Overflow {
-        op: String::from("checked_mul"),
-        org: self.clone(),
-        other,
-      },
-    )?))
+  pub fn checked_mul(&self, other: &Num) -> Result<Self, BRC20Error> {
+    Ok(Self(self.0.clone() * &other.0))
   }
 
   pub fn checked_powu(&self, exp: u64) -> Result<Self, BRC20Error> {
-    Ok(Self(self.0.clone().checked_powu(exp).ok_or(
-      BRC20Error::Overflow {
-        op: String::from("checked_powu"),
-        org: self.clone(),
-        other: Num(Decimal::from_u64(exp).unwrap()),
-      },
-    )?))
+    match exp {
+      0 => Ok(Self(BigDecimal::zero())),
+      1 => Ok(Self(self.0.clone())),
+      exp => {
+        let mut result = self.0.clone();
+        for _ in 1..exp {
+          result = result * &self.0;
+        }
+
+        Ok(Self(result))
+      }
+    }
   }
 
   pub fn checked_to_u8(&self) -> Result<u8, BRC20Error> {
     Ok(self.0.clone().to_u8().ok_or(BRC20Error::Overflow {
       op: String::from("to_u8"),
       org: self.clone(),
-      other: Num(Decimal::from_u8(u8::MAX).unwrap()),
+      other: Self(BigDecimal::from(u8::MAX)),
     })?)
   }
 
@@ -73,42 +62,34 @@ impl Num {
     Ok(self.0.clone().to_u128().ok_or(BRC20Error::Overflow {
       op: String::from("to_u128"),
       org: self.clone(),
-      other: Num(Decimal::from_u128(u64::MAX as u128).unwrap()), // TODO: change overflow error to others
+      other: Self(BigDecimal::from(BigInt::from(u128::MAX))), // TODO: change overflow error to others
     })?)
-  }
-
-  pub fn rescale(&mut self, scale: u32) {
-    self.0.rescale(scale)
-  }
-}
-
-impl From<Decimal> for Num {
-  fn from(num: Decimal) -> Self {
-    Num(num)
   }
 }
 
 impl From<u64> for Num {
   fn from(n: u64) -> Self {
-    Num(Decimal::from_u64(n).unwrap())
+    Self(BigDecimal::from(n))
   }
 }
 
 impl From<u128> for Num {
   fn from(n: u128) -> Self {
-    Num(Decimal::from_u128(n).unwrap())
+    Self(BigDecimal::from(BigInt::from(n)))
   }
 }
 
 impl FromStr for Num {
   type Err = BRC20Error;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    let num = Decimal::from_str_radix(s, 10).map_err(|_| BRC20Error::InvalidNum(s.to_string()))?;
+    let num = BigDecimal::from_str(s).map_err(|_| BRC20Error::InvalidNum(s.to_string()))?;
 
-    if num.is_sign_negative() {
+    if num.sign() == Sign::Minus {
       return Err(BRC20Error::InvalidNum(s.to_string()));
     }
-    if num.scale() > MAX_DECIMAL_WIDTH as u32 {
+
+    let (_, scale) = num.as_bigint_and_exponent();
+    if scale > MAX_DECIMAL_WIDTH as i64 {
       return Err(BRC20Error::InvalidNum(s.to_string()));
     }
 
@@ -119,19 +100,6 @@ impl FromStr for Num {
 impl Display for Num {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     self.0.fmt(f)
-  }
-}
-
-impl Deref for Num {
-  type Target = Decimal;
-  fn deref(&self) -> &Self::Target {
-    &self.0
-  }
-}
-
-impl DerefMut for Num {
-  fn deref_mut(&mut self) -> &mut Self::Target {
-    &mut self.0
   }
 }
 
@@ -152,7 +120,7 @@ impl<'de> Deserialize<'de> for Num {
   {
     let s = String::deserialize(deserializer)?;
     Ok(Self(
-      Decimal::from_str(&s).map_err(serde::de::Error::custom)?,
+      BigDecimal::from_str(&s).map_err(serde::de::Error::custom)?,
     ))
   }
 }
@@ -163,16 +131,25 @@ mod tests {
 
   #[test]
   fn test_num_from_str() {
-    assert_eq!(Num(Decimal::new(11, 1)), Num::from_str("1.1").unwrap());
-    assert_eq!(Num(Decimal::new(11, 1)), Num::from_str("1.1000").unwrap());
-    assert_eq!(Num(Decimal::new(101, 2)), Num::from_str("1.01").unwrap());
+    assert_eq!(
+      Num(BigDecimal::new(BigInt::from(11), 1)),
+      Num::from_str("1.1").unwrap()
+    );
+    assert_eq!(
+      Num(BigDecimal::new(BigInt::from(11), 1)),
+      Num::from_str("1.1000").unwrap()
+    );
+    assert_eq!(
+      Num(BigDecimal::new(BigInt::from(101), 2)),
+      Num::from_str("1.01").unwrap()
+    );
 
     // can not be negative
     assert!(Num::from_str("-1.1").is_err());
 
     // number of decimal fractional can not exceed 18
     assert_eq!(
-      Num(Decimal::new(1_0000000000_00000001, 18)),
+      Num(BigDecimal::new(BigInt::from(1_0000000000_00000001u64), 18)),
       Num::from_str("1.000000000000000001").unwrap()
     );
     assert!(Num::from_str("1.0000000000000000001").is_err());
@@ -197,30 +174,26 @@ mod tests {
       Num::from_str("2"),
       Num::from_str("1")
         .unwrap()
-        .checked_add(Num::from_str("1").unwrap())
+        .checked_add(&Num::from_str("1").unwrap())
     );
     assert_eq!(
       Num::from_str("2.1"),
       Num::from_str("1")
         .unwrap()
-        .checked_add(Num::from_str("1.1").unwrap())
+        .checked_add(&Num::from_str("1.1").unwrap())
     );
     assert_eq!(
       Num::from_str("2.1"),
       Num::from_str("1.1")
         .unwrap()
-        .checked_add(Num::from_str("1").unwrap())
+        .checked_add(&Num::from_str("1").unwrap())
     );
     assert_eq!(
       Num::from_str("2.222"),
       Num::from_str("1.101")
         .unwrap()
-        .checked_add(Num::from_str("1.121").unwrap())
+        .checked_add(&Num::from_str("1.121").unwrap())
     );
-
-    assert!(Num(Decimal::MAX)
-      .checked_add(Num::from_str("1").unwrap())
-      .is_err());
   }
 
   #[test]
@@ -229,45 +202,26 @@ mod tests {
       Num::from_str("2"),
       Num::from_str("3")
         .unwrap()
-        .checked_sub(Num::from_str("1").unwrap())
+        .checked_sub(&Num::from_str("1").unwrap())
     );
     assert_eq!(
       Num::from_str("2.1"),
       Num::from_str("3")
         .unwrap()
-        .checked_sub(Num::from_str("0.9").unwrap())
+        .checked_sub(&Num::from_str("0.9").unwrap())
     );
     assert_eq!(
       Num::from_str("2.1"),
       Num::from_str("3.1")
         .unwrap()
-        .checked_sub(Num::from_str("1").unwrap())
+        .checked_sub(&Num::from_str("1").unwrap())
     );
     assert_eq!(
       Num::from_str("2.222"),
       Num::from_str("3.303")
         .unwrap()
-        .checked_sub(Num::from_str("1.081").unwrap())
+        .checked_sub(&Num::from_str("1.081").unwrap())
     );
-
-    assert!(Num(Decimal::MIN)
-      .checked_sub(Num::from_str("1").unwrap())
-      .is_err());
-  }
-
-  #[test]
-  fn test_rescale() {
-    let mut num = Num::from_str("1.123").unwrap();
-    num.rescale(5);
-    assert_eq!(num.to_string(), "1.12300");
-
-    let mut num = Num::from_str("1.123").unwrap();
-    num.rescale(2);
-    assert_eq!(num.to_string(), "1.12");
-
-    let mut num = Num::from_str("1.125").unwrap();
-    num.rescale(2);
-    assert_eq!(num.to_string(), "1.13");
   }
 
   #[test]
@@ -279,8 +233,47 @@ mod tests {
       BRC20Error::Overflow {
         op: String::from("to_u8"),
         org: Num::from_str("256").unwrap(),
-        other: Num(Decimal::from_u8(u8::MAX).unwrap()),
+        other: Num(BigDecimal::from_u8(u8::MAX).unwrap()),
       }
+    );
+  }
+
+  #[test]
+  fn test_max_value() {
+    // brc20 protocol stipulate that a max integer value is 64 bit, and decimal has 18 numbers at most.
+    let max = format!("{}.999999999999999999", u64::MAX);
+
+    BigDecimal::from_str(&max).unwrap();
+  }
+
+  #[test]
+  fn test_checked_powu_floatpoint() {
+    let n = Num::from_str("3.7").unwrap();
+    assert_eq!(n.checked_powu(0).unwrap(), Num::from_str("0").unwrap());
+    assert_eq!(n.checked_powu(1).unwrap(), n);
+    assert_eq!(n.checked_powu(2).unwrap(), Num::from_str("13.69").unwrap());
+    assert_eq!(n.checked_powu(3).unwrap(), Num::from_str("50.653").unwrap());
+    assert_eq!(
+      n.checked_powu(5).unwrap(),
+      Num::from_str("693.43957").unwrap()
+    );
+    assert_eq!(
+      n.checked_powu(18).unwrap(),
+      Num::from_str("16890053810.563300749953435929").unwrap()
+    );
+  }
+
+  #[test]
+  fn test_checked_powu_integer() {
+    let n = Num::from_str("10").unwrap();
+    assert_eq!(n.checked_powu(0).unwrap(), Num::from_str("0").unwrap());
+    assert_eq!(n.checked_powu(1).unwrap(), n);
+    assert_eq!(n.checked_powu(2).unwrap(), Num::from_str("100").unwrap());
+    assert_eq!(n.checked_powu(3).unwrap(), Num::from_str("1000").unwrap());
+    assert_eq!(n.checked_powu(5).unwrap(), Num::from_str("100000").unwrap());
+    assert_eq!(
+      n.checked_powu(18).unwrap(),
+      Num::from_str("1000000000000000000").unwrap()
     );
   }
 }

@@ -1,3 +1,6 @@
+use bigdecimal::num_bigint::BigInt;
+use bigdecimal::BigDecimal;
+use std::ops::Deref;
 use std::str::FromStr;
 
 use super::{
@@ -5,12 +8,12 @@ use super::{
   Mint, MintEvent, Num, Operation, Tick, TokenInfo, Transfer, TransferPhase1Event,
   TransferPhase2Event, TransferableLog,
 };
+use crate::brc20::params::BIGDECIMAL_TEN;
 use crate::{
   brc20::{error::BRC20Error, params::MAX_DECIMAL_WIDTH, ScriptKey},
   InscriptionId, SatPoint, Txid,
 };
 use bitcoin::{Network, Script};
-use rust_decimal::Decimal;
 
 #[derive(Clone)]
 pub enum Action {
@@ -133,7 +136,7 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     if dec > MAX_DECIMAL_WIDTH {
       return Err(Error::BRC20Error(BRC20Error::InvalidDecimals(dec)));
     }
-    let base = Into::<Num>::into(Decimal::TEN).checked_powu(dec as u64)?;
+    let base = BIGDECIMAL_TEN.checked_powu(dec as u64)?;
 
     let supply = Num::from_str(&deploy.max_supply)?;
 
@@ -147,8 +150,8 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       return Err(Error::BRC20Error(BRC20Error::InvalidMintLimit));
     }
 
-    let supply = supply.checked_mul(base)?.checked_to_u128()?;
-    let limit = limit.checked_mul(base)?.checked_to_u128()?;
+    let supply = supply.checked_mul(&base)?.checked_to_u128()?;
+    let limit = limit.checked_mul(&base)?.checked_to_u128()?;
 
     let script_key = ScriptKey::from_script(&to_script, self.network);
 
@@ -194,9 +197,9 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC20Error::TickNotFound(lower_tick.as_str().to_string()))?;
 
-    let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
+    let base = BIGDECIMAL_TEN.checked_powu(token_info.decimal as u64)?;
 
-    let mut amt = Num::from_str(&mint.amount)?.checked_mul(base)?;
+    let mut amt = Num::from_str(&mint.amount)?.checked_mul(&base)?;
 
     if amt > Into::<Num>::into(token_info.limit_per_mint) {
       return Err(Error::BRC20Error(BRC20Error::MintAmountExceedLimit(
@@ -214,8 +217,8 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     // cut off any excess.
     let mut msg = None;
-    amt = if amt.checked_add(minted)? > supply {
-      let new = supply.checked_sub(minted)?;
+    amt = if amt.checked_add(&minted)? > supply {
+      let new = supply.checked_sub(&minted)?;
       msg = Some(format!(
         "amt has been cut off to fit the supply! origin: {}, now: {}",
         amt.to_string(),
@@ -236,7 +239,7 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     // add amount to available balance.
     balance.overall_balance = Into::<Num>::into(balance.overall_balance)
-      .checked_add(amt)?
+      .checked_add(&amt)?
       .checked_to_u128()?;
 
     // store to database.
@@ -246,7 +249,7 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       .map_err(|e| Error::LedgerError(e))?;
 
     // update token minted.
-    let minted = minted.checked_add(amt)?.checked_to_u128()?;
+    let minted = minted.checked_add(&amt)?.checked_to_u128()?;
     self
       .ledger
       .update_mint_token_info(&lower_tick, minted, block_number)
@@ -276,9 +279,9 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC20Error::TickNotFound(lower_tick.as_str().to_string()))?;
 
-    let base = Into::<Num>::into(Decimal::TEN).checked_powu(token_info.decimal as u64)?;
+    let base = BIGDECIMAL_TEN.checked_powu(token_info.decimal as u64)?;
 
-    let amt = Num::from_str(&transfer.amount)?.checked_mul(base)?;
+    let amt = Num::from_str(&transfer.amount)?.checked_mul(&base)?;
 
     if amt <= Into::<Num>::into(0 as u128) || amt > Into::<Num>::into(token_info.supply) {
       return Err(Error::BRC20Error(BRC20Error::InscribeTransferOverflow(amt)));
@@ -294,11 +297,11 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     let overall = Into::<Num>::into(balance.overall_balance);
     let transferable = Into::<Num>::into(balance.transferable_balance);
 
-    if overall.checked_sub(transferable)? < amt {
+    if overall.checked_sub(&transferable)? < amt {
       return Err(Error::BRC20Error(BRC20Error::InsufficientBalance));
     }
 
-    balance.transferable_balance = transferable.checked_add(amt)?.checked_to_u128()?;
+    balance.transferable_balance = transferable.checked_add(&amt)?.checked_to_u128()?;
 
     let amt = amt.checked_to_u128()?;
 
@@ -364,8 +367,8 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     let from_overall = Into::<Num>::into(from_balance.overall_balance);
     let from_transferable = Into::<Num>::into(from_balance.transferable_balance);
 
-    let from_overall = from_overall.checked_sub(amt)?.checked_to_u128()?;
-    let from_transferable = from_transferable.checked_sub(amt)?.checked_to_u128()?;
+    let from_overall = from_overall.checked_sub(&amt)?.checked_to_u128()?;
+    let from_transferable = from_transferable.checked_sub(&amt)?.checked_to_u128()?;
 
     from_balance.overall_balance = from_overall;
     from_balance.transferable_balance = from_transferable;
@@ -394,7 +397,7 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       .map_or(Balance::new(), |v| v);
 
     let to_overall = Into::<Num>::into(to_balance.overall_balance);
-    to_balance.overall_balance = to_overall.checked_add(amt)?.checked_to_u128()?;
+    to_balance.overall_balance = to_overall.checked_add(&amt)?.checked_to_u128()?;
 
     self
       .ledger

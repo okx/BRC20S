@@ -53,7 +53,9 @@ pub(crate) struct HeightSavepoint(pub u64, pub Savepoint);
 
 pub(crate) static mut GLOBAL_SAVEPOINTS: OnceCell<VecDeque<HeightSavepoint>> = OnceCell::new();
 
-pub(crate) const SAVEPOINT_INTERVAL: u64 = 6;
+pub(crate) const SAVEPOINT_INTERVAL: u64 = 3;
+
+pub(crate) const MAX_SAVEPOINTS: usize = 4;
 
 pub(crate) struct Index {
   client: Client,
@@ -402,6 +404,7 @@ impl Index {
   pub(crate) fn restore_savepoint(&self, sp: &Savepoint) -> Result {
     let mut wtx = self.begin_write()?;
     wtx.restore_savepoint(sp)?;
+    wtx.commit()?;
     Ok(())
   }
 

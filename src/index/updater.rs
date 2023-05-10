@@ -9,7 +9,9 @@ use {
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
 };
 
-use crate::index::{GLOBAL_SAVEPOINTS, SAVEPOINT_INTERVAL};
+use crate::index::{GLOBAL_SAVEPOINTS, SAVEPOINT_INTERVAL, MAX_SAVEPOINTS};
+
+const FAST_QUERY_HEIGHT: u64 = 10;
 
 mod inscription_updater;
 
@@ -143,7 +145,7 @@ impl Updater {
         // fast sync mode means no less than 18 blocks behind to the latest height
         let is_fast_sync = {
           if let Ok(count) = index.client.get_block_count() {
-            if count <= self.height + 3 * SAVEPOINT_INTERVAL {
+            if count <= self.height + FAST_QUERY_HEIGHT {
               false
             } else {
               true
@@ -165,7 +167,7 @@ impl Updater {
           unsafe {
             let savepoints = GLOBAL_SAVEPOINTS.get_mut().unwrap();
             savepoints.push_back(HeightSavepoint(self.height, sp));
-            if savepoints.len() > 2 {
+            if savepoints.len() > MAX_SAVEPOINTS {
               drop(savepoints.pop_front().unwrap().1);
             }
           }

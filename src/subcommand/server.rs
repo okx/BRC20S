@@ -44,7 +44,7 @@ mod response;
 use self::api::*;
 use self::response::ApiResponse;
 
-use crate::index::{GLOBAL_SAVEPOINTS, SAVEPOINT_INTERVAL};
+use crate::index::GLOBAL_SAVEPOINTS;
 
 enum BlockQuery {
   Height(u64),
@@ -154,15 +154,18 @@ impl Server {
                   .unwrap()
                   .back()
                   .expect("savepoint not found");
-                if hsp.0 + SAVEPOINT_INTERVAL <= height
-                  || GLOBAL_SAVEPOINTS.get().unwrap().len() == 1
-                {
+                if hsp.0 < height {
                   clone
                     .restore_savepoint(&hsp.1)
                     .expect("restore savepoint error");
                   break;
+                } else if GLOBAL_SAVEPOINTS.get().unwrap().len() == 1 {
+                  log::error!("The node has rollback to the oldest savepoint, reindex blocks please.");
+                  break;
+                } else {
+                  log::info!("drop savepoint of {}", hsp.0);
+                  drop(GLOBAL_SAVEPOINTS.get_mut().unwrap().pop_back().unwrap().1);
                 }
-                drop(GLOBAL_SAVEPOINTS.get_mut().unwrap().pop_back().unwrap().1)
               }
             }
             clone.reset_reorged()

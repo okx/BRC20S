@@ -21,7 +21,13 @@ pub enum Operation {
 }
 
 pub fn deserialize_brc20(s: &str) -> Result<Operation, JSONError> {
-  let value: Value = serde_json::from_str(s).map_err(|_| JSONError::InvalidJson)?;
+  let mut value: Value = serde_json::from_str(s).map_err(|_| JSONError::InvalidJson)?;
+  let entry = value.as_object_mut().ok_or(JSONError::InvalidJson)?;
+  *entry = std::mem::take(entry)
+    .into_iter()
+    .map(|(k, v)| (k.to_lowercase(), v))
+    .collect();
+
   if value.get("p") != Some(&json!(PROTOCOL_LITERAL)) {
     return Err(JSONError::NotBRC20Json);
   }
@@ -112,5 +118,31 @@ mod tests {
         amount: String::from("33"),
       })
     )
+  }
+
+  #[test]
+  fn test_deserialize_case_insensitive() {
+    let max_supply = "21000000".to_string();
+    let mint_limit = "1000".to_string();
+
+    let json_str = format!(
+      r##"{{
+  "P": "brc-20",
+  "Op": "deploy",
+  "Tick": "ordi",
+  "mAx": "{max_supply}",
+  "Lim": "{mint_limit}"
+}}"##
+    );
+
+    assert_eq!(
+      deserialize_brc20(&json_str).unwrap(),
+      Operation::Deploy(Deploy {
+        tick: "ordi".to_string(),
+        max_supply,
+        mint_limit: Some(mint_limit),
+        decimals: None
+      })
+    );
   }
 }

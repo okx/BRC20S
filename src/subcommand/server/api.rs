@@ -96,7 +96,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
           amount: mint_event.amount.to_string(),
           to: mint_event.to.to_string(),
           valid: true,
-          msg: "ok".to_string(),
+          msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
         }),
         brc20::BRC20Event::TransferPhase1(trans1) => {
           Self::InscribeTransfer(InscribeTransferEvent {
@@ -121,7 +121,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
           from: trans2.from.to_string(),
           to: trans2.to.to_string(),
           valid: true,
-          msg: "ok".to_string(),
+          msg: trans2.msg.clone().unwrap_or("ok".to_string()),
         }),
       },
       Err(err) => Self::Error(ErrorEvent {

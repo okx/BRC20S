@@ -154,7 +154,7 @@ impl Server {
                   .unwrap()
                   .back()
                   .expect("savepoint not found");
-                if hsp.0 + SAVEPOINT_INTERVAL <= height
+                if hsp.0 < height
                   || GLOBAL_SAVEPOINTS.get().unwrap().len() == 1
                 {
                   clone

@@ -402,6 +402,7 @@ impl Index {
   pub(crate) fn restore_savepoint(&self, sp: &Savepoint) -> Result {
     let mut wtx = self.begin_write()?;
     wtx.restore_savepoint(sp)?;
+    wtx.commit()?;
     Ok(())
   }
 

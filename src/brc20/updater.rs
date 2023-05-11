@@ -145,13 +145,19 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     let supply = Num::from_str(&deploy.max_supply)?;
 
-    if supply.sign() == Sign::NoSign || supply > Into::<Num>::into(u64::MAX) {
+    if supply.sign() == Sign::NoSign
+      || supply > Into::<Num>::into(u64::MAX)
+      || supply.scale() > dec as i64
+    {
       return Err(Error::BRC20Error(BRC20Error::InvalidSupply(supply)));
     }
 
     let limit = Num::from_str(&deploy.mint_limit.map_or(deploy.max_supply, |v| v))?;
 
-    if limit.sign() == Sign::NoSign || limit > supply {
+    if limit.sign() == Sign::NoSign
+      || limit > Into::<Num>::into(u64::MAX)
+      || limit.scale() > dec as i64
+    {
       return Err(Error::BRC20Error(BRC20Error::MintLimitOutOfRange(
         lower_tick.as_str().to_string(),
         limit,
@@ -205,8 +211,13 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     let base = BIGDECIMAL_TEN.checked_powu(token_info.decimal as u64)?;
 
-    let mut amt = Num::from_str(&mint.amount)?.checked_mul(&base)?;
+    let mut amt = Num::from_str(&mint.amount)?;
 
+    if amt.scale() > token_info.decimal as i64 {
+      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(amt)));
+    }
+
+    amt = amt.checked_mul(&base)?;
     if amt.sign() == Sign::NoSign {
       return Err(Error::BRC20Error(BRC20Error::InvalidZeroAmount));
     }
@@ -287,8 +298,13 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     let base = BIGDECIMAL_TEN.checked_powu(token_info.decimal as u64)?;
 
-    let amt = Num::from_str(&transfer.amount)?.checked_mul(&base)?;
+    let mut amt = Num::from_str(&transfer.amount)?;
 
+    if amt.scale() > token_info.decimal as i64 {
+      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(amt)));
+    }
+
+    amt = amt.checked_mul(&base)?;
     if amt.sign() == Sign::NoSign || amt > Into::<Num>::into(token_info.supply) {
       return Err(Error::BRC20Error(BRC20Error::AmountOverflow(amt)));
     }

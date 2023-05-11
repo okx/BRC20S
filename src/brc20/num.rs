@@ -61,6 +61,11 @@ impl Num {
     self.0.sign()
   }
 
+  pub fn scale(&self) -> i64 {
+    let (_, scale) = self.0.as_bigint_and_exponent();
+    scale
+  }
+
   pub fn checked_to_u128(&self) -> Result<u128, BRC20Error> {
     Ok(
       self

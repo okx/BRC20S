@@ -955,6 +955,22 @@ impl Index {
     )
   }
 
+  fn get_inscription_number_by_inscription_id<'a>(
+    id_to_entry: &'a impl ReadableTable<&'static InscriptionIdValue, InscriptionEntryValue>,
+    inscription_id: InscriptionId,
+  ) -> Result<u64> {
+    Ok(
+      id_to_entry
+        .get(&inscription_id.store())?
+        .ok_or(anyhow!(
+          "failed to find inscription number for {}",
+          inscription_id
+        ))?
+        .value()
+        .2,
+    )
+  }
+
   pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<brc20::TokenInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);

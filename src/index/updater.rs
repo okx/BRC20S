@@ -9,7 +9,7 @@ use {
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
 };
 
-use crate::index::{GLOBAL_SAVEPOINTS, SAVEPOINT_INTERVAL, MAX_SAVEPOINTS};
+use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
 
 const FAST_QUERY_HEIGHT: u64 = 10;
 
@@ -587,7 +587,7 @@ impl Updater {
       }
       inscription_collects.pop();
     }
-    let mut brc20_updater = BRC20Updater::new(&brc20_database, index.options.chain().network());
+    let mut brc20_updater = BRC20Updater::new(&brc20_database);
 
     for (txid, brc20_transaction) in inscription_collects {
       brc20_action_count +=

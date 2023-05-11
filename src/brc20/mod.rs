@@ -14,7 +14,7 @@ pub use self::{
   num::Num,
   operation::{deserialize_brc20, Deploy, Mint, Operation, Transfer},
   types::*,
-  updater::{Action, BRC20Updater, InscribeAction, InscriptionData, TransferAction},
+  updater::{Action, BRC20Updater, InscribeAction, InscriptionData},
 };
 
 use ledger::{LedgerRead, LedgerReadWrite};

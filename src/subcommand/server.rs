@@ -160,7 +160,9 @@ impl Server {
                     .expect("restore savepoint error");
                   break;
                 } else if GLOBAL_SAVEPOINTS.get().unwrap().len() == 1 {
-                  log::error!("The node has rollback to the oldest savepoint, reindex blocks please.");
+                  log::error!(
+                    "The node has rollback to the oldest savepoint, reindex blocks please."
+                  );
                   break;
                 } else {
                   log::info!("drop savepoint of {}", hsp.0);
@@ -211,6 +213,7 @@ impl Server {
         .route("/tx/:txid", get(Self::transaction))
         .route("/brc20/tick/:tick", get(brc20_tick_info))
         .route("/brc20/tick", get(brc20_all_tick_info))
+        .route("/node/info", get(node_info))
         .route(
           "/brc20/tick/:tick/address/:address/balance",
           get(brc20_balance),

@@ -254,6 +254,39 @@ pub struct TransferableInscription {
   pub tick: String,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeightInfo<T: Serialize> {
+  pub ord_height: Option<u64>,
+  pub btc_chain_info: Option<T>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct HeightInfoQuery {
+  btc: bool,
+}
+
+pub(crate) async fn node_info(
+  Extension(index): Extension<Arc<Index>>,
+  Query(query): Query<HeightInfoQuery>,
+) -> Json<ApiResponse<HeightInfo<bitcoincore_rpc::json::GetBlockchainInfoResult>>> {
+  log::debug!("rpc: get node_info");
+  let (ord_height, btc_info) = match index.height_btc(query.btc) {
+    Ok(height) => height,
+    Err(err) => {
+      return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string())));
+    }
+  };
+  let mut height_info = HeightInfo {
+    ord_height: None,
+    btc_chain_info: btc_info,
+  };
+  if !ord_height.is_none() {
+    height_info.ord_height = Some(ord_height.unwrap().0);
+  }
+  return Json(ApiResponse::ok(height_info));
+}
+
 pub(crate) async fn brc20_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick): Path<String>,

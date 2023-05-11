@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct ActionReceipt {
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
-  pub new_satpoint: Option<SatPoint>, // 当转账到矿工费时的情况new_satpoint 是null
+  pub new_satpoint: Option<SatPoint>,
   pub result: Result<BRC20Event, BRC20Error>,
 }
 
@@ -32,7 +32,7 @@ pub struct MintEvent {
   pub tick: Tick,
   pub to: ScriptKey,
   pub amount: u128,
-  pub msg: Option<String>, // 如果做了amount截取，这里进行通知
+  pub msg: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -42,7 +42,6 @@ pub struct TransferPhase1Event {
   pub amount: u128,
 }
 
-// transfer2如果将铭文转入矿工费这种情况是status是None、to地址为自己（表示自己给自己转账），在Transfer2Event中有个msg用来表示行为差异
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct TransferPhase2Event {
   pub tick: Tick,

@@ -25,52 +25,49 @@ pub enum JSONError {
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error, Deserialize, Serialize)]
 pub enum BRC20Error {
-  #[error("tick has been existed: {0}")]
-  DuplicateTick(String),
-
-  #[error("tick not found: {0}")]
-  TickNotFound(String),
-
-  #[error("invaild mint limit")]
-  InvalidMintLimit,
-
-  #[error("tick has been mined out: {0}")]
-  TickMintOut(String),
-
-  #[error("balance overflow")]
-  BalanceOverflow,
-
-  #[error("invalid brc20 number: {0}")]
-  InvalidNum(String),
-
   #[error("{op} overflow: original: {org}, other: {other}")]
   Overflow { op: String, org: Num, other: Num },
 
-  #[error("invalid decimals {0}")]
-  InvalidDecimals(u8),
+  #[error("invalid number: {0}")]
+  InvalidNum(String),
 
-  #[error("inscribe transfer overflow {0} range: (0, supply]")]
-  InscribeTransferOverflow(Num),
+  #[error("tick invalid supply {0}")]
+  InvalidSupply(Num),
 
-  #[error("invalid max supply: {0}")]
-  InvalidMaxSupply(Num),
+  #[error("tick has been existed")]
+  DuplicateTick(String),
 
-  #[error("invalid tick length: {0}")]
-  InvalidTickLen(usize),
+  #[error("tick: {0} not found")]
+  TickNotFound(String),
 
-  #[error("invalid tick char: {0}")]
-  InvalidTickChar(String),
+  #[error("illegal tick length '{0}'")]
+  InvalidTickLen(String),
 
-  #[error("insufficient balance")]
-  InsufficientBalance,
+  #[error("decimals {0} too large")]
+  DecimalsTooLarge(u8),
 
-  #[error("mint amout exceed limit: {0}")]
-  MintAmountExceedLimit(String),
+  #[error("tick: {0} has been minted")]
+  TickMinted(String),
 
-  #[error("transferable inscription not found: {0}")]
+  #[error("tick: {0} mint limit out of range {0}")]
+  MintLimitOutOfRange(String, Num),
+
+  #[error("zero amount not allowed")]
+  InvalidZeroAmount,
+
+  #[error("amount overflow: {0}")]
+  AmountOverflow(Num),
+
+  #[error("insufficient balance: {0} {1}")]
+  InsufficientBalance(Num, Num),
+
+  #[error("amout exceed limit: {0}")]
+  AmountExceedLimit(Num),
+
+  #[error("transferable inscriptionId not found: {0}")]
   TransferableNotFound(InscriptionId),
 
-  #[error("invalid inscribe inscription to coinbase")]
+  #[error("invalid inscribe to coinbase")]
   InscribeToCoinbase,
 
   #[error("transferable owner not match {0}")]

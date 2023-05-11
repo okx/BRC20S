@@ -1,10 +1,9 @@
 use crate::brc20::error::BRC20Error;
 use crate::brc20::params::MAX_DECIMAL_WIDTH;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
-use bigdecimal::{BigDecimal, FromPrimitive, ToPrimitive, Zero};
+use bigdecimal::{BigDecimal, ToPrimitive, Zero};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
-use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 
 #[derive(PartialEq, PartialOrd, Debug, Clone)]
@@ -56,6 +55,10 @@ impl Num {
       org: self.clone(),
       other: Self(BigDecimal::from(u8::MAX)),
     })?)
+  }
+
+  pub fn sign(&self) -> Sign {
+    self.0.sign()
   }
 
   pub fn checked_to_u128(&self) -> Result<u128, BRC20Error> {
@@ -135,6 +138,7 @@ impl<'de> Deserialize<'de> for Num {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use bigdecimal::FromPrimitive;
 
   #[test]
   fn test_num_from_str() {

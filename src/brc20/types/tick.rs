@@ -13,7 +13,7 @@ impl FromStr for Tick {
     let bytes = s.as_bytes();
 
     if bytes.len() != TICK_BYTE_COUNT {
-      return Err(BRC20Error::InvalidTickLen(bytes.len()));
+      return Err(BRC20Error::InvalidTickLen(s.to_string()));
     }
     Ok(Self(bytes.try_into().unwrap()))
   }

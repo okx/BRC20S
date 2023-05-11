@@ -158,6 +158,7 @@ impl Server {
                   clone
                     .restore_savepoint(&hsp.1)
                     .expect("restore savepoint error");
+                  log::info!("restore savepoint of {}", hsp.0);
                   break;
                 } else if GLOBAL_SAVEPOINTS.get().unwrap().len() == 1 {
                   log::error!(
@@ -170,7 +171,8 @@ impl Server {
                 }
               }
             }
-            clone.reset_reorged()
+            clone.reset_reorged();
+            log::info!("reorged is reset at {}", height);
           }
         }
 

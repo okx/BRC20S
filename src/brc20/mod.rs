@@ -19,8 +19,17 @@ pub use self::{
 
 use ledger::{LedgerRead, LedgerReadWrite};
 
+const MEDIA_TYPE_TEXT: &str = "text/plain;charset=utf-8";
+const MEDIA_TYPE_JSON: &str = "application/json";
+
 pub fn deserialize_brc20_operation(inscription: Inscription) -> Result<Operation> {
-  Ok(deserialize_brc20(std::str::from_utf8(
-    inscription.body().ok_or(JSONError::InvalidJson)?,
-  )?)?)
+  match inscription
+    .content_type()
+    .ok_or(JSONError::InvalidContentType)?
+  {
+    MEDIA_TYPE_TEXT | MEDIA_TYPE_JSON => Ok(deserialize_brc20(std::str::from_utf8(
+      inscription.body().ok_or(JSONError::InvalidJson)?,
+    )?)?),
+    &_ => Err(JSONError::UnSupportContentType.into()),
+  }
 }

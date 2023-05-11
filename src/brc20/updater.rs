@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use super::{
-  ActionReceipt, BRC20Event, Balance, Deploy, DeployEvent, Error, LedgerRead, LedgerReadWrite,
-  Mint, MintEvent, Num, Operation, Tick, TokenInfo, Transfer, TransferPhase1Event,
+  ActionReceipt, BRC20Event, Balance, Deploy, DeployEvent, Error, EventType, LedgerRead,
+  LedgerReadWrite, Mint, MintEvent, Num, Operation, Tick, TokenInfo, Transfer, TransferPhase1Event,
   TransferPhase2Event, TransferableLog,
 };
 use crate::brc20::params::BIGDECIMAL_TEN;
@@ -11,49 +11,35 @@ use crate::{
   InscriptionId, SatPoint, Txid,
 };
 use bigdecimal::num_bigint::Sign;
-use bitcoin::{Network, Script};
 
 #[derive(Clone)]
 pub enum Action {
   Inscribe(InscribeAction),
-  Transfer(TransferAction),
-}
-impl Action {
-  pub fn set_to(&mut self, to: Option<Script>) {
-    match self {
-      Action::Inscribe(inscribe) => inscribe.to_script = to,
-      Action::Transfer(transfer) => transfer.to_script = to,
-    }
-  }
+  Transfer,
 }
 
 #[derive(Clone)]
 pub struct InscribeAction {
   pub operation: Operation,
-  pub to_script: Option<Script>,
-}
-
-#[derive(Clone)]
-pub struct TransferAction {
-  pub from_script: Script,
-  pub to_script: Option<Script>,
 }
 
 pub struct InscriptionData {
   pub txid: Txid,
   pub inscription_id: InscriptionId,
+  pub inscription_number: u64,
   pub old_satpoint: SatPoint,
   pub new_satpoint: Option<SatPoint>,
+  pub from_script: ScriptKey,
+  pub to_script: Option<ScriptKey>,
   pub action: Action,
 }
 
 pub struct BRC20Updater<'a, L: LedgerReadWrite> {
   ledger: &'a L,
-  network: Network,
 }
 impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
-  pub fn new(ledger: &'a L, network: Network) -> Self {
-    Self { ledger, network }
+  pub fn new(ledger: &'a L) -> Self {
+    Self { ledger }
   }
 
   pub fn index_transaction(
@@ -65,25 +51,42 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
   ) -> Result<usize, <L as LedgerRead>::Error> {
     let mut receipts = Vec::new();
     for operation in operations {
+      let op: EventType;
       let result = match operation.action {
         Action::Inscribe(inscribe) => match inscribe.operation {
-          Operation::Deploy(deploy) => self.process_deploy(
-            deploy,
-            block_number,
-            block_time,
-            operation.inscription_id,
-            inscribe.to_script,
-          ),
-          Operation::Mint(mint) => self.process_mint(mint, block_number, inscribe.to_script),
+          Operation::Deploy(deploy) => {
+            op = EventType::Deploy;
+            self.process_deploy(
+              deploy,
+              block_number,
+              block_time,
+              operation.inscription_id,
+              operation.inscription_number,
+              operation.to_script.clone(),
+            )
+          }
+          Operation::Mint(mint) => {
+            op = EventType::Mint;
+            self.process_mint(mint, block_number, operation.to_script.clone())
+          }
           Operation::Transfer(transfer) => {
-            self.process_inscribe_transfer(transfer, operation.inscription_id, inscribe.to_script)
+            op = EventType::TransferPhase1;
+            self.process_inscribe_transfer(
+              transfer,
+              operation.inscription_id,
+              operation.inscription_number,
+              operation.to_script.clone(),
+            )
           }
         },
-        Action::Transfer(transfer) => self.process_transfer(
-          operation.inscription_id,
-          transfer.from_script,
-          transfer.to_script,
-        ),
+        Action::Transfer => {
+          op = EventType::TransferPhase2;
+          self.process_transfer(
+            operation.inscription_id,
+            operation.from_script.clone(),
+            operation.to_script.clone(),
+          )
+        }
       };
 
       let result = match result {
@@ -96,8 +99,12 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
       receipts.push(ActionReceipt {
         inscription_id: operation.inscription_id,
+        inscription_number: operation.inscription_number,
+        op,
         old_satpoint: operation.old_satpoint,
         new_satpoint: operation.new_satpoint,
+        from: operation.from_script.clone(),
+        to: operation.to_script.map_or(operation.from_script, |v| v),
         result,
       });
     }
@@ -111,9 +118,10 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     block_number: u64,
     block_time: u32,
     inscription_id: InscriptionId,
-    to_script: Option<Script>,
+    inscription_number: u64,
+    to_script_key: Option<ScriptKey>,
   ) -> Result<BRC20Event, Error<L>> {
-    let to_script = to_script.ok_or(BRC20Error::InscribeToCoinbase)?;
+    let to_script_key = to_script_key.ok_or(BRC20Error::InscribeToCoinbase)?;
 
     let tick = deploy.tick.parse::<Tick>()?;
     let lower_tick = tick.to_lowercase();
@@ -153,16 +161,15 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     let supply = supply.checked_mul(&base)?.checked_to_u128()?;
     let limit = limit.checked_mul(&base)?.checked_to_u128()?;
 
-    let script_key = ScriptKey::from_script(&to_script, self.network);
-
     let new_info = TokenInfo {
       inscription_id,
+      inscription_number,
       tick,
       decimal: dec,
       supply,
       limit_per_mint: limit,
       minted: 0 as u128,
-      deploy_by: script_key,
+      deploy_by: to_script_key,
       deployed_number: block_number,
       deployed_timestamp: block_time,
       latest_mint_number: 0 as u64,
@@ -177,7 +184,6 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       limit_per_mint: limit,
       decimal: dec,
       tick: new_info.tick,
-      deploy: new_info.deploy_by,
     }))
   }
 
@@ -185,9 +191,9 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     &mut self,
     mint: Mint,
     block_number: u64,
-    to_script: Option<Script>,
+    to_script_key: Option<ScriptKey>,
   ) -> Result<BRC20Event, Error<L>> {
-    let to_script = to_script.ok_or(BRC20Error::InscribeToCoinbase)?;
+    let to_script_key = to_script_key.ok_or(BRC20Error::InscribeToCoinbase)?;
     let tick = mint.tick.parse::<Tick>()?;
     let lower_tick = tick.to_lowercase();
 
@@ -231,10 +237,9 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     };
 
     // get or initialize user balance.
-    let script_key = ScriptKey::from_script(&to_script, self.network);
     let mut balance = self
       .ledger
-      .get_balance(&script_key, &lower_tick)
+      .get_balance(&to_script_key, &lower_tick)
       .map_err(|e| Error::LedgerError(e))?
       .map_or(Balance::new(), |v| v);
 
@@ -246,7 +251,7 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     // store to database.
     self
       .ledger
-      .update_token_balance(&script_key, &lower_tick, balance)
+      .update_token_balance(&to_script_key, &lower_tick, balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     // update token minted.
@@ -258,7 +263,6 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     Ok(BRC20Event::Mint(MintEvent {
       tick: token_info.tick,
-      to: script_key,
       amount: amt.checked_to_u128()?,
       msg,
     }))
@@ -268,9 +272,10 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     &mut self,
     transfer: Transfer,
     inscription_id: InscriptionId,
-    to_script: Option<Script>,
+    inscription_number: u64,
+    to_script_key: Option<ScriptKey>,
   ) -> Result<BRC20Event, Error<L>> {
-    let to_script = to_script.ok_or(BRC20Error::InscribeToCoinbase)?;
+    let to_script_key = to_script_key.ok_or(BRC20Error::InscribeToCoinbase)?;
     let tick = transfer.tick.parse::<Tick>()?;
     let lower_tick = tick.to_lowercase();
 
@@ -288,10 +293,9 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       return Err(Error::BRC20Error(BRC20Error::AmountOverflow(amt)));
     }
 
-    let script_key = ScriptKey::from_script(&to_script, self.network);
     let mut balance = self
       .ledger
-      .get_balance(&script_key, &lower_tick)
+      .get_balance(&to_script_key, &lower_tick)
       .map_err(|e| Error::LedgerError(e))?
       .map_or(Balance::new(), |v| v);
 
@@ -310,14 +314,15 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&script_key, &lower_tick, balance)
+      .update_token_balance(&to_script_key, &lower_tick, balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     let inscription = TransferableLog {
       inscription_id,
+      inscription_number,
       amount: amt,
       tick: token_info.tick,
-      owner: script_key,
+      owner: to_script_key,
     };
     self
       .ledger
@@ -326,7 +331,6 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     Ok(BRC20Event::TransferPhase1(TransferPhase1Event {
       tick: inscription.tick,
-      owner: inscription.owner,
       amount: amt,
     }))
   }
@@ -334,19 +338,18 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
   fn process_transfer(
     &mut self,
     inscription_id: InscriptionId,
-    from_script: Script,
-    to_script: Option<Script>,
+    from_script_key: ScriptKey,
+    to_script_key: Option<ScriptKey>,
   ) -> Result<BRC20Event, Error<L>> {
-    let from_key = ScriptKey::from_script(&from_script, self.network);
     let transferable = self
       .ledger
-      .get_transferable_by_id(&from_key, &inscription_id)
+      .get_transferable_by_id(&from_script_key, &inscription_id)
       .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC20Error::TransferableNotFound(inscription_id))?;
 
     let amt = Into::<Num>::into(transferable.amount);
 
-    if transferable.owner != from_key {
+    if transferable.owner != from_script_key {
       return Err(Error::BRC20Error(BRC20Error::TransferableOwnerNotMatch(
         inscription_id,
       )));
@@ -363,7 +366,7 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     // update from key balance.
     let mut from_balance = self
       .ledger
-      .get_balance(&from_key, &lower_tick)
+      .get_balance(&from_script_key, &lower_tick)
       .map_err(|e| Error::LedgerError(e))?
       .map_or(Balance::new(), |v| v);
 
@@ -378,24 +381,23 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&from_key, &lower_tick, from_balance)
+      .update_token_balance(&from_script_key, &lower_tick, from_balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     // redirect receiver to sender if transfer to conibase.
     let mut msg = None;
-    let to_script = if let None = to_script {
+    let to_script_key = if let None = to_script_key.clone() {
       msg = Some(format!(
         "redirect receiver to sender, reason: transfer inscription to coinbase"
       ));
-      from_script
+      from_script_key.clone()
     } else {
-      to_script.unwrap()
+      to_script_key.unwrap()
     };
     // update to key balance.
-    let to_key = ScriptKey::from_script(&to_script, self.network);
     let mut to_balance = self
       .ledger
-      .get_balance(&to_key, &lower_tick)
+      .get_balance(&to_script_key, &lower_tick)
       .map_err(|e| Error::LedgerError(e))?
       .map_or(Balance::new(), |v| v);
 
@@ -404,17 +406,15 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     self
       .ledger
-      .update_token_balance(&to_key, &lower_tick, to_balance)
+      .update_token_balance(&to_script_key, &lower_tick, to_balance)
       .map_err(|e| Error::LedgerError(e))?;
 
     self
       .ledger
-      .remove_transferable(&from_key, &lower_tick, inscription_id)
+      .remove_transferable(&from_script_key, &lower_tick, inscription_id)
       .map_err(|e| Error::LedgerError(e))?;
 
     Ok(BRC20Event::TransferPhase2(TransferPhase2Event {
-      from: from_key,
-      to: to_key,
       msg,
       tick: token_info.tick,
       amount: amt.checked_to_u128()?,

@@ -1,6 +1,6 @@
 use super::*;
 use brc20::deserialize_brc20_operation;
-use brc20::{Action, InscribeAction, InscriptionData, TransferAction};
+use brc20::{Action, InscribeAction, InscriptionData};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Flotsam {
@@ -106,7 +106,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             origin: Origin::Old(old_satpoint),
           });
 
-          // 只存铸造铭文后的第一笔交易
           let inscribe_satpoint = SatPoint {
             outpoint: OutPoint::new(inscription_id.txid, inscription_id.index),
             offset: 0,
@@ -114,7 +113,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
           if !is_coinbase {
             if old_satpoint == inscribe_satpoint {
-              // 获取铸造铭文交易
               let inscribe_tx = if let Some(t) = self.tx_cache.remove(&inscription_id.txid) {
                 t
               } else {
@@ -134,17 +132,24 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
                   InscriptionData {
                     txid,
                     inscription_id,
+                    inscription_number: 0,
                     old_satpoint,
                     new_satpoint: None,
-                    action: Action::Transfer(TransferAction {
-                      from_script: inscribe_tx
+                    from_script: ScriptKey::from_script(
+                      &inscribe_tx
                         .output
-                        .get(0)
-                        .ok_or(anyhow!("faild to index output for {}", inscription_id.txid))?
+                        .get(old_satpoint.outpoint.vout as usize)
+                        .ok_or(anyhow!(
+                          "failed to find output {} for {}",
+                          old_satpoint.outpoint.vout,
+                          inscription_id.txid
+                        ))?
                         .script_pubkey
                         .clone(),
-                      to_script: None,
-                    }),
+                      self.index.get_chain_network(),
+                    ),
+                    to_script: None,
+                    action: Action::Transfer,
                   },
                 ))
               }
@@ -182,20 +187,26 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       });
 
       if let Ok(operation) = deserialize_brc20_operation(inscription.unwrap()) {
+        let from_script = self.get_previous_output_script(
+          tx.input
+            .get(0)
+            .ok_or(anyhow!("failed to find input {} for {}", 0, txid))?
+            .previous_output,
+        )?;
         inscriptions_collector.push((
           0,
           InscriptionData {
             txid,
             inscription_id: txid.into(),
+            inscription_number: 0,
             old_satpoint: SatPoint {
               outpoint: tx.input.get(0).unwrap().previous_output,
               offset: 0,
             },
             new_satpoint: None,
-            action: Action::Inscribe(InscribeAction {
-              operation,
-              to_script: None,
-            }),
+            from_script: ScriptKey::from_script(&from_script, self.index.get_chain_network()),
+            to_script: None,
+            action: Action::Inscribe(InscribeAction { operation }),
           },
         ))
       };
@@ -237,9 +248,15 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           })
           .map(|value| &mut value.1)
         {
-          let action = &mut inscription_data.action;
-          action.set_to(Some(tx_out.script_pubkey.clone()));
-          inscription_data.action = action.clone();
+          inscription_data.inscription_number = Index::get_inscription_number_by_inscription_id(
+            self.id_to_entry,
+            inscription_data.inscription_id,
+          )?;
+
+          inscription_data.to_script = Some(ScriptKey::from_script(
+            &tx_out.script_pubkey,
+            self.index.get_chain_network(),
+          ));
           inscription_data.new_satpoint = Some(new_satpoint);
         }
       }
@@ -331,5 +348,23 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     self.id_to_satpoint.insert(&inscription_id, &new_satpoint)?;
 
     Ok(())
+  }
+
+  fn get_previous_output_script(&self, outpoint: OutPoint) -> Result<Script> {
+    let tx = self
+      .index
+      .get_transaction_with_retries(outpoint.txid)?
+      .ok_or(anyhow!("failed to get transaction for {}", outpoint.txid))?;
+    Ok(
+      tx.output
+        .get(outpoint.vout as usize)
+        .ok_or(anyhow!(
+          "failed to get output {} for {}",
+          outpoint.vout,
+          outpoint.txid
+        ))?
+        .script_pubkey
+        .clone(),
+    )
   }
 }

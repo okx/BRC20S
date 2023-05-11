@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct TokenInfo {
   pub tick: Tick,
   pub inscription_id: InscriptionId,
+  pub inscription_number: u64,
   pub supply: u128,
   pub minted: u128,
   pub limit_per_mint: u128,

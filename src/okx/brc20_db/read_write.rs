@@ -171,7 +171,7 @@ impl<'db, 'a> LedgerReadWrite for BRC20Database<'db, 'a> {
 mod tests {
   use super::*;
   use crate::brc20::ledger::{LedgerRead, LedgerReadWrite};
-  use crate::brc20::{BRC20Error, BRC20Event, MintEvent, TransferPhase2Event};
+  use crate::brc20::{BRC20Error, BRC20Event, EventType, MintEvent, TransferPhase2Event};
   use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;
@@ -282,6 +282,7 @@ mod tests {
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 1,
       supply: 100,
       minted: 10,
       limit_per_mint: 10,
@@ -313,6 +314,7 @@ mod tests {
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 1,
       supply: 100,
       minted: 10,
       limit_per_mint: 10,
@@ -330,6 +332,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 1,
       supply: 200,
       minted: 20,
       limit_per_mint: 20,
@@ -347,6 +350,7 @@ mod tests {
         "3111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 1,
       supply: 300,
       minted: 30,
       limit_per_mint: 20,
@@ -384,6 +388,7 @@ mod tests {
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 1,
       supply: 100,
       minted: 10,
       limit_per_mint: 10,
@@ -429,6 +434,14 @@ mod tests {
           "1111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
+        inscription_number: 1,
+        op: EventType::Deploy,
+        from: ScriptKey::from_address(
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        ),
+        to: ScriptKey::from_address(
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        ),
         old_satpoint: SatPoint::from_str(
           "1111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
@@ -446,6 +459,14 @@ mod tests {
           "2111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
+        inscription_number: 1,
+        op: EventType::Mint,
+        from: ScriptKey::from_address(
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        ),
+        to: ScriptKey::from_address(
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        ),
         old_satpoint: SatPoint::from_str(
           "2111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
@@ -458,9 +479,6 @@ mod tests {
         ),
         result: Ok(BRC20Event::Mint(MintEvent {
           tick: Tick::from_str("maEd").unwrap(),
-          to: ScriptKey::from_address(
-            Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
-          ),
           amount: 30,
           msg: None,
         })),
@@ -470,6 +488,14 @@ mod tests {
           "3111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
+        inscription_number: 1,
+        op: EventType::Mint,
+        from: ScriptKey::from_address(
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        ),
+        to: ScriptKey::from_address(
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        ),
         old_satpoint: SatPoint::from_str(
           "4111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
@@ -482,12 +508,6 @@ mod tests {
         ),
         result: Ok(BRC20Event::TransferPhase2(TransferPhase2Event {
           tick: Tick::from_str("mmmm").unwrap(),
-          from: ScriptKey::from_address(
-            Address::from_str("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY").unwrap(),
-          ),
-          to: ScriptKey::from_address(
-            Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
-          ),
           amount: 11,
           msg: Some("a msg".to_string()),
         })),
@@ -515,6 +535,7 @@ mod tests {
         "3111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 3,
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -526,6 +547,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 2,
       amount: 20,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -582,6 +604,7 @@ mod tests {
         "3111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 3,
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -593,6 +616,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 2,
       amount: 20,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -662,6 +686,7 @@ mod tests {
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 1,
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -673,6 +698,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 2,
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -712,6 +738,7 @@ mod tests {
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 1,
       amount: 10,
       tick: tick1.clone(),
       owner: ScriptKey::from_address(
@@ -723,6 +750,7 @@ mod tests {
         "1211111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 2,
       amount: 30,
       tick: tick1.clone(),
       owner: ScriptKey::from_address(
@@ -743,6 +771,7 @@ mod tests {
         "1311111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 3,
       amount: 10,
       tick: tick2.clone(),
       owner: ScriptKey::from_address(
@@ -754,6 +783,7 @@ mod tests {
         "1411111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 4,
       amount: 30,
       tick: tick2.clone(),
       owner: ScriptKey::from_address(
@@ -775,6 +805,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 2,
       amount: 30,
       tick: Tick::from_str("m333").unwrap(),
       owner: ScriptKey::from_address(
@@ -819,6 +850,7 @@ mod tests {
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 1,
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
@@ -830,6 +862,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
+      inscription_number: 2,
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(

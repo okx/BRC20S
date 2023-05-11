@@ -97,6 +97,9 @@ impl From<u128> for Num {
 impl FromStr for Num {
   type Err = BRC20Error;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
+    if s.starts_with(".") {
+      return Err(BRC20Error::InvalidNum(s.to_string()));
+    }
     let num = BigDecimal::from_str(s).map_err(|_| BRC20Error::InvalidNum(s.to_string()))?;
 
     if num.sign() == Sign::Minus {
@@ -147,6 +150,7 @@ mod tests {
 
   #[test]
   fn test_num_from_str() {
+    assert!(Num::from_str(".1").is_err());
     assert_eq!(
       Num(BigDecimal::new(BigInt::from(11), 1)),
       Num::from_str("1.1").unwrap()

@@ -263,7 +263,7 @@ pub struct HeightInfo<T: Serialize> {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct HeightInfoQuery {
-  btc: bool,
+  btc: Option<bool>,
 }
 
 pub(crate) async fn node_info(
@@ -271,7 +271,7 @@ pub(crate) async fn node_info(
   Query(query): Query<HeightInfoQuery>,
 ) -> Json<ApiResponse<HeightInfo<bitcoincore_rpc::json::GetBlockchainInfoResult>>> {
   log::debug!("rpc: get node_info");
-  let (ord_height, btc_info) = match index.height_btc(query.btc) {
+  let (ord_height, btc_info) = match index.height_btc(query.btc.unwrap_or_default()) {
     Ok(height) => height,
     Err(err) => {
       return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string())));

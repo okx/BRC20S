@@ -439,7 +439,7 @@ mod tests {
           )
           .unwrap(),
         ),
-        result: Err(BRC20Error::InvalidTickLen(5)),
+        result: Err(BRC20Error::InvalidTickLen("abcde".to_string())),
       },
       ActionReceipt {
         inscription_id: InscriptionId::from_str(

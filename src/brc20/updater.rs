@@ -1,6 +1,3 @@
-use bigdecimal::num_bigint::BigInt;
-use bigdecimal::BigDecimal;
-use std::ops::Deref;
 use std::str::FromStr;
 
 use super::{
@@ -13,6 +10,7 @@ use crate::{
   brc20::{error::BRC20Error, params::MAX_DECIMAL_WIDTH, ScriptKey},
   InscriptionId, SatPoint, Txid,
 };
+use bigdecimal::num_bigint::Sign;
 use bitcoin::{Network, Script};
 
 #[derive(Clone)]
@@ -88,7 +86,6 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
         ),
       };
 
-      // 这里只有BRC20Error 认为是协议error，记录到event中
       let result = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC20Error(e)) => Err(e),
@@ -134,20 +131,23 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     let dec = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
       .checked_to_u8()?;
     if dec > MAX_DECIMAL_WIDTH {
-      return Err(Error::BRC20Error(BRC20Error::InvalidDecimals(dec)));
+      return Err(Error::BRC20Error(BRC20Error::DecimalsTooLarge(dec)));
     }
     let base = BIGDECIMAL_TEN.checked_powu(dec as u64)?;
 
     let supply = Num::from_str(&deploy.max_supply)?;
 
-    if supply > Into::<Num>::into(u64::MAX) {
-      return Err(Error::BRC20Error(BRC20Error::InvalidMaxSupply(supply)));
+    if supply.sign() == Sign::NoSign || supply > Into::<Num>::into(u64::MAX) {
+      return Err(Error::BRC20Error(BRC20Error::InvalidSupply(supply)));
     }
 
     let limit = Num::from_str(&deploy.mint_limit.map_or(deploy.max_supply, |v| v))?;
 
-    if limit > supply {
-      return Err(Error::BRC20Error(BRC20Error::InvalidMintLimit));
+    if limit.sign() == Sign::NoSign || limit > supply {
+      return Err(Error::BRC20Error(BRC20Error::MintLimitOutOfRange(
+        lower_tick.as_str().to_string(),
+        limit,
+      )));
     }
 
     let supply = supply.checked_mul(&base)?.checked_to_u128()?;
@@ -201,16 +201,17 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     let mut amt = Num::from_str(&mint.amount)?.checked_mul(&base)?;
 
+    if amt.sign() == Sign::NoSign {
+      return Err(Error::BRC20Error(BRC20Error::InvalidZeroAmount));
+    }
     if amt > Into::<Num>::into(token_info.limit_per_mint) {
-      return Err(Error::BRC20Error(BRC20Error::MintAmountExceedLimit(
-        token_info.limit_per_mint.to_string(),
-      )));
+      return Err(Error::BRC20Error(BRC20Error::AmountExceedLimit(amt)));
     }
     let minted = Into::<Num>::into(token_info.minted);
     let supply = Into::<Num>::into(token_info.supply);
 
     if minted >= supply {
-      return Err(Error::BRC20Error(BRC20Error::TickMintOut(
+      return Err(Error::BRC20Error(BRC20Error::TickMinted(
         token_info.tick.as_str().to_string(),
       )));
     }
@@ -283,8 +284,8 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     let amt = Num::from_str(&transfer.amount)?.checked_mul(&base)?;
 
-    if amt <= Into::<Num>::into(0 as u128) || amt > Into::<Num>::into(token_info.supply) {
-      return Err(Error::BRC20Error(BRC20Error::InscribeTransferOverflow(amt)));
+    if amt.sign() == Sign::NoSign || amt > Into::<Num>::into(token_info.supply) {
+      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(amt)));
     }
 
     let script_key = ScriptKey::from_script(&to_script, self.network);
@@ -296,9 +297,11 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
 
     let overall = Into::<Num>::into(balance.overall_balance);
     let transferable = Into::<Num>::into(balance.transferable_balance);
-
-    if overall.checked_sub(&transferable)? < amt {
-      return Err(Error::BRC20Error(BRC20Error::InsufficientBalance));
+    let available = overall.checked_sub(&transferable)?;
+    if available < amt {
+      return Err(Error::BRC20Error(BRC20Error::InsufficientBalance(
+        available, amt,
+      )));
     }
 
     balance.transferable_balance = transferable.checked_add(&amt)?.checked_to_u128()?;

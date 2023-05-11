@@ -10,8 +10,7 @@ const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 pub struct TickInfo {
   pub tick: String,
   pub inscription_id: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub inscription_number: Option<String>,
+  pub inscription_number: String,
   pub supply: String,
   pub limit_per_mint: String,
   pub minted: String,
@@ -35,7 +34,7 @@ impl From<&brc20::TokenInfo> for TickInfo {
         .unwrap()
         .to_string(),
       inscription_id: tick_info.inscription_id.to_string(),
-      inscription_number: None,
+      inscription_number: tick_info.inscription_number.to_string(),
       supply: tick_info.supply.to_string(),
       limit_per_mint: tick_info.limit_per_mint.to_string(),
       minted: tick_info.minted.to_string(),
@@ -79,7 +78,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
-          inscription_number: None,
+          inscription_number: event.inscription_number.to_string(),
           supply: deploy_event.supply.to_string(),
           limit_per_mint: deploy_event.limit_per_mint.to_string(),
           decimal: deploy_event.decimal as u64,
@@ -87,18 +86,20 @@ impl From<&brc20::ActionReceipt> for TxEvent {
           deploy_by: event.to.to_string(),
           valid: true,
           msg: "ok".to_string(),
+          event: String::from("deploy"),
         }),
         brc20::BRC20Event::Mint(mint_event) => Self::Mint(MintEvent {
           tick: std::str::from_utf8(mint_event.tick.as_bytes())
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
-          inscription_number: None,
+          inscription_number: event.inscription_number.to_string(),
           amount: mint_event.amount.to_string(),
           msg_sender: event.from.to_string(),
           to: event.to.to_string(),
           valid: true,
           msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
+          event: String::from("mint"),
         }),
         brc20::BRC20Event::TransferPhase1(trans1) => {
           Self::InscribeTransfer(InscribeTransferEvent {
@@ -106,12 +107,13 @@ impl From<&brc20::ActionReceipt> for TxEvent {
               .unwrap()
               .to_string(),
             inscription_id: event.inscription_id.to_string(),
-            inscription_number: None,
+            inscription_number: event.inscription_number.to_string(),
             amount: trans1.amount.to_string(),
             msg_sender: event.from.to_string(),
             owner: event.to.to_string(),
             valid: true,
             msg: "ok".to_string(),
+            event: String::from("inscribeTransfer"),
           })
         }
         brc20::BRC20Event::TransferPhase2(trans2) => Self::Transfer(TransferEvent {
@@ -119,26 +121,34 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
-          inscription_number: None,
+          inscription_number: event.inscription_number.to_string(),
           amount: trans2.amount.to_string(),
           from: event.from.to_string(),
           to: event.to.to_string(),
           valid: true,
           msg: trans2.msg.clone().unwrap_or("ok".to_string()),
+          event: String::from("transfer"),
         }),
       },
       Err(err) => Self::Error(ErrorEvent {
         inscription_id: event.inscription_id.to_string(),
-        inscription_number: None,
+        inscription_number: event.inscription_number.to_string(),
         valid: false,
         msg: err.to_string(),
+        event: match event.op {
+          brc20::EventType::Deploy => "deploy",
+          brc20::EventType::Mint => "mint",
+          brc20::EventType::TransferPhase1 => "inscribeTransfer",
+          brc20::EventType::TransferPhase2 => "transfer",
+        }
+        .to_string(),
       }),
     }
   }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "event")]
+#[serde(tag = "op")]
 #[serde(rename_all = "camelCase")]
 pub enum TxEvent {
   Deploy(DeployEvent),
@@ -148,36 +158,14 @@ pub enum TxEvent {
   Error(ErrorEvent),
 }
 
-impl TxEvent {
-  pub fn set_inscription_number(&mut self, number: Option<String>) {
-    match self {
-      TxEvent::Deploy(event) => {
-        event.inscription_number = number;
-      }
-      TxEvent::Mint(event) => {
-        event.inscription_number = number;
-      }
-      TxEvent::InscribeTransfer(event) => {
-        event.inscription_number = number;
-      }
-      TxEvent::Transfer(event) => {
-        event.inscription_number = number;
-      }
-      TxEvent::Error(event) => {
-        event.inscription_number = number;
-      }
-    }
-  }
-}
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorEvent {
   pub inscription_id: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub inscription_number: Option<String>,
+  pub inscription_number: String,
   pub valid: bool,
   pub msg: String,
+  pub event: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -185,8 +173,7 @@ pub struct ErrorEvent {
 pub struct DeployEvent {
   pub tick: String,
   pub inscription_id: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub inscription_number: Option<String>,
+  pub inscription_number: String,
   pub supply: String,
   pub limit_per_mint: String,
   pub decimal: u64,
@@ -194,6 +181,7 @@ pub struct DeployEvent {
   pub deploy_by: String,
   pub valid: bool,
   pub msg: String,
+  pub event: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -201,13 +189,13 @@ pub struct DeployEvent {
 pub struct MintEvent {
   pub tick: String,
   pub inscription_id: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub inscription_number: Option<String>,
+  pub inscription_number: String,
   pub amount: String,
   pub msg_sender: String,
   pub to: String,
   pub valid: bool,
   pub msg: String,
+  pub event: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -215,13 +203,13 @@ pub struct MintEvent {
 pub struct InscribeTransferEvent {
   pub tick: String,
   pub inscription_id: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub inscription_number: Option<String>,
+  pub inscription_number: String,
   pub amount: String,
   pub msg_sender: String,
   pub owner: String,
   pub valid: bool,
   pub msg: String,
+  pub event: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -229,13 +217,13 @@ pub struct InscribeTransferEvent {
 pub struct TransferEvent {
   pub tick: String,
   pub inscription_id: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub inscription_number: Option<String>,
+  pub inscription_number: String,
   pub amount: String,
   pub from: String,
   pub to: String,
   pub valid: bool,
   pub msg: String,
+  pub event: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -254,10 +242,22 @@ pub struct TransferableInscriptions {
 #[serde(rename_all = "camelCase")]
 pub struct TransferableInscription {
   pub id: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub number: Option<String>,
+  pub number: String,
   pub amount: String,
   pub tick: String,
+  pub owner: String,
+}
+
+impl From<&brc20::TransferableLog> for TransferableInscription {
+  fn from(trans: &brc20::TransferableLog) -> Self {
+    Self {
+      id: trans.inscription_id.to_string(),
+      number: trans.inscription_number.to_string(),
+      amount: trans.amount.to_string(),
+      tick: trans.tick.as_str().to_string(),
+      owner: trans.owner.to_string(),
+    }
+  }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -322,17 +322,7 @@ pub(crate) async fn brc20_tick_info(
     return Json(ApiResponse::api_err(&ApiError::internal("db: not match")));
   }
 
-  let mut result: TickInfo = tick_info.into();
-  let inscription = match index.get_inscription_entry(tick_info.inscription_id) {
-    Ok(inscription) => inscription,
-    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
-  };
-  if !inscription.is_none() {
-    let inscription = inscription.unwrap();
-    result.inscription_number = Some(inscription.number.to_string());
-  }
-
-  Json(ApiResponse::ok(result))
+  Json(ApiResponse::ok(tick_info.into()))
 }
 
 pub(crate) async fn brc20_all_tick_info(
@@ -345,22 +335,9 @@ pub(crate) async fn brc20_all_tick_info(
   };
   log::debug!("rpc: get brc20_all_tick_info: {:?}", all_tick_info);
 
-  let mut result = AllTickInfo { tokens: vec![] };
-
-  for ref tick in all_tick_info {
-    let mut json_tick: TickInfo = tick.into();
-    let inscription = match index.get_inscription_entry(tick.inscription_id) {
-      Ok(inscription) => inscription,
-      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
-    };
-    if !inscription.is_none() {
-      let inscription = inscription.unwrap();
-      json_tick.inscription_number = Some(inscription.number.to_string());
-      result.tokens.push(json_tick);
-    }
-  }
-
-  Json(ApiResponse::ok(result))
+  Json(ApiResponse::ok(AllTickInfo {
+    tokens: all_tick_info.iter().map(|t| t.into()).collect(),
+  }))
 }
 
 pub(crate) async fn brc20_balance(
@@ -459,23 +436,10 @@ pub(crate) async fn brc20_tx_events(
   let tx_events = tx_events.unwrap();
   log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
 
-  let mut result = TxEvents {
+  Json(ApiResponse::ok(TxEvents {
     txid: txid.to_string(),
-    events: Vec::with_capacity(tx_events.len()),
-  };
-  for event in &tx_events {
-    let mut json_event: TxEvent = event.into();
-    let inscription = match index.get_inscription_entry(event.inscription_id) {
-      Ok(inscription) => inscription,
-      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
-    };
-    if !inscription.is_none() {
-      let inscription = inscription.unwrap();
-      json_event.set_inscription_number(Some(inscription.number.to_string()));
-    }
-    result.events.push(json_event);
-  }
-  Json(ApiResponse::ok(result))
+    events: tx_events.iter().map(|e| e.into()).collect(),
+  }))
 }
 
 pub(crate) async fn brc20_block_events(
@@ -504,31 +468,15 @@ pub(crate) async fn brc20_block_events(
     block_events
   );
 
-  let mut result = BlockEvents {
-    block: Vec::with_capacity(block_events.len()),
-  };
-
-  for (txid, events) in block_events {
-    let mut tx_events = TxEvents {
-      txid: txid.to_string(),
-      events: Vec::with_capacity(events.len()),
-    };
-    for event in &events {
-      let mut json_event: TxEvent = event.into();
-      let inscription = match index.get_inscription_entry(event.inscription_id) {
-        Ok(inscription) => inscription,
-        Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
-      };
-      if !inscription.is_none() {
-        let inscription = inscription.unwrap();
-        json_event.set_inscription_number(Some(inscription.number.to_string()));
-      }
-      tx_events.events.push(json_event);
-    }
-    result.block.push(tx_events);
-  }
-
-  Json(ApiResponse::ok(result))
+  Json(ApiResponse::ok(BlockEvents {
+    block: block_events
+      .iter()
+      .map(|(txid, events)| TxEvents {
+        txid: txid.to_string(),
+        events: events.iter().map(|e| e.into()).collect(),
+      })
+      .collect(),
+  }))
 }
 
 pub(crate) async fn brc20_transferable(
@@ -559,28 +507,9 @@ pub(crate) async fn brc20_transferable(
     transferable
   );
 
-  let mut result = TransferableInscriptions {
-    inscriptions: Vec::with_capacity(transferable.len()),
-  };
-  for trans in &transferable {
-    let mut ins = TransferableInscription {
-      id: trans.inscription_id.to_string(),
-      number: None,
-      amount: trans.amount.to_string(),
-      tick: tick.clone(),
-    };
-    let inscription = match index.get_inscription_entry(trans.inscription_id) {
-      Ok(inscription) => inscription,
-      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
-    };
-    if !inscription.is_none() {
-      let inscription = inscription.unwrap();
-      ins.number = Some(inscription.number.to_string());
-    }
-    result.inscriptions.push(ins);
-  }
-
-  Json(ApiResponse::ok(result))
+  Json(ApiResponse::ok(TransferableInscriptions {
+    inscriptions: transferable.iter().map(|trans| trans.into()).collect(),
+  }))
 }
 
 pub(crate) async fn brc20_all_transferable(
@@ -603,28 +532,7 @@ pub(crate) async fn brc20_all_transferable(
     transferable
   );
 
-  let mut result = TransferableInscriptions {
-    inscriptions: Vec::with_capacity(transferable.len()),
-  };
-  for trans in &transferable {
-    let mut ins = TransferableInscription {
-      id: trans.inscription_id.to_string(),
-      number: None,
-      amount: trans.amount.to_string(),
-      tick: std::str::from_utf8(trans.tick.as_bytes())
-        .unwrap()
-        .to_string(),
-    };
-    let inscription = match index.get_inscription_entry(trans.inscription_id) {
-      Ok(inscription) => inscription,
-      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
-    };
-    if !inscription.is_none() {
-      let inscription = inscription.unwrap();
-      ins.number = Some(inscription.number.to_string());
-    }
-    result.inscriptions.push(ins);
-  }
-
-  Json(ApiResponse::ok(result))
+  Json(ApiResponse::ok(TransferableInscriptions {
+    inscriptions: transferable.iter().map(|trans| trans.into()).collect(),
+  }))
 }

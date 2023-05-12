@@ -19,7 +19,7 @@ pub use self::{
 
 use ledger::{LedgerRead, LedgerReadWrite};
 
-const MEDIA_TYPE_TEXT: &str = "text/plain;charset=utf-8";
+const MEDIA_TYPE_TEXT: &str = "text/plain";
 const MEDIA_TYPE_JSON: &str = "application/json";
 
 pub fn deserialize_brc20_operation(inscription: Inscription) -> Result<Operation> {

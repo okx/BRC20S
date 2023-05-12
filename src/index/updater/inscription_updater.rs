@@ -175,43 +175,44 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       }
     }
 
-    let inscription = Inscription::from_transaction(tx);
-    if inscriptions.iter().all(|flotsam| flotsam.offset != 0)
-      && inscription.is_some()
-      && input_value > 0
-    {
-      inscriptions.push(Flotsam {
-        inscription_id: txid.into(),
-        offset: 0,
-        origin: Origin::New(input_value - tx.output.iter().map(|txout| txout.value).sum::<u64>()),
-      });
+    if input_value > 0 {
+      let inscription = Inscription::from_transaction(tx);
+      if inscriptions.iter().all(|flotsam| flotsam.offset != 0) && inscription.is_some() {
+        inscriptions.push(Flotsam {
+          inscription_id: txid.into(),
+          offset: 0,
+          origin: Origin::New(input_value - tx.output.iter().map(|txout| txout.value).sum::<u64>()),
+        });
 
-      if let Ok(operation) = deserialize_brc20_operation(inscription.unwrap()) {
-        let from_script = self.get_previous_output_script(
-          tx.input
-            .get(0)
-            .ok_or(anyhow!("failed to find input {} for {}", 0, txid))?
-            .previous_output,
-        )?;
-        inscriptions_collector.push((
-          0,
-          InscriptionData {
-            txid,
-            inscription_id: txid.into(),
-            inscription_number: 0,
-            old_satpoint: SatPoint {
-              outpoint: tx.input.get(0).unwrap().previous_output,
-              offset: 0,
+        if let Ok(operation) = deserialize_brc20_operation(inscription.unwrap()) {
+          let from_script = self.get_previous_output_script(
+            tx.input
+              .get(0)
+              .ok_or(anyhow!("failed to find input {} for {}", 0, txid))?
+              .previous_output,
+          )?;
+          inscriptions_collector.push((
+            0,
+            InscriptionData {
+              txid,
+              inscription_id: txid.into(),
+              inscription_number: 0,
+              old_satpoint: SatPoint {
+                outpoint: tx.input.get(0).unwrap().previous_output,
+                offset: 0,
+              },
+              new_satpoint: None,
+              from_script: ScriptKey::from_script(&from_script, self.index.get_chain_network()),
+              to_script: None,
+              action: Action::Inscribe(InscribeAction { operation }),
             },
-            new_satpoint: None,
-            from_script: ScriptKey::from_script(&from_script, self.index.get_chain_network()),
-            to_script: None,
-            action: Action::Inscribe(InscribeAction { operation }),
-          },
-        ))
+          ))
+        };
+        self.tx_cache.insert(txid, tx.to_owned());
       };
-      self.tx_cache.insert(txid, tx.to_owned());
-    };
+    } else {
+      self.next_number += 1;
+    }
 
     if is_coinbase {
       inscriptions.append(&mut self.flotsam);

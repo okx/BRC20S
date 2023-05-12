@@ -115,6 +115,12 @@ mod tests {
   }
 
   #[test]
+  fn test_json_non_string() {
+    let json_str = r##"{"p":"brc-20","op":"mint","tick":"smol","amt":33}"##;
+    assert!(deserialize_brc20(json_str).is_err())
+  }
+
+  #[test]
   fn test_deserialize_case_insensitive() {
     let max_supply = "21000000".to_string();
     let mint_limit = "1000".to_string();

@@ -1,7 +1,7 @@
 use crate::brc20::error::BRC20Error;
 use crate::brc20::params::MAX_DECIMAL_WIDTH;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
-use bigdecimal::{BigDecimal, ToPrimitive, Zero};
+use bigdecimal::{BigDecimal, One, ToPrimitive};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -36,7 +36,7 @@ impl Num {
 
   pub fn checked_powu(&self, exp: u64) -> Result<Self, BRC20Error> {
     match exp {
-      0 => Ok(Self(BigDecimal::zero())),
+      0 => Ok(Self(BigDecimal::one())),
       1 => Ok(Self(self.0.clone())),
       exp => {
         let mut result = self.0.clone();
@@ -269,7 +269,7 @@ mod tests {
   #[test]
   fn test_checked_powu_floatpoint() {
     let n = Num::from_str("3.7").unwrap();
-    assert_eq!(n.checked_powu(0).unwrap(), Num::from_str("0").unwrap());
+    assert_eq!(n.checked_powu(0).unwrap(), Num::from_str("1").unwrap());
     assert_eq!(n.checked_powu(1).unwrap(), n);
     assert_eq!(n.checked_powu(2).unwrap(), Num::from_str("13.69").unwrap());
     assert_eq!(n.checked_powu(3).unwrap(), Num::from_str("50.653").unwrap());
@@ -286,7 +286,7 @@ mod tests {
   #[test]
   fn test_checked_powu_integer() {
     let n = Num::from_str("10").unwrap();
-    assert_eq!(n.checked_powu(0).unwrap(), Num::from_str("0").unwrap());
+    assert_eq!(n.checked_powu(0).unwrap(), Num::from_str("1").unwrap());
     assert_eq!(n.checked_powu(1).unwrap(), n);
     assert_eq!(n.checked_powu(2).unwrap(), Num::from_str("100").unwrap());
     assert_eq!(n.checked_powu(3).unwrap(), Num::from_str("1000").unwrap());

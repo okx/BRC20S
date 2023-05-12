@@ -2,7 +2,6 @@ use bitcoin::{Address, Network, Script, ScriptHash};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-// 用做数据库的key
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum ScriptKey {
   Address(Address),

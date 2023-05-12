@@ -540,7 +540,6 @@ impl Updater {
       }
 
       if let Some((tx, txid)) = block.txdata.get(0) {
-        // coinbase 交易能有其他输入吗
         self.index_transaction_sats(
           tx,
           *txid,

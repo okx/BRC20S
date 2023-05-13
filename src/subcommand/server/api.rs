@@ -434,6 +434,11 @@ pub(crate) async fn brc20_tx_events(
     )));
   }
   let tx_events = tx_events.unwrap();
+  if tx_events.is_empty() {
+    return Json(ApiResponse::api_err(&ApiError::not_found(
+      "tx events not found",
+    )));
+  }
   log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
 
   Json(ApiResponse::ok(TxEvents {

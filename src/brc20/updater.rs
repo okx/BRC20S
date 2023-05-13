@@ -108,7 +108,9 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
         result,
       });
     }
-    self.ledger.save_transaction_receipts(&txid, &receipts)?;
+    if !receipts.is_empty() {
+      self.ledger.save_transaction_receipts(&txid, &receipts)?;
+    }
     Ok(receipts.len())
   }
 

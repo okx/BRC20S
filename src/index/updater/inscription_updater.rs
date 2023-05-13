@@ -124,9 +124,10 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
                     inscription_id.txid
                   ))?
               };
-              if let Ok(_) =
-                deserialize_brc20_operation(Inscription::from_transaction(&inscribe_tx).unwrap())
-              {
+              if let Ok(_) = deserialize_brc20_operation(
+                Inscription::from_transaction(&inscribe_tx).unwrap(),
+                true,
+              ) {
                 inscriptions_collector.push((
                   input_value + old_satpoint.offset,
                   InscriptionData {
@@ -184,7 +185,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           origin: Origin::New(input_value - tx.output.iter().map(|txout| txout.value).sum::<u64>()),
         });
 
-        if let Ok(operation) = deserialize_brc20_operation(inscription.unwrap()) {
+        if let Ok(operation) = deserialize_brc20_operation(inscription.unwrap(), false) {
           let from_script = self.get_previous_output_script(
             tx.input
               .get(0)

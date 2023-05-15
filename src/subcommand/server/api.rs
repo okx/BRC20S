@@ -134,6 +134,8 @@ impl From<&brc20::ActionReceipt> for TxEvent {
         inscription_id: event.inscription_id.to_string(),
         inscription_number: event.inscription_number.to_string(),
         valid: false,
+        from: event.from.to_string(),
+        to: event.to.to_string(),
         msg: err.to_string(),
         event: match event.op {
           brc20::EventType::Deploy => "deploy",
@@ -163,6 +165,8 @@ pub enum TxEvent {
 pub struct ErrorEvent {
   pub inscription_id: String,
   pub inscription_number: String,
+  pub from: String,
+  pub to: String,
   pub valid: bool,
   pub msg: String,
   pub event: String,

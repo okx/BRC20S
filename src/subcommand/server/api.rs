@@ -134,6 +134,8 @@ impl From<&brc20::ActionReceipt> for TxEvent {
         inscription_id: event.inscription_id.to_string(),
         inscription_number: event.inscription_number.to_string(),
         valid: false,
+        from: event.from.to_string(),
+        to: event.to.to_string(),
         msg: err.to_string(),
         event: match event.op {
           brc20::EventType::Deploy => "deploy",
@@ -163,6 +165,8 @@ pub enum TxEvent {
 pub struct ErrorEvent {
   pub inscription_id: String,
   pub inscription_number: String,
+  pub from: String,
+  pub to: String,
   pub valid: bool,
   pub msg: String,
   pub event: String,
@@ -434,11 +438,6 @@ pub(crate) async fn brc20_tx_events(
     )));
   }
   let tx_events = tx_events.unwrap();
-  if tx_events.is_empty() {
-    return Json(ApiResponse::api_err(&ApiError::not_found(
-      "tx events not found",
-    )));
-  }
   log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
 
   Json(ApiResponse::ok(TxEvents {

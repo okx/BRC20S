@@ -1,4 +1,4 @@
-use crate::brc20::{BRC20Updater, InscriptionData};
+use crate::brc20::{updater::BRC20Updater, InscriptionData};
 use crate::okx::BRC20Database;
 
 use {
@@ -586,12 +586,14 @@ impl Updater {
       }
       inscription_collects.pop();
     }
-    let mut brc20_updater = BRC20Updater::new(&brc20_database);
+    let mut brc20_updater =
+      BRC20Updater::new(&brc20_database, &inscription_id_to_inscription_entry);
 
     for (txid, brc20_transaction) in inscription_collects {
-      brc20_action_count +=
-        brc20_updater.index_transaction(self.height, block.header.time, txid, brc20_transaction)?
-          as u64;
+      brc20_action_count += brc20_updater
+        .index_transaction(self.height, block.header.time, txid, brc20_transaction)
+        .map_err(|e| anyhow!("failed to parse brc20 protocol for {txid} reason {e}"))?
+        as u64;
     }
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;

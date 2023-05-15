@@ -9,6 +9,9 @@ pub enum Error<L: LedgerRead> {
 
   #[error("ledger error: {0}")]
   LedgerError(<L as LedgerRead>::Error),
+
+  #[error("others: {0}")]
+  Others(anyhow::Error),
 }
 
 #[derive(Debug, PartialEq, thiserror::Error)]
@@ -40,7 +43,7 @@ pub enum BRC20Error {
   #[error("tick invalid supply {0}")]
   InvalidSupply(Num),
 
-  #[error("tick has been existed")]
+  #[error("tick: {0} has been existed")]
   DuplicateTick(String),
 
   #[error("tick: {0} not found")]
@@ -67,7 +70,7 @@ pub enum BRC20Error {
   #[error("insufficient balance: {0} {1}")]
   InsufficientBalance(Num, Num),
 
-  #[error("amout exceed limit: {0}")]
+  #[error("amount exceed limit: {0}")]
   AmountExceedLimit(Num),
 
   #[error("transferable inscriptionId not found: {0}")]

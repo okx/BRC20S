@@ -133,7 +133,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
                   InscriptionData {
                     txid,
                     inscription_id,
-                    inscription_number: 0,
                     old_satpoint,
                     new_satpoint: None,
                     from_script: ScriptKey::from_script(
@@ -197,7 +196,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             InscriptionData {
               txid,
               inscription_id: txid.into(),
-              inscription_number: 0,
               old_satpoint: SatPoint {
                 outpoint: tx.input.get(0).unwrap().previous_output,
                 offset: 0,
@@ -250,11 +248,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           })
           .map(|value| &mut value.1)
         {
-          inscription_data.inscription_number = Index::get_inscription_number_by_inscription_id(
-            self.id_to_entry,
-            inscription_data.inscription_id,
-          )?;
-
           inscription_data.to_script = Some(ScriptKey::from_script(
             &tx_out.script_pubkey,
             self.index.get_chain_network(),

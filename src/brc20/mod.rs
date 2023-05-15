@@ -7,14 +7,14 @@ mod num;
 mod operation;
 mod params;
 mod types;
-mod updater;
+pub mod updater;
 
 pub use self::{
   error::{BRC20Error, Error},
   num::Num,
   operation::{deserialize_brc20, Deploy, Mint, Operation, Transfer},
   types::*,
-  updater::{Action, BRC20Updater, InscribeAction, InscriptionData},
+  updater::{Action, InscribeAction, InscriptionData},
 };
 
 use ledger::{LedgerRead, LedgerReadWrite};

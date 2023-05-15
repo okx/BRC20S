@@ -586,7 +586,8 @@ impl Updater {
       }
       inscription_collects.pop();
     }
-    let mut brc20_updater = BRC20Updater::new(&brc20_database, &index);
+    let mut brc20_updater =
+      BRC20Updater::new(&brc20_database, &inscription_id_to_inscription_entry);
 
     for (txid, brc20_transaction) in inscription_collects {
       brc20_action_count += brc20_updater

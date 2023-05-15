@@ -8,10 +8,11 @@ use super::{
 use crate::brc20::params::BIGDECIMAL_TEN;
 use crate::{
   brc20::{error::BRC20Error, params::MAX_DECIMAL_WIDTH, ScriptKey},
+  index::{InscriptionEntryValue, InscriptionIdValue},
   Index, InscriptionId, SatPoint, Txid,
 };
-use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
+use redb::Table;
 
 #[derive(Clone)]
 pub enum Action {
@@ -34,13 +35,19 @@ pub struct InscriptionData {
   pub action: Action,
 }
 
-pub(crate) struct BRC20Updater<'a, L: LedgerReadWrite> {
+pub(crate) struct BRC20Updater<'a, 'db, 'tx, L: LedgerReadWrite> {
   ledger: &'a L,
-  index: &'a Index,
+  id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
 }
-impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
-  pub fn new(ledger: &'a L, index: &'a Index) -> Self {
-    Self { ledger, index }
+impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
+  pub fn new(
+    ledger: &'a L,
+    id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
+  ) -> Self {
+    Self {
+      ledger,
+      id_to_entry,
+    }
   }
 
   pub fn index_transaction(
@@ -54,15 +61,9 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     for operation in operations {
       let op: EventType;
 
-      let inscription_number = self
-        .index
-        .get_inscription_entry(operation.inscription_id)
-        .map_err(|e| Error::Others(e))?
-        .ok_or(Error::Others(anyhow!(format!(
-          "inscription number not found for {}",
-          operation.inscription_id
-        ))))?
-        .number;
+      let inscription_number =
+        Index::get_number_by_inscription_id(self.id_to_entry, operation.inscription_id)
+          .map_err(|e| Error::Others(e))?;
       let result: Result<BRC20Event, Error<L>> = match operation.action {
         Action::Inscribe(inscribe) => match inscribe.operation {
           Operation::Deploy(deploy) => {

@@ -1,15 +1,16 @@
 use std::str::FromStr;
 
 use super::{
-  ActionReceipt, BRC20Event, Balance, Deploy, DeployEvent, Error, EventType, LedgerRead,
-  LedgerReadWrite, Mint, MintEvent, Num, Operation, Tick, TokenInfo, Transfer, TransferPhase1Event,
-  TransferPhase2Event, TransferableLog,
+  ActionReceipt, BRC20Event, Balance, Deploy, DeployEvent, Error, EventType, LedgerReadWrite, Mint,
+  MintEvent, Num, Operation, Tick, TokenInfo, Transfer, TransferPhase1Event, TransferPhase2Event,
+  TransferableLog,
 };
 use crate::brc20::params::BIGDECIMAL_TEN;
 use crate::{
   brc20::{error::BRC20Error, params::MAX_DECIMAL_WIDTH, ScriptKey},
-  InscriptionId, SatPoint, Txid,
+  Index, InscriptionId, SatPoint, Txid,
 };
+use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 
 #[derive(Clone)]
@@ -26,7 +27,6 @@ pub struct InscribeAction {
 pub struct InscriptionData {
   pub txid: Txid,
   pub inscription_id: InscriptionId,
-  pub inscription_number: u64,
   pub old_satpoint: SatPoint,
   pub new_satpoint: Option<SatPoint>,
   pub from_script: ScriptKey,
@@ -34,12 +34,13 @@ pub struct InscriptionData {
   pub action: Action,
 }
 
-pub struct BRC20Updater<'a, L: LedgerReadWrite> {
+pub(crate) struct BRC20Updater<'a, L: LedgerReadWrite> {
   ledger: &'a L,
+  index: &'a Index,
 }
 impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
-  pub fn new(ledger: &'a L) -> Self {
-    Self { ledger }
+  pub fn new(ledger: &'a L, index: &'a Index) -> Self {
+    Self { ledger, index }
   }
 
   pub fn index_transaction(
@@ -48,11 +49,21 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
     block_time: u32,
     txid: Txid,
     operations: Vec<InscriptionData>,
-  ) -> Result<usize, <L as LedgerRead>::Error> {
+  ) -> Result<usize, Error<L>> {
     let mut receipts = Vec::new();
     for operation in operations {
       let op: EventType;
-      let result = match operation.action {
+
+      let inscription_number = self
+        .index
+        .get_inscription_entry(operation.inscription_id)
+        .map_err(|e| Error::Others(e))?
+        .ok_or(Error::Others(anyhow!(format!(
+          "inscription number not found for {}",
+          operation.inscription_id
+        ))))?
+        .number;
+      let result: Result<BRC20Event, Error<L>> = match operation.action {
         Action::Inscribe(inscribe) => match inscribe.operation {
           Operation::Deploy(deploy) => {
             op = EventType::Deploy;
@@ -61,7 +72,7 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
               block_number,
               block_time,
               operation.inscription_id,
-              operation.inscription_number,
+              inscription_number,
               operation.to_script.clone(),
             )
           }
@@ -74,7 +85,7 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
             self.process_inscribe_transfer(
               transfer,
               operation.inscription_id,
-              operation.inscription_number,
+              inscription_number,
               operation.to_script.clone(),
             )
           }
@@ -92,14 +103,14 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       let result = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC20Error(e)) => Err(e),
-        Err(Error::LedgerError(e)) => {
+        Err(e) => {
           return Err(e);
         }
       };
 
       receipts.push(ActionReceipt {
         inscription_id: operation.inscription_id,
-        inscription_number: operation.inscription_number,
+        inscription_number,
         op,
         old_satpoint: operation.old_satpoint,
         new_satpoint: operation.new_satpoint,
@@ -109,7 +120,10 @@ impl<'a, L: LedgerReadWrite> BRC20Updater<'a, L> {
       });
     }
     if !receipts.is_empty() {
-      self.ledger.save_transaction_receipts(&txid, &receipts)?;
+      self
+        .ledger
+        .save_transaction_receipts(&txid, &receipts)
+        .map_err(|e| Error::LedgerError(e))?;
     }
     Ok(receipts.len())
   }

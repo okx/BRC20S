@@ -3,10 +3,7 @@ use crate::brc20::ScriptKey;
 
 use {
   self::{
-    entry::{
-      BlockHashValue, Entry, InscriptionEntry, InscriptionEntryValue, InscriptionIdValue,
-      OutPointValue, SatPointValue, SatRange,
-    },
+    entry::{BlockHashValue, Entry, InscriptionEntry, OutPointValue, SatPointValue, SatRange},
     updater::Updater,
   },
   super::*,
@@ -20,6 +17,8 @@ use {
   std::collections::HashMap,
   std::sync::atomic::{self, AtomicBool},
 };
+
+pub(super) use self::entry::{InscriptionEntryValue, InscriptionIdValue};
 
 mod entry;
 mod fetcher;
@@ -979,7 +978,7 @@ impl Index {
     )
   }
 
-  fn get_inscription_number_by_inscription_id<'a>(
+  pub(crate) fn get_number_by_inscription_id<'a>(
     id_to_entry: &'a impl ReadableTable<&'static InscriptionIdValue, InscriptionEntryValue>,
     inscription_id: InscriptionId,
   ) -> Result<u64> {

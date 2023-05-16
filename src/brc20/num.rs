@@ -71,7 +71,10 @@ impl Num {
       self
         .0
         .to_bigint()
-        .unwrap()
+        .ok_or(BRC20Error::InternalError(format!(
+          "convert {} to bigint failed",
+          self.0
+        )))?
         .to_u128()
         .ok_or(BRC20Error::Overflow {
           op: String::from("to_u128"),

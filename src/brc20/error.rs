@@ -81,6 +81,11 @@ pub enum BRC20Error {
 
   #[error("transferable owner not match {0}")]
   TransferableOwnerNotMatch(InscriptionId),
+
+  /// an InternalError is an error that happens exceed our expect
+  /// and should not happen under normal circumstances
+  #[error("internal error: {0}")]
+  InternalError(String),
 }
 
 impl<L: LedgerRead> From<BRC20Error> for Error<L> {

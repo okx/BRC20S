@@ -1,0 +1,908 @@
+openapi: 3.0.3
+info:
+  title: Ord Node API
+  description: Ord RESTful API for OKX
+  version: 1.0.0
+servers:
+  - url: /v1
+tags:
+  - name: node
+    description: node status information
+  - name: brc20
+    description: Access to blocks, transactions, accounts, and ticks for BRC20 protocol.
+  - name: ord
+    description: Access to inscriptions for ordinals protocol.
+paths:
+  /node/info:
+    get:
+      tags:
+        - node
+      summary: Get ord and bitcoin node status
+      description: |-
+        Returns a json object with the bitcoin network status.
+        For more details see [HeightInfo](#components/schemas/HeightInfo).
+      parameters:
+        - name: btc
+          schema:
+            type: boolean
+          in: query
+          description: |-
+            If true, returns the bitcoin network information.
+          required: false
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/HeightInfo"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /brc20/tick:
+    get:
+      tags:
+        - brc20
+      summary: Get brc20 tick list
+      description: |-
+        Returns a json object with the brc20 tick list.
+        For more details see [AllTickInfo](#components/schemas/AllTickInfo).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/AllTickInfo"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /brc20/tick/{tick}:
+    get:
+      tags:
+        - brc20
+      summary: Get brc20 tick by name
+      description: |-
+        Returns a json object with the brc20 tick info.
+        For more details see [TickInfo](#components/schemas/TickInfo).
+      parameters:
+        - name: tick
+          schema:
+            type: string
+          in: path
+          description: |-
+            The 4 bytes brc20 tick name.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/TickInfo"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /brc20/tick/{tick}/address/{address}/balance:
+    get:
+      tags:
+        - brc20
+      summary: Get brc20 balance by tick and address
+      description: |-
+        Returns a json object with the brc20 balance info.
+        For more details see [Balance](#components/schemas/Balance).
+      parameters:
+        - name: tick
+          schema:
+            type: string
+          in: path
+          description: |-
+            The brc20 tick name.
+          required: true
+        - name: address
+          schema:
+            type: string
+          in: path
+          description: |-
+            The address.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/Balance"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /brc20/tick/{tick}/address/{address}/transferable:
+    get:
+      tags:
+        - brc20
+      summary: Get brc20 transferable by tick and address
+      description: |-
+        Returns a json object with the brc20 transferable info.
+        For more details see [TransferableInscriptions](#components/schemas/TransferableInscriptions).
+      parameters:
+        - name: tick
+          schema:
+            type: string
+          in: path
+          description: |-
+            The brc20 tick name.
+          required: true
+        - name: address
+          schema:
+            type: string
+          in: path
+          description: |-
+            The btc address.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/TransferableInscriptions"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /brc20/address/{address}/balance:
+    get:
+      tags:
+        - brc20
+      summary: Get brc20 balance by btc address
+      description: |-
+        Returns a json object with the brc20 balance info.
+        For more details see [AllBalance](#components/schemas/AllBalance).
+      parameters:
+        - name: address
+          schema:
+            type: string
+          in: path
+          description: |-
+            The btc address.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/AllBalance"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /brc20/address/{address}/transferable:
+    get:
+      tags:
+        - brc20
+      summary: Get brc20 transferable by btc address
+      description: |-
+        Returns a json object with the brc20 transferable info.
+        For more details see [TransferableInscriptions](#components/schemas/TransferableInscriptions).
+      parameters:
+        - name: address
+          schema:
+            type: string
+          in: path
+          description: |-
+            The btc address.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/TransferableInscriptions"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /brc20/tx/{txid}:
+    get:
+      tags:
+        - brc20
+      summary: Get brc20 tx by txid
+      description: |-
+        Returns a json object with the brc20 tx info.
+        For more details see [TxEvents](#components/schemas/TxEvents).
+      parameters:
+        - name: txid
+          schema:
+            type: string
+          in: path
+          description: |-
+            The txid.
+          required: true
+        - name: mempool
+          schema:
+            type: boolean
+          in: query
+          description: |-
+            Whether to include mempool txs. Default: false.
+          required: false
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/TxEvents"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /brc20/block/{blockHash}:
+    get:
+      tags:
+        - brc20
+      summary: Get brc20 block by blockHash
+      description: |-
+        Returns a json object with the brc20 block info.
+        For more details see [BlockEvents](#components/schemas/BlockEvents).
+      parameters:
+        - name: blockHash
+          schema:
+            type: string
+          in: path
+          description: |-
+            The blockHash.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/BlockEvents"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /ord/inscription/id/{inscriptionId}:
+    get:
+      tags:
+        - ord
+      summary: Get ord inscription by inscriptionId
+      description: |-
+        Returns a json object with the ord inscription info.
+        For more details see [Inscription](#components/schemas/Inscription).
+      parameters:
+        - name: inscriptionId
+          schema:
+            type: string
+          in: path
+          description: |-
+            The inscriptionId.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/Inscription"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /ord/inscription/number/{inscriptionNumber}:
+    get:
+      tags:
+        - ord
+      summary: Get ord inscription by inscriptionNumber
+      description: |-
+        Returns a json object with the ord inscription info.
+        For more details see [Inscription](#components/schemas/Inscription).
+      parameters:
+        - name: inscriptionNumber
+          schema:
+            type: integer
+          in: path
+          description: |-
+            The inscriptionNumber.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/Inscription"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+components:
+  schemas:
+    ApiResponse:
+      type: object
+      description: |-
+        `ApiResponse` is a generic response object.
+      required:
+        - code
+        - msg
+      properties:
+        code:
+          type: integer
+          description: The response code.
+        msg:
+          type: string
+          description: A message describing the error.
+          example: "ok"
+    ApiResponseError:
+      type: object
+      description: |-
+        `ApiResponse` is a generic response object.
+      required:
+        - code
+        - msg
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        msg:
+          type: string
+          description: A message describing the error.
+    ErrorCode:
+      type: integer
+      description: |-
+        `ErrorCode` is a integer enum.
+      enum:
+        - 1
+        - 2
+        - 3
+      example: 1
+    HeightInfo:
+      type: object
+      description: |-
+        `HeightInfo` is a object with the ord and bitcoin network status.
+      required:
+        - ordHeight
+        - btcChainInfo
+      properties:
+        ordHeight:
+          type: integer
+          description: The height that ord has been resolved.
+        btcChainInfo:
+          type: object
+          description: The bitcoin node that we connected status.
+    TickInfo:
+      type: object
+      description: |-
+        `TickInfo` is a object with the tick info.
+      required:
+        - tick
+        - inscriptionId
+        - inscriptionNumber
+        - supply
+        - limitPerMint
+        - minted
+        - decimal
+        - deployBy
+        - txid
+        - deployHeight
+        - deployBlocktime
+      properties:
+        tick:
+          type: string
+          description: The tick name.
+        inscriptionId:
+          type: string
+          description: The inscription id.
+        inscriptionNumber:
+          type: integer
+          description: The inscription number.
+        supply:
+          type: string
+          description: The supply.
+        limitPerMint:
+          type: string
+          description: The limit per mint.
+        minted:
+          type: string
+          description: The minted.
+        decimal:
+          type: integer
+          description: The decimal.
+        deployBy:
+          type: string
+          description: The deploy by.
+        txid:
+          type: string
+          description: The txid.
+        deployHeight:
+          type: integer
+          description: The deploy height.
+        deployBlocktime:
+          type: integer
+          description: The deploy blocktime.
+    AllTickInfo:
+      type: object
+      description: |-
+        `AllTickInfo` is a object with the all tick info.
+      required:
+        - tokens
+      properties:
+        tokens:
+          type: array
+          description: The tick info list.
+          items:
+            $ref: "#/components/schemas/TickInfo"
+    Balance:
+      type: object
+      description: |-
+        `Balance` is a object with the balance info.
+      required:
+        - tick
+        - availableBalance
+        - transferableBalance
+        - overallBalance
+      properties:
+        tick:
+          type: string
+          description: The tick name.
+        availableBalance:
+          type: string
+          description: The available balance.
+        transferableBalance:
+          type: string
+          description: The transferable balance.
+        overallBalance:
+          type: string
+          description: The overall balance.
+    AllBalance:
+      type: object
+      description: |-
+        `AllBalance` is a object with the all balance info.
+      required:
+        - tokens
+      properties:
+        tokens:
+          type: array
+          description: The balance info list.
+          items:
+            $ref: "#/components/schemas/Balance"
+    TxEvent:
+      type: object
+      description: |-
+        `TxEvent` is a object with the transaction event.
+      oneOf:
+        - $ref: "#/components/schemas/DeployEvent"
+        - $ref: "#/components/schemas/MintEvent"
+        - $ref: "#/components/schemas/InscribeTransferEvent"
+        - $ref: "#/components/schemas/TransferEvent"
+        - $ref: "#/components/schemas/ErrorEvent"
+      discriminator:
+        propertyName: event
+        mapping:
+          deploy: "#/components/schemas/DeployEvent"
+          mint: "#/components/schemas/MintEvent"
+          inscribeTransfer: "#/components/schemas/InscribeTransferEvent"
+          transfer: "#/components/schemas/TransferEvent"
+          error: "#/components/schemas/ErrorEvent"
+    TxEvents:
+      type: object
+      description: |-
+        `TxEvents` is a object with the tx events info.
+      required:
+        - txid
+        - events
+      properties:
+        txid:
+          type: string
+          description: The txid.
+        events:
+          type: array
+          description: The tx events info list.
+          items:
+            $ref: "#/components/schemas/TxEvent"
+    BlockEvents:
+      type: object
+      description: |-
+        `BlockEvents` is a object with the block events info.
+      required:
+        - block
+      properties:
+        block:
+          type: array
+          description: The block events info list.
+          items:
+            $ref: "#/components/schemas/TxEvents"
+    TransferableInscription:
+      type: object
+      description: |-
+        `TransferableInscription` is a object with the transferable inscription info.
+      required:
+        - id
+        - number
+        - amount
+        - tick
+        - ouwner
+      properties:
+        id:
+          type: string
+          description: The inscription id.
+        number:
+          type: integer
+          description: The inscription number.
+        amount:
+          type: string
+          description: The inscription amount.
+        tick:
+          type: string
+          description: The inscription tick.
+        ouwner:
+          type: string
+          description: The inscription ouwner.
+    TransferableInscriptions:
+      type: object
+      description: |-
+        `TransferableInscriptions` is a object with the transferable inscription info.
+      required:
+        - inscriptions
+      properties:
+        inscriptions:
+          type: array
+          description: The transferable inscription info list.
+          items:
+            $ref: "#/components/schemas/TransferableInscription"
+    DeployEvent:
+      type: object
+      description: |-
+        `DeployEvent` is a object with the deploy event info.
+      allOf:
+        - type: object
+          required:
+            - event
+            - tick
+            - inscriptionId
+            - inscriptionNumber
+            - supply
+            - limitPerMint
+            - decimal
+            - msgSender
+            - deployBy
+            - valid
+            - msg
+          properties:
+            event:
+              type: string
+              example: deploy
+            tick:
+              type: string
+              description: The tick name.
+            inscriptionId:
+              type: string
+              description: The inscription id.
+            inscriptionNumber:
+              type: integer
+              description: The inscription number.
+            supply:
+              type: string
+              description: The supply.
+            limitPerMint:
+              type: string
+              description: The limit per mint.
+            decimal:
+              type: integer
+              description: The decimal.
+            msgSender:
+              type: string
+              description: The msg sender.
+            deployBy:
+              type: string
+              description: The deploy by.
+            valid:
+              type: boolean
+              description: The valid.
+            msg:
+              type: string
+              description: The msg.
+    MintEvent:
+      type: object
+      description: |-
+        `MintEvent` is a object with the mint event info.
+      allOf:
+        - type: object
+          required:
+            - event
+            - tick
+            - inscriptionId
+            - inscriptionNumber
+            - amount
+            - msgSender
+            - to
+            - valid
+            - msg
+          properties:
+            event:
+              type: string
+              description: The event.
+              example: mint
+            tick:
+              type: string
+              description: The tick name.
+            inscriptionId:
+              type: string
+              description: The inscription id.
+            inscriptionNumber:
+              type: integer
+              description: The inscription number.
+            amount:
+              type: string
+              description: The amount.
+            msgSender:
+              type: string
+              description: The msg sender.
+            to:
+              type: string
+              description: The to.
+            valid:
+              type: boolean
+              description: The valid.
+            msg:
+              type: string
+              description: The msg.
+    InscribeTransferEvent:
+      type: object
+      description: |-
+        `InscribeTransferEvent` is a object with the inscribe transfer event info.
+      allOf:
+        - type: object
+          required:
+            - event
+            - tick
+            - inscriptionId
+            - inscriptionNumber
+            - amount
+            - msgSender
+            - owner
+            - valid
+            - msg
+          properties:
+            event:
+              type: string
+              description: The event.
+              example: inscribeTransfer
+            tick:
+              type: string
+              description: The tick name.
+            inscriptionId:
+              type: string
+              description: The inscription id.
+            inscriptionNumber:
+              type: integer
+              description: The inscription number.
+            amount:
+              type: string
+              description: The amount.
+            msgSender:
+              type: string
+              description: The msg sender.
+            owner:
+              type: string
+              description: The owner.
+            valid:
+              type: boolean
+              description: The valid.
+            msg:
+              type: string
+              description: The msg.
+    TransferEvent:
+      type: object
+      description: |-
+        `TransferEvent` is a object with the transfer event info.
+      allOf:
+        - type: object
+          required:
+            - event
+            - tick
+            - inscriptionId
+            - inscriptionNumber
+            - amount
+            - from
+            - to
+            - valid
+            - msg
+          properties:
+            event:
+              type: string
+              description: The event.
+              example: transfer
+            tick:
+              type: string
+              description: The tick name.
+            inscriptionId:
+              type: string
+              description: The inscription id.
+            inscriptionNumber:
+              type: integer
+              description: The inscription number.
+            amount:
+              type: string
+              description: The amount.
+            from:
+              type: string
+              description: The from.
+            to:
+              type: string
+              description: The to.
+            valid:
+              type: boolean
+              description: The valid.
+            msg:
+              type: string
+              description: The msg.
+    ErrorEvent:
+      type: object
+      description: |-
+        `ErrorEvent` is a object with the error event info.
+      allOf:
+        - type: object
+          required:
+            - event
+            - inscriptionId
+            - inscriptionNumber
+            - from
+            - to
+            - valid
+            - msg
+          properties:
+            event:
+              type: string
+              description: The event.
+              example: error
+            inscriptionId:
+              type: string
+              description: The inscription id.
+            inscriptionNumber:
+              type: integer
+              description: The inscription number.
+            from:
+              type: string
+              description: The from.
+            to:
+              type: string
+              description: The to.
+            valid:
+              type: boolean
+              description: The valid.
+            msg:
+              type: string
+              description: The msg.
+    Inscription:
+      type: object
+      description: |-
+        `Inscription` is a object with the inscription info.
+      required:
+        - id
+        - number
+        - contentType
+        - content
+        - owner
+        - genesisHeight
+        - location
+        - sat
+      properties:
+        id:
+          type: string
+          description: The inscription id.
+        number:
+          type: integer
+          description: The inscription number.
+        contentType:
+          type: string
+          description: The inscription content type.
+        content:
+          type: string
+          description: The inscription content.
+        owner:
+          type: string
+          description: The inscription owner.
+        genesisHeight:
+          type: integer
+          description: The inscription genesis height.
+        location:
+          type: string
+          description: The inscription location.
+        sat:
+          type: integer
+          description: The inscription sat.

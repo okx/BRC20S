@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Ord Node API
   description: Ord RESTful API for OKX
-  version: 1.0.0
+  version: 0.1.0
 servers:
   - url: /v1
 tags:
@@ -341,7 +341,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
-  /ord/inscription/id/{inscriptionId}:
+  /ord/id/{inscriptionId}/inscription:
     get:
       tags:
         - ord
@@ -376,7 +376,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
-  /ord/inscription/number/{inscriptionNumber}:
+  /ord/number/{inscriptionNumber}/inscription:
     get:
       tags:
         - ord
@@ -405,6 +405,41 @@ paths:
                       data:
                         type: object
                         $ref: "#/components/schemas/Inscription"
+        "500":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /ord/output/{output}/info:
+    get:
+      tags:
+        - ord
+      summary: Get ord output info by output
+      description: |-
+        Returns a json object with the ord output info.
+        For more details see [OutputInfo](#components/schemas/OutputInfo).
+      parameters:
+        - name: output
+          schema:
+            type: string
+          in: path
+          description: |-
+            The output.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/OutputInfo"
         "500":
           description: ""
           content:
@@ -868,6 +903,24 @@ components:
             msg:
               type: string
               description: The msg.
+    InscriptionDigest:
+      type: object
+      description: |-
+        `InscriptionDigest` is a digest information object of the inscription.
+      required:
+        - id
+        - number
+        - location
+      properties:
+        id:
+          type: string
+          description: The inscription id.
+        number:
+          type: integer
+          description: The inscription number.
+        location:
+          type: string
+          description: The inscription location.
     Inscription:
       type: object
       description: |-
@@ -906,3 +959,31 @@ components:
         sat:
           type: integer
           description: The inscription sat.
+    OutputInfo:
+      type: object
+      description: |-
+        `OutputInfo` is a object with the output info.
+      required:
+        - txId
+        - scriptPubKey
+        - address
+        - value
+        - inscriptionDigest
+      properties:
+        txid:
+          type: string
+          description: The transaction id.
+        scriptPubKey:
+          type: string
+          description: The script public key.
+        address:
+          type: string
+          description: The address.
+        value:
+          type: integer
+          description: The value.
+        inscriptionDigest:
+          type: array
+          description: The inscription info list.
+          items:
+            $ref: "#/components/schemas/InscriptionDigest"

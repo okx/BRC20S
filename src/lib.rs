@@ -146,11 +146,11 @@ fn timestamp(seconds: u32) -> DateTime<Utc> {
 
 pub fn main() {
   let args = Arguments::parse();
-  let log_dir = match args.options.log_dir() {
+  let log_file = match args.options.log_file() {
     Ok(d) => d,
-    Err(e) => panic!("get log directory error: {}", e),
+    Err(e) => panic!("get log file error: {}", e),
   };
-  if let Err(e) = logger::init(args.options.log_level(), log_dir) {
+  if let Err(e) = logger::init(args.options.log_level(), log_file) {
     panic!("initialize logger error: {}", e);
   }
 

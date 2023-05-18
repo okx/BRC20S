@@ -26,7 +26,7 @@ pub fn init<P: AsRef<Path>>(
   let trigger = SizeTrigger::new(1024 * 1024 * 20);
   let roller = FixedWindowRoller::builder()
     .build("{}-{}.gz", 50)
-    .context("build FixedWindowRoller with '{}-{}.gz' failed.")?;
+    .map_err(|e| anyhow::format_err!("build FixedWindowRoller error: {}", e))?;
   let policy = CompoundPolicy::new(Box::new(trigger), Box::new(roller));
   let rfile = RollingFileAppender::builder()
     .append(true)

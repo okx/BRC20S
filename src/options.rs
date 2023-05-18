@@ -13,7 +13,7 @@ pub(crate) struct Options {
   #[clap(long, default_value_t=LogLevel::default(), help = "log level")]
   pub(crate) log_level: LogLevel,
   #[clap(long, help = "write log in directory <LOG_DIR>")]
-  pub(crate) log_file: Option<PathBuf>,
+  pub(crate) log_dir: Option<PathBuf>,
   #[clap(long, help = "Load Bitcoin Core data dir from <BITCOIN_DATA_DIR>.")]
   pub(crate) bitcoin_data_dir: Option<PathBuf>,
   #[clap(long, help = "Authenticate to Bitcoin Core RPC with <RPC_PASS>.")]
@@ -152,15 +152,11 @@ impl Options {
     self.log_level.0
   }
 
-  pub(crate) fn log_file(&self) -> Result<PathBuf> {
-    self.log_file.as_ref().map_or_else(
-      || {
-        let logdir = self.data_dir()?.join("logs");
-        fs::create_dir_all(&logdir)?;
-        Ok(logdir.join("ord.log"))
-      },
-      |path| Ok(path.clone()),
-    )
+  pub(crate) fn log_dir(&self) -> Result<PathBuf> {
+    self
+      .log_dir
+      .as_ref()
+      .map_or_else(|| Ok(self.data_dir()?.join("logs")), |path| Ok(path.clone()))
   }
 
   pub(crate) fn load_config(&self) -> Result<Config> {

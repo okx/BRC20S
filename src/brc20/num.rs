@@ -150,6 +150,33 @@ impl<'de> Deserialize<'de> for Num {
 mod tests {
   use super::*;
   use bigdecimal::FromPrimitive;
+  #[test]
+  fn test_num_from_str2() {
+    assert_eq!(
+      Num::from_str("001").unwrap(),
+      Num(BigDecimal::new(BigInt::from(1), 0)),
+    );
+    assert_eq!(
+      Num::from_str("00.1").unwrap(),
+      Num(BigDecimal::new(BigInt::from(1), 1)),
+    );
+    assert_eq!(
+      Num::from_str("0.0").unwrap(),
+      Num(BigDecimal::new(BigInt::from(0), 0)),
+    );
+    assert_eq!(
+      Num::from_str("0.100").unwrap(),
+      Num(BigDecimal::new(BigInt::from(1), 1)),
+    );
+    assert_eq!(
+      Num::from_str("0").unwrap(),
+      Num(BigDecimal::new(BigInt::from(0), 0)),
+    );
+    assert_eq!(
+      Num::from_str("00.00100").unwrap(),
+      Num(BigDecimal::new(BigInt::from(1), 3)),
+    );
+  }
 
   #[test]
   fn test_num_from_str() {

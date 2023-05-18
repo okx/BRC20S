@@ -276,6 +276,19 @@ pub struct HeightInfoQuery {
   btc: Option<bool>,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrdInscription {
+  pub id: String,
+  pub number: String,
+  pub content_type: Option<String>,
+  pub content: Option<String>,
+  pub owner: String,
+  pub genesis_height: u64,
+  pub location: String,
+  pub sat: Option<u64>,
+}
+
 pub(crate) async fn node_info(
   Extension(index): Extension<Arc<Index>>,
   Query(query): Query<HeightInfoQuery>,
@@ -538,5 +551,157 @@ pub(crate) async fn brc20_all_transferable(
 
   Json(ApiResponse::ok(TransferableInscriptions {
     inscriptions: transferable.iter().map(|trans| trans.into()).collect(),
+  }))
+}
+
+fn ord_get_inscription_by_id(
+  index: Arc<Index>,
+  id: InscriptionId,
+) -> Json<ApiResponse<OrdInscription>> {
+  let inscription_data = match index.get_inscription_all_data_by_id(id) {
+    Ok(Some(inscription_data)) => inscription_data,
+    Ok(None) => {
+      return Json(ApiResponse::api_err(&ApiError::not_found(
+        "inscription not found",
+      )))
+    }
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  Json(ApiResponse::ok(OrdInscription {
+    id: id.to_string(),
+    number: inscription_data.entry.number.to_string(),
+    content_type: inscription_data
+      .inscription
+      .content_type()
+      .map(|c| String::from(c)),
+    content: inscription_data.inscription.body().map(|c| hex::encode(c)),
+    owner: brc20::ScriptKey::from_script(
+      &inscription_data.tx.output[0].script_pubkey,
+      index.get_chain_network(),
+    )
+    .to_string(),
+    genesis_height: inscription_data.entry.height,
+    location: inscription_data.sat_point.to_string(),
+    sat: inscription_data.entry.sat.map(|s| s.0),
+  }))
+}
+
+pub(crate) async fn ord_inscription_id(
+  Extension(index): Extension<Arc<Index>>,
+  Path(id): Path<String>,
+) -> Json<ApiResponse<OrdInscription>> {
+  log::debug!("rpc: get ord_inscription_id: {}", id);
+  let id = match InscriptionId::from_str(&id) {
+    Ok(id) => id,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
+  };
+
+  return ord_get_inscription_by_id(index, id);
+}
+
+pub(crate) async fn ord_inscription_number(
+  Extension(index): Extension<Arc<Index>>,
+  Path(number): Path<u64>,
+) -> Json<ApiResponse<OrdInscription>> {
+  log::debug!("rpc: get ord_inscription_number: {}", number);
+  let id = match index.get_inscription_id_by_inscription_number(number) {
+    Ok(Some(id)) => id,
+    Ok(None) => {
+      return Json(ApiResponse::api_err(&ApiError::not_found(
+        "inscription not found",
+      )))
+    }
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  return ord_get_inscription_by_id(index, id);
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutPointData {
+  pub txid: String,
+  pub script_pub_key: String,
+  pub address: Option<String>,
+  pub value: u64,
+  pub inscription_digest: Vec<InscriptionDigest>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InscriptionDigest {
+  pub id: String,
+  pub number: u64,
+  pub location: String,
+}
+
+pub(crate) async fn ord_outpoint(
+  Extension(index): Extension<Arc<Index>>,
+  Path(outpoint): Path<OutPoint>,
+) -> Json<ApiResponse<OutPointData>> {
+  log::debug!("rpc: get ord_outpoint: {}", outpoint);
+
+  let inscription_ids = match index.get_inscriptions_on_output(outpoint) {
+    Ok(out_point) => out_point,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+  if inscription_ids.is_empty() {
+    return Json(ApiResponse::api_err(&ApiError::not_found(
+      "inscription not found",
+    )));
+  }
+
+  let tx = match index.get_transaction(outpoint.txid) {
+    Ok(Some(tx)) => tx,
+    Ok(None) => {
+      return Json(ApiResponse::api_err(&ApiError::not_found(
+        "transaction not found",
+      )))
+    }
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  let vout = match tx.output.get(outpoint.vout as usize) {
+    Some(vout) => vout,
+    None => return Json(ApiResponse::api_err(&ApiError::not_found("vout not found"))),
+  };
+
+  let mut inscription_digests = Vec::with_capacity(inscription_ids.len());
+  for id in &inscription_ids {
+    let ins_data = match index.get_inscription_entry(id.clone()) {
+      Ok(Some(ins_data)) => ins_data,
+      Ok(None) => {
+        return Json(ApiResponse::api_err(&ApiError::not_found(
+          "inscription not found",
+        )))
+      }
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    let satpoint = match index.get_inscription_satpoint_by_id(id.clone()) {
+      Ok(Some(satpoint)) => satpoint,
+      Ok(None) => {
+        return Json(ApiResponse::api_err(&ApiError::not_found(
+          "inscription not found",
+        )))
+      }
+      Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+    };
+    inscription_digests.push(InscriptionDigest {
+      id: id.to_string(),
+      number: ins_data.number,
+      location: satpoint.to_string(),
+    });
+  }
+
+  Json(ApiResponse::ok(OutPointData {
+    txid: outpoint.txid.to_string(),
+    script_pub_key: vout.script_pubkey.to_string(),
+    address: match brc20::ScriptKey::from_script(&vout.script_pubkey, index.get_chain_network()) {
+      brc20::ScriptKey::Address(address) => Some(address.to_string()),
+      _ => None,
+    },
+    value: vout.value,
+    inscription_digest: inscription_digests,
   }))
 }

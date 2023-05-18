@@ -144,6 +144,13 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
   }
 }
 
+pub(crate) struct InscriptionAllData {
+  pub tx: Transaction,
+  pub entry: InscriptionEntry,
+  pub sat_point: SatPoint,
+  pub inscription: Inscription,
+}
+
 impl Index {
   pub(crate) fn open(options: &Options) -> Result<Self> {
     let client = options.bitcoin_rpc_client()?;
@@ -608,6 +615,36 @@ impl Index {
         .get_transaction(inscription_id.txid)?
         .and_then(|tx| Inscription::from_transaction(&tx)),
     )
+  }
+
+  pub(crate) fn get_inscription_all_data_by_id(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<InscriptionAllData>> {
+    let entry = match self.get_inscription_entry(inscription_id)? {
+      Some(entry) => entry,
+      None => return Ok(None),
+    };
+    let tx = match self.get_transaction(inscription_id.txid)? {
+      Some(tx) => tx,
+      None => return Ok(None),
+    };
+    let inscription = match Inscription::from_transaction(&tx) {
+      Some(inscription) => inscription,
+      None => return Ok(None),
+    };
+
+    let sat_point = match self.get_inscription_satpoint_by_id(inscription_id)? {
+      Some(sat_point) => sat_point,
+      None => return Ok(None),
+    };
+
+    Ok(Some(InscriptionAllData {
+      entry,
+      tx,
+      inscription,
+      sat_point,
+    }))
   }
 
   pub(crate) fn get_inscriptions_on_output(

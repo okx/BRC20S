@@ -97,7 +97,7 @@ impl From<u128> for Num {
 impl FromStr for Num {
   type Err = BRC20Error;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    if s.starts_with(".") {
+    if s.starts_with(".") || s.find(&['e', 'E']).is_some() {
       return Err(BRC20Error::InvalidNum(s.to_string()));
     }
     let num = BigDecimal::from_str(s).map_err(|_| BRC20Error::InvalidNum(s.to_string()))?;
@@ -301,5 +301,22 @@ mod tests {
   fn test_checked_to_u128() {
     let n = Num::from_str(&format!("{}", u128::MAX)).unwrap();
     assert_eq!(n.checked_to_u128().unwrap(), u128::MAX);
+  }
+
+  #[test]
+  fn test_scientific_notation() {
+    assert_eq!(
+      Num::from_str("1e2").unwrap_err(),
+      BRC20Error::InvalidNum("1e2".to_string())
+    );
+    assert_eq!(
+      Num::from_str("0e2").unwrap_err(),
+      BRC20Error::InvalidNum("0e2".to_string())
+    );
+
+    assert_eq!(
+      Num::from_str("100e2").unwrap_err(),
+      BRC20Error::InvalidNum("100e2".to_string())
+    );
   }
 }

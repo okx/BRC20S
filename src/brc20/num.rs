@@ -50,6 +50,9 @@ impl Num {
   }
 
   pub fn checked_to_u8(&self) -> Result<u8, BRC20Error> {
+    if self.scale() != 0 {
+      return Err(BRC20Error::InvalidBigInt(self.clone()));
+    }
     Ok(self.0.clone().to_u8().ok_or(BRC20Error::Overflow {
       op: String::from("to_u8"),
       org: self.clone(),
@@ -67,6 +70,9 @@ impl Num {
   }
 
   pub fn checked_to_u128(&self) -> Result<u128, BRC20Error> {
+    if self.scale() != 0 {
+      return Err(BRC20Error::InvalidBigInt(self.clone()));
+    }
     Ok(
       self
         .0
@@ -286,6 +292,11 @@ mod tests {
         other: Num(BigDecimal::from_u8(u8::MAX).unwrap()),
       }
     );
+
+    assert_eq!(
+      Num::from_str("2.1").unwrap().checked_to_u8().unwrap_err(),
+      BRC20Error::InvalidBigInt(Num::from_str("2.1").unwrap())
+    );
   }
 
   #[test]
@@ -331,5 +342,11 @@ mod tests {
   fn test_checked_to_u128() {
     let n = Num::from_str(&format!("{}", u128::MAX)).unwrap();
     assert_eq!(n.checked_to_u128().unwrap(), u128::MAX);
+
+    let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
+    assert_eq!(
+      n.checked_to_u128().unwrap_err(),
+      BRC20Error::InvalidBigInt(n)
+    );
   }
 }

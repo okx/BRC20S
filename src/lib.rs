@@ -25,7 +25,6 @@ use {
     inscription_id::InscriptionId,
     media::Media,
     options::Options,
-    outgoing::Outgoing,
     representation::Representation,
     subcommand::Subcommand,
     tally::Tally,
@@ -111,7 +110,6 @@ mod media;
 mod object;
 mod okx;
 mod options;
-mod outgoing;
 mod page_config;
 mod rarity;
 mod representation;

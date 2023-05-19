@@ -695,7 +695,7 @@ pub(crate) async fn ord_outpoint(
 
   Json(ApiResponse::ok(OutPointData {
     txid: outpoint.txid.to_string(),
-    script_pub_key: vout.script_pubkey.to_string(),
+    script_pub_key: vout.script_pubkey.asm(),
     address: match brc20::ScriptKey::from_script(&vout.script_pubkey, index.get_chain_network()) {
       brc20::ScriptKey::Address(address) => Some(address.to_string()),
       _ => None,

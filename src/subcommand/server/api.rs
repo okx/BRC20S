@@ -1,7 +1,6 @@
 use super::error::ApiError;
 use super::*;
 use axum::Json;
-use log::log;
 
 const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 

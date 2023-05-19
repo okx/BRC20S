@@ -7,7 +7,6 @@ use {
     updater::Updater,
   },
   super::*,
-  crate::wallet::Wallet,
   bitcoin::BlockHeader,
   bitcoincore_rpc::{json::GetBlockHeaderResult, Client},
   chrono::SubsecRound,
@@ -250,7 +249,7 @@ impl Index {
     self.options.chain().network()
   }
 
-  pub(crate) fn get_unspent_outputs(&self, _wallet: Wallet) -> Result<BTreeMap<OutPoint, Amount>> {
+  pub(crate) fn get_unspent_outputs(&self) -> Result<BTreeMap<OutPoint, Amount>> {
     let mut utxos = BTreeMap::new();
     utxos.extend(
       self
@@ -295,10 +294,9 @@ impl Index {
 
   pub(crate) fn get_unspent_output_ranges(
     &self,
-    wallet: Wallet,
   ) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
     self
-      .get_unspent_outputs(wallet)?
+      .get_unspent_outputs()?
       .into_keys()
       .map(|outpoint| match self.list(outpoint)? {
         Some(List::Unspent(sat_ranges)) => Ok((outpoint, sat_ranges)),
@@ -462,7 +460,7 @@ impl Index {
       if query_btc {
         let btc_info = match self.client.get_blockchain_info() {
           Ok(info) => info,
-          Err(e) => {
+          Err(_) => {
             return Ok((Some(height), None));
           }
         };

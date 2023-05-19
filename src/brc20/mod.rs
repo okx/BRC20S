@@ -1,6 +1,5 @@
 use crate::{Inscription, Result};
 use error::JSONError;
-mod custom_serde;
 mod error;
 pub mod ledger;
 mod num;

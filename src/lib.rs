@@ -74,7 +74,6 @@ use {
 
 pub use crate::{
   fee_rate::FeeRate, object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
-  subcommand::wallet::transaction_builder::TransactionBuilder,
 };
 
 #[cfg(test)]
@@ -122,7 +121,6 @@ mod sat_point;
 pub mod subcommand;
 mod tally;
 mod templates;
-mod wallet;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 

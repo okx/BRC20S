@@ -73,7 +73,7 @@ use {
 };
 
 pub use crate::{
-  fee_rate::FeeRate, object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
+  object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
 };
 
 #[cfg(test)]
@@ -102,7 +102,6 @@ mod decimal;
 mod degree;
 mod deserialize_from_str;
 mod epoch;
-mod fee_rate;
 mod height;
 mod index;
 mod inscription;

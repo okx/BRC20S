@@ -50,8 +50,8 @@ impl Num {
   }
 
   pub fn checked_to_u8(&self) -> Result<u8, BRC20Error> {
-    if self.scale() != 0 {
-      return Err(BRC20Error::InvalidBigInt(self.clone()));
+    if !self.0.is_integer() {
+      return Err(BRC20Error::InvalidInteger(self.clone()));
     }
     Ok(self.0.clone().to_u8().ok_or(BRC20Error::Overflow {
       op: String::from("to_u8"),
@@ -70,8 +70,8 @@ impl Num {
   }
 
   pub fn checked_to_u128(&self) -> Result<u128, BRC20Error> {
-    if self.scale() != 0 {
-      return Err(BRC20Error::InvalidBigInt(self.clone()));
+    if !self.0.is_integer() {
+      return Err(BRC20Error::InvalidInteger(self.clone()));
     }
     Ok(
       self
@@ -106,14 +106,10 @@ impl From<u128> for Num {
 impl FromStr for Num {
   type Err = BRC20Error;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    if s.starts_with(".") {
+    if s.starts_with(".") || s.ends_with(".") || s.find(&['e', 'E', '+', '-']).is_some() {
       return Err(BRC20Error::InvalidNum(s.to_string()));
     }
     let num = BigDecimal::from_str(s).map_err(|_| BRC20Error::InvalidNum(s.to_string()))?;
-
-    if num.sign() == Sign::Minus {
-      return Err(BRC20Error::InvalidNum(s.to_string()));
-    }
 
     let (_, scale) = num.as_bigint_and_exponent();
     if scale > MAX_DECIMAL_WIDTH as i64 {
@@ -188,6 +184,31 @@ mod tests {
   fn test_num_from_str() {
     assert!(Num::from_str(".1").is_err());
     assert_eq!(
+      Num(BigDecimal::new(BigInt::from(0), 0)),
+      Num::from_str("0").unwrap()
+    );
+    assert_eq!(
+      Num(BigDecimal::new(BigInt::from(1), 0)),
+      Num::from_str("001").unwrap()
+    );
+    assert_eq!(
+      Num(BigDecimal::new(BigInt::from(1), 1)),
+      Num::from_str("00.1").unwrap()
+    );
+
+    assert_eq!(
+      Num(BigDecimal::new(BigInt::from(0), 0)),
+      Num::from_str("0.0").unwrap()
+    );
+    assert_eq!(
+      Num(BigDecimal::new(BigInt::from(1), 1)),
+      Num::from_str("0.100").unwrap()
+    );
+    assert_eq!(
+      Num(BigDecimal::new(BigInt::from(1), 3)),
+      Num::from_str("00.00100").unwrap()
+    );
+    assert_eq!(
       Num(BigDecimal::new(BigInt::from(11), 1)),
       Num::from_str("1.1").unwrap()
     );
@@ -209,6 +230,27 @@ mod tests {
       Num::from_str("1.000000000000000001").unwrap()
     );
     assert!(Num::from_str("1.0000000000000000001").is_err());
+  }
+
+  #[test]
+  fn test_invalid_num() {
+    assert!(Num::from_str("").is_err());
+    assert!(Num::from_str(" ").is_err());
+    assert!(Num::from_str(".").is_err());
+    assert!(Num::from_str(" 123.456").is_err());
+    assert!(Num::from_str(".456").is_err());
+    assert!(Num::from_str(".456 ").is_err());
+    assert!(Num::from_str(" .456 ").is_err());
+    assert!(Num::from_str(" 456").is_err());
+    assert!(Num::from_str("456 ").is_err());
+    assert!(Num::from_str("45 6").is_err());
+    assert!(Num::from_str("123. 456").is_err());
+    assert!(Num::from_str("123.-456").is_err());
+    assert!(Num::from_str("123.+456").is_err());
+    assert!(Num::from_str("+123.456").is_err());
+    assert!(Num::from_str("123.456.789").is_err());
+    assert!(Num::from_str("123456789.").is_err());
+    assert!(Num::from_str("123456789.12345678901234567891").is_err());
   }
 
   #[test]
@@ -293,10 +335,8 @@ mod tests {
       }
     );
 
-    assert_eq!(
-      Num::from_str("2.1").unwrap().checked_to_u8().unwrap_err(),
-      BRC20Error::InvalidBigInt(Num::from_str("2.1").unwrap())
-    );
+    let n = Num::from_str("15.00").unwrap();
+    assert_eq!(n.checked_to_u8().unwrap(), 15u8);
   }
 
   #[test]
@@ -343,10 +383,51 @@ mod tests {
     let n = Num::from_str(&format!("{}", u128::MAX)).unwrap();
     assert_eq!(n.checked_to_u128().unwrap(), u128::MAX);
 
+    let n = Num::from_str(&format!("0")).unwrap();
+    assert_eq!(n.checked_to_u128().unwrap(), 0);
+
+    let n = Num::from_str(&format!("{}{}", u128::MAX, 1)).unwrap();
+    assert_eq!(
+      n.checked_to_u128().unwrap_err(),
+      BRC20Error::Overflow {
+        op: String::from("to_u128"),
+        org: n,
+        other: Num::from(u128::MAX),
+      }
+    );
+
     let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
     assert_eq!(
       n.checked_to_u128().unwrap_err(),
-      BRC20Error::InvalidBigInt(n)
+      BRC20Error::InvalidInteger(n)
+    );
+
+    let n = Num::from_str(&format!("{}.{}", 0, "33333")).unwrap();
+    assert_eq!(
+      n.checked_to_u128().unwrap_err(),
+      BRC20Error::InvalidInteger(n)
+    );
+    let a = BigDecimal::from_str(&format!("0.333"))
+      .unwrap()
+      .to_bigint()
+      .unwrap();
+
+    let n = Num::from_str("3140000000000000000.00").unwrap();
+    assert_eq!(n.checked_to_u128().unwrap(), 3140000000000000000u128);
+
+    let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
+    assert_eq!(
+      Num::from_str("1e2").unwrap_err(),
+      BRC20Error::InvalidNum("1e2".to_string())
+    );
+    assert_eq!(
+      Num::from_str("0e2").unwrap_err(),
+      BRC20Error::InvalidNum("0e2".to_string())
+    );
+
+    assert_eq!(
+      Num::from_str("100E2").unwrap_err(),
+      BRC20Error::InvalidNum("100E2".to_string())
     );
   }
 }

@@ -1,4 +1,5 @@
 use super::error::ApiError;
+use super::operation::Brc20Transaction;
 use super::*;
 use axum::Json;
 
@@ -415,6 +416,47 @@ pub(crate) async fn brc20_all_balance(
         overall_balance: bal.overall_balance.to_string(),
       })
       .collect(),
+  }))
+}
+
+pub(crate) async fn brc20_tx(
+  Extension(index): Extension<Arc<Index>>,
+  Path(txid): Path<String>,
+) -> Json<ApiResponse<Brc20Transaction>> {
+  log::debug!("rpc: get brc20_tx: {}", txid);
+  let txid = match bitcoin::Txid::from_str(&txid) {
+    Ok(txid) => txid,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
+  };
+  let tx_info = match index.get_transaction_info(&txid) {
+    Ok(o) => match o {
+      Some(tx_info) => tx_info,
+      None => return Json(ApiResponse::api_err(&ApiError::not_found("tx not found"))),
+    },
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  let tx = match tx_info.transaction() {
+    Ok(tx) => tx,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  let operations = match operation::get_brc20_operations(Extension(index), &tx) {
+    Ok(operations) => operations,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  if operations.is_empty() {
+    return Json(ApiResponse::api_err(&ApiError::not_found(
+      "brc20 operation not found",
+    )));
+  }
+  log::debug!("rpc: get brc20_tx: {} {:?}", txid, operations);
+
+  Json(ApiResponse::ok(Brc20Transaction {
+    txid: txid.to_string(),
+    isconfirmed: tx_info.confirmations.is_some(),
+    operations,
   }))
 }
 

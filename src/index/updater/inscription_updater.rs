@@ -1,6 +1,6 @@
 use super::*;
 use brc20::deserialize_brc20_operation;
-use brc20::{Action, InscribeAction, InscriptionData};
+use brc20::{Action, InscriptionData, Operation};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Flotsam {
@@ -124,7 +124,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
                     inscription_id.txid
                   ))?
               };
-              if let Ok(_) = deserialize_brc20_operation(
+              if let Ok(Operation::Transfer(transfer)) = deserialize_brc20_operation(
                 Inscription::from_transaction(&inscribe_tx).unwrap(),
                 true,
               ) {
@@ -149,7 +149,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
                       self.index.get_chain_network(),
                     ),
                     to_script: None,
-                    action: Action::Transfer,
+                    action: Action::Transfer(transfer),
                   },
                 ))
               }
@@ -202,7 +202,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             new_satpoint: None,
             from_script: ScriptKey::from_script(&from_script, self.index.get_chain_network()),
             to_script: None,
-            action: Action::Inscribe(InscribeAction { operation }),
+            action: Action::Inscribe(operation),
           },
         ))
       };

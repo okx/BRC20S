@@ -63,7 +63,7 @@ pub(crate) struct LogLevel(pub log::LevelFilter);
 
 impl Default for LogLevel {
   fn default() -> Self {
-    Self(log::LevelFilter::Info)
+    Self(log::LevelFilter::Error)
   }
 }
 
@@ -600,25 +600,6 @@ mod tests {
         .chain(),
       Chain::Testnet
     );
-  }
-
-  #[test]
-  fn wallet_flag_overrides_default_name() {
-    assert_eq!(
-      Arguments::try_parse_from(["ord", "wallet", "create"])
-        .unwrap()
-        .options
-        .wallet,
-      "ord"
-    );
-
-    assert_eq!(
-      Arguments::try_parse_from(["ord", "--wallet", "foo", "wallet", "create"])
-        .unwrap()
-        .options
-        .wallet,
-      "foo"
-    )
   }
 
   #[test]

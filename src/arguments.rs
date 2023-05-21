@@ -1,7 +1,9 @@
 use super::*;
 
+use shadow_rs::shadow;
+shadow!(build);
 #[derive(Debug, Parser)]
-#[clap(version)]
+#[clap(version(build::CLAP_LONG_VERSION))]
 pub(crate) struct Arguments {
   #[clap(flatten)]
   pub(crate) options: Options,

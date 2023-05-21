@@ -55,6 +55,9 @@ pub enum BRC20Error {
   #[error("decimals {0} too large")]
   DecimalsTooLarge(u8),
 
+  #[error("invalid integer {0}")]
+  InvalidInteger(Num),
+
   #[error("tick: {0} has been minted")]
   TickMinted(String),
 

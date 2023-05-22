@@ -37,6 +37,7 @@ use {
 };
 
 mod api;
+mod operation;
 
 mod error;
 mod response;
@@ -229,7 +230,8 @@ impl Server {
           "/brc20/address/:address/transferable",
           get(brc20_all_transferable),
         )
-        .route("/brc20/tx/:txid", get(brc20_tx_events))
+        .route("/brc20/tx/:txid/events", get(brc20_tx_events))
+        .route("/brc20/tx/:txid", get(brc20_tx))
         .route("/brc20/block/:block_hash", get(brc20_block_events))
         .layer(Extension(index))
         .layer(Extension(page_config))

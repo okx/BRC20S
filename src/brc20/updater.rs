@@ -16,13 +16,8 @@ use redb::Table;
 
 #[derive(Clone)]
 pub enum Action {
-  Inscribe(InscribeAction),
-  Transfer,
-}
-
-#[derive(Clone)]
-pub struct InscribeAction {
-  pub operation: Operation,
+  Inscribe(Operation),
+  Transfer(Transfer),
 }
 
 pub struct InscriptionData {
@@ -65,7 +60,7 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
         Index::get_number_by_inscription_id(self.id_to_entry, operation.inscription_id)
           .map_err(|e| Error::Others(e))?;
       let result: Result<BRC20Event, Error<L>> = match operation.action {
-        Action::Inscribe(inscribe) => match inscribe.operation {
+        Action::Inscribe(inscribe) => match inscribe {
           Operation::Deploy(deploy) => {
             op = EventType::Deploy;
             self.process_deploy(
@@ -91,7 +86,7 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
             )
           }
         },
-        Action::Transfer => {
+        Action::Transfer(_) => {
           op = EventType::TransferPhase2;
           self.process_transfer(
             operation.inscription_id,

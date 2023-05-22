@@ -1032,6 +1032,20 @@ impl Index {
     Ok(all_balance)
   }
 
+  pub(crate) fn get_transaction_info(
+    &self,
+    txid: &bitcoin::Txid,
+  ) -> Result<Option<bitcoincore_rpc::json::GetRawTransactionResult>> {
+    if *txid == self.genesis_block_coinbase_txid {
+      Ok(None)
+    } else {
+      self
+        .client
+        .get_raw_transaction_info(&txid, None)
+        .into_option()
+    }
+  }
+
   pub(crate) fn brc20_get_tx_events_by_txid(
     &self,
     txid: &bitcoin::Txid,

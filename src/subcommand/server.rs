@@ -216,6 +216,12 @@ impl Server {
         .route("/tx/:txid", get(Self::transaction))
         .route("/brc20/tick/:tick", get(brc20_tick_info))
         .route("/brc20/tick", get(brc20_all_tick_info))
+        .route("/ord/id/:id/inscription", get(ord_inscription_id))
+        .route(
+          "/ord/number/:number/inscription",
+          get(ord_inscription_number),
+        )
+        .route("/ord/output/:outpoint/info", get(ord_outpoint))
         .route("/node/info", get(node_info))
         .route(
           "/brc20/tick/:tick/address/:address/balance",

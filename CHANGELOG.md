@@ -1,6 +1,12 @@
 Changelog
 =========
 
+[0.6.4](https://github.com/okx/ord/releases/tag/0.6.4) - 2023-05-21
+---------------------------------------------------------------------
+### New Feature
+- Support BRC20 protocol
+- Add RESTful API for BRC20 protocol (#48)
+
 [0.5.2](https://github.com/casey/ord/releases/tag/0.5.2) - 2023-04-17
 ---------------------------------------------------------------------
 

@@ -25,7 +25,6 @@ use {
     inscription_id::InscriptionId,
     media::Media,
     options::Options,
-    outgoing::Outgoing,
     representation::Representation,
     subcommand::Subcommand,
     tally::Tally,
@@ -73,8 +72,7 @@ use {
 };
 
 pub use crate::{
-  fee_rate::FeeRate, object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
-  subcommand::wallet::transaction_builder::TransactionBuilder,
+  object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
 };
 
 #[cfg(test)]
@@ -103,7 +101,6 @@ mod decimal;
 mod degree;
 mod deserialize_from_str;
 mod epoch;
-mod fee_rate;
 mod height;
 mod index;
 mod inscription;
@@ -113,7 +110,6 @@ mod media;
 mod object;
 mod okx;
 mod options;
-mod outgoing;
 mod page_config;
 mod rarity;
 mod representation;
@@ -122,7 +118,6 @@ mod sat_point;
 pub mod subcommand;
 mod tally;
 mod templates;
-mod wallet;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 

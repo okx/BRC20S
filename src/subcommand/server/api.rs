@@ -169,7 +169,7 @@ pub enum TxEvent {
   Error(ErrorEvent),
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorEvent {
   pub inscription_id: String,
@@ -183,7 +183,7 @@ pub struct ErrorEvent {
   pub event: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeployEvent {
   pub tick: String,
@@ -201,7 +201,7 @@ pub struct DeployEvent {
   pub event: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MintEvent {
   pub tick: String,
@@ -217,7 +217,7 @@ pub struct MintEvent {
   pub event: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InscribeTransferEvent {
   pub tick: String,
@@ -233,7 +233,7 @@ pub struct InscribeTransferEvent {
   pub event: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransferEvent {
   pub tick: String,

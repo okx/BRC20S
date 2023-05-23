@@ -37,13 +37,16 @@ use {
 };
 
 mod api;
-mod operation;
+mod brc20_operations;
+mod inscription;
+mod types;
 
 mod error;
 mod response;
 
 use self::api::*;
 use self::response::ApiResponse;
+use self::types::*;
 
 use crate::index::GLOBAL_SAVEPOINTS;
 
@@ -216,6 +219,7 @@ impl Server {
         .route("/tx/:txid", get(Self::transaction))
         .route("/brc20/tick/:tick", get(brc20_tick_info))
         .route("/brc20/tick", get(brc20_all_tick_info))
+        .route("/ord/tx/:txid", get(ord_inscription_by_txid))
         .route("/ord/id/:id/inscription", get(ord_inscription_id))
         .route(
           "/ord/number/:number/inscription",
@@ -238,7 +242,7 @@ impl Server {
         )
         .route("/brc20/tx/:txid/events", get(brc20_tx_events))
         .route("/brc20/tx/:txid", get(brc20_tx))
-        .route("/brc20/block/:block_hash", get(brc20_block_events))
+        .route("/brc20/block/:block_hash/events", get(brc20_block_events))
         .layer(Extension(index))
         .layer(Extension(page_config))
         .layer(Extension(Arc::new(config)))

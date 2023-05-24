@@ -348,13 +348,11 @@ pub(crate) async fn node_info(
 
   let (ord_height, btc_info) = index.height_btc(query.btc.unwrap_or_default())?;
 
-  let mut height_info = HeightInfo {
-    ord_height: None,
+  let height_info = HeightInfo {
+    ord_height: ord_height.map(|h| h.0),
     btc_chain_info: btc_info,
   };
-  if !ord_height.is_none() {
-    height_info.ord_height = Some(ord_height.unwrap().0);
-  }
+
   Ok(Json(ApiResponse::ok(height_info)))
 }
 
@@ -368,11 +366,11 @@ pub(crate) async fn brc20_tick_info(
   }
   let tick = tick.to_lowercase();
 
-  let tick_info = index.brc20_get_tick_info(&tick)?;
+  let tick_info = index
+    .brc20_get_tick_info(&tick)?
+    .ok_or_api_not_found("tick not found")?;
 
   log::debug!("rpc: get brc20_tick_info: {:?} {:?}", tick, tick_info);
-
-  let tick_info = &tick_info.ok_or_api_not_found("tick not found")?;
 
   if tick_info.tick != brc20::Tick::from_str(&tick).unwrap() {
     return Err(ApiError::internal("db: not match"));
@@ -407,9 +405,9 @@ pub(crate) async fn brc20_balance(
     .parse()
     .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
 
-  let balance = index.brc20_get_balance_by_address(&tick, &address)?;
-
-  let balance = balance.ok_or_api_not_found("balance not found")?;
+  let balance = index
+    .brc20_get_balance_by_address(&tick, &address)?
+    .ok_or_api_not_found("balance not found")?;
 
   let available_balance = balance.overall_balance - balance.transferable_balance;
   if available_balance > balance.overall_balance {

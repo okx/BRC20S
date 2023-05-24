@@ -1,6 +1,6 @@
 use super::error::ApiError;
-use super::operation::Brc20Transaction;
 use super::*;
+use super::{brc20_operations::get_operations_by_txid, inscription::get_inscription_by_txid};
 use axum::Json;
 
 pub(crate) type ApiResult<T> = Result<axum::Json<ApiResponse<T>>, ApiError>;
@@ -32,12 +32,12 @@ const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 pub struct TickInfo {
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: String,
+  pub inscription_number: u64,
   pub supply: String,
   pub limit_per_mint: String,
   pub minted: String,
   pub decimal: u64,
-  pub deploy_by: String,
+  pub deploy_by: ScriptPubkey,
   pub txid: String,
   pub deploy_height: u64,
   pub deploy_blocktime: u64,
@@ -56,12 +56,12 @@ impl From<&brc20::TokenInfo> for TickInfo {
         .unwrap()
         .to_string(),
       inscription_id: tick_info.inscription_id.to_string(),
-      inscription_number: tick_info.inscription_number.to_string(),
+      inscription_number: tick_info.inscription_number,
       supply: tick_info.supply.to_string(),
       limit_per_mint: tick_info.limit_per_mint.to_string(),
       minted: tick_info.minted.to_string(),
       decimal: tick_info.decimal as u64,
-      deploy_by: tick_info.deploy_by.to_string(),
+      deploy_by: tick_info.deploy_by.clone().into(),
       txid: tick_info.inscription_id.txid.to_string(),
       deploy_height: tick_info.deployed_number,
       deploy_blocktime: tick_info.deployed_timestamp as u64,
@@ -100,14 +100,14 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
-          inscription_number: event.inscription_number.to_string(),
+          inscription_number: event.inscription_number,
           old_satpoint: event.old_satpoint,
           new_satpoint: event.new_satpoint,
           supply: deploy_event.supply.to_string(),
           limit_per_mint: deploy_event.limit_per_mint.to_string(),
           decimal: deploy_event.decimal as u64,
-          msg_sender: event.from.to_string(),
-          deploy_by: event.to.to_string(),
+          from: event.from.clone().into(),
+          to: event.to.clone().into(),
           valid: true,
           msg: "ok".to_string(),
           event: String::from("deploy"),
@@ -117,12 +117,12 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
-          inscription_number: event.inscription_number.to_string(),
+          inscription_number: event.inscription_number,
           old_satpoint: event.old_satpoint,
           new_satpoint: event.new_satpoint,
           amount: mint_event.amount.to_string(),
-          msg_sender: event.from.to_string(),
-          to: event.to.to_string(),
+          from: event.from.clone().into(),
+          to: event.to.clone().into(),
           valid: true,
           msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
           event: String::from("mint"),
@@ -133,12 +133,12 @@ impl From<&brc20::ActionReceipt> for TxEvent {
               .unwrap()
               .to_string(),
             inscription_id: event.inscription_id.to_string(),
-            inscription_number: event.inscription_number.to_string(),
+            inscription_number: event.inscription_number,
             old_satpoint: event.old_satpoint,
             new_satpoint: event.new_satpoint,
             amount: trans1.amount.to_string(),
-            msg_sender: event.from.to_string(),
-            owner: event.to.to_string(),
+            from: event.from.clone().into(),
+            to: event.to.clone().into(),
             valid: true,
             msg: "ok".to_string(),
             event: String::from("inscribeTransfer"),
@@ -149,12 +149,12 @@ impl From<&brc20::ActionReceipt> for TxEvent {
             .unwrap()
             .to_string(),
           inscription_id: event.inscription_id.to_string(),
-          inscription_number: event.inscription_number.to_string(),
+          inscription_number: event.inscription_number,
           old_satpoint: event.old_satpoint,
           new_satpoint: event.new_satpoint,
           amount: trans2.amount.to_string(),
-          from: event.from.to_string(),
-          to: event.to.to_string(),
+          from: event.from.clone().into(),
+          to: event.to.clone().into(),
           valid: true,
           msg: trans2.msg.clone().unwrap_or("ok".to_string()),
           event: String::from("transfer"),
@@ -162,12 +162,12 @@ impl From<&brc20::ActionReceipt> for TxEvent {
       },
       Err(err) => Self::Error(ErrorEvent {
         inscription_id: event.inscription_id.to_string(),
-        inscription_number: event.inscription_number.to_string(),
+        inscription_number: event.inscription_number,
         old_satpoint: event.old_satpoint,
         new_satpoint: event.new_satpoint,
         valid: false,
-        from: event.from.to_string(),
-        to: event.to.to_string(),
+        from: event.from.clone().into(),
+        to: event.to.clone().into(),
         msg: err.to_string(),
         event: match event.op {
           brc20::EventType::Deploy => "deploy",
@@ -196,13 +196,15 @@ pub enum TxEvent {
 #[serde(rename_all = "camelCase")]
 pub struct ErrorEvent {
   pub inscription_id: String,
-  pub inscription_number: String,
+  pub inscription_number: u64,
   pub old_satpoint: SatPoint,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
-  pub from: String,
-  pub to: String,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
   pub valid: bool,
   pub msg: String,
+  #[serde(rename = "type")]
   pub event: String,
 }
 
@@ -211,16 +213,18 @@ pub struct ErrorEvent {
 pub struct DeployEvent {
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: String,
+  pub inscription_number: u64,
   pub old_satpoint: SatPoint,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
   pub supply: String,
   pub limit_per_mint: String,
   pub decimal: u64,
-  pub msg_sender: String,
-  pub deploy_by: String,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
   pub valid: bool,
   pub msg: String,
+  #[serde(rename = "type")]
   pub event: String,
 }
 
@@ -229,14 +233,16 @@ pub struct DeployEvent {
 pub struct MintEvent {
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: String,
+  pub inscription_number: u64,
   pub old_satpoint: SatPoint,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
   pub amount: String,
-  pub msg_sender: String,
-  pub to: String,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
   pub valid: bool,
   pub msg: String,
+  #[serde(rename = "type")]
   pub event: String,
 }
 
@@ -245,12 +251,13 @@ pub struct MintEvent {
 pub struct InscribeTransferEvent {
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: String,
+  pub inscription_number: u64,
   pub old_satpoint: SatPoint,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
   pub amount: String,
-  pub msg_sender: String,
-  pub owner: String,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
   pub valid: bool,
   pub msg: String,
   pub event: String,
@@ -261,14 +268,16 @@ pub struct InscribeTransferEvent {
 pub struct TransferEvent {
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: String,
+  pub inscription_number: u64,
   pub old_satpoint: SatPoint,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
   pub amount: String,
-  pub from: String,
-  pub to: String,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
   pub valid: bool,
   pub msg: String,
+  #[serde(rename = "type")]
   pub event: String,
 }
 
@@ -287,8 +296,8 @@ pub struct TransferableInscriptions {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransferableInscription {
-  pub id: String,
-  pub number: String,
+  pub inscription_id: String,
+  pub inscription_number: u64,
   pub amount: String,
   pub tick: String,
   pub owner: String,
@@ -297,8 +306,8 @@ pub struct TransferableInscription {
 impl From<&brc20::TransferableLog> for TransferableInscription {
   fn from(trans: &brc20::TransferableLog) -> Self {
     Self {
-      id: trans.inscription_id.to_string(),
-      number: trans.inscription_number.to_string(),
+      inscription_id: trans.inscription_id.to_string(),
+      inscription_number: trans.inscription_number,
       amount: trans.amount.to_string(),
       tick: trans.tick.as_str().to_string(),
       owner: trans.owner.to_string(),
@@ -322,7 +331,7 @@ pub struct HeightInfoQuery {
 #[serde(rename_all = "camelCase")]
 pub struct OrdInscription {
   pub id: String,
-  pub number: String,
+  pub number: u64,
   pub content_type: Option<String>,
   pub content: Option<String>,
   pub owner: String,
@@ -444,33 +453,46 @@ pub(crate) async fn brc20_all_balance(
   })))
 }
 
+pub(crate) async fn ord_inscription_by_txid(
+  Extension(index): Extension<Arc<Index>>,
+  Path(txid): Path<String>,
+) -> Json<ApiResponse<TxInscriptionInfo>> {
+  log::debug!("rpc: get inscriptions by txid: {}", txid);
+  let txid = match bitcoin::Txid::from_str(&txid) {
+    Ok(txid) => txid,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
+  };
+
+  let tx_info = match get_inscription_by_txid(Extension(index), &txid) {
+    Ok(inscription_info) => inscription_info,
+    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
+  };
+
+  if tx_info.inscriptions.is_empty() {
+    return Json(ApiResponse::api_err(&ApiError::not_found(
+      "no inscriptions found in thes transaction",
+    )));
+  }
+
+  log::debug!("rpc: get inscriptions by txid: {} {:?}", txid, tx_info);
+  Json(ApiResponse::ok(tx_info))
+}
+
 pub(crate) async fn brc20_tx(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
-) -> ApiResult<Brc20Transaction> {
+) -> ApiResult<TxInscriptionInfo> {
   log::debug!("rpc: get brc20_tx: {}", txid);
   let txid = bitcoin::Txid::from_str(&txid).map_err(|e| ApiError::bad_request(e.to_string()))?;
 
-  let tx_info = index
-    .get_transaction_info(&txid)?
-    .ok_or_api_not_found("tx not found")?;
+  let tx_info = get_operations_by_txid(Extension(index), &txid)?;
 
-  let tx = tx_info
-    .transaction()
-    .map_err(|e| ApiError::internal(e.to_string()))?;
-
-  let operations = operation::get_brc20_operations(Extension(index), &tx)?;
-
-  if operations.is_empty() {
+  if tx_info.inscriptions.is_empty() {
     return Err(ApiError::not_found("brc20 operation not found"));
   }
-  log::debug!("rpc: get brc20_tx: {} {:?}", txid, operations);
 
-  Ok(Json(ApiResponse::ok(Brc20Transaction {
-    txid: txid.to_string(),
-    isconfirmed: tx_info.confirmations.is_some(),
-    operations,
-  })))
+  log::debug!("rpc: get brc20_tx: {} {:?}", txid, tx_info);
+  Ok(Json(ApiResponse::ok(tx_info)))
 }
 
 pub(crate) async fn brc20_tx_events(
@@ -576,7 +598,7 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
 
   Ok(Json(ApiResponse::ok(OrdInscription {
     id: id.to_string(),
-    number: inscription_data.entry.number.to_string(),
+    number: inscription_data.entry.number,
     content_type: inscription_data
       .inscription
       .content_type()
@@ -621,6 +643,7 @@ pub(crate) async fn ord_inscription_number(
 pub struct OutPointData {
   pub txid: String,
   pub script_pub_key: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub address: Option<String>,
   pub value: u64,
   pub inscription_digest: Vec<InscriptionDigest>,

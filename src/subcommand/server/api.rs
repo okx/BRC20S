@@ -7,7 +7,7 @@ pub(crate) type ApiResult<T> = Result<axum::Json<ApiResponse<T>>, ApiError>;
 
 pub(super) trait ApiOptionExt<T> {
   fn ok_or_api_err<F: FnOnce() -> ApiError>(self, f: F) -> Result<T, ApiError>;
-  fn ok_or_api_notfound<S: Into<String>>(self, s: S) -> Result<T, ApiError>;
+  fn ok_or_api_not_found<S: Into<String>>(self, s: S) -> Result<T, ApiError>;
 }
 
 impl<T> ApiOptionExt<T> for Option<T> {
@@ -17,7 +17,7 @@ impl<T> ApiOptionExt<T> for Option<T> {
       None => Err(f()),
     }
   }
-  fn ok_or_api_notfound<S: Into<String>>(self, s: S) -> Result<T, ApiError> {
+  fn ok_or_api_not_found<S: Into<String>>(self, s: S) -> Result<T, ApiError> {
     match self {
       Some(value) => Ok(value),
       None => Err(ApiError::not_found(s)),
@@ -363,7 +363,7 @@ pub(crate) async fn brc20_tick_info(
 
   log::debug!("rpc: get brc20_tick_info: {:?} {:?}", tick, tick_info);
 
-  let tick_info = &tick_info.ok_or_api_notfound("tick not found")?;
+  let tick_info = &tick_info.ok_or_api_not_found("tick not found")?;
 
   if tick_info.tick != brc20::Tick::from_str(&tick).unwrap() {
     return Err(ApiError::internal("db: not match"));
@@ -400,7 +400,7 @@ pub(crate) async fn brc20_balance(
 
   let balance = index.brc20_get_balance_by_address(&tick, &address)?;
 
-  let balance = balance.ok_or_api_notfound("balance not found")?;
+  let balance = balance.ok_or_api_not_found("balance not found")?;
 
   let available_balance = balance.overall_balance - balance.transferable_balance;
   if available_balance > balance.overall_balance {
@@ -453,7 +453,7 @@ pub(crate) async fn brc20_tx(
 
   let tx_info = index
     .get_transaction_info(&txid)?
-    .ok_or_api_notfound("tx not found")?;
+    .ok_or_api_not_found("tx not found")?;
 
   let tx = tx_info
     .transaction()
@@ -481,7 +481,7 @@ pub(crate) async fn brc20_tx_events(
   let txid = bitcoin::Txid::from_str(&txid).map_err(|e| ApiError::bad_request(e.to_string()))?;
   let tx_events = index
     .brc20_get_tx_events_by_txid(&txid)?
-    .ok_or_api_notfound("tx events not found")?;
+    .ok_or_api_not_found("tx events not found")?;
 
   log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
 
@@ -502,7 +502,7 @@ pub(crate) async fn brc20_block_events(
 
   let block_events = index
     .brc20_get_block_events_by_blockhash(blockhash)?
-    .ok_or_api_notfound("block not found")?;
+    .ok_or_api_not_found("block not found")?;
 
   log::debug!(
     "rpc: get brc20_block_events: {} {:?}",
@@ -572,7 +572,7 @@ pub(crate) async fn brc20_all_transferable(
 fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<OrdInscription> {
   let inscription_data = index
     .get_inscription_all_data_by_id(id)?
-    .ok_or_api_notfound("inscription not found")?;
+    .ok_or_api_not_found("inscription not found")?;
 
   Ok(Json(ApiResponse::ok(OrdInscription {
     id: id.to_string(),
@@ -611,7 +611,7 @@ pub(crate) async fn ord_inscription_number(
 
   let id = index
     .get_inscription_id_by_inscription_number(number)?
-    .ok_or_api_notfound("inscription not found")?;
+    .ok_or_api_not_found("inscription not found")?;
 
   ord_get_inscription_by_id(index, id)
 }
@@ -647,22 +647,22 @@ pub(crate) async fn ord_outpoint(
 
   let tx = index
     .get_transaction(outpoint.txid)?
-    .ok_or_api_notfound("transaction not found")?;
+    .ok_or_api_not_found("transaction not found")?;
 
   let vout = tx
     .output
     .get(outpoint.vout as usize)
-    .ok_or_api_notfound("vout not found")?;
+    .ok_or_api_not_found("vout not found")?;
 
   let mut inscription_digests = Vec::with_capacity(inscription_ids.len());
   for id in &inscription_ids {
     let ins_data = index
       .get_inscription_entry(id.clone())?
-      .ok_or_api_notfound("inscription not found")?;
+      .ok_or_api_not_found("inscription not found")?;
 
     let satpoint = index
       .get_inscription_satpoint_by_id(id.clone())?
-      .ok_or_api_notfound("inscription not found")?;
+      .ok_or_api_not_found("inscription not found")?;
 
     inscription_digests.push(InscriptionDigest {
       id: id.to_string(),

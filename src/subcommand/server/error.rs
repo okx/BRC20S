@@ -72,3 +72,25 @@ impl ApiError {
     Self::Internal(message.into())
   }
 }
+
+impl<T> Into<axum::Json<ApiResponse<T>>> for ApiError
+where
+  T: Serialize,
+{
+  fn into(self) -> axum::Json<ApiResponse<T>> {
+    axum::Json(ApiResponse::api_err(&self))
+  }
+}
+
+impl IntoResponse for ApiError {
+  fn into_response(self) -> Response {
+    let json: axum::Json<ApiResponse<()>> = self.into();
+    json.into_response()
+  }
+}
+
+impl From<anyhow::Error> for ApiError {
+  fn from(error: anyhow::Error) -> Self {
+    Self::internal(error.to_string())
+  }
+}

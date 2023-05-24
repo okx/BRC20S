@@ -464,7 +464,7 @@ pub(crate) async fn ord_inscription_by_txid(
 
   if tx_info.inscriptions.is_empty() {
     return Err(ApiError::not_found(
-      "no inscriptions found in thes transaction",
+      "no inscriptions found in this transaction",
     ));
   }
 

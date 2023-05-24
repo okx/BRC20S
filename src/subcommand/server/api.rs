@@ -456,26 +456,20 @@ pub(crate) async fn brc20_all_balance(
 pub(crate) async fn ord_inscription_by_txid(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
-) -> Json<ApiResponse<TxInscriptionInfo>> {
+) -> ApiResult<TxInscriptionInfo> {
   log::debug!("rpc: get inscriptions by txid: {}", txid);
-  let txid = match bitcoin::Txid::from_str(&txid) {
-    Ok(txid) => txid,
-    Err(err) => return Json(ApiResponse::api_err(&ApiError::BadRequest(err.to_string()))),
-  };
+  let txid = bitcoin::Txid::from_str(&txid).map_err(|e| ApiError::bad_request(e.to_string()))?;
 
-  let tx_info = match get_inscription_by_txid(Extension(index), &txid) {
-    Ok(inscription_info) => inscription_info,
-    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
-  };
+  let tx_info = get_inscription_by_txid(Extension(index), &txid)?;
 
   if tx_info.inscriptions.is_empty() {
-    return Json(ApiResponse::api_err(&ApiError::not_found(
+    return Err(ApiError::not_found(
       "no inscriptions found in thes transaction",
-    )));
+    ));
   }
 
   log::debug!("rpc: get inscriptions by txid: {} {:?}", txid, tx_info);
-  Json(ApiResponse::ok(tx_info))
+  Ok(Json(ApiResponse::ok(tx_info)))
 }
 
 pub(crate) async fn brc20_tx(

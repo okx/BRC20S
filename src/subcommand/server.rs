@@ -39,12 +39,10 @@ use {
 mod api;
 mod operation;
 
-mod api_ord;
 mod error;
 mod response;
 
 use self::api::*;
-use self::api_ord::*;
 use self::response::ApiResponse;
 
 use crate::index::GLOBAL_SAVEPOINTS;

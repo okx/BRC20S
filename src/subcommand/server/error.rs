@@ -88,8 +88,15 @@ where
 
 impl IntoResponse for ApiError {
   fn into_response(self) -> Response {
+    let status_code = match &self {
+      Self::NoError => StatusCode::OK,
+      Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+      Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+      Self::NotFound(_) => StatusCode::NOT_FOUND,
+    };
     let json: axum::Json<ApiResponse<()>> = self.into();
-    json.into_response()
+
+    (status_code, json).into_response()
   }
 }
 

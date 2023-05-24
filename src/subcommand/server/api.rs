@@ -5,6 +5,26 @@ use axum::Json;
 
 pub(crate) type ApiResult<T> = Result<axum::Json<ApiResponse<T>>, ApiError>;
 
+pub(super) trait ApiOptionExt<T> {
+  fn ok_or_api_err<F: FnOnce() -> ApiError>(self, f: F) -> Result<T, ApiError>;
+  fn ok_or_api_notfound<S: Into<String>>(self, s: S) -> Result<T, ApiError>;
+}
+
+impl<T> ApiOptionExt<T> for Option<T> {
+  fn ok_or_api_err<F: FnOnce() -> ApiError>(self, f: F) -> Result<T, ApiError> {
+    match self {
+      Some(value) => Ok(value),
+      None => Err(f()),
+    }
+  }
+  fn ok_or_api_notfound<S: Into<String>>(self, s: S) -> Result<T, ApiError> {
+    match self {
+      Some(value) => Ok(value),
+      None => Err(ApiError::not_found(s)),
+    }
+  }
+}
+
 const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -332,33 +352,24 @@ pub(crate) async fn node_info(
 pub(crate) async fn brc20_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick): Path<String>,
-) -> Json<ApiResponse<TickInfo>> {
+) -> ApiResult<TickInfo> {
   log::debug!("rpc: get brc20_tick_info: {}", tick);
   if tick.as_bytes().len() != 4 {
-    return Json(ApiResponse::api_err(&ApiError::BadRequest(
-      ERR_TICK_LENGTH.to_string(),
-    )));
+    return Err(ApiError::bad_request(ERR_TICK_LENGTH));
   }
   let tick = tick.to_lowercase();
 
-  let tick_info = match index.brc20_get_tick_info(&tick) {
-    Ok(tick_info) => tick_info,
-    Err(err) => return Json(ApiResponse::api_err(&ApiError::Internal(err.to_string()))),
-  };
+  let tick_info = index.brc20_get_tick_info(&tick)?;
 
   log::debug!("rpc: get brc20_tick_info: {:?} {:?}", tick, tick_info);
 
-  if tick_info.is_none() {
-    return Json(ApiResponse::api_err(&ApiError::not_found("tick not found")));
-  }
-
-  let tick_info = &tick_info.unwrap();
+  let tick_info = &tick_info.ok_or_api_notfound("tick not found")?;
 
   if tick_info.tick != brc20::Tick::from_str(&tick).unwrap() {
-    return Json(ApiResponse::api_err(&ApiError::internal("db: not match")));
+    return Err(ApiError::internal("db: not match"));
   }
 
-  Json(ApiResponse::ok(tick_info.into()))
+  Ok(Json(ApiResponse::ok(tick_info.into())))
 }
 
 pub(crate) async fn brc20_all_tick_info(

@@ -71,6 +71,10 @@ impl ApiError {
   pub(crate) fn internal<S: Into<String>>(message: S) -> Self {
     Self::Internal(message.into())
   }
+
+  pub(crate) fn bad_request<S: Into<String>>(message: S) -> Self {
+    Self::BadRequest(message.into())
+  }
 }
 
 impl<T> Into<axum::Json<ApiResponse<T>>> for ApiError

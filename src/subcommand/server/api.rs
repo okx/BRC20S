@@ -182,7 +182,6 @@ impl From<&brc20::ActionReceipt> for TxEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "op")]
 #[serde(rename_all = "camelCase")]
 pub enum TxEvent {
   Deploy(DeployEvent),

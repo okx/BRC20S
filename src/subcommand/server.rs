@@ -199,7 +199,7 @@ impl Server {
           "/ord/number/:number/inscription",
           get(ord_inscription_number),
         )
-        .route("/ord/output/:outpoint/info", get(ord_outpoint))
+        .route("/ord/outpoint/:outpoint/info", get(ord_outpoint))
         .route("/brc20/tick/:tick", get(brc20_tick_info))
         .route("/brc20/tick", get(brc20_all_tick_info))
         .route(

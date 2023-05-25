@@ -183,6 +183,7 @@ impl From<&brc20::ActionReceipt> for TxEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
 pub enum TxEvent {
   Deploy(DeployEvent),
   Mint(MintEvent),
@@ -259,6 +260,7 @@ pub struct InscribeTransferEvent {
   pub to: ScriptPubkey,
   pub valid: bool,
   pub msg: String,
+  #[serde(rename = "type")]
   pub event: String,
 }
 
@@ -333,7 +335,7 @@ pub struct OrdInscription {
   pub number: u64,
   pub content_type: Option<String>,
   pub content: Option<String>,
-  pub owner: String,
+  pub owner: ScriptPubkey,
   pub genesis_height: u64,
   pub location: String,
   pub sat: Option<u64>,
@@ -599,7 +601,7 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
       &inscription_data.tx.output[0].script_pubkey,
       index.get_chain_network(),
     )
-    .to_string(),
+    .into(),
     genesis_height: inscription_data.entry.height,
     location: inscription_data.sat_point.to_string(),
     sat: inscription_data.entry.sat.map(|s| s.0),
@@ -634,8 +636,7 @@ pub(crate) async fn ord_inscription_number(
 pub struct OutPointData {
   pub txid: String,
   pub script_pub_key: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub address: Option<String>,
+  pub owner: ScriptPubkey,
   pub value: u64,
   pub inscription_digest: Vec<InscriptionDigest>,
 }
@@ -688,10 +689,7 @@ pub(crate) async fn ord_outpoint(
   Ok(Json(ApiResponse::ok(OutPointData {
     txid: outpoint.txid.to_string(),
     script_pub_key: vout.script_pubkey.asm(),
-    address: match brc20::ScriptKey::from_script(&vout.script_pubkey, index.get_chain_network()) {
-      brc20::ScriptKey::Address(address) => Some(address.to_string()),
-      _ => None,
-    },
+    owner: brc20::ScriptKey::from_script(&vout.script_pubkey, index.get_chain_network()).into(),
     value: vout.value,
     inscription_digest: inscription_digests,
   })))

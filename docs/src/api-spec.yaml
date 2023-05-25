@@ -2,25 +2,26 @@ openapi: 3.0.3
 info:
   title: Ord Node API
   description: Ord RESTful API for OKX
-  version: 0.1.0
+  version: 1.0.0
 servers:
-  - url: /v1
+  - url: api/v1
 tags:
-  - name: node
+  - name: Node Status
     description: node status information
-  - name: brc20
+  - name: BRC20
     description: Access to blocks, transactions, accounts, and ticks for BRC20 protocol.
-  - name: ord
+  - name: Ord
     description: Access to inscriptions for ordinals protocol.
+  - name: Experiments
+    description: Access to experiments for ordinals protocol.
 paths:
   /node/info:
     get:
       tags:
-        - node
+        - Node Status
       summary: Get ord and bitcoin node status
       description: |-
         Returns a json object with the bitcoin network status.
-        For more details see [HeightInfo](#components/schemas/HeightInfo).
       parameters:
         - name: btc
           schema:
@@ -42,20 +43,31 @@ paths:
                       data:
                         type: object
                         $ref: "#/components/schemas/HeightInfo"
-        "500":
-          description: ""
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /brc20/tick:
     get:
       tags:
-        - brc20
+        - BRC20
       summary: Get brc20 tick list
       description: |-
         Returns a json object with the brc20 tick list.
-        For more details see [AllTickInfo](#components/schemas/AllTickInfo).
       responses:
         "200":
           description: OK
@@ -68,21 +80,32 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/AllTickInfo"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/AllBRC20Tick"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /brc20/tick/{tick}:
     get:
       tags:
-        - brc20
+        - BRC20
       summary: Get brc20 tick by name
       description: |-
         Returns a json object with the brc20 tick info.
-        For more details see [TickInfo](#components/schemas/TickInfo).
       parameters:
         - name: tick
           schema:
@@ -103,21 +126,32 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/TickInfo"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/BRC20Tick"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /brc20/tick/{tick}/address/{address}/balance:
     get:
       tags:
-        - brc20
+        - BRC20
       summary: Get brc20 balance by tick and address
       description: |-
         Returns a json object with the brc20 balance info.
-        For more details see [Balance](#components/schemas/Balance).
       parameters:
         - name: tick
           schema:
@@ -145,21 +179,32 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/Balance"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/BRC20Balance"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /brc20/tick/{tick}/address/{address}/transferable:
     get:
       tags:
-        - brc20
+        - BRC20
       summary: Get brc20 transferable by tick and address
       description: |-
         Returns a json object with the brc20 transferable info.
-        For more details see [TransferableInscriptions](#components/schemas/TransferableInscriptions).
       parameters:
         - name: tick
           schema:
@@ -187,21 +232,32 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/TransferableInscriptions"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/BRC20TransferableInscriptions"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /brc20/address/{address}/balance:
     get:
       tags:
-        - brc20
+        - BRC20
       summary: Get brc20 balance by btc address
       description: |-
         Returns a json object with the brc20 balance info.
-        For more details see [AllBalance](#components/schemas/AllBalance).
       parameters:
         - name: address
           schema:
@@ -222,21 +278,32 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/AllBalance"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/AllBRC20Balance"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /brc20/address/{address}/transferable:
     get:
       tags:
-        - brc20
+        - BRC20
       summary: Get brc20 transferable by btc address
       description: |-
         Returns a json object with the brc20 transferable info.
-        For more details see [TransferableInscriptions](#components/schemas/TransferableInscriptions).
       parameters:
         - name: address
           schema:
@@ -257,21 +324,32 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/TransferableInscriptions"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/BRC20TransferableInscriptions"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /brc20/tx/{txid}:
     get:
       tags:
-        - brc20
+        - BRC20
       summary: Get brc20 tx by txid
       description: |-
         Returns a json object with the brc20 tx info.
-        For more details see [TxEvents](#components/schemas/TxEvents).
       parameters:
         - name: txid
           schema:
@@ -280,13 +358,6 @@ paths:
           description: |-
             The txid.
           required: true
-        - name: mempool
-          schema:
-            type: boolean
-          in: query
-          description: |-
-            Whether to include mempool txs. Default: false.
-          required: false
       responses:
         "200":
           description: OK
@@ -299,21 +370,78 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/TxEvents"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/Brc20Transaction"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
-  /brc20/block/{blockHash}:
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
+  /brc20/tx/{txid}/events:
     get:
       tags:
-        - brc20
+        - BRC20
+      summary: Get brc20 tx events by txid
+      description: |-
+        Returns a json object with the brc20 tx info.
+      parameters:
+        - name: txid
+          schema:
+            type: string
+          in: path
+          description: |-
+            The txid.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/BRC20TxEvents"
+        "400":
+          description: "Bad Request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
+  /brc20/block/{blockHash}/events:
+    get:
+      tags:
+        - BRC20
       summary: Get brc20 block by blockHash
       description: |-
         Returns a json object with the brc20 block info.
-        For more details see [BlockEvents](#components/schemas/BlockEvents).
       parameters:
         - name: blockHash
           schema:
@@ -334,21 +462,32 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/BlockEvents"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/BRC20BlockEvents"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /ord/id/{inscriptionId}/inscription:
     get:
       tags:
-        - ord
+        - Ord
       summary: Get ord inscription by inscriptionId
       description: |-
         Returns a json object with the ord inscription info.
-        For more details see [Inscription](#components/schemas/Inscription).
       parameters:
         - name: inscriptionId
           schema:
@@ -370,20 +509,31 @@ paths:
                       data:
                         type: object
                         $ref: "#/components/schemas/Inscription"
-        "500":
-          description: ""
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
   /ord/number/{inscriptionNumber}/inscription:
     get:
       tags:
-        - ord
+        - Ord
       summary: Get ord inscription by inscriptionNumber
       description: |-
         Returns a json object with the ord inscription info.
-        For more details see [Inscription](#components/schemas/Inscription).
       parameters:
         - name: inscriptionNumber
           schema:
@@ -405,27 +555,39 @@ paths:
                       data:
                         type: object
                         $ref: "#/components/schemas/Inscription"
-        "500":
-          description: ""
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
-  /ord/output/{output}/info:
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
+  /ord/tx/{txid}:
     get:
       tags:
-        - ord
-      summary: Get ord output info by output
+        - Experiments
+      summary: Get ord tx by txid
       description: |-
-        Returns a json object with the ord output info.
-        For more details see [OutputInfo](#components/schemas/OutputInfo).
+        Returns a json object with the ord tx info.
+        Currently, only unconfirmed transaction are supported.
       parameters:
-        - name: output
+        - name: txid
           schema:
             type: string
           in: path
           description: |-
-            The output.
+            The txid.
           required: true
       responses:
         "200":
@@ -439,13 +601,71 @@ paths:
                     properties:
                       data:
                         type: object
-                        $ref: "#/components/schemas/OutputInfo"
-        "500":
-          description: ""
+                        $ref: "#/components/schemas/InscriptionTransaction"
+        "400":
+          description: "Bad Request"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseError"
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
+  /ord/outpoint/{outpoint}/info:
+    get:
+      tags:
+        - Ord
+      summary: Get ord output info by outpoint
+      description: |-
+        Returns a json object with the ord outpoint info.
+      parameters:
+        - name: outpoint
+          schema:
+            type: string
+          in: path
+          description: |-
+            The outpoint.
+          required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        $ref: "#/components/schemas/OutpointInfo"
+        "400":
+          description: "Bad Request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError400"
+        "404":
+          description: "Not Found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError404"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError500"
 components:
   schemas:
     ApiResponse:
@@ -463,28 +683,54 @@ components:
           type: string
           description: A message describing the error.
           example: "ok"
-    ApiResponseError:
+    ApiError400:
       type: object
       description: |-
-        `ApiResponse` is a generic response object.
+        Bad Request.
       required:
         - code
         - msg
       properties:
         code:
-          $ref: "#/components/schemas/ErrorCode"
+          type: integer
+          description: The response code.
+          example: 2
         msg:
           type: string
           description: A message describing the error.
-    ErrorCode:
-      type: integer
+          example: "bad request"
+    ApiError404:
+      type: object
       description: |-
-        `ErrorCode` is a integer enum.
-      enum:
-        - 1
-        - 2
-        - 3
-      example: 1
+        Not Found.
+      required:
+        - code
+        - msg
+      properties:
+        code:
+          type: integer
+          description: The response code.
+          example: 3
+        msg:
+          type: string
+          description: A message describing the error.
+          example: "not found"
+    ApiError500:
+      type: object
+      description: |-
+        Internal Server Error.
+      required:
+        - code
+        - msg
+      properties:
+        code:
+          type: integer
+          description: The response code.
+          example: 1
+        msg:
+          type: string
+          description: A message describing the error.
+          example: "internal server error"
     HeightInfo:
       type: object
       description: |-
@@ -499,10 +745,10 @@ components:
         btcChainInfo:
           type: object
           description: The bitcoin node that we connected status.
-    TickInfo:
+    BRC20Tick:
       type: object
       description: |-
-        `TickInfo` is a object with the tick info.
+        `BRC20Tick` is a object with the tick info.
       required:
         - tick
         - inscriptionId
@@ -519,40 +765,49 @@ components:
         tick:
           type: string
           description: The tick name.
+          example: "ordi"
         inscriptionId:
           type: string
           description: The inscription id.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
         inscriptionNumber:
           type: integer
           description: The inscription number.
+          example: 348020
         supply:
           type: string
           description: The supply.
+          example: "21000000000000000000000000"
         limitPerMint:
           type: string
           description: The limit per mint.
+          example: "1000000000000000000000"
         minted:
           type: string
           description: The minted.
+          example: "21000000000000000000000000"
         decimal:
           type: integer
           description: The decimal.
+          example: 18
         deployBy:
-          type: string
-          description: The deploy by.
+          $ref: "#/components/schemas/ScriptPubKey"
         txid:
           type: string
           description: The txid.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
         deployHeight:
           type: integer
           description: The deploy height.
+          example: 779832
         deployBlocktime:
           type: integer
           description: The deploy blocktime.
-    AllTickInfo:
+          example: 1678248991
+    AllBRC20Tick:
       type: object
       description: |-
-        `AllTickInfo` is a object with the all tick info.
+        `AllBRC20Tick` is a object with the all tick info.
       required:
         - tokens
       properties:
@@ -560,11 +815,42 @@ components:
           type: array
           description: The tick info list.
           items:
-            $ref: "#/components/schemas/TickInfo"
-    Balance:
+            $ref: "#/components/schemas/BRC20Tick"
+    ScriptPubKey:
       type: object
       description: |-
-        `Balance` is a object with the balance info.
+        `ScriptPubKey` is a object with the scriptPubKey info.
+      oneOf:
+        - $ref: "#/components/schemas/Address"
+        - $ref: "#/components/schemas/NoStandard"
+      example:
+        address: "bc1pxaneaf3w4d27hl2y93fuft2xk6m4u3wc4rafevc6slgd7f5tq2dqyfgy06"
+    Address:
+      type: object
+      description: |-
+        `Address` is a string with the address.
+      required:
+        - address
+      properties:
+        address:
+          type: string
+          description: The address.
+          example: "bc1pxaneaf3w4d27hl2y93fuft2xk6m4u3wc4rafevc6slgd7f5tq2dqyfgy06"
+    NoStandard:
+      type: object
+      description: |-
+        `NoStandard` is a string with the script hash.
+      required:
+        - scriptHash
+      properties:
+        scriptHash:
+          type: string
+          description: The script hash160.
+          example: "64a6435b97c58bb24bc2302e68b4442ca9ed9f0f"
+    BRC20Balance:
+      type: object
+      description: |-
+        `BRC20Balance` is a object with the balance info.
       required:
         - tick
         - availableBalance
@@ -574,19 +860,23 @@ components:
         tick:
           type: string
           description: The tick name.
+          example: "ordi"
         availableBalance:
           type: string
           description: The available balance.
+          example: "10000"
         transferableBalance:
           type: string
           description: The transferable balance.
+          example: "10000"
         overallBalance:
           type: string
           description: The overall balance.
-    AllBalance:
+          example: "10000"
+    AllBRC20Balance:
       type: object
       description: |-
-        `AllBalance` is a object with the all balance info.
+        `AllBRC20Balance` is a object with the all balance info.
       required:
         - tokens
       properties:
@@ -594,29 +884,226 @@ components:
           type: array
           description: The balance info list.
           items:
-            $ref: "#/components/schemas/Balance"
-    TxEvent:
+            $ref: "#/components/schemas/BRC20Balance"
+    Brc20Transaction:
       type: object
       description: |-
-        `TxEvent` is a object with the transaction event.
+        `Brc20Transaction` is a object with the brc20 transaction info.
+      required:
+        - txid
+        - blockhash
+        - confirmed
+        - inscriptions
+      properties:
+        txid:
+          type: string
+          description: The txid.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735"
+        blockhash:
+          type: string
+          description: The blockhash.
+          example: "00000000000000000003a0a8be81a1f0c53b2e4358a70c6ff7718515bf0c1c4b"
+        confirmed:
+          type: boolean
+          description: The confirmed.
+          example: true
+        inscriptions:
+          type: array
+          description: The inscriptions.
+          items:
+            $ref: "#/components/schemas/BRC20InscriptionMessage"
+    InscriptionTransaction:
+      type: object
+      description: |-
+        `InscriptionTransaction` is a object with the inscription transaction info.
+      required:
+        - txid
+        - confirmed
+        - inscriptions
+      properties:
+        txid:
+          type: string
+          description: The txid.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735"
+        confirmed:
+          type: boolean
+          description: The confirmed.
+          example: false
+        inscriptions:
+          type: array
+          description: The inscriptions.
+          items:
+            $ref: "#/components/schemas/InscriptionMessage"
+    InscriptionMessage:
+      type: object
+      description: |-
+        `InscriptionMessage` is a object with the inscription info.
+      required:
+        - action
+        - inscriptionId
+        - from
+        - to
+        - oldSatpoint
+        - newSatpoint
+      properties:
+        action:
+          type: string
+          description: The action type `inscribe` or `transfer`.
+          example: "inscribe"
+        inscriptionId:
+          type: string
+          description: The inscription id.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
+        from:
+          $ref: "#/components/schemas/ScriptPubKey"
+        to:
+          $ref: "#/components/schemas/ScriptPubKey"
+        oldSatpoint:
+          type: string
+          description: The old satpoint.
+          example: "a9d30d3a5131f49b0ee7b920c3c6f5f16defc152c0ae425c964294bc18ec6f28:0:0"
+        newSatpoint:
+          type: string
+          description: The new satpoint.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0"
+    BRC20InscriptionMessage:
+      type: object
+      description: |-
+        `BRC20InscriptionMessage` is a object with the inscription info.
+      required:
+        - action
+        - inscriptionNumber
+        - inscriptionId
+        - from
+        - to
+        - oldSatpoint
+        - newSatpoint
+        - operation
+      properties:
+        action:
+          type: string
+          description: The action type `inscribe` or `transfer`.
+          example: "inscribe"
+        inscriptionNumber:
+          type: integer
+          description: The inscription number. Field not present if it is an unconfirmed transaction
+          example: 348020
+        inscriptionId:
+          type: string
+          description: The inscription id.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
+        from:
+          $ref: "#/components/schemas/ScriptPubKey"
+        to:
+          $ref: "#/components/schemas/ScriptPubKey"
+        oldSatpoint:
+          type: string
+          description: The old satpoint.
+          example: "a9d30d3a5131f49b0ee7b920c3c6f5f16defc152c0ae425c964294bc18ec6f28:0:0"
+        newSatpoint:
+          type: string
+          description: The new satpoint.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0"
+        operation:
+          $ref: "#/components/schemas/BRC20Operation"
+    BRC20Operation:
+      type: object
+      description: |-
+        `BRC20Operation` is a object with the brc20 operation info.
       oneOf:
-        - $ref: "#/components/schemas/DeployEvent"
-        - $ref: "#/components/schemas/MintEvent"
-        - $ref: "#/components/schemas/InscribeTransferEvent"
-        - $ref: "#/components/schemas/TransferEvent"
-        - $ref: "#/components/schemas/ErrorEvent"
-      discriminator:
-        propertyName: event
-        mapping:
-          deploy: "#/components/schemas/DeployEvent"
-          mint: "#/components/schemas/MintEvent"
-          inscribeTransfer: "#/components/schemas/InscribeTransferEvent"
-          transfer: "#/components/schemas/TransferEvent"
-          error: "#/components/schemas/ErrorEvent"
-    TxEvents:
+        - $ref: "#/components/schemas/BRC20DeployOperation"
+        - $ref: "#/components/schemas/BRC20MintOperation"
+        - $ref: "#/components/schemas/BRC20TransferOperation"
+    BRC20DeployOperation:
       type: object
       description: |-
-        `TxEvents` is a object with the tx events info.
+        `BRC20DeployOperation` is a object with the deploy operation info.
+      required:
+        - type
+        - tick
+        - max
+        - lim
+      properties:
+        type:
+          type: string
+          description: The operation type.
+          example: "deploy"
+        tick:
+          type: string
+          description: The tick name.
+          example: "ordi"
+        max:
+          type: string
+          description: The max supply.
+          example: "10000"
+        lim:
+          type: string
+          description: The mint limit.
+          example: "10000"
+    BRC20MintOperation:
+      type: object
+      description: |-
+        `BRC20MintOperation` is a object with the mint operation info.
+      required:
+        - type
+        - tick
+        - amt
+      properties:
+        type:
+          type: string
+          description: The operation type.
+          example: "mint"
+        tick:
+          type: string
+          description: The tick name.
+          example: "ordi"
+        amt:
+          type: string
+          description: The mint amount.
+          example: "10000"
+    BRC20TransferOperation:
+      type: object
+      description: |-
+        `BRC20TransferOperation` is a object with the transfer operation info.
+      required:
+        - type
+        - tick
+        - amt
+      properties:
+        type:
+          type: string
+          description: The operation type.
+          example: "inscribeTransfer"
+        tick:
+          type: string
+          description: The tick name.
+          example: "ordi"
+        amt:
+          type: string
+          description: The transfer amount.
+          example: "10000"
+    BRC20TxEvent:
+      type: object
+      description: |-
+        `BRC20TxEvent` is a object with the transaction event.
+      oneOf:
+        - $ref: "#/components/schemas/BRC20DeployEvent"
+        - $ref: "#/components/schemas/BRC20MintEvent"
+        - $ref: "#/components/schemas/BRC20InscribeTransferEvent"
+        - $ref: "#/components/schemas/BRC20TransferEvent"
+        - $ref: "#/components/schemas/BRC20ErrorEvent"
+      discriminator:
+        propertyName: type
+        mapping:
+          deploy: "#/components/schemas/BRC20DeployEvent"
+          mint: "#/components/schemas/BRC20MintEvent"
+          inscribeTransfer: "#/components/schemas/BRC20InscribeTransferEvent"
+          transfer: "#/components/schemas/BRC20TransferEvent"
+          error: "#/components/schemas/BRC20ErrorEvent"
+    BRC20TxEvents:
+      type: object
+      description: |-
+        `BRC20TxEvents` is a object with the tx events info.
       required:
         - txid
         - events
@@ -624,15 +1111,16 @@ components:
         txid:
           type: string
           description: The txid.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735"
         events:
           type: array
           description: The tx events info list.
           items:
-            $ref: "#/components/schemas/TxEvent"
-    BlockEvents:
+            $ref: "#/components/schemas/BRC20TxEvent"
+    BRC20BlockEvents:
       type: object
       description: |-
-        `BlockEvents` is a object with the block events info.
+        `BRC20BlockEvents` is a object with the block events info.
       required:
         - block
       properties:
@@ -640,11 +1128,11 @@ components:
           type: array
           description: The block events info list.
           items:
-            $ref: "#/components/schemas/TxEvents"
-    TransferableInscription:
+            $ref: "#/components/schemas/BRC20TxEvents"
+    BRC20TransferableInscription:
       type: object
       description: |-
-        `TransferableInscription` is a object with the transferable inscription info.
+        `BRC20TransferableInscription` is a object with the transferable inscription info.
       required:
         - id
         - number
@@ -655,22 +1143,27 @@ components:
         id:
           type: string
           description: The inscription id.
+          example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
         number:
           type: integer
           description: The inscription number.
+          example: 348020
         amount:
           type: string
           description: The inscription amount.
+          example: "10000"
         tick:
           type: string
           description: The inscription tick.
+          example: "ordi"
         ouwner:
           type: string
           description: The inscription ouwner.
-    TransferableInscriptions:
+          example: "bc1pxaneaf3w4d27hl2y93fuft2xk6m4u3wc4rafevc6slgd7f5tq2dqyfgy06"
+    BRC20TransferableInscriptions:
       type: object
       description: |-
-        `TransferableInscriptions` is a object with the transferable inscription info.
+        `BRC20TransferableInscriptions` is a object with the transferable inscription info.
       required:
         - inscriptions
       properties:
@@ -678,153 +1171,198 @@ components:
           type: array
           description: The transferable inscription info list.
           items:
-            $ref: "#/components/schemas/TransferableInscription"
-    DeployEvent:
+            $ref: "#/components/schemas/BRC20TransferableInscription"
+    BRC20DeployEvent:
       type: object
       description: |-
-        `DeployEvent` is a object with the deploy event info.
+        `BRC20DeployEvent` is a object with the deploy event info.
       allOf:
         - type: object
           required:
-            - event
+            - type
             - tick
             - inscriptionId
             - inscriptionNumber
+            - oldSatpoint
+            - newSatpoint
             - supply
             - limitPerMint
             - decimal
-            - msgSender
-            - deployBy
+            - from
+            - to
             - valid
             - msg
           properties:
-            event:
+            type:
               type: string
               example: deploy
             tick:
               type: string
               description: The tick name.
+              example: "ordi"
             inscriptionId:
               type: string
               description: The inscription id.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
             inscriptionNumber:
               type: integer
               description: The inscription number.
+              example: 348020
+            oldSatpoint:
+              type: string
+              description: The old satpoint.
+              example: "a9d30d3a5131f49b0ee7b920c3c6f5f16defc152c0ae425c964294bc18ec6f28:0:0"
+            newSatpoint:
+              type: string
+              description: The new satpoint.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0"
             supply:
               type: string
               description: The supply.
+              example: "10000"
             limitPerMint:
               type: string
               description: The limit per mint.
+              example: "10000"
             decimal:
               type: integer
               description: The decimal.
-            msgSender:
-              type: string
-              description: The msg sender.
-            deployBy:
-              type: string
-              description: The deploy by.
+              example: 18
+            from:
+              description: Msg sender.
+              $ref: "#/components/schemas/ScriptPubKey"
+            to:
+              $ref: "#/components/schemas/ScriptPubKey"
+              description: Msg receiver.
             valid:
               type: boolean
               description: The valid.
             msg:
               type: string
-              description: The msg.
-    MintEvent:
+              description: The receipt msg.
+              example: "ok"
+    BRC20MintEvent:
       type: object
       description: |-
-        `MintEvent` is a object with the mint event info.
+        `BRC20MintEvent` is a object with the mint event info.
       allOf:
         - type: object
           required:
-            - event
+            - type
             - tick
             - inscriptionId
             - inscriptionNumber
             - amount
-            - msgSender
+            - from
             - to
             - valid
             - msg
           properties:
-            event:
+            type:
               type: string
               description: The event.
               example: mint
             tick:
               type: string
               description: The tick name.
+              example: "ordi"
             inscriptionId:
               type: string
               description: The inscription id.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
             inscriptionNumber:
               type: integer
               description: The inscription number.
+              example: 348020
+            oldSatpoint:
+              type: string
+              description: The old satpoint.
+              example: "a9d30d3a5131f49b0ee7b920c3c6f5f16defc152c0ae425c964294bc18ec6f28:0:0"
+            newSatpoint:
+              type: string
+              description: The new satpoint.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0"
             amount:
               type: string
               description: The amount.
-            msgSender:
-              type: string
-              description: The msg sender.
+              example: "10000"
+            from:
+              description: Msg sender.
+              $ref: "#/components/schemas/ScriptPubKey"
             to:
-              type: string
-              description: The to.
+              $ref: "#/components/schemas/ScriptPubKey"
+              description: Msg receiver.
             valid:
               type: boolean
               description: The valid.
             msg:
               type: string
               description: The msg.
-    InscribeTransferEvent:
+              example: "ok"
+    BRC20InscribeTransferEvent:
       type: object
       description: |-
-        `InscribeTransferEvent` is a object with the inscribe transfer event info.
+        `BRC20InscribeTransferEvent` is a object with the inscribe transfer event info.
       allOf:
         - type: object
           required:
-            - event
+            - type
             - tick
             - inscriptionId
             - inscriptionNumber
+            - oldSatpoint
+            - newSatpoint
             - amount
             - msgSender
             - owner
             - valid
             - msg
           properties:
-            event:
+            type:
               type: string
               description: The event.
               example: inscribeTransfer
             tick:
               type: string
               description: The tick name.
+              example: "ordi"
             inscriptionId:
               type: string
               description: The inscription id.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
             inscriptionNumber:
               type: integer
               description: The inscription number.
+              example: 348020
+            oldSatpoint:
+              type: string
+              description: The old satpoint.
+              example: "a9d30d3a5131f49b0ee7b920c3c6f5f16defc152c0ae425c964294bc18ec6f28:0:0"
+            newSatpoint:
+              type: string
+              description: The new satpoint.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0"
             amount:
               type: string
               description: The amount.
-            msgSender:
-              type: string
-              description: The msg sender.
-            owner:
-              type: string
-              description: The owner.
+              example: "10000"
+            from:
+              description: Msg sender.
+              $ref: "#/components/schemas/ScriptPubKey"
+            to:
+              $ref: "#/components/schemas/ScriptPubKey"
+              description: Msg receiver.
             valid:
               type: boolean
               description: The valid.
             msg:
               type: string
               description: The msg.
-    TransferEvent:
+              example: "ok"
+    BRC20TransferEvent:
       type: object
       description: |-
-        `TransferEvent` is a object with the transfer event info.
+        `BRC20TransferEvent` is a object with the transfer event info.
       allOf:
         - type: object
           required:
@@ -832,6 +1370,8 @@ components:
             - tick
             - inscriptionId
             - inscriptionNumber
+            - oldSatpoint
+            - newSatpoint
             - amount
             - from
             - to
@@ -845,37 +1385,52 @@ components:
             tick:
               type: string
               description: The tick name.
+              example: "ordi"
             inscriptionId:
               type: string
               description: The inscription id.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
             inscriptionNumber:
               type: integer
               description: The inscription number.
+              example: 348020
+            oldSatpoint:
+              type: string
+              description: The old satpoint.
+              example: "a9d30d3a5131f49b0ee7b920c3c6f5f16defc152c0ae425c964294bc18ec6f28:0:0"
+            newSatpoint:
+              type: string
+              description: The new satpoint. Maybe empty if the transfer to coinbase.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0"
             amount:
               type: string
               description: The amount.
+              example: "10000"
             from:
-              type: string
-              description: The from.
+              description: Msg sender.
+              $ref: "#/components/schemas/ScriptPubKey"
             to:
-              type: string
-              description: The to.
+              $ref: "#/components/schemas/ScriptPubKey"
+              description: Msg receiver.
             valid:
               type: boolean
               description: The valid.
             msg:
               type: string
               description: The msg.
-    ErrorEvent:
+              example: "ok"
+    BRC20ErrorEvent:
       type: object
       description: |-
-        `ErrorEvent` is a object with the error event info.
+        `BRC20ErrorEvent` is a object with the error event info.
       allOf:
         - type: object
           required:
             - event
             - inscriptionId
             - inscriptionNumber
+            - oldSatpoint
+            - newSatpoint
             - from
             - to
             - valid
@@ -888,39 +1443,33 @@ components:
             inscriptionId:
               type: string
               description: The inscription id.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
             inscriptionNumber:
               type: integer
               description: The inscription number.
+              example: 348020
+            oldSatpoint:
+              type: string
+              description: The old satpoint.
+              example: "a9d30d3a5131f49b0ee7b920c3c6f5f16defc152c0ae425c964294bc18ec6f28:0:0"
+            newSatpoint:
+              type: string
+              description: The new satpoint.
+              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0"
             from:
-              type: string
-              description: The from.
+              description: Msg sender.
+              $ref: "#/components/schemas/ScriptPubKey"
             to:
-              type: string
-              description: The to.
+              $ref: "#/components/schemas/ScriptPubKey"
+              description: Msg receiver.
             valid:
               type: boolean
               description: The valid.
+              example: false
             msg:
               type: string
-              description: The msg.
-    InscriptionDigest:
-      type: object
-      description: |-
-        `InscriptionDigest` is a digest information object of the inscription.
-      required:
-        - id
-        - number
-        - location
-      properties:
-        id:
-          type: string
-          description: The inscription id.
-        number:
-          type: integer
-          description: The inscription number.
-        location:
-          type: string
-          description: The inscription location.
+              description: The error msg.
+              example: "insufficient balance"
     Inscription:
       type: object
       description: |-
@@ -938,50 +1487,75 @@ components:
         id:
           type: string
           description: The inscription id.
+          example: "59c89ee6e56e0eea9114163fee3158c1bf39adfc84827e36fa7f1933823af7b4i0"
         number:
           type: integer
           description: The inscription number.
+          example: 8055228
         contentType:
           type: string
           description: The inscription content type.
+          example: "text/plain;charset=utf-8"
         content:
           type: string
           description: The inscription content.
+          example: "7b2270223a226272632d3230222c226f70223a227472616e73666572222c227469636b223a226f726469222c22616d74223a22313030227d"
         owner:
-          type: string
-          description: The inscription owner.
+          $ref: "#/components/schemas/ScriptPubKey"
         genesisHeight:
           type: integer
           description: The inscription genesis height.
+          example: 790565
         location:
           type: string
           description: The inscription location.
-        sat:
-          type: integer
-          description: The inscription sat.
-    OutputInfo:
+          example: "e3d7911cff532065b0999a28aedb47525875e7cc4f74cf5eaf76b6e0e4d82cd4:0:0"
+    InscriptionDigest:
       type: object
       description: |-
-        `OutputInfo` is a object with the output info.
+        `InscriptionDigest` is a digest information object of the inscription.
+      required:
+        - id
+        - number
+        - location
+      properties:
+        id:
+          type: string
+          description: The inscription id.
+          example: "59c89ee6e56e0eea9114163fee3158c1bf39adfc84827e36fa7f1933823af7b4i0"
+        number:
+          type: integer
+          description: The inscription number.
+          example: 8055228
+        location:
+          type: string
+          description: The inscription location.
+          example: "e3d7911cff532065b0999a28aedb47525875e7cc4f74cf5eaf76b6e0e4d82cd4:0:0"
+    OutpointInfo:
+      type: object
+      description: |-
+        `OutpointInfo` is a object with the outpoint info.
       required:
         - txId
         - scriptPubKey
-        - address
+        - owner
         - value
         - inscriptionDigest
       properties:
         txid:
           type: string
           description: The transaction id.
+          example: "e3d7911cff532065b0999a28aedb47525875e7cc4f74cf5eaf76b6e0e4d82cd4"
         scriptPubKey:
           type: string
           description: The script public key.
-        address:
-          type: string
-          description: The address.
+          example: "OP_PUSHNUM_1 OP_PUSHBYTES_32 006747b3d7ca41c8620f5b564aa85b65cba979424210fc552c68f34e77d452bd"
+        owner:
+          $ref: "#/components/schemas/ScriptPubKey"
         value:
           type: integer
           description: The value.
+          example: 546
         inscriptionDigest:
           type: array
           description: The inscription info list.

@@ -71,4 +71,37 @@ impl ApiError {
   pub(crate) fn internal<S: Into<String>>(message: S) -> Self {
     Self::Internal(message.into())
   }
+
+  pub(crate) fn bad_request<S: Into<String>>(message: S) -> Self {
+    Self::BadRequest(message.into())
+  }
+}
+
+impl<T> Into<axum::Json<ApiResponse<T>>> for ApiError
+where
+  T: Serialize,
+{
+  fn into(self) -> axum::Json<ApiResponse<T>> {
+    axum::Json(ApiResponse::api_err(&self))
+  }
+}
+
+impl IntoResponse for ApiError {
+  fn into_response(self) -> Response {
+    let status_code = match &self {
+      Self::NoError => StatusCode::OK,
+      Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+      Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+      Self::NotFound(_) => StatusCode::NOT_FOUND,
+    };
+    let json: axum::Json<ApiResponse<()>> = self.into();
+
+    (status_code, json).into_response()
+  }
+}
+
+impl From<anyhow::Error> for ApiError {
+  fn from(error: anyhow::Error) -> Self {
+    Self::internal(error.to_string())
+  }
 }

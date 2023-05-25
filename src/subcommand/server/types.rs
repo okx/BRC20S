@@ -3,7 +3,7 @@ use crate::brc20::{
   Action, Deploy as InsDeploy, Mint as InsMint, Operation, ScriptKey, Transfer as InsTransfer,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ScriptPubkey {
   Address(String),
@@ -70,6 +70,7 @@ pub struct InscriptionInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(untagged)]
 pub enum RawOperation {
   Brc20Operation(Brc20RawOperation),
 }
@@ -421,13 +422,11 @@ mod tests {
   "oldSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
   "newSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
   "operation": {
-    "brc20Operation": {
-      "type": "deploy",
-      "tick": "ordi",
-      "max": "1000",
-      "lim": "1000",
-      "dec": "18"
-    }
+    "type": "deploy",
+    "tick": "ordi",
+    "max": "1000",
+    "lim": "1000",
+    "dec": "18"
   }
 }"#
     );

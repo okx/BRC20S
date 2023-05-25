@@ -365,7 +365,7 @@ pub(crate) async fn brc20_tick_info(
   }
   let tick = tick.to_lowercase();
 
-  let tick_info = index
+  let tick_info = &index
     .brc20_get_tick_info(&tick)?
     .ok_or_api_not_found("tick not found")?;
 

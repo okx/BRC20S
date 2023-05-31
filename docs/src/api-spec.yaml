@@ -822,7 +822,7 @@ components:
         `ScriptPubKey` is a object with the scriptPubKey info.
       oneOf:
         - $ref: "#/components/schemas/Address"
-        - $ref: "#/components/schemas/NoStandard"
+        - $ref: "#/components/schemas/NonStandard"
       example:
         address: "bc1pxaneaf3w4d27hl2y93fuft2xk6m4u3wc4rafevc6slgd7f5tq2dqyfgy06"
     Address:
@@ -836,10 +836,10 @@ components:
           type: string
           description: The address.
           example: "bc1pxaneaf3w4d27hl2y93fuft2xk6m4u3wc4rafevc6slgd7f5tq2dqyfgy06"
-    NoStandard:
+    NonStandard:
       type: object
       description: |-
-        `NoStandard` is a string with the script hash.
+        `NonStandard` is a string with the script hash.
       required:
         - scriptHash
       properties:
@@ -1091,7 +1091,6 @@ components:
         - $ref: "#/components/schemas/BRC20MintEvent"
         - $ref: "#/components/schemas/BRC20InscribeTransferEvent"
         - $ref: "#/components/schemas/BRC20TransferEvent"
-        - $ref: "#/components/schemas/BRC20ErrorEvent"
       discriminator:
         propertyName: type
         mapping:
@@ -1366,7 +1365,7 @@ components:
       allOf:
         - type: object
           required:
-            - event
+            - type
             - tick
             - inscriptionId
             - inscriptionNumber
@@ -1378,7 +1377,7 @@ components:
             - valid
             - msg
           properties:
-            event:
+            type:
               type: string
               description: The event.
               example: transfer
@@ -1419,57 +1418,6 @@ components:
               type: string
               description: The msg.
               example: "ok"
-    BRC20ErrorEvent:
-      type: object
-      description: |-
-        `BRC20ErrorEvent` is a object with the error event info.
-      allOf:
-        - type: object
-          required:
-            - event
-            - inscriptionId
-            - inscriptionNumber
-            - oldSatpoint
-            - newSatpoint
-            - from
-            - to
-            - valid
-            - msg
-          properties:
-            event:
-              type: string
-              description: The event.
-              example: error
-            inscriptionId:
-              type: string
-              description: The inscription id.
-              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735i0"
-            inscriptionNumber:
-              type: integer
-              description: The inscription number.
-              example: 348020
-            oldSatpoint:
-              type: string
-              description: The old satpoint.
-              example: "a9d30d3a5131f49b0ee7b920c3c6f5f16defc152c0ae425c964294bc18ec6f28:0:0"
-            newSatpoint:
-              type: string
-              description: The new satpoint.
-              example: "b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735:0:0"
-            from:
-              description: Msg sender.
-              $ref: "#/components/schemas/ScriptPubKey"
-            to:
-              $ref: "#/components/schemas/ScriptPubKey"
-              description: Msg receiver.
-            valid:
-              type: boolean
-              description: The valid.
-              example: false
-            msg:
-              type: string
-              description: The error msg.
-              example: "insufficient balance"
     Inscription:
       type: object
       description: |-

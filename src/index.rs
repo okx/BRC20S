@@ -1,13 +1,12 @@
+use crate::brc20::ledger::LedgerRead;
+use crate::brc20::ScriptKey;
+
 use {
   self::{
-    entry::{
-      BlockHashValue, Entry, InscriptionEntry, InscriptionEntryValue, InscriptionIdValue,
-      OutPointValue, SatPointValue, SatRange,
-    },
+    entry::{BlockHashValue, Entry, InscriptionEntry, OutPointValue, SatPointValue, SatRange},
     updater::Updater,
   },
   super::*,
-  crate::wallet::Wallet,
   bitcoin::BlockHeader,
   bitcoincore_rpc::{json::GetBlockHeaderResult, Client},
   chrono::SubsecRound,
@@ -18,10 +17,15 @@ use {
   std::sync::atomic::{self, AtomicBool},
 };
 
+pub(super) use self::entry::{InscriptionEntryValue, InscriptionIdValue};
+
 mod entry;
 mod fetcher;
 mod rtx;
 mod updater;
+
+use once_cell::sync::OnceCell;
+use redb::Savepoint;
 
 const SCHEMA_VERSION: u64 = 3;
 
@@ -42,6 +46,14 @@ define_table! { SAT_TO_INSCRIPTION_ID, u64, &InscriptionIdValue }
 define_table! { SAT_TO_SATPOINT, u64, &SatPointValue }
 define_table! { STATISTIC_TO_COUNT, u64, u64 }
 define_table! { WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP, u64, u128 }
+
+pub(crate) struct HeightSavepoint(pub u64, pub Savepoint);
+
+pub(crate) static mut GLOBAL_SAVEPOINTS: OnceCell<VecDeque<HeightSavepoint>> = OnceCell::new();
+
+pub(crate) const SAVEPOINT_INTERVAL: u64 = 3;
+
+pub(crate) const MAX_SAVEPOINTS: usize = 4;
 
 pub(crate) struct Index {
   client: Client,
@@ -69,6 +81,7 @@ pub(crate) enum Statistic {
   LostSats = 2,
   OutputsTraversed = 3,
   SatRanges = 4,
+  BRC20ActionCount = 5,
 }
 
 impl Statistic {
@@ -128,6 +141,13 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
       Err(err) => Err(err.into()),
     }
   }
+}
+
+pub(crate) struct InscriptionAllData {
+  pub tx: Transaction,
+  pub entry: InscriptionEntry,
+  pub sat_point: SatPoint,
+  pub inscription: Inscription,
 }
 
 impl Index {
@@ -232,7 +252,11 @@ impl Index {
     })
   }
 
-  pub(crate) fn get_unspent_outputs(&self, _wallet: Wallet) -> Result<BTreeMap<OutPoint, Amount>> {
+  pub(crate) fn get_chain_network(&self) -> Network {
+    self.options.chain().network()
+  }
+
+  pub(crate) fn get_unspent_outputs(&self) -> Result<BTreeMap<OutPoint, Amount>> {
     let mut utxos = BTreeMap::new();
     utxos.extend(
       self
@@ -277,10 +301,9 @@ impl Index {
 
   pub(crate) fn get_unspent_output_ranges(
     &self,
-    wallet: Wallet,
   ) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
     self
-      .get_unspent_outputs(wallet)?
+      .get_unspent_outputs()?
       .into_keys()
       .map(|outpoint| match self.list(outpoint)? {
         Some(List::Unspent(sat_ranges)) => Ok((outpoint, sat_ranges)),
@@ -365,6 +388,30 @@ impl Index {
     self.reorged.load(atomic::Ordering::Relaxed)
   }
 
+  pub(crate) fn reset_reorged(&self) {
+    self.reorged.store(false, atomic::Ordering::Relaxed);
+  }
+
+  pub(crate) unsafe fn backup_at_init(&self) -> Result {
+    let height = self.height().unwrap().unwrap_or(Height(0)).n();
+    GLOBAL_SAVEPOINTS.get_or_init(|| VecDeque::new());
+    let wtx = self.begin_write()?;
+    let sp = wtx.savepoint()?;
+    GLOBAL_SAVEPOINTS
+      .get_mut()
+      .unwrap()
+      .push_back(HeightSavepoint(height, sp));
+    wtx.commit()?;
+    Ok(())
+  }
+
+  pub(crate) fn restore_savepoint(&self, sp: &Savepoint) -> Result {
+    let mut wtx = self.begin_write()?;
+    wtx.restore_savepoint(sp)?;
+    wtx.commit()?;
+    Ok(())
+  }
+
   fn begin_read(&self) -> Result<rtx::Rtx> {
     Ok(rtx::Rtx(self.database.begin_read()?))
   }
@@ -406,6 +453,30 @@ impl Index {
 
   pub(crate) fn height(&self) -> Result<Option<Height>> {
     self.begin_read()?.height()
+  }
+
+  pub(crate) fn height_btc(
+    &self,
+    query_btc: bool,
+  ) -> Result<(
+    Option<Height>,
+    Option<bitcoincore_rpc::json::GetBlockchainInfoResult>,
+  )> {
+    let ord_height = self.begin_read()?.height()?;
+    if let Some(height) = ord_height {
+      if query_btc {
+        let btc_info = match self.client.get_blockchain_info() {
+          Ok(info) => info,
+          Err(_) => {
+            return Ok((Some(height), None));
+          }
+        };
+        return Ok((Some(height), Some(btc_info)));
+      }
+      return Ok((Some(height), None));
+    } else {
+      return Ok((None, None));
+    }
   }
 
   pub(crate) fn block_count(&self) -> Result<u64> {
@@ -544,6 +615,52 @@ impl Index {
     )
   }
 
+  pub(crate) fn get_inscription_all_data_by_id(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<InscriptionAllData>> {
+    let entry = match self.get_inscription_entry(inscription_id)? {
+      Some(entry) => entry,
+      None => return Ok(None),
+    };
+    let tx = match self.get_transaction(inscription_id.txid)? {
+      Some(tx) => tx,
+      None => return Ok(None),
+    };
+    let inscription = match Inscription::from_transaction(&tx) {
+      Some(inscription) => inscription,
+      None => return Ok(None),
+    };
+
+    let sat_point = match self.get_inscription_satpoint_by_id(inscription_id)? {
+      Some(sat_point) => sat_point,
+      None => return Ok(None),
+    };
+
+    Ok(Some(InscriptionAllData {
+      entry,
+      tx,
+      inscription,
+      sat_point,
+    }))
+  }
+
+  pub(crate) fn get_inscriptions_with_satpoint_on_output(
+    &self,
+    outpoint: OutPoint,
+  ) -> Result<Vec<(SatPoint, InscriptionId)>> {
+    Ok(
+      Self::inscriptions_on_output(
+        &self
+          .database
+          .begin_read()?
+          .open_table(SATPOINT_TO_INSCRIPTION_ID)?,
+        outpoint,
+      )?
+      .collect(),
+    )
+  }
+
   pub(crate) fn get_inscriptions_on_output(
     &self,
     outpoint: OutPoint,
@@ -566,6 +683,30 @@ impl Index {
       Ok(Some(self.genesis_block_coinbase_transaction.clone()))
     } else {
       self.client.get_raw_transaction(&txid, None).into_option()
+    }
+  }
+
+  pub(crate) fn get_transaction_with_retries(&self, txid: Txid) -> Result<Option<Transaction>> {
+    let mut errors = 0;
+    loop {
+      match self.client.get_raw_transaction(&txid, None).into_option() {
+        Err(err) => {
+          if cfg!(test) {
+            return Err(err);
+          }
+          errors += 1;
+          let seconds = 1 << errors;
+          log::warn!("failed to fetch transaction {txid}, retrying in {seconds}s: {err}");
+
+          if seconds > 120 {
+            log::error!("would sleep for more than 120s, giving up");
+            return Err(err);
+          }
+
+          thread::sleep(Duration::from_secs(seconds));
+        }
+        Ok(result) => return Ok(result),
+      }
     }
   }
 
@@ -886,6 +1027,154 @@ impl Index {
         .range::<&[u8; 44]>(&start..=&end)?
         .map(|(satpoint, id)| (Entry::load(*satpoint.value()), Entry::load(*id.value()))),
     )
+  }
+
+  pub(crate) fn get_number_by_inscription_id<'a>(
+    id_to_entry: &'a impl ReadableTable<&'static InscriptionIdValue, InscriptionEntryValue>,
+    inscription_id: InscriptionId,
+  ) -> Result<u64> {
+    Ok(
+      id_to_entry
+        .get(&inscription_id.store())?
+        .ok_or(anyhow!(
+          "failed to find inscription number for {}",
+          inscription_id
+        ))?
+        .value()
+        .2,
+    )
+  }
+
+  pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<brc20::TokenInfo>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);
+    let info = brc20_db.get_token_info(&brc20::Tick::from_str(name)?)?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc20_get_all_tick_info(&self) -> Result<Vec<brc20::TokenInfo>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);
+    let info = brc20_db.get_tokens_info()?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc20_get_balance_by_address(
+    &self,
+    tick: &str,
+    address: &bitcoin::Address,
+  ) -> Result<Option<brc20::Balance>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);
+    let bal = brc20_db.get_balance(
+      &brc20::ScriptKey::from_address(address.clone()),
+      &brc20::Tick::from_str(tick)?,
+    )?;
+    Ok(bal)
+  }
+
+  pub(crate) fn brc20_get_all_balance_by_address(
+    &self,
+    address: &bitcoin::Address,
+  ) -> Result<Vec<(brc20::Tick, brc20::Balance)>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);
+    let all_balance = brc20_db.get_balances(&brc20::ScriptKey::from_address(address.clone()))?;
+    Ok(all_balance)
+  }
+
+  pub(crate) fn get_transaction_info(
+    &self,
+    txid: &bitcoin::Txid,
+  ) -> Result<Option<bitcoincore_rpc::json::GetRawTransactionResult>> {
+    if *txid == self.genesis_block_coinbase_txid {
+      Ok(None)
+    } else {
+      self
+        .client
+        .get_raw_transaction_info(&txid, None)
+        .into_option()
+    }
+  }
+
+  pub(crate) fn brc20_get_tx_events_by_txid(
+    &self,
+    txid: &bitcoin::Txid,
+  ) -> Result<Option<Vec<brc20::ActionReceipt>>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);
+    let res = brc20_db.get_transaction_receipts(txid)?;
+
+    if res.len() == 0 {
+      let tx = self.client.get_raw_transaction_info(txid, None)?;
+      if let Some(tx_blockhash) = tx.blockhash {
+        let tx_bh = self.client.get_block_header_info(&tx_blockhash)?;
+        let parsed_height = self.height()?;
+        if parsed_height.is_none() || tx_bh.height as u64 > parsed_height.unwrap().0 {
+          return Ok(None);
+        }
+      } else {
+        return Err(anyhow!("can't get tx block hash: {txid}"));
+      }
+    }
+
+    return Ok(Some(res));
+  }
+
+  pub(crate) fn brc20_get_block_events_by_blockhash(
+    &self,
+    blockhash: bitcoin::BlockHash,
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20::ActionReceipt>)>>> {
+    let parsed_height = self.height()?;
+    if parsed_height.is_none() {
+      return Ok(None);
+    }
+    let parsed_height = parsed_height.unwrap().0;
+    let block = self.client.get_block_info(&blockhash)?;
+    if block.height as u64 > parsed_height {
+      return Ok(None);
+    }
+
+    let wtx = self.database.begin_read().unwrap();
+    let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);
+
+    let mut result = Vec::new();
+
+    for txid in &block.tx {
+      let tx_events = brc20_db.get_transaction_receipts(txid)?;
+      if tx_events.len() == 0 {
+        continue;
+      }
+      result.push((txid.clone(), tx_events));
+    }
+
+    Ok(Some(result))
+  }
+
+  pub(crate) fn brc20_get_tick_transferable_by_address(
+    &self,
+    tick: &str,
+    address: &bitcoin::Address,
+  ) -> Result<Vec<brc20::TransferableLog>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);
+    let res = brc20_db.get_transferable_by_tick(
+      &ScriptKey::from_address(address.clone()),
+      &brc20::Tick::from_str(tick)?,
+    )?;
+
+    Ok(res)
+  }
+
+  pub(crate) fn brc20_get_all_transferable_by_address(
+    &self,
+    address: &bitcoin::Address,
+  ) -> Result<Vec<brc20::TransferableLog>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc20_db = crate::okx::BRC20DatabaseReader::new(&wtx);
+    let res = brc20_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
+
+    Ok(res)
   }
 }
 
@@ -2201,12 +2490,11 @@ mod tests {
       let mut entropy = [0; 16];
       rand::thread_rng().fill_bytes(&mut entropy);
       let mnemonic = Mnemonic::from_entropy(&entropy).unwrap();
-      crate::subcommand::wallet::initialize_wallet(&context.options, mnemonic.to_seed("")).unwrap();
       context.rpc_server.mine_blocks(1);
       assert_regex_match!(
         context
           .index
-          .get_unspent_outputs(Wallet::load(&context.options).unwrap())
+          .get_unspent_outputs()
           .unwrap_err()
           .to_string(),
         r"output in Bitcoin Core wallet but not in ord index: [[:xdigit:]]{64}:\d+"

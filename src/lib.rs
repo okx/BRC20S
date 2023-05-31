@@ -25,7 +25,6 @@ use {
     inscription_id::InscriptionId,
     media::Media,
     options::Options,
-    outgoing::Outgoing,
     representation::Representation,
     subcommand::Subcommand,
     tally::Tally,
@@ -73,8 +72,7 @@ use {
 };
 
 pub use crate::{
-  fee_rate::FeeRate, object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
-  subcommand::wallet::transaction_builder::TransactionBuilder,
+  object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
 };
 
 #[cfg(test)]
@@ -96,21 +94,22 @@ macro_rules! tprintln {
 
 mod arguments;
 mod blocktime;
+mod brc20;
 mod chain;
 mod config;
 mod decimal;
 mod degree;
 mod deserialize_from_str;
 mod epoch;
-mod fee_rate;
 mod height;
 mod index;
 mod inscription;
 mod inscription_id;
+mod logger;
 mod media;
 mod object;
+mod okx;
 mod options;
-mod outgoing;
 mod page_config;
 mod rarity;
 mod representation;
@@ -119,7 +118,6 @@ mod sat_point;
 pub mod subcommand;
 mod tally;
 mod templates;
-mod wallet;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 
@@ -142,7 +140,14 @@ fn timestamp(seconds: u32) -> DateTime<Utc> {
 }
 
 pub fn main() {
-  env_logger::init();
+  let args = Arguments::parse();
+  let log_dir = match args.options.log_dir() {
+    Ok(d) => d,
+    Err(e) => panic!("get log file error: {}", e),
+  };
+  if let Err(e) = logger::init(args.options.log_level(), log_dir) {
+    panic!("initialize logger error: {}", e);
+  }
 
   ctrlc::set_handler(move || {
     LISTENERS
@@ -159,7 +164,7 @@ pub fn main() {
   })
   .expect("Error setting <CTRL-C> handler");
 
-  if let Err(err) = Arguments::parse().run() {
+  if let Err(err) = args.run() {
     eprintln!("error: {err}");
     err
       .chain()

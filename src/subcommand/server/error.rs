@@ -45,3 +45,63 @@ impl From<Error> for ServerError {
     Self::Internal(error)
   }
 }
+
+#[repr(i32)]
+pub(crate) enum ApiError {
+  NoError = 0,
+  Internal(String) = 1,
+  BadRequest(String) = 2,
+  NotFound(String) = 3,
+}
+
+impl ApiError {
+  pub(crate) fn code(&self) -> i32 {
+    match self {
+      Self::NoError => 0,
+      Self::Internal(_) => 1,
+      Self::BadRequest(_) => 2,
+      Self::NotFound(_) => 3,
+    }
+  }
+
+  pub(crate) fn not_found<S: Into<String>>(message: S) -> Self {
+    Self::NotFound(message.into())
+  }
+
+  pub(crate) fn internal<S: Into<String>>(message: S) -> Self {
+    Self::Internal(message.into())
+  }
+
+  pub(crate) fn bad_request<S: Into<String>>(message: S) -> Self {
+    Self::BadRequest(message.into())
+  }
+}
+
+impl<T> Into<axum::Json<ApiResponse<T>>> for ApiError
+where
+  T: Serialize,
+{
+  fn into(self) -> axum::Json<ApiResponse<T>> {
+    axum::Json(ApiResponse::api_err(&self))
+  }
+}
+
+impl IntoResponse for ApiError {
+  fn into_response(self) -> Response {
+    let status_code = match &self {
+      Self::NoError => StatusCode::OK,
+      Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+      Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+      Self::NotFound(_) => StatusCode::NOT_FOUND,
+    };
+    let json: axum::Json<ApiResponse<()>> = self.into();
+
+    (status_code, json).into_response()
+  }
+}
+
+impl From<anyhow::Error> for ApiError {
+  fn from(error: anyhow::Error) -> Self {
+    Self::internal(error.to_string())
+  }
+}

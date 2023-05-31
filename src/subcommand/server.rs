@@ -36,7 +36,19 @@ use {
   },
 };
 
+mod api;
+mod brc20_operations;
+mod inscription;
+mod types;
+
 mod error;
+mod response;
+
+use self::api::*;
+use self::response::ApiResponse;
+use self::types::*;
+
+use crate::index::GLOBAL_SAVEPOINTS;
 
 enum BlockQuery {
   Height(u64),
@@ -125,12 +137,49 @@ pub(crate) struct Server {
 
 impl Server {
   pub(crate) fn run(self, options: Options, index: Arc<Index>, handle: Handle) -> Result {
+    #[cfg(feature = "rollback")]
+    unsafe {
+      index.backup_at_init()?;
+    }
+
     Runtime::new()?.block_on(async {
       let clone = index.clone();
       thread::spawn(move || loop {
         if let Err(error) = clone.update() {
           log::warn!("{error}");
+
+          #[cfg(feature = "rollback")]
+          if clone.is_reorged() {
+            let height = clone.height().unwrap().unwrap().n();
+            unsafe {
+              loop {
+                let hsp = GLOBAL_SAVEPOINTS
+                  .get()
+                  .unwrap()
+                  .back()
+                  .expect("savepoint not found");
+                if hsp.0 < height {
+                  clone
+                    .restore_savepoint(&hsp.1)
+                    .expect("restore savepoint error");
+                  log::info!("restore savepoint of {}", hsp.0);
+                  break;
+                } else if GLOBAL_SAVEPOINTS.get().unwrap().len() == 1 {
+                  log::error!(
+                    "The node has rollback to the oldest savepoint, reindex blocks please."
+                  );
+                  break;
+                } else {
+                  log::info!("drop savepoint of {}", hsp.0);
+                  drop(GLOBAL_SAVEPOINTS.get_mut().unwrap().pop_back().unwrap().1);
+                }
+              }
+            }
+            clone.reset_reorged();
+            log::info!("reorged is reset at {}", height);
+          }
         }
+
         thread::sleep(Duration::from_millis(5000));
       });
 
@@ -141,6 +190,36 @@ impl Server {
         chain: options.chain(),
         domain: acme_domains.first().cloned(),
       });
+
+      let api_v1_router = Router::new()
+        .route("/node/info", get(node_info))
+        .route("/ord/tx/:txid", get(ord_inscription_by_txid))
+        .route("/ord/id/:id/inscription", get(ord_inscription_id))
+        .route(
+          "/ord/number/:number/inscription",
+          get(ord_inscription_number),
+        )
+        .route("/ord/outpoint/:outpoint/info", get(ord_outpoint))
+        .route("/brc20/tick/:tick", get(brc20_tick_info))
+        .route("/brc20/tick", get(brc20_all_tick_info))
+        .route(
+          "/brc20/tick/:tick/address/:address/balance",
+          get(brc20_balance),
+        )
+        .route("/brc20/address/:address/balance", get(brc20_all_balance))
+        .route(
+          "/brc20/tick/:tick/address/:address/transferable",
+          get(brc20_transferable),
+        )
+        .route(
+          "/brc20/address/:address/transferable",
+          get(brc20_all_transferable),
+        )
+        .route("/brc20/tx/:txid/events", get(brc20_tx_events))
+        .route("/brc20/tx/:txid", get(brc20_tx))
+        .route("/brc20/block/:block_hash/events", get(brc20_block_events));
+
+      let api_router = Router::new().nest("/v1", api_v1_router);
 
       let router = Router::new()
         .route("/", get(Self::home))
@@ -168,6 +247,7 @@ impl Server {
         .route("/static/*path", get(Self::static_asset))
         .route("/status", get(Self::status))
         .route("/tx/:txid", get(Self::transaction))
+        .nest("/api", api_router)
         .layer(Extension(index))
         .layer(Extension(page_config))
         .layer(Extension(Arc::new(config)))
@@ -2497,5 +2577,40 @@ mod tests {
       StatusCode::OK,
       &fs::read_to_string("templates/preview-unknown.html").unwrap(),
     );
+  }
+
+  #[test]
+  fn brc20_endpoint() {
+    let test_server = TestServer::new();
+
+    for url in [
+      "/brc20/tick/🍎",
+      "/brc20/tick",
+      "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
+      "/brc20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
+      "/brc20/tx/b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735",
+      "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable",
+      "/brc20/block/00000000000000000003a337a676b0101f3f7ef7dcbc01debb69f85c6da04dcf",
+      "/brc20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable"
+    ] {
+
+      println!("{}", url);
+
+      let response = test_server.get(url);
+
+      println!("{:?}", response.status());
+
+      let json_text = response.text().unwrap();
+
+      println!("{}", json_text);
+    }
+
+    // let response = test_server.get("/brc20/tick/🍎");
+    //
+    // println!("{:?}", response.status());
+    //
+    // let json_text = response.text().unwrap();
+    //
+    // println!("{}", json_text);
   }
 }

@@ -1,6 +1,29 @@
 Changelog
 =========
 
+[0.7.0](https://github.com/okx/ord/releases/tag/0.7.0) - 2023-05-25
+---------------------------------------------------------------------
+### Added
+- Add `ord --log-level` command for persistent log (#51)
+- Add new interfaces for unconfirmed transaction. (#63)
+- Add tag and commitid for `version` command. (#58)
+
+### Changed
+- update API specification and code. (#62)
+
+### Remove
+- Remove ordinal uneless command and code. (#55)
+
+### Fixed
+- Fix Num checked_to_u128 error and increase test case.  (#57)
+- Fix zero inscription nunbmer. (#56)
+
+[0.6.4](https://github.com/okx/ord/releases/tag/0.6.4) - 2023-05-21
+---------------------------------------------------------------------
+### New Feature
+- Support BRC20 protocol
+- Add RESTful API for BRC20 protocol (#48)
+
 [0.5.2](https://github.com/casey/ord/releases/tag/0.5.2) - 2023-04-17
 ---------------------------------------------------------------------
 

@@ -386,6 +386,7 @@ impl Updater {
     };
 
     let mut outpoint_to_value = wtx.open_table(OUTPOINT_TO_VALUE)?;
+    let mut outpoint_to_script = wtx.open_table(OUTPOINT_TO_SCRIPT)?;
 
     let index_inscriptions = self.height >= index.first_inscription_height;
 
@@ -419,6 +420,19 @@ impl Updater {
           }
           // We don't know the value of this tx input. Send this outpoint to background thread to be fetched
           outpoint_sender.blocking_send(prev_output)?;
+        }
+      }
+    } else {
+      for (tx, _) in &block.txdata {
+        let txid = tx.txid();
+        let mut index = 0;
+        for output in &tx.output {
+          let outpoint = OutPoint{
+            txid: txid,
+            vout: index,
+          };
+          outpoint_to_script.insert(&outpoint.store(), output.script_pubkey.as_bytes())?;
+          index = index + 1;
         }
       }
     }

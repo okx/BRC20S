@@ -152,7 +152,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   }
 
   // 3.3.7 BRC30_BALANCE
-  fn update_token_balance(
+  fn set_token_balance(
     &self,
     script_key: &ScriptKey,
     tick_id: &TickId,
@@ -235,13 +235,13 @@ mod tests {
       transferable_balance: 30,
     };
     brc30db
-      .update_token_balance(&script, &tick1, expect_balance1.clone())
+      .set_token_balance(&script, &tick1, expect_balance1.clone())
       .unwrap();
     brc30db
-      .update_token_balance(&script, &tick2, expect_balance2.clone())
+      .set_token_balance(&script, &tick2, expect_balance2.clone())
       .unwrap();
     brc30db
-      .update_token_balance(&script, &tick3, expect_balance3.clone())
+      .set_token_balance(&script, &tick3, expect_balance3.clone())
       .unwrap();
 
     assert_eq!(brc30db.get_balance(&script, &tick1).unwrap().unwrap(), expect_balance1);
@@ -254,7 +254,7 @@ mod tests {
       transferable_balance: 30,
     };
     brc30db
-      .update_token_balance(&script2, &tick1, expect_balance22.clone())
+      .set_token_balance(&script2, &tick1, expect_balance22.clone())
       .unwrap();
 
     let mut all_balances = brc30db.get_balances(&script).unwrap();
@@ -318,7 +318,6 @@ mod tests {
     let brc30db = BRC30Database::new(&wtx);
 
     let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
-    // let tick_id = TickId::from_str("abcdd").unwrap();
 
     let pid = Pid::from_str("123456").unwrap();
 
@@ -452,5 +451,4 @@ mod tests {
 
     assert_eq!(brc30db.get_txid_to_receipts(&txid).unwrap(), op_vec);
   }
-
 }

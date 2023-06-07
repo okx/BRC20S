@@ -427,14 +427,12 @@ impl Updater {
 
     for (tx, _) in &block.txdata {
       let txid = tx.txid();
-      let mut i = 0;
-      for output in &tx.output {
-        let outpoint = OutPoint{
-          txid: txid,
-          vout: i,
+      for (vout, output) in tx.output.iter().enumerate() {
+        let outpoint = OutPoint {
+          vout: vout.try_into().unwrap(),
+          txid,
         };
         outpoint_to_script.insert(&outpoint.store(), output.script_pubkey.as_bytes())?;
-        i = i + 1;
       }
     }
 

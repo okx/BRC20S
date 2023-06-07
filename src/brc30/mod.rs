@@ -1,4 +1,3 @@
-use super::*;
 use crate::{Inscription, Result};
 use error::JSONError;
 mod error;
@@ -10,22 +9,22 @@ mod types;
 pub mod updater;
 
 pub use self::{
-  error::{BRC20Error, Error},
+  error::{BRC30Error, Error},
   num::Num,
-  operation::{deserialize_brc20, Deploy, Mint, Operation, Transfer},
+  operation::{deserialize_brc30, Deploy, Mint, Operation, Stake, Transfer, UnStake},
   types::*,
   updater::{Action, InscriptionData},
 };
 
 use ledger::{LedgerRead, LedgerReadWrite};
 
-pub fn deserialize_brc20_operation(
+pub fn deserialize_brc30_operation(
   inscription: Inscription,
   is_transfer: bool,
 ) -> Result<Operation> {
   let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
   if content_body.len() < 40 {
-    return Err(JSONError::NotBRC20Json.into());
+    return Err(JSONError::NotBRC30Json.into());
   }
 
   let content_type = inscription
@@ -41,11 +40,11 @@ pub fn deserialize_brc20_operation(
       return Err(JSONError::UnSupportContentType.into());
     }
   }
-  deserialize_brc20(content_body).map(|op| {
+  deserialize_brc30(content_body).map(|op| {
     if is_transfer {
       match op {
         Operation::Transfer(_) => Ok(op),
-        _ => Err(JSONError::NotBRC20Json.into()),
+        _ => Err(JSONError::NotBRC30Json.into()),
       }
     } else {
       Ok(op)
@@ -62,11 +61,11 @@ mod tests {
   fn test_ignore_non_transfer_brc20() {
     let content_type = "text/plain;charset=utf-8".as_bytes().to_vec();
     assert_eq!(
-      deserialize_brc20_operation(
+      deserialize_brc30_operation(
         Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"##
+            r##"{"p":"brc-30","op":"deploy","t":"12000","pid":"12000","stake":"12","earn":"12","erate":"12","dmax":"12","total":"12","only":"12","dec":"11"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -75,19 +74,43 @@ mod tests {
       )
       .unwrap(),
       Operation::Deploy(Deploy {
-        tick: "abcd".to_string(),
-        max_supply: "12000".to_string(),
-        mint_limit: Some("12".to_string()),
+        type_earning: "12000".to_string(),
+        pool_id: "12000".to_string(),
+        stake: "12".to_string(),
+        earn: "12".to_string(),
+        earn_rate: "12".to_string(),
+        distribution_max: "12".to_string(),
+        total_supply: "12".to_string(),
+        only: "12".to_string(),
         decimals: Some("11".to_string()),
       }),
     );
 
     assert_eq!(
-      deserialize_brc20_operation(
+      deserialize_brc30_operation(
         Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"##
+            r##"{"p":"brc-30","op":"stake","pid":"pool_id","amt":"12000"}"##
+              .as_bytes()
+              .to_vec(),
+          ),
+        ),
+        false
+      )
+      .unwrap(),
+      Operation::Stake(Stake {
+        pool_id: "pool_id".to_string(),
+        amount: "12000".to_string()
+      })
+    );
+
+    assert_eq!(
+      deserialize_brc30_operation(
+        Inscription::new(
+          Some(content_type.clone()),
+          Some(
+            r##"{"p":"brc-30","op":"mint","tick":"tick","pid":"pool_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -96,17 +119,18 @@ mod tests {
       )
       .unwrap(),
       Operation::Mint(Mint {
-        tick: "abcd".to_string(),
+        tick: "tick".to_string(),
+        pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
       })
     );
 
     assert_eq!(
-      deserialize_brc20_operation(
+      deserialize_brc30_operation(
         Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"##
+            r##"{"p":"brc-30","op":"unstake","pid":"pool_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -114,13 +138,13 @@ mod tests {
         false
       )
       .unwrap(),
-      Operation::Transfer(Transfer {
-        tick: "abcd".to_string(),
+      Operation::UnStake(UnStake {
+        pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
       })
     );
 
-    assert!(deserialize_brc20_operation(
+    assert!(deserialize_brc30_operation(
       Inscription::new(
         Some(content_type.clone()),
         Some(
@@ -133,11 +157,11 @@ mod tests {
     )
     .is_err());
 
-    assert!(deserialize_brc20_operation(
+    assert!(deserialize_brc30_operation(
       Inscription::new(
         Some(content_type.clone()),
         Some(
-          r##"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"##
+          r##"{"p":"brc-30","op":"mint","tick":"abcd","amt":"12000"}"##
             .as_bytes()
             .to_vec(),
         ),
@@ -147,11 +171,11 @@ mod tests {
     .is_err());
 
     assert_eq!(
-      deserialize_brc20_operation(
+      deserialize_brc30_operation(
         Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"##
+            r##"{"p":"brc-30","op":"transfer","pid":"pool_id","tick":"abcd","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -160,6 +184,7 @@ mod tests {
       )
       .unwrap(),
       Operation::Transfer(Transfer {
+        pool_id: "pool_id".to_string(),
         tick: "abcd".to_string(),
         amount: "12000".to_string()
       })

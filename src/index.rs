@@ -18,9 +18,11 @@ use {
 };
 
 pub(super) use self::entry::{InscriptionEntryValue, InscriptionIdValue};
+pub(super) use self::ord_db_reader::OrdDatabaseReader;
 
 mod entry;
 mod fetcher;
+mod ord_db_reader;
 mod rtx;
 mod updater;
 
@@ -31,7 +33,7 @@ const SCHEMA_VERSION: u64 = 4;
 
 macro_rules! define_table {
   ($name:ident, $key:ty, $value:ty) => {
-    const $name: TableDefinition<$key, $value> = TableDefinition::new(stringify!($name));
+    pub const $name: TableDefinition<$key, $value> = TableDefinition::new(stringify!($name));
   };
 }
 

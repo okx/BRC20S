@@ -1,5 +1,7 @@
 mod read_only;
 mod read_write;
+mod storage_balance;
+use self::storage_balance::StoreBalance;
 
 pub use self::{read_only::BRC30DatabaseReader, read_write::BRC30Database};
 
@@ -19,7 +21,7 @@ const BRC30_PID_TO_USERINFO: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC30_PID_TO_USERINFO");
 const BRC30_STAKE_TICKID_TO_PID: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC30_STAKE_TICKID_TO_PID");
-const BRC30_BALANCE: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC30_BALANCE");
+const BRC30_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC30_BALANCE");
 const BRC30_TRANSFERABLE_ASSETS: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC30_TRANSFERABLE_ASSETS");
 const BRC30_TXID_TO_RECEIPTS: TableDefinition<&str, &[u8]> =

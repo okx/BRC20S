@@ -56,7 +56,7 @@ pub struct InscriptionInfo {
   pub action: ActionType,
   // if the transaction not committed to the blockchain, the following fields are None
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub inscription_number: Option<u64>,
+  pub inscription_number: Option<i64>,
   pub inscription_id: String,
   pub from: ScriptPubkey,
   pub to: ScriptPubkey,

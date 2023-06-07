@@ -153,10 +153,10 @@ impl Options {
   }
 
   pub(crate) fn log_dir(&self) -> Result<PathBuf> {
-    self
-      .log_dir
-      .as_ref()
-      .map_or_else(|| Ok(self.data_dir()?.join("logs")), |path| Ok(path.clone()))
+    self.log_dir.as_ref().map_or_else(
+      || Ok(self.data_dir()?.join("logs")),
+      |path| Ok(path.clone()),
+    )
   }
 
   pub(crate) fn load_config(&self) -> Result<Config> {

@@ -1,6 +1,6 @@
+use super::brc20_operations::get_operations_by_txid;
 use super::error::ApiError;
 use super::*;
-use super::{brc20_operations::get_operations_by_txid, inscription::get_inscription_by_txid};
 use axum::Json;
 
 pub(crate) type ApiResult<T> = Result<axum::Json<ApiResponse<T>>, ApiError>;
@@ -32,7 +32,7 @@ const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 pub struct TickInfo {
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub supply: String,
   pub limit_per_mint: String,
   pub minted: String,
@@ -198,7 +198,7 @@ pub struct ErrorEvent {
   #[serde(rename = "type")]
   pub event: String,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
@@ -215,7 +215,7 @@ pub struct DeployEvent {
   pub event: String,
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
@@ -235,7 +235,7 @@ pub struct MintEvent {
   pub event: String,
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
@@ -253,7 +253,7 @@ pub struct InscribeTransferEvent {
   pub event: String,
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
@@ -271,7 +271,7 @@ pub struct TransferEvent {
   pub event: String,
   pub tick: String,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub new_satpoint: Option<SatPoint>,
@@ -298,7 +298,7 @@ pub struct TransferableInscriptions {
 #[serde(rename_all = "camelCase")]
 pub struct TransferableInscription {
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub amount: String,
   pub tick: String,
   pub owner: String,
@@ -332,7 +332,7 @@ pub struct HeightInfoQuery {
 #[serde(rename_all = "camelCase")]
 pub struct OrdInscription {
   pub id: String,
-  pub number: u64,
+  pub number: i64,
   pub content_type: Option<String>,
   pub content: Option<String>,
   pub owner: ScriptPubkey,
@@ -450,25 +450,6 @@ pub(crate) async fn brc20_all_balance(
       })
       .collect(),
   })))
-}
-
-pub(crate) async fn ord_inscription_by_txid(
-  Extension(index): Extension<Arc<Index>>,
-  Path(txid): Path<String>,
-) -> ApiResult<TxInscriptionInfo> {
-  log::debug!("rpc: get inscriptions by txid: {}", txid);
-  let txid = bitcoin::Txid::from_str(&txid).map_err(|e| ApiError::bad_request(e.to_string()))?;
-
-  let tx_info = get_inscription_by_txid(Extension(index), &txid)?;
-
-  if tx_info.inscriptions.is_empty() {
-    return Err(ApiError::not_found(
-      "no inscriptions found in this transaction",
-    ));
-  }
-
-  log::debug!("rpc: get inscriptions by txid: {} {:?}", txid, tx_info);
-  Ok(Json(ApiResponse::ok(tx_info)))
 }
 
 pub(crate) async fn brc20_tx(
@@ -620,7 +601,7 @@ pub(crate) async fn ord_inscription_id(
 
 pub(crate) async fn ord_inscription_number(
   Extension(index): Extension<Arc<Index>>,
-  Path(number): Path<u64>,
+  Path(number): Path<i64>,
 ) -> ApiResult<OrdInscription> {
   log::debug!("rpc: get ord_inscription_number: {}", number);
 
@@ -645,7 +626,7 @@ pub struct OutPointData {
 #[serde(rename_all = "camelCase")]
 pub struct InscriptionDigest {
   pub id: String,
-  pub number: u64,
+  pub number: i64,
   pub location: String,
 }
 

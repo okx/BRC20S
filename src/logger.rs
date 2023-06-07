@@ -1,4 +1,3 @@
-use std::fs;
 use anyhow::Context;
 use log4rs::{
   append::{
@@ -14,6 +13,7 @@ use log4rs::{
   encode::pattern::PatternEncoder,
   Config,
 };
+use std::fs;
 use std::path::Path;
 
 pub fn init<P: AsRef<Path>>(level: log::LevelFilter, log_dir: P) -> anyhow::Result<log4rs::Handle> {

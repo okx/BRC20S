@@ -130,7 +130,7 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
     block_number: u64,
     block_time: u32,
     inscription_id: InscriptionId,
-    inscription_number: u64,
+    inscription_number: i64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC20Event, Error<L>> {
     let to_script_key = to_script_key.ok_or(BRC20Error::InscribeToCoinbase)?;
@@ -295,7 +295,7 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
     &mut self,
     transfer: Transfer,
     inscription_id: InscriptionId,
-    inscription_number: u64,
+    inscription_number: i64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC20Event, Error<L>> {
     let to_script_key = to_script_key.ok_or(BRC20Error::InscribeToCoinbase)?;

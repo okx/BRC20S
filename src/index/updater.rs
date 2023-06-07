@@ -463,9 +463,9 @@ impl Updater {
       .map(|lost_sats| lost_sats.value())
       .unwrap_or(0);
 
-    let mut brc20_action_count = statistic_to_count
-      .get(&Statistic::BRC20ActionCount.key())?
-      .map(|brc20_action_count| brc20_action_count.value())
+    let unbound_inscriptions = statistic_to_count
+      .get(&Statistic::UnboundInscriptions.key())?
+      .map(|unbound_inscriptions| unbound_inscriptions.value())
       .unwrap_or(0);
 
     let mut inscription_updater = InscriptionUpdater::new(
@@ -480,6 +480,7 @@ impl Updater {
       &mut sat_to_inscription_id,
       &mut satpoint_to_inscription_id,
       block.header.time,
+      unbound_inscriptions,
       value_cache,
       tx_cache,
     )?;
@@ -579,26 +580,27 @@ impl Updater {
       }
     } else {
       for (tx, txid) in block.txdata.iter().skip(1).chain(block.txdata.first()) {
-        let (tx_lost_sats, tx_inscription_collects) =
+        let tx_inscription_collects =
           inscription_updater.index_transaction_inscriptions(tx, *txid, None)?;
-        lost_sats += tx_lost_sats;
         inscription_collects.push((*txid, tx_inscription_collects));
       }
       inscription_collects.pop();
     }
+    let lost_sats = inscription_updater.lost_sats;
+    let unbound_inscriptions = inscription_updater.unbound_inscriptions;
+
     let mut brc20_updater =
       BRC20Updater::new(&brc20_database, &inscription_id_to_inscription_entry);
 
     for (txid, brc20_transaction) in inscription_collects {
-      brc20_action_count += brc20_updater
+      brc20_updater
         .index_transaction(self.height, block.header.time, txid, brc20_transaction)
-        .map_err(|e| anyhow!("failed to parse brc20 protocol for {txid} reason {e}"))?
-        as u64;
+        .map_err(|e| anyhow!("failed to parse brc20 protocol for {txid} reason {e}"))? as u64;
     }
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 
-    statistic_to_count.insert(&Statistic::BRC20ActionCount.key(), &brc20_action_count)?;
+    statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
 
     height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
 
@@ -626,7 +628,7 @@ impl Updater {
   ) -> Result<Vec<InscriptionData>> {
     let mut tx_inscription_collects = Vec::new();
     if index_inscriptions {
-      (_, tx_inscription_collects) =
+      tx_inscription_collects =
         inscription_updater.index_transaction_inscriptions(tx, txid, Some(input_sat_ranges))?;
     }
 

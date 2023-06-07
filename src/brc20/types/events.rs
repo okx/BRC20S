@@ -5,7 +5,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct ActionReceipt {
   pub inscription_id: InscriptionId,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   pub new_satpoint: Option<SatPoint>,
   pub op: EventType,

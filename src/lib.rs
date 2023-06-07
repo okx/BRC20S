@@ -71,9 +71,7 @@ use {
   tokio::{runtime::Runtime, task},
 };
 
-pub use crate::{
-  object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
-};
+pub use crate::{object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint};
 
 #[cfg(test)]
 #[macro_use]
@@ -137,6 +135,13 @@ fn integration_test() -> bool {
 
 fn timestamp(seconds: u32) -> DateTime<Utc> {
   Utc.timestamp_opt(seconds.into(), 0).unwrap()
+}
+
+fn unbound_outpoint() -> OutPoint {
+  OutPoint {
+    txid: Hash::all_zeros(),
+    vout: 0,
+  }
 }
 
 pub fn main() {

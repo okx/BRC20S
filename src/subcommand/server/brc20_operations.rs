@@ -27,9 +27,18 @@ fn index_brc20_operations(
       script_cache = prev_tx.output.get(0).unwrap().script_pubkey.clone();
     }
 
+    let immutable_inscription = Inscription::from_transaction(&prev_tx)
+      .get(0)
+      .and_then(|v| {
+        if v.tx_in_index == 0 && v.tx_in_offset == 0 {
+          Some(v.inscription.clone())
+        } else {
+          None
+        }
+      });
     // collect the transfer operation if the previous is a inscribed transfer operation.
-    if let Some(Operation::Transfer(transfer)) = Inscription::from_transaction(&prev_tx)
-      .and_then(|v| deserialize_brc20_operation(v, true).ok())
+    if let Some(Operation::Transfer(transfer)) =
+      immutable_inscription.and_then(|v| deserialize_brc20_operation(v, true).ok())
     {
       let id = InscriptionId::from(tx_in.previous_output.txid);
       operations.push((
@@ -65,8 +74,14 @@ fn index_brc20_operations(
 
   // new inscription
   if operations.iter().all(|(offset, _)| *offset != 0) && input_value > 0 {
-    if let Some(op) =
-      Inscription::from_transaction(&tx).and_then(|v| deserialize_brc20_operation(v, false).ok())
+    let immutable_inscription = Inscription::from_transaction(&tx).get(0).and_then(|v| {
+      if v.tx_in_index == 0 && v.tx_in_offset == 0 {
+        Some(v.inscription.clone())
+      } else {
+        None
+      }
+    });
+    if let Some(op) = immutable_inscription.and_then(|v| deserialize_brc20_operation(v, false).ok())
     {
       let id = InscriptionId::from(tx.txid());
       operations.insert(

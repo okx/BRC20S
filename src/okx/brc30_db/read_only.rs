@@ -202,18 +202,18 @@ impl<'db, 'a> LedgerRead for BRC30DatabaseReader<'db, 'a> {
       self
         .wrapper
         .open_table(BRC30_TRANSFERABLE_ASSETS)?
-        .get(script_tickid_key(script_key, tick_id).as_str())?
+        .get(script_tickid_inscriptionid_key(script_key, tick_id, inscription_id).as_str())?
         .map(|v| bincode::deserialize::<TransferableAsset>(v.value()).unwrap()),
     )
   }
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS, TODO replace BRC30ActionReceipt
-  fn get_txid_to_receipts(&self, tick_id: &TickId) -> Result<Vec<BRC30Receipt>, Self::Error> {
+  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
     Ok(
       self
         .wrapper
-        .open_table(TXID_TO_INSCRIPTION_RECEIPTS)?
-        .get(tick_id.to_lowercase().as_str())?
+        .open_table(BRC30_TXID_TO_RECEIPTS)?
+        .get(txid.to_string().as_str())?
         .map_or(Vec::new(), |v| {
           bincode::deserialize::<Vec<BRC30Receipt>>(v.value()).unwrap()
         }),

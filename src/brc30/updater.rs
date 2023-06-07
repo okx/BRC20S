@@ -122,7 +122,7 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     if !receipts.is_empty() {
       self
         .ledger
-        .save_txid_to_receipts(&txid, &receipts)
+        .set_txid_to_receipts(&txid, &receipts)
         .map_err(|e| Error::LedgerError(e))?;
     }
     Ok(receipts.len())

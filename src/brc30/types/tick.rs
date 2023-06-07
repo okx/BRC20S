@@ -89,6 +89,7 @@ pub struct BRC30Tick([u8; TICK_BYTE_MAX_COUNT]);
 impl FromStr for BRC30Tick {
   type Err = BRC30Error;
 
+  // TODO 4,5 will panic
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let bytes = s.as_bytes();
 
@@ -173,17 +174,17 @@ pub enum PledgedTick {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct BRC30TickInfo {
-  tick_id: TickId,               // tick id
-  name: BRC30Tick,               // tick 显示的名称
-  inscription_id: InscriptionId, // 部署的铭文id
-  only: bool,                    // 是否独占
-  allocated: u128,               // 已分配到各个池子的总和
-  decimal: u8,                   // 精度
-  minted: u128,                  // 已产出数量
-  supply: u128,                  // 总量
-  deployer: ScriptKey,           // 部署人
-  deploy_block: u64,             // 部署时的块高
-  latest_mint_block: u64,        // 最后一次造币的块高
+  pub tick_id: TickId,               // tick id
+  pub name: BRC30Tick,               // tick 显示的名称
+  pub inscription_id: InscriptionId, // 部署的铭文id
+  pub only: bool,                    // 是否独占
+  pub allocated: u128,               // 已分配到各个池子的总和
+  pub decimal: u8,                   // 精度
+  pub minted: u128,                  // 已产出数量
+  pub supply: u128,                  // 总量
+  pub deployer: ScriptKey,           // 部署人
+  pub deploy_block: u64,             // 部署时的块高
+  pub latest_mint_block: u64,        // 最后一次造币的块高
 }
 
 #[cfg(test)]

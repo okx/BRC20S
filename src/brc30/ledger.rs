@@ -59,7 +59,7 @@ pub trait LedgerRead {
   ) -> Result<Option<TransferableAsset>, Self::Error>;
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS
-  fn get_txid_to_receipts(&self, tick_id: &TickId) -> Result<Vec<BRC30Receipt>, Self::Error>;
+  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error>;
 }
 
 pub trait LedgerReadWrite: LedgerRead {
@@ -111,9 +111,9 @@ pub trait LedgerReadWrite: LedgerRead {
   ) -> Result<(), Self::Error>;
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS
-  fn save_txid_to_receipts(
+  fn set_txid_to_receipts(
     &self,
     txid: &Txid,
-    receipts: &[BRC30Receipt],
+    receipts: &Vec<BRC30Receipt>,
   ) -> Result<(), Self::Error>;
 }

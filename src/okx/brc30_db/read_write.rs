@@ -1,8 +1,8 @@
 use super::*;
 use crate::brc30::ledger::{LedgerRead, LedgerReadWrite};
 use crate::brc30::{
-  BRC30PoolInfo, BRC30Receipt, BRC30TickInfo, Balance, InscriptionOperation, Pid, TickId,
-  TransferableAsset, UserInfo,
+  BRC30PoolInfo, BRC30Receipt, BRC30TickInfo, Balance, InscriptionOperation, Pid, TickId,PoolType,
+  PledgedTick, TransferableAsset, UserInfo, BRC30Error
 };
 use crate::InscriptionId;
 use bitcoin::Script;
@@ -77,8 +77,8 @@ impl<'db, 'a> LedgerRead for BRC30Database<'db, 'a> {
   }
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS, TODO replace BRC30ActionReceipt
-  fn get_txid_to_receipts(&self, tick_id: &TickId) -> Result<Vec<BRC30Receipt>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_txid_to_receipts(tick_id)
+  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_txid_to_receipts(txid)
   }
 }
 
@@ -114,7 +114,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
     brc30_tick_info: &BRC30TickInfo,
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TICKINFO)?.insert(
-      tick_id.as_str(),
+      tick_id.to_lowercase().hex().as_str(),
       bincode::serialize(brc30_tick_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -127,7 +127,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
     brc30_pool_info: &BRC30PoolInfo,
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_PID_TO_POOLINFO)?.insert(
-      pid.as_str(),
+      pid.to_lowercase().hex().as_str(),
       bincode::serialize(brc30_pool_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -136,7 +136,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   // 3.3.5 BRC30_PID_TO_USERINFO
   fn set_pid_to_use_info(&self, pid: &Pid, user_info: &UserInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_PID_TO_USERINFO)?.insert(
-      pid.as_str(),
+      pid.to_lowercase().hex().as_str(),
       bincode::serialize(user_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -185,12 +185,12 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   }
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS
-  fn save_txid_to_receipts(
+  fn set_txid_to_receipts(
     &self,
     txid: &Txid,
-    receipts: &[BRC30Receipt],
+    receipts: &Vec<BRC30Receipt>,
   ) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_TRANSFERABLE_ASSETS)?.insert(
+    self.wtx.open_table(BRC30_TXID_TO_RECEIPTS)?.insert(
       txid.to_string().as_str(),
       bincode::serialize(receipts).unwrap().as_slice(),
     )?;
@@ -206,6 +206,7 @@ mod tests {
   use redb::Database;
   use std::str::FromStr;
   use tempfile::NamedTempFile;
+  use crate::brc30::BRC30Tick;
   use crate::brc30::ledger::LedgerReadWrite;
 
   #[test]
@@ -308,4 +309,148 @@ mod tests {
 
     assert_eq!(brc30db.get_txid_to_inscription_receipts(&txid).unwrap(), op_vec);
   }
+
+  #[test]
+  fn test_pid_to_poolinfo() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30Database::new(&wtx);
+
+    let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+    // let tick_id = TickId::from_str("abcdd").unwrap();
+
+    let pid = Pid::from_str("123456").unwrap();
+
+    let pool_info = BRC30PoolInfo{
+      pid: pid.clone(),
+      ptype: PoolType::Pool,
+      inscription_id:inscription_id.clone(),
+      stake:PledgedTick::NATIVE,
+      erate: 0,
+      minted: 0,
+      staked: 0,
+      allocated: 0,
+      acc_reward_per_share: 0,
+      last_update_block: 0,
+      only: true,
+    };
+
+    brc30db
+      .set_pid_to_poolinfo(&pid, &pool_info)
+      .unwrap();
+
+    assert_eq!(brc30db.get_pid_to_poolinfo(&pid).unwrap().unwrap(), pool_info);
+  }
+
+  #[test]
+  fn test_tick_info() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30Database::new(&wtx);
+
+    let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+    let tick_id = TickId::from_str("abcdd").unwrap();
+
+    let tick_info = BRC30TickInfo{
+      tick_id: tick_id.clone(),
+      name: BRC30Tick::from_str("aBc1ab").unwrap(),
+      inscription_id:inscription_id.clone(),
+      only: true,
+      allocated: 100,
+      decimal: 8,
+      minted: 100,
+      supply: 100,
+      deployer: ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap()),
+      deploy_block: 100,
+      latest_mint_block: 100,
+    };
+
+    brc30db
+      .set_tick_info(&tick_id, &tick_info)
+      .unwrap();
+
+    assert_eq!(brc30db.get_tick_info(&tick_id).unwrap().unwrap(), tick_info);
+  }
+
+  #[test]
+  fn test_pid_to_use_info() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30Database::new(&wtx);
+
+
+    let pid = Pid::from_str("123456").unwrap();
+    let user_info = UserInfo{
+      pid: pid.clone(),
+      staked: 0,
+      reward: 0,
+      reward_debt: 0,
+      latest_updated_block: 0,
+    };
+
+    brc30db
+      .set_pid_to_use_info(&pid, &user_info)
+      .unwrap();
+
+    assert_eq!(brc30db.get_pid_to_use_info(&pid).unwrap().unwrap(), user_info);
+  }
+
+  #[test]
+  fn test_transferable_assets() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30Database::new(&wtx);
+
+
+    let script_key = ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let tick_id = TickId::from_str("abcdd").unwrap();
+    let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+    let transferable_asset= TransferableAsset{
+      inscription_id : inscription_id,
+      amount: 100,
+      tick_id: tick_id.clone(),
+      owner: script_key.clone(),
+    };
+
+    brc30db
+      .set_transferable_assets(&script_key, &tick_id, &inscription_id, &transferable_asset.clone())
+      .unwrap();
+
+    assert_eq!(brc30db.get_transferable_assets(&script_key, &tick_id, &inscription_id).unwrap().unwrap(), transferable_asset);
+  }
+
+  #[test]
+  fn test_txid_to_receipts() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30Database::new(&wtx);
+
+    let txid =
+      Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
+
+    let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+
+    let op_vec = vec![BRC30Receipt{
+      inscription_id: inscription_id.clone(),
+      result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+    }, BRC30Receipt{
+      inscription_id: inscription_id.clone(),
+      result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+    }, BRC30Receipt{
+      inscription_id: inscription_id.clone(),
+      result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+    }, ];
+
+    brc30db
+      .set_txid_to_receipts(&txid, &op_vec)
+      .unwrap();
+
+    assert_eq!(brc30db.get_txid_to_receipts(&txid).unwrap(), op_vec);
+  }
+
 }

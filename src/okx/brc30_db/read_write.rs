@@ -62,6 +62,10 @@ impl<'db, 'a> LedgerRead for BRC30Database<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_balance(script_key, tick_id)
   }
 
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(TickId, Balance)>, Self::Error>{
+    read_only::new_with_wtx(self.wtx).get_balances(script_key)
+  }
+
   // 3.3.8 BRC30_TRANSFERABLE_ASSETS
   fn get_transferable_assets(
     &self,
@@ -148,15 +152,19 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   }
 
   // 3.3.7 BRC30_BALANCE
-  fn set_balance(
+  fn update_token_balance(
     &self,
     script_key: &ScriptKey,
     tick_id: &TickId,
-    balance: &Balance,
+    balance: Balance,
   ) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_BALANCE)?.insert(
+    let bal = StoreBalance {
+      tick: tick_id.clone(),
+      balance,
+    };
+    self.wtx.open_table(BRC30_BALANCES)?.insert(
       script_tickid_key(script_key, tick_id).as_str(),
-      bincode::serialize(balance).unwrap().as_slice(),
+      bincode::serialize(&bal).unwrap().as_slice(),
     )?;
     Ok(())
   }
@@ -193,68 +201,67 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::brc20::ledger::{LedgerRead, LedgerReadWrite};
-  use crate::brc20::{BRC20Error, BRC20Event, EventType, MintEvent, TransferPhase2Event};
   use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;
   use std::str::FromStr;
   use tempfile::NamedTempFile;
+  use crate::brc30::ledger::LedgerReadWrite;
 
-  // #[test]
-  // fn test_get_balances() {
-  //   let dbfile = NamedTempFile::new().unwrap();
-  //   let db = Database::create(dbfile.path()).unwrap();
-  //   let wtx = db.begin_write().unwrap();
-  //   let brc30db = BRC30Database::new(&wtx);
-  //
-  //   let script = ScriptKey::from_address(
-  //     Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
-  //   );
-  //   let tick1 = TickId::from_str("abcdd").unwrap();
-  //   let tick2 = TickId::from_str("12345").unwrap();
-  //   let tick3 = TickId::from_str(";23!@").unwrap();
-  //   let expect_balance1 = Balance {
-  //     overall_balance: 10,
-  //     transferable_balance: 10,
-  //   };
-  //   let expect_balance2 = Balance {
-  //     overall_balance: 30,
-  //     transferable_balance: 30,
-  //   };
-  //   let expect_balance3 = Balance {
-  //     overall_balance: 100,
-  //     transferable_balance: 30,
-  //   };
-  //   brc30db
-  //     .update_token_balance(&script, &tick1, expect_balance1.clone())
-  //     .unwrap();
-  //   brc30db
-  //     .update_token_balance(&script, &tick2, expect_balance2.clone())
-  //     .unwrap();
-  //   brc30db
-  //     .update_token_balance(&script, &tick3, expect_balance3.clone())
-  //     .unwrap();
-  //
-  //   let script2 =
-  //     ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
-  //   assert_ne!(script.to_string(), script2.to_string());
-  //   let expect_balance22 = Balance {
-  //     overall_balance: 100,
-  //     transferable_balance: 30,
-  //   };
-  //   brc30db
-  //     .update_token_balance(&script2, &tick1, expect_balance22.clone())
-  //     .unwrap();
-  //
-  //   let mut all_balances = brc30db.get_balances(&script).unwrap();
-  //   all_balances.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
-  //   let mut expect = vec![
-  //     (tick2, expect_balance2),
-  //     (tick1, expect_balance1),
-  //     (tick3, expect_balance3),
-  //   ];
-  //   expect.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
-  //   assert_eq!(all_balances, expect);
-  // }
+  #[test]
+  fn test_get_outpoint_to_script() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30Database::new(&wtx);
+
+    let script = ScriptKey::from_address(
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+    );
+    let tick1 = TickId::from_str("abcdd").unwrap();
+    let tick2 = TickId::from_str("12345").unwrap();
+    let tick3 = TickId::from_str(";23!@").unwrap();
+    let expect_balance1 = Balance {
+      overall_balance: 10,
+      transferable_balance: 10,
+    };
+    let expect_balance2 = Balance {
+      overall_balance: 30,
+      transferable_balance: 30,
+    };
+    let expect_balance3 = Balance {
+      overall_balance: 100,
+      transferable_balance: 30,
+    };
+    brc30db
+      .update_token_balance(&script, &tick1, expect_balance1.clone())
+      .unwrap();
+    brc30db
+      .update_token_balance(&script, &tick2, expect_balance2.clone())
+      .unwrap();
+    brc30db
+      .update_token_balance(&script, &tick3, expect_balance3.clone())
+      .unwrap();
+
+    let script2 =
+      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    assert_ne!(script.to_string(), script2.to_string());
+    let expect_balance22 = Balance {
+      overall_balance: 100,
+      transferable_balance: 30,
+    };
+    brc30db
+      .update_token_balance(&script2, &tick1, expect_balance22.clone())
+      .unwrap();
+
+    let mut all_balances = brc30db.get_balances(&script).unwrap();
+    all_balances.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
+    let mut expect = vec![
+      (tick2, expect_balance2),
+      (tick1, expect_balance1),
+      (tick3, expect_balance3),
+    ];
+    expect.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
+    assert_eq!(all_balances, expect);
+  }
 }

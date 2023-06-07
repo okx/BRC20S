@@ -48,6 +48,8 @@ pub trait LedgerRead {
     tick_id: &TickId,
   ) -> Result<Option<Balance>, Self::Error>;
 
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(TickId, Balance)>, Self::Error>;
+
   // 3.3.8 BRC30_TRANSFERABLE_ASSETS
   fn get_transferable_assets(
     &self,
@@ -92,11 +94,11 @@ pub trait LedgerReadWrite: LedgerRead {
   fn set_stake_tick_id_to_pid(&self) -> Result<(), Self::Error>;
 
   // 3.3.7 BRC30_BALANCE
-  fn set_balance(
+  fn update_token_balance(
     &self,
     script_key: &ScriptKey,
     tick_id: &TickId,
-    balance: &Balance,
+    balance: Balance,
   ) -> Result<(), Self::Error>;
 
   // 3.3.8 BRC30_TRANSFERABLE_ASSETS

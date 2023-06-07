@@ -3,6 +3,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct StoreBalance {
-  pub tick: TickId,
+  pub tick_id: TickId,
   pub balance: Balance,
 }

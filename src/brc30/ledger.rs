@@ -70,7 +70,7 @@ pub trait LedgerReadWrite: LedgerRead {
   fn set_txid_to_inscription_receipts(
     &self,
     tx_id: &Txid,
-    inscriptionOperations: &InscriptionOperation,
+    inscription_operations: &Vec<InscriptionOperation>,
   ) -> Result<(), Self::Error>;
 
   // 3.3.3 BRC30_TICKINFO

@@ -1,3 +1,4 @@
+use bitcoin::hashes::hex::ToHex;
 use crate::brc20::{updater::BRC20Updater, InscriptionData};
 use crate::okx::BRC20Database;
 
@@ -422,18 +423,18 @@ impl Updater {
           outpoint_sender.blocking_send(prev_output)?;
         }
       }
-    } else {
-      for (tx, _) in &block.txdata {
-        let txid = tx.txid();
-        let mut index = 0;
-        for output in &tx.output {
-          let outpoint = OutPoint{
-            txid: txid,
-            vout: index,
-          };
-          outpoint_to_script.insert(&outpoint.store(), output.script_pubkey.as_bytes())?;
-          index = index + 1;
-        }
+    }
+
+    for (tx, _) in &block.txdata {
+      let txid = tx.txid();
+      let mut i = 0;
+      for output in &tx.output {
+        let outpoint = OutPoint{
+          txid: txid,
+          vout: i,
+        };
+        outpoint_to_script.insert(&outpoint.store(), output.script_pubkey.as_bytes())?;
+        i = i + 1;
       }
     }
 

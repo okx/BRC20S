@@ -157,8 +157,24 @@ impl<'db, 'a> LedgerRead for BRC30DatabaseReader<'db, 'a> {
         .wrapper
         .open_table(BRC30_BALANCES)?
         .get(script_tickid_key(script_key, tick_id).as_str())?
-        .map(|v| bincode::deserialize::<Balance>(v.value()).unwrap()),
+        .map(|v| {
+          let bal = bincode::deserialize::<StoreBalance>(v.value()).unwrap();
+          assert_eq!(&bal.tick_id, tick_id);
+          bal.balance
+        }),
     )
+
+    // Ok(
+    //   self
+    //     .wrapper
+    //     .open_table(BRC20_BALANCES)?
+    //     .get(script_tick_key(script_key, tick).as_str())?
+    //     .map(|v| {
+    //       let bal = bincode::deserialize::<StoreBalance>(v.value()).unwrap();
+    //       assert_eq!(&bal.tick, tick);
+    //       bal.balance
+    //     }),
+    // )
   }
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(TickId, Balance)>, Self::Error>{
@@ -169,7 +185,7 @@ impl<'db, 'a> LedgerRead for BRC30DatabaseReader<'db, 'a> {
         .range(min_script_tick_id_key(script_key).as_str()..max_script_tick_id_key(&script_key).as_str())?
         .map(|(_, data)| {
           let bal = bincode::deserialize::<StoreBalance>(data.value()).unwrap();
-          (bal.tick, bal.balance)
+          (bal.tick_id, bal.balance)
         })
         .collect(),
     )

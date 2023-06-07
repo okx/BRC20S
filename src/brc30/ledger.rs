@@ -94,7 +94,7 @@ pub trait LedgerReadWrite: LedgerRead {
   fn set_stake_tick_id_to_pid(&self) -> Result<(), Self::Error>;
 
   // 3.3.7 BRC30_BALANCE
-  fn update_token_balance(
+  fn set_token_balance(
     &self,
     script_key: &ScriptKey,
     tick_id: &TickId,

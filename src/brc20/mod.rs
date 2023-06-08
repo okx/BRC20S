@@ -1,4 +1,3 @@
-use super::*;
 use crate::{Inscription, Result};
 use error::JSONError;
 mod error;

@@ -71,7 +71,9 @@ use {
   tokio::{runtime::Runtime, task},
 };
 
-pub use crate::{object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint};
+pub use crate::{
+  object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
+};
 
 #[cfg(test)]
 #[macro_use]

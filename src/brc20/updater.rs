@@ -8,7 +8,7 @@ use super::{
 use crate::brc20::params::BIGDECIMAL_TEN;
 use crate::{
   brc20::{error::BRC20Error, params::MAX_DECIMAL_WIDTH, ScriptKey},
-  index::{InscriptionEntryValue, InscriptionIdValue, OrdDatabaseReader},
+  index::{InscriptionEntryValue, InscriptionIdValue},
   Index, InscriptionId, SatPoint, Txid,
 };
 use bigdecimal::num_bigint::Sign;
@@ -55,9 +55,6 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
     let mut receipts = Vec::new();
     for operation in operations {
       let op: EventType;
-
-      // let brc20_database = OrdDatabaseReader::new(wtx);
-      // brc20_database.get_number_by_inscription_id();
 
       let inscription_number =
         Index::get_number_by_inscription_id(self.id_to_entry, operation.inscription_id)

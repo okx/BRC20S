@@ -301,7 +301,9 @@ impl Index {
     Ok(utxos)
   }
 
-  pub(crate) fn get_unspent_output_ranges(&self) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
+  pub(crate) fn get_unspent_output_ranges(
+    &self,
+  ) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
     self
       .get_unspent_outputs()?
       .into_keys()
@@ -2492,7 +2494,11 @@ mod tests {
       let mnemonic = Mnemonic::from_entropy(&entropy).unwrap();
       context.rpc_server.mine_blocks(1);
       assert_regex_match!(
-        context.index.get_unspent_outputs().unwrap_err().to_string(),
+        context
+          .index
+          .get_unspent_outputs()
+          .unwrap_err()
+          .to_string(),
         r"output in Bitcoin Core wallet but not in ord index: [[:xdigit:]]{64}:\d+"
       );
     }

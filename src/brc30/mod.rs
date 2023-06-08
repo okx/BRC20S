@@ -74,7 +74,7 @@ mod tests {
       )
       .unwrap(),
       Operation::Deploy(Deploy {
-        type_earning: "12000".to_string(),
+        pool_type: "12000".to_string(),
         pool_id: "12000".to_string(),
         stake: "12".to_string(),
         earn: "12".to_string(),

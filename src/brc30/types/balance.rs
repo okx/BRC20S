@@ -1,11 +1,11 @@
 use crate::brc20::{ActionReceipt, ScriptKey, Tick, TokenInfo, TransferableLog};
-use crate::brc30;
+use crate::brc30::TickId;
 use crate::InscriptionId;
-use brc30::TickId;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
 pub struct Balance {
+  pub tick_id: TickId,
   pub overall_balance: u128,
   pub transferable_balance: u128,
 }

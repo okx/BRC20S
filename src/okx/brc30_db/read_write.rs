@@ -158,13 +158,9 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
     tick_id: &TickId,
     balance: Balance,
   ) -> Result<(), Self::Error> {
-    let bal = StoreBalance {
-      tick_id: tick_id.clone(),
-      balance,
-    };
     self.wtx.open_table(BRC30_BALANCES)?.insert(
       script_tickid_key(script_key, tick_id).as_str(),
-      bincode::serialize(&bal).unwrap().as_slice(),
+      bincode::serialize(&balance).unwrap().as_slice(),
     )?;
     Ok(())
   }
@@ -223,14 +219,17 @@ mod tests {
     let tick2 = TickId::from_str("12345").unwrap();
     let tick3 = TickId::from_str(";23!@").unwrap();
     let expect_balance1 = Balance {
+      tick_id: tick1.clone(),
       overall_balance: 10,
       transferable_balance: 10,
     };
     let expect_balance2 = Balance {
+      tick_id: tick2.clone(),
       overall_balance: 30,
       transferable_balance: 30,
     };
     let expect_balance3 = Balance {
+      tick_id: tick3.clone(),
       overall_balance: 100,
       transferable_balance: 30,
     };
@@ -250,11 +249,12 @@ mod tests {
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
     assert_ne!(script.to_string(), script2.to_string());
     let expect_balance22 = Balance {
+      tick_id: tick2.clone(),
       overall_balance: 100,
       transferable_balance: 30,
     };
     brc30db
-      .set_token_balance(&script2, &tick1, expect_balance22.clone())
+      .set_token_balance(&script2, &tick2, expect_balance22.clone())
       .unwrap();
 
     let mut all_balances = brc30db.get_balances(&script).unwrap();

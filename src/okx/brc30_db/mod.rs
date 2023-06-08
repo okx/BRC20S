@@ -1,7 +1,5 @@
 mod read_only;
 mod read_write;
-mod storage_balance;
-use self::storage_balance::StoreBalance;
 
 pub use self::{read_only::BRC30DatabaseReader, read_write::BRC30Database};
 

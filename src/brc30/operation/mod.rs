@@ -68,7 +68,7 @@ mod tests {
     assert_eq!(
       deserialize_brc30(&json_str).unwrap(),
       Operation::Deploy(Deploy {
-        type_earning: "type_earning".to_string(),
+        pool_type: "type_earning".to_string(),
         pool_id: "pid".to_string(),
         stake: "stake".to_string(),
         earn: "earn".to_string(),

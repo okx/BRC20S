@@ -1,8 +1,8 @@
 use super::*;
-use crate::brc30::ledger::LedgerRead;
+use crate::brc30::ledger::BRC30DbReadAPI;
 use crate::brc30::{
-  PoolInfo, Receipt, TickInfo, Balance, InscriptionOperation, Pid, TickId,
-  TransferableAsset, UserInfo,
+  Balance, InscriptionOperation, Pid, PoolInfo, Receipt, TickId, TickInfo, TransferableAsset,
+  UserInfo,
 };
 use bitcoin::Script;
 use redb::{
@@ -12,19 +12,17 @@ use redb::{
 use std::borrow::Borrow;
 use std::ops::RangeBounds;
 
-pub struct BRC30DatabaseReader<'db, 'a> {
+pub struct BRC30DbReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }
 
-pub(super) fn new_with_wtx<'db, 'a>(
-  wtx: &'a WriteTransaction<'db>,
-) -> BRC30DatabaseReader<'db, 'a> {
-  BRC30DatabaseReader {
+pub(super) fn new_with_wtx<'db, 'a>(wtx: &'a WriteTransaction<'db>) -> BRC30DbReader<'db, 'a> {
+  BRC30DbReader {
     wrapper: ReaderWrapper::Wtx(wtx),
   }
 }
 
-impl<'db, 'a> BRC30DatabaseReader<'db, 'a> {
+impl<'db, 'a> BRC30DbReader<'db, 'a> {
   pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
       wrapper: ReaderWrapper::Rtx(rtx),
@@ -80,19 +78,8 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> LedgerRead for BRC30DatabaseReader<'db, 'a> {
+impl<'db, 'a> BRC30DbReadAPI for BRC30DbReader<'db, 'a> {
   type Error = redb::Error;
-
-  // 3.3.1 OUTPOINT_TO_SCRIPT, todo, replace outpoint
-  fn get_outpoint_to_script(&self, outpoint: &str) -> Result<Option<Script>, Self::Error> {
-    Ok(
-      self
-        .wrapper
-        .open_table(OUTPOINT_TO_SCRIPT)?
-        .get(outpoint)?
-        .map(|v| bincode::deserialize::<Script>(v.value()).unwrap()),
-    )
-  }
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
   fn get_txid_to_inscription_receipts(
@@ -165,12 +152,14 @@ impl<'db, 'a> LedgerRead for BRC30DatabaseReader<'db, 'a> {
     )
   }
 
-  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(TickId, Balance)>, Self::Error>{
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(TickId, Balance)>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_BALANCES)?
-        .range(min_script_tick_id_key(script_key).as_str()..max_script_tick_id_key(&script_key).as_str())?
+        .range(
+          min_script_tick_id_key(script_key).as_str()..max_script_tick_id_key(&script_key).as_str(),
+        )?
         .map(|(_, data)| {
           let bal = bincode::deserialize::<Balance>(data.value()).unwrap();
           (bal.tick_id, bal.clone())

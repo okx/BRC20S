@@ -18,11 +18,11 @@ use {
 };
 
 pub(super) use self::entry::{InscriptionEntryValue, InscriptionIdValue};
-pub(super) use self::ord_db_reader::OrdDatabaseReader;
+pub(super) use self::ord_db::OrdDbReader;
 
 mod entry;
 mod fetcher;
-mod ord_db_reader;
+mod ord_db;
 mod rtx;
 mod updater;
 

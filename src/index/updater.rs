@@ -9,7 +9,7 @@ use {
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
 };
 
-use crate::index::ord_db_reader::OrdDbReader;
+use crate::index::ord_db::OrdDbReadAPI;
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
 
 const FAST_QUERY_HEIGHT: u64 = 10;
@@ -459,7 +459,7 @@ impl Updater {
 
     let brc20_database = BRC20Database::new(wtx);
 
-    let test = OrdDatabaseReader::new(&wtx);
+    let test = OrdDbReader::new(&wtx);
     // test.get_number_by_inscription_id()
 
     let mut lost_sats = statistic_to_count

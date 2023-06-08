@@ -1,14 +1,14 @@
-use crate::brc30::LedgerRead;
+use crate::brc30::BRC30DbReadAPI;
 use crate::{brc30::num::Num, InscriptionId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<L: LedgerRead> {
+pub enum Error<L: BRC30DbReadAPI> {
   #[error("brc30 error: {0}")]
   BRC30Error(BRC30Error),
 
   #[error("ledger error: {0}")]
-  LedgerError(<L as LedgerRead>::Error),
+  LedgerError(<L as BRC30DbReadAPI>::Error),
 
   #[error("others: {0}")]
   Others(anyhow::Error),
@@ -91,7 +91,7 @@ pub enum BRC30Error {
   InternalError(String),
 }
 
-impl<L: LedgerRead> From<BRC30Error> for Error<L> {
+impl<L: BRC30DbReadAPI> From<BRC30Error> for Error<L> {
   fn from(e: BRC30Error) -> Self {
     Self::BRC30Error(e)
   }

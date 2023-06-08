@@ -1,7 +1,7 @@
 use super::*;
 use crate::brc30::ledger::LedgerRead;
 use crate::brc30::{
-  BRC30PoolInfo, BRC30Receipt, BRC30TickInfo, Balance, InscriptionOperation, Pid, TickId,
+  PoolInfo, Receipt, TickInfo, Balance, InscriptionOperation, Pid, TickId,
   TransferableAsset, UserInfo,
 };
 use bitcoin::Script;
@@ -111,24 +111,24 @@ impl<'db, 'a> LedgerRead for BRC30DatabaseReader<'db, 'a> {
   }
 
   // 3.3.3 BRC30_TICKINFO
-  fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<BRC30TickInfo>, Self::Error> {
+  fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<TickInfo>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_TICKINFO)?
         .get(tick_id.to_lowercase().hex().as_str())?
-        .map(|v| bincode::deserialize::<BRC30TickInfo>(v.value()).unwrap()),
+        .map(|v| bincode::deserialize::<TickInfo>(v.value()).unwrap()),
     )
   }
 
   // 3.3.4 BRC30_PID_TO_POOLINFO
-  fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<BRC30PoolInfo>, Self::Error> {
+  fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_PID_TO_POOLINFO)?
         .get(pid.to_lowercase().hex().as_str())?
-        .map(|v| bincode::deserialize::<BRC30PoolInfo>(v.value()).unwrap()),
+        .map(|v| bincode::deserialize::<PoolInfo>(v.value()).unwrap()),
     )
   }
 
@@ -208,14 +208,14 @@ impl<'db, 'a> LedgerRead for BRC30DatabaseReader<'db, 'a> {
   }
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS, TODO replace BRC30ActionReceipt
-  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_TXID_TO_RECEIPTS)?
         .get(txid.to_string().as_str())?
         .map_or(Vec::new(), |v| {
-          bincode::deserialize::<Vec<BRC30Receipt>>(v.value()).unwrap()
+          bincode::deserialize::<Vec<Receipt>>(v.value()).unwrap()
         }),
     )
   }

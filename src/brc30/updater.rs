@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::{
-  BRC30Event, BRC30PoolInfo, BRC30Receipt, BRC30TickInfo, Balance, Deploy, Error, EventType,
+  BRC30Event, PoolInfo, Receipt, TickInfo, Balance, Deploy, Error, EventType,
   InscriptionOperation, LedgerReadWrite, Mint, MintEvent, Num, Operation, Pid, Stake, TickId,
   Transfer, TransferableAsset, UnStake, UserInfo,
 };
@@ -114,7 +114,7 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
         }
       };
 
-      receipts.push(BRC30Receipt {
+      receipts.push(Receipt {
         inscription_id: operation.inscription_id,
         result,
       });

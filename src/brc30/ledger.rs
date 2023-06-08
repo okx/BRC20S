@@ -30,10 +30,10 @@ pub trait LedgerRead {
   ) -> Result<Vec<InscriptionOperation>, Self::Error>;
 
   // 3.3.3 BRC30_TICKINFO
-  fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<BRC30TickInfo>, Self::Error>;
+  fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<TickInfo>, Self::Error>;
 
   // 3.3.4 BRC30_PID_TO_POOLINFO
-  fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<BRC30PoolInfo>, Self::Error>;
+  fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error>;
 
   // 3.3.5 BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(&self, pid: &Pid) -> Result<Option<UserInfo>, Self::Error>;
@@ -59,7 +59,7 @@ pub trait LedgerRead {
   ) -> Result<Option<TransferableAsset>, Self::Error>;
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS
-  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error>;
+  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error>;
 }
 
 pub trait LedgerReadWrite: LedgerRead {
@@ -77,14 +77,14 @@ pub trait LedgerReadWrite: LedgerRead {
   fn set_tick_info(
     &self,
     tick_id: &TickId,
-    brc30_tick_info: &BRC30TickInfo,
+    brc30_tick_info: &TickInfo,
   ) -> Result<(), Self::Error>;
 
   // 3.3.4 BRC30_PID_TO_POOLINFO
   fn set_pid_to_poolinfo(
     &self,
     pid: &Pid,
-    brc30_pool_info: &BRC30PoolInfo,
+    brc30_pool_info: &PoolInfo,
   ) -> Result<(), Self::Error>;
 
   // 3.3.5 BRC30_PID_TO_USERINFO
@@ -114,6 +114,6 @@ pub trait LedgerReadWrite: LedgerRead {
   fn set_txid_to_receipts(
     &self,
     txid: &Txid,
-    receipts: &Vec<BRC30Receipt>,
+    receipts: &Vec<Receipt>,
   ) -> Result<(), Self::Error>;
 }

@@ -1,7 +1,7 @@
 use super::*;
 use crate::brc30::ledger::{LedgerRead, LedgerReadWrite};
 use crate::brc30::{
-  BRC30PoolInfo, BRC30Receipt, BRC30TickInfo, Balance, InscriptionOperation, Pid, TickId,PoolType,
+  PoolInfo, Receipt, TickInfo, Balance, InscriptionOperation, Pid, TickId, PoolType,
   PledgedTick, TransferableAsset, UserInfo, BRC30Error
 };
 use crate::InscriptionId;
@@ -36,12 +36,12 @@ impl<'db, 'a> LedgerRead for BRC30Database<'db, 'a> {
   }
 
   // 3.3.3 BRC30_TICKINFO
-  fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<BRC30TickInfo>, Self::Error> {
+  fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<TickInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_tick_info(tick_id)
   }
 
   // 3.3.4 BRC30_PID_TO_POOLINFO
-  fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<BRC30PoolInfo>, Self::Error> {
+  fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_pid_to_poolinfo(pid)
   }
 
@@ -77,7 +77,7 @@ impl<'db, 'a> LedgerRead for BRC30Database<'db, 'a> {
   }
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS, TODO replace BRC30ActionReceipt
-  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_txid_to_receipts(txid)
   }
 }
@@ -111,7 +111,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   fn set_tick_info(
     &self,
     tick_id: &TickId,
-    brc30_tick_info: &BRC30TickInfo,
+    brc30_tick_info: &TickInfo,
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TICKINFO)?.insert(
       tick_id.to_lowercase().hex().as_str(),
@@ -124,7 +124,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   fn set_pid_to_poolinfo(
     &self,
     pid: &Pid,
-    brc30_pool_info: &BRC30PoolInfo,
+    brc30_pool_info: &PoolInfo,
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_PID_TO_POOLINFO)?.insert(
       pid.to_lowercase().hex().as_str(),
@@ -188,7 +188,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   fn set_txid_to_receipts(
     &self,
     txid: &Txid,
-    receipts: &Vec<BRC30Receipt>,
+    receipts: &Vec<Receipt>,
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TXID_TO_RECEIPTS)?.insert(
       txid.to_string().as_str(),
@@ -295,11 +295,11 @@ mod tests {
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
 
-   let op_vec = vec![InscriptionOperation{
+   let op_vec = vec![InscriptionOperation {
       txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap(),
-   }, InscriptionOperation{
+   }, InscriptionOperation {
      txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap(),
-   }, InscriptionOperation{
+   }, InscriptionOperation {
      txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap(),
    }, ];
 
@@ -321,11 +321,11 @@ mod tests {
 
     let pid = Pid::from_str("123456").unwrap();
 
-    let pool_info = BRC30PoolInfo{
+    let pool_info = PoolInfo {
       pid: pid.clone(),
       ptype: PoolType::Pool,
       inscription_id:inscription_id.clone(),
-      stake:PledgedTick::NATIVE,
+      stake: PledgedTick::NATIVE,
       erate: 0,
       minted: 0,
       staked: 0,
@@ -352,7 +352,7 @@ mod tests {
     let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
     let tick_id = TickId::from_str("abcdd").unwrap();
 
-    let tick_info = BRC30TickInfo{
+    let tick_info = TickInfo {
       tick_id: tick_id.clone(),
       name: BRC30Tick::from_str("aBc1ab").unwrap(),
       inscription_id:inscription_id.clone(),
@@ -382,7 +382,7 @@ mod tests {
 
 
     let pid = Pid::from_str("123456").unwrap();
-    let user_info = UserInfo{
+    let user_info = UserInfo {
       pid: pid.clone(),
       staked: 0,
       reward: 0,
@@ -408,7 +408,7 @@ mod tests {
     let script_key = ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
     let tick_id = TickId::from_str("abcdd").unwrap();
     let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
-    let transferable_asset= TransferableAsset{
+    let transferable_asset= TransferableAsset {
       inscription_id : inscription_id,
       amount: 100,
       tick_id: tick_id.clone(),
@@ -434,13 +434,13 @@ mod tests {
 
     let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
 
-    let op_vec = vec![BRC30Receipt{
+    let op_vec = vec![Receipt {
       inscription_id: inscription_id.clone(),
       result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
-    }, BRC30Receipt{
+    }, Receipt {
       inscription_id: inscription_id.clone(),
       result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
-    }, BRC30Receipt{
+    }, Receipt {
       inscription_id: inscription_id.clone(),
       result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
     }, ];

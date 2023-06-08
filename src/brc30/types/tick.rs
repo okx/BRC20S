@@ -10,7 +10,7 @@ use crate::InscriptionId;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct TickId([u8; TICK_ID_BYTE_COUNT]);
 
 impl FromStr for TickId {

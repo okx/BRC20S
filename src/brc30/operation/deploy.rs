@@ -2,8 +2,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Deploy {
+
+  // Type:Type of earning(pool,fixed)
+  // pool: share earning with all pool deposits.
+  // fixed: earn solo,and have a fixed rate.
   #[serde(rename = "t")]
-  pub type_earning: String,
+  pub pool_type: String,
 
   // 10 letter identifier of the pool id + "#" + 2 letter of pool number
   #[serde(rename = "pid")]
@@ -46,7 +50,7 @@ mod tests {
   #[test]
   fn test_serialize() {
     let obj = Deploy {
-      type_earning: "abcd".to_string(),
+      pool_type: "abcd".to_string(),
       pool_id: "12000".to_string(),
       stake: "12".to_string(),
       earn: "12".to_string(),
@@ -61,7 +65,7 @@ mod tests {
       serde_json::to_string(&obj).unwrap(),
       format!(
         r##"{{"t":"{}","pid":"{}","stake":"{}","earn":"{}","erate":"{}","dmax":"{}","total":"{}","only":"{}","dec":"{}"}}"##,
-        obj.type_earning,
+        obj.pool_type,
         obj.pool_id,
         obj.stake,
         obj.earn,

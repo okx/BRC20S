@@ -173,7 +173,7 @@ pub enum PledgedTick {
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct BRC30TickInfo {
+pub struct TickInfo {
   pub tick_id: TickId,               // tick id
   pub name: BRC30Tick,               // tick 显示的名称
   pub inscription_id: InscriptionId, // 部署的铭文id

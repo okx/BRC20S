@@ -87,7 +87,7 @@ pub enum PoolType {
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct BRC30PoolInfo {
+pub struct PoolInfo {
   pub pid: Pid,        // pid为池子的唯一标识
   pub ptype: PoolType, // 池子类型
   pub inscription_id: InscriptionId,

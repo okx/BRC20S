@@ -3,7 +3,7 @@ use crate::{InscriptionId, SatPoint};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct BRC30Receipt {
+pub struct Receipt {
   pub inscription_id: InscriptionId,
   pub result: Result<BRC30Event, BRC30Error>,
 }
@@ -122,7 +122,7 @@ mod tests {
 
   #[test]
   fn action_receipt_serialize() {
-    let action_receipt = BRC30Receipt {
+    let action_receipt = Receipt {
       inscription_id: InscriptionId::from_str(
         "9991111111111111111111111111111111111111111111111111111111111111i1",
       )

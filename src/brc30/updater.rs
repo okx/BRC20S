@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use super::{
-  BRC30Event, PoolInfo, Receipt, TickInfo, Balance, Deploy, Error, EventType,
-  InscriptionOperation, LedgerReadWrite, Mint, MintEvent, Num, Operation, Pid, Stake, TickId,
-  Transfer, TransferableAsset, UnStake, UserInfo,
+  BRC30DbReadWriteAPI, BRC30Event, Balance, Deploy, Error, EventType, InscriptionOperation, Mint,
+  MintEvent, Num, Operation, Pid, PoolInfo, Receipt, Stake, TickId, TickInfo, Transfer,
+  TransferableAsset, UnStake, UserInfo,
 };
 
 use crate::brc20::ScriptKey;
@@ -32,11 +32,11 @@ pub struct InscriptionData {
   pub action: Action,
 }
 
-pub(crate) struct BRC30Updater<'a, 'db, 'tx, L: LedgerReadWrite> {
+pub(crate) struct BRC30Updater<'a, 'db, 'tx, L: BRC30DbReadWriteAPI> {
   ledger: &'a L,
   id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
 }
-impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
+impl<'a, 'db, 'tx, L: BRC30DbReadWriteAPI> BRC30Updater<'a, 'db, 'tx, L> {
   pub fn new(
     ledger: &'a L,
     id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,

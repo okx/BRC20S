@@ -1,7 +1,7 @@
 mod read_only;
 mod read_write;
 
-pub use self::{read_only::BRC30DatabaseReader, read_write::BRC30Database};
+pub use self::{read_only::BRC30DbReader, read_write::BRC30DbReadWriter};
 
 use crate::brc20::ScriptKey;
 use crate::brc30::TickId;
@@ -9,7 +9,6 @@ use crate::InscriptionId;
 use bitcoin::Txid;
 use redb::TableDefinition;
 
-const OUTPOINT_TO_SCRIPT: TableDefinition<&str, &[u8]> = TableDefinition::new("OUTPOINT_TO_SCRIPT");
 const TXID_TO_INSCRIPTION_RECEIPTS: TableDefinition<&str, &[u8]> =
   TableDefinition::new("TXID_TO_INSCRIPTION_RECEIPTS");
 const BRC30_TICKINFO: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC30_TICKINFO");

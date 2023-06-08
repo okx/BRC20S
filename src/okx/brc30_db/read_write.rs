@@ -1,31 +1,26 @@
 use super::*;
-use crate::brc30::ledger::{LedgerRead, LedgerReadWrite};
+use crate::brc30::ledger::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
 use crate::brc30::{
-  PoolInfo, Receipt, TickInfo, Balance, InscriptionOperation, Pid, TickId, PoolType,
-  PledgedTick, TransferableAsset, UserInfo, BRC30Error
+  BRC30Error, Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId,
+  TickInfo, TransferableAsset, UserInfo,
 };
 use crate::InscriptionId;
 use bitcoin::Script;
 use bitcoin::Txid;
 use redb::WriteTransaction;
 
-pub struct BRC30Database<'db, 'a> {
+pub struct BRC30DbReadWriter<'db, 'a> {
   wtx: &'a WriteTransaction<'db>,
 }
 
-impl<'db, 'a> BRC30Database<'db, 'a> {
+impl<'db, 'a> BRC30DbReadWriter<'db, 'a> {
   pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
     Self { wtx }
   }
 }
 
-impl<'db, 'a> LedgerRead for BRC30Database<'db, 'a> {
+impl<'db, 'a> BRC30DbReadAPI for BRC30DbReadWriter<'db, 'a> {
   type Error = redb::Error;
-
-  // 3.3.1 OUTPOINT_TO_SCRIPT, todo, replace outpoint
-  fn get_outpoint_to_script(&self, outpoint: &str) -> Result<Option<Script>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_outpoint_to_script(outpoint)
-  }
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
   fn get_txid_to_inscription_receipts(
@@ -62,7 +57,7 @@ impl<'db, 'a> LedgerRead for BRC30Database<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_balance(script_key, tick_id)
   }
 
-  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(TickId, Balance)>, Self::Error>{
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(TickId, Balance)>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_balances(script_key)
   }
 
@@ -82,16 +77,7 @@ impl<'db, 'a> LedgerRead for BRC30Database<'db, 'a> {
   }
 }
 
-impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
-  // 3.3.1 OUTPOINT_TO_SCRIPT, todo, replace outpoint
-  fn set_outpoint_to_script(&self, outpoint: &str, script: &Script) -> Result<(), Self::Error> {
-    self
-      .wtx
-      .open_table(OUTPOINT_TO_SCRIPT)?
-      .insert(outpoint, bincode::serialize(script).unwrap().as_slice())?;
-    Ok(())
-  }
-
+impl<'db, 'a> BRC30DbReadWriteAPI for BRC30DbReadWriter<'db, 'a> {
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
   fn set_txid_to_inscription_receipts(
     &self,
@@ -108,11 +94,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   }
 
   // 3.3.3 BRC30_TICKINFO
-  fn set_tick_info(
-    &self,
-    tick_id: &TickId,
-    brc30_tick_info: &TickInfo,
-  ) -> Result<(), Self::Error> {
+  fn set_tick_info(&self, tick_id: &TickId, brc30_tick_info: &TickInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TICKINFO)?.insert(
       tick_id.to_lowercase().hex().as_str(),
       bincode::serialize(brc30_tick_info).unwrap().as_slice(),
@@ -121,11 +103,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   }
 
   // 3.3.4 BRC30_PID_TO_POOLINFO
-  fn set_pid_to_poolinfo(
-    &self,
-    pid: &Pid,
-    brc30_pool_info: &PoolInfo,
-  ) -> Result<(), Self::Error> {
+  fn set_pid_to_poolinfo(&self, pid: &Pid, brc30_pool_info: &PoolInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_PID_TO_POOLINFO)?.insert(
       pid.to_lowercase().hex().as_str(),
       bincode::serialize(brc30_pool_info).unwrap().as_slice(),
@@ -181,11 +159,7 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
   }
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS
-  fn set_txid_to_receipts(
-    &self,
-    txid: &Txid,
-    receipts: &Vec<Receipt>,
-  ) -> Result<(), Self::Error> {
+  fn set_txid_to_receipts(&self, txid: &Txid, receipts: &Vec<Receipt>) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TXID_TO_RECEIPTS)?.insert(
       txid.to_string().as_str(),
       bincode::serialize(receipts).unwrap().as_slice(),
@@ -197,20 +171,20 @@ impl<'db, 'a> LedgerReadWrite for BRC30Database<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::brc30::ledger::BRC30DbReadWriteAPI;
+  use crate::brc30::BRC30Tick;
   use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;
   use std::str::FromStr;
   use tempfile::NamedTempFile;
-  use crate::brc30::BRC30Tick;
-  use crate::brc30::ledger::LedgerReadWrite;
 
   #[test]
   fn test_balances() {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30Database::new(&wtx);
+    let brc30db = BRC30DbReadWriter::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -243,7 +217,10 @@ mod tests {
       .set_token_balance(&script, &tick3, expect_balance3.clone())
       .unwrap();
 
-    assert_eq!(brc30db.get_balance(&script, &tick1).unwrap().unwrap(), expect_balance1);
+    assert_eq!(
+      brc30db.get_balance(&script, &tick1).unwrap().unwrap(),
+      expect_balance1
+    );
 
     let script2 =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
@@ -269,45 +246,38 @@ mod tests {
   }
 
   #[test]
-  fn test_outpoint_to_script() {
-    let dbfile = NamedTempFile::new().unwrap();
-    let db = Database::create(dbfile.path()).unwrap();
-    let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30Database::new(&wtx);
-
-    let outpoint1: &str = "outpoint-1";
-    let script= Script::from_str("12345678").unwrap();
-
-    brc30db
-      .set_outpoint_to_script(&outpoint1, &script)
-      .unwrap();
-
-    assert_eq!(brc30db.get_outpoint_to_script(&outpoint1).unwrap().unwrap(), script);
-  }
-
-  #[test]
   fn test_txid_to_inscription_receipts() {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30Database::new(&wtx);
+    let brc30db = BRC30DbReadWriter::new(&wtx);
 
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
 
-   let op_vec = vec![InscriptionOperation {
-      txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap(),
-   }, InscriptionOperation {
-     txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap(),
-   }, InscriptionOperation {
-     txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap(),
-   }, ];
+    let op_vec = vec![
+      InscriptionOperation {
+        txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735")
+          .unwrap(),
+      },
+      InscriptionOperation {
+        txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735")
+          .unwrap(),
+      },
+      InscriptionOperation {
+        txid: Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735")
+          .unwrap(),
+      },
+    ];
 
     brc30db
       .set_txid_to_inscription_receipts(&txid, &op_vec)
       .unwrap();
 
-    assert_eq!(brc30db.get_txid_to_inscription_receipts(&txid).unwrap(), op_vec);
+    assert_eq!(
+      brc30db.get_txid_to_inscription_receipts(&txid).unwrap(),
+      op_vec
+    );
   }
 
   #[test]
@@ -315,16 +285,18 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30Database::new(&wtx);
+    let brc30db = BRC30DbReadWriter::new(&wtx);
 
-    let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+    let inscription_id =
+      InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
 
     let pid = Pid::from_str("123456").unwrap();
 
     let pool_info = PoolInfo {
       pid: pid.clone(),
       ptype: PoolType::Pool,
-      inscription_id:inscription_id.clone(),
+      inscription_id: inscription_id.clone(),
       stake: PledgedTick::NATIVE,
       erate: 0,
       minted: 0,
@@ -335,11 +307,12 @@ mod tests {
       only: true,
     };
 
-    brc30db
-      .set_pid_to_poolinfo(&pid, &pool_info)
-      .unwrap();
+    brc30db.set_pid_to_poolinfo(&pid, &pool_info).unwrap();
 
-    assert_eq!(brc30db.get_pid_to_poolinfo(&pid).unwrap().unwrap(), pool_info);
+    assert_eq!(
+      brc30db.get_pid_to_poolinfo(&pid).unwrap().unwrap(),
+      pool_info
+    );
   }
 
   #[test]
@@ -347,28 +320,30 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30Database::new(&wtx);
+    let brc30db = BRC30DbReadWriter::new(&wtx);
 
-    let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+    let inscription_id =
+      InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
     let tick_id = TickId::from_str("abcdd").unwrap();
 
     let tick_info = TickInfo {
       tick_id: tick_id.clone(),
       name: BRC30Tick::from_str("aBc1ab").unwrap(),
-      inscription_id:inscription_id.clone(),
+      inscription_id: inscription_id.clone(),
       only: true,
       allocated: 100,
       decimal: 8,
       minted: 100,
       supply: 100,
-      deployer: ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap()),
+      deployer: ScriptKey::from_address(
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+      ),
       deploy_block: 100,
       latest_mint_block: 100,
     };
 
-    brc30db
-      .set_tick_info(&tick_id, &tick_info)
-      .unwrap();
+    brc30db.set_tick_info(&tick_id, &tick_info).unwrap();
 
     assert_eq!(brc30db.get_tick_info(&tick_id).unwrap().unwrap(), tick_info);
   }
@@ -378,8 +353,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30Database::new(&wtx);
-
+    let brc30db = BRC30DbReadWriter::new(&wtx);
 
     let pid = Pid::from_str("123456").unwrap();
     let user_info = UserInfo {
@@ -390,11 +364,12 @@ mod tests {
       latest_updated_block: 0,
     };
 
-    brc30db
-      .set_pid_to_use_info(&pid, &user_info)
-      .unwrap();
+    brc30db.set_pid_to_use_info(&pid, &user_info).unwrap();
 
-    assert_eq!(brc30db.get_pid_to_use_info(&pid).unwrap().unwrap(), user_info);
+    assert_eq!(
+      brc30db.get_pid_to_use_info(&pid).unwrap().unwrap(),
+      user_info
+    );
   }
 
   #[test]
@@ -402,24 +377,37 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30Database::new(&wtx);
+    let brc30db = BRC30DbReadWriter::new(&wtx);
 
-
-    let script_key = ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script_key =
+      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
     let tick_id = TickId::from_str("abcdd").unwrap();
-    let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
-    let transferable_asset= TransferableAsset {
-      inscription_id : inscription_id,
+    let inscription_id =
+      InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
+    let transferable_asset = TransferableAsset {
+      inscription_id,
       amount: 100,
       tick_id: tick_id.clone(),
       owner: script_key.clone(),
     };
 
     brc30db
-      .set_transferable_assets(&script_key, &tick_id, &inscription_id, &transferable_asset.clone())
+      .set_transferable_assets(
+        &script_key,
+        &tick_id,
+        &inscription_id,
+        &transferable_asset.clone(),
+      )
       .unwrap();
 
-    assert_eq!(brc30db.get_transferable_assets(&script_key, &tick_id, &inscription_id).unwrap().unwrap(), transferable_asset);
+    assert_eq!(
+      brc30db
+        .get_transferable_assets(&script_key, &tick_id, &inscription_id)
+        .unwrap()
+        .unwrap(),
+      transferable_asset
+    );
   }
 
   #[test]
@@ -427,27 +415,31 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30Database::new(&wtx);
+    let brc30db = BRC30DbReadWriter::new(&wtx);
 
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
 
-    let inscription_id = InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+    let inscription_id =
+      InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
 
-    let op_vec = vec![Receipt {
-      inscription_id: inscription_id.clone(),
-      result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
-    }, Receipt {
-      inscription_id: inscription_id.clone(),
-      result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
-    }, Receipt {
-      inscription_id: inscription_id.clone(),
-      result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
-    }, ];
+    let op_vec = vec![
+      Receipt {
+        inscription_id: inscription_id.clone(),
+        result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+      },
+      Receipt {
+        inscription_id: inscription_id.clone(),
+        result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+      },
+      Receipt {
+        inscription_id: inscription_id.clone(),
+        result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+      },
+    ];
 
-    brc30db
-      .set_txid_to_receipts(&txid, &op_vec)
-      .unwrap();
+    brc30db.set_txid_to_receipts(&txid, &op_vec).unwrap();
 
     assert_eq!(brc30db.get_txid_to_receipts(&txid).unwrap(), op_vec);
   }

@@ -16,7 +16,7 @@ pub use self::{
   updater::{Action, InscriptionData},
 };
 
-use ledger::{LedgerRead, LedgerReadWrite};
+use ledger::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
 
 pub fn deserialize_brc30_operation(
   inscription: Inscription,

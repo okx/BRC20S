@@ -17,11 +17,8 @@ use {
   std::{iter::Peekable, str},
 };
 
-pub trait LedgerRead {
+pub trait BRC30DbReadAPI {
   type Error: Debug + Display;
-
-  // 3.3.1 OUTPOINT_TO_SCRIPT, todo, replace outpoint
-  fn get_outpoint_to_script(&self, outpoint: &str) -> Result<Option<Script>, Self::Error>;
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
   fn get_txid_to_inscription_receipts(
@@ -62,10 +59,7 @@ pub trait LedgerRead {
   fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error>;
 }
 
-pub trait LedgerReadWrite: LedgerRead {
-  // 3.3.1 OUTPOINT_TO_SCRIPT, todo, replace outpoint
-  fn set_outpoint_to_script(&self, outpoint: &str, script: &Script) -> Result<(), Self::Error>;
-
+pub trait BRC30DbReadWriteAPI: BRC30DbReadAPI {
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
   fn set_txid_to_inscription_receipts(
     &self,
@@ -74,18 +68,10 @@ pub trait LedgerReadWrite: LedgerRead {
   ) -> Result<(), Self::Error>;
 
   // 3.3.3 BRC30_TICKINFO
-  fn set_tick_info(
-    &self,
-    tick_id: &TickId,
-    brc30_tick_info: &TickInfo,
-  ) -> Result<(), Self::Error>;
+  fn set_tick_info(&self, tick_id: &TickId, brc30_tick_info: &TickInfo) -> Result<(), Self::Error>;
 
   // 3.3.4 BRC30_PID_TO_POOLINFO
-  fn set_pid_to_poolinfo(
-    &self,
-    pid: &Pid,
-    brc30_pool_info: &PoolInfo,
-  ) -> Result<(), Self::Error>;
+  fn set_pid_to_poolinfo(&self, pid: &Pid, brc30_pool_info: &PoolInfo) -> Result<(), Self::Error>;
 
   // 3.3.5 BRC30_PID_TO_USERINFO
   fn set_pid_to_use_info(&self, pid: &Pid, user_info: &UserInfo) -> Result<(), Self::Error>;
@@ -111,9 +97,5 @@ pub trait LedgerReadWrite: LedgerRead {
   ) -> Result<(), Self::Error>;
 
   // 3.3.9 BRC30_TXID_TO_RECEIPTS
-  fn set_txid_to_receipts(
-    &self,
-    txid: &Txid,
-    receipts: &Vec<Receipt>,
-  ) -> Result<(), Self::Error>;
+  fn set_txid_to_receipts(&self, txid: &Txid, receipts: &Vec<Receipt>) -> Result<(), Self::Error>;
 }

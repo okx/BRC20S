@@ -8,8 +8,8 @@ pub struct Balance {
 impl Balance {
   pub fn new() -> Self {
     Self {
-      overall_balance: 0 as u128,
-      transferable_balance: 0 as u128,
+      overall_balance: 0u128,
+      transferable_balance: 0u128,
     }
   }
 }

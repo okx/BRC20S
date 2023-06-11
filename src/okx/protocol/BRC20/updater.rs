@@ -1,18 +1,23 @@
-use std::str::FromStr;
-
+use super::params::BIGDECIMAL_TEN;
+use super::params::MAX_DECIMAL_WIDTH;
 use super::{
-  ActionReceipt, BRC20Event, Balance, Deploy, DeployEvent, Error, EventType, LedgerReadWrite, Mint,
-  MintEvent, Num, Operation, Tick, TokenInfo, Transfer, TransferPhase1Event, TransferPhase2Event,
-  TransferableLog,
+  error::Error,
+  num::Num,
+  operation::{Deploy, Mint, Operation, Transfer},
+  ScriptKey,
+  BRC20::{
+    ActionReceipt, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, Balance, DeployEvent,
+    EventType, MintEvent, Tick, TokenInfo, TransferPhase1Event, TransferPhase2Event,
+    TransferableLog,
+  },
 };
-use crate::brc20::params::BIGDECIMAL_TEN;
 use crate::{
-  brc20::{error::BRC20Error, params::MAX_DECIMAL_WIDTH, ScriptKey},
   index::{InscriptionEntryValue, InscriptionIdValue},
   Index, InscriptionId, SatPoint, Txid,
 };
 use bigdecimal::num_bigint::Sign;
 use redb::Table;
+use std::str::FromStr;
 
 #[derive(Clone)]
 pub enum Action {
@@ -30,11 +35,11 @@ pub struct InscriptionData {
   pub action: Action,
 }
 
-pub(crate) struct BRC20Updater<'a, 'db, 'tx, L: LedgerReadWrite> {
+pub(crate) struct BRC20Updater<'a, 'db, 'tx, L: BRC20DataStoreReadWrite> {
   ledger: &'a L,
   id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
 }
-impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
+impl<'a, 'db, 'tx, L: BRC20DataStoreReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
   pub fn new(
     ledger: &'a L,
     id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
@@ -161,7 +166,9 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
       || supply > Into::<Num>::into(u64::MAX)
       || supply.scale() > dec as i64
     {
-      return Err(Error::BRC20Error(BRC20Error::InvalidSupply(supply)));
+      return Err(Error::BRC20Error(BRC20Error::InvalidSupply(
+        supply.to_string(),
+      )));
     }
 
     let limit = Num::from_str(&deploy.mint_limit.map_or(deploy.max_supply, |v| v))?;
@@ -172,7 +179,7 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
     {
       return Err(Error::BRC20Error(BRC20Error::MintLimitOutOfRange(
         lower_tick.as_str().to_string(),
-        limit,
+        limit.to_string(),
       )));
     }
 
@@ -226,7 +233,9 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
     let mut amt = Num::from_str(&mint.amount)?;
 
     if amt.scale() > token_info.decimal as i64 {
-      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(amt)));
+      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(
+        amt.to_string(),
+      )));
     }
 
     amt = amt.checked_mul(&base)?;
@@ -234,7 +243,9 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
       return Err(Error::BRC20Error(BRC20Error::InvalidZeroAmount));
     }
     if amt > Into::<Num>::into(token_info.limit_per_mint) {
-      return Err(Error::BRC20Error(BRC20Error::AmountExceedLimit(amt)));
+      return Err(Error::BRC20Error(BRC20Error::AmountExceedLimit(
+        amt.to_string(),
+      )));
     }
     let minted = Into::<Num>::into(token_info.minted);
     let supply = Into::<Num>::into(token_info.supply);
@@ -313,12 +324,16 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
     let mut amt = Num::from_str(&transfer.amount)?;
 
     if amt.scale() > token_info.decimal as i64 {
-      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(amt)));
+      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(
+        amt.to_string(),
+      )));
     }
 
     amt = amt.checked_mul(&base)?;
     if amt.sign() == Sign::NoSign || amt > Into::<Num>::into(token_info.supply) {
-      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(amt)));
+      return Err(Error::BRC20Error(BRC20Error::AmountOverflow(
+        amt.to_string(),
+      )));
     }
 
     let mut balance = self
@@ -332,7 +347,8 @@ impl<'a, 'db, 'tx, L: LedgerReadWrite> BRC20Updater<'a, 'db, 'tx, L> {
     let available = overall.checked_sub(&transferable)?;
     if available < amt {
       return Err(Error::BRC20Error(BRC20Error::InsufficientBalance(
-        available, amt,
+        available.to_string(),
+        amt.to_string(),
       )));
     }
 

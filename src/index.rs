@@ -1068,7 +1068,7 @@ impl Index {
       .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap())
   }
 
-  pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<brc20::TokenInfo>> {
+  pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<BRC20::TokenInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc20_db = BRC20DataStoreReader::new(&wtx);
     let info = brc20_db.get_token_info(&BRC20::Tick::from_str(name)?)?;

@@ -1,4 +1,4 @@
-use crate::okx::protocol::BRC20::BRC20DataStore;
+use crate::okx::datastore::BRC20::redb::BRC20DataStore;
 use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
 
 use {
@@ -9,8 +9,8 @@ use {
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
 };
 
-use crate::index::ord_db::OrdDbReadAPI;
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
+use crate::okx::datastore::ORD::ord_db::OrdDbReadAPI;
 
 const FAST_QUERY_HEIGHT: u64 = 10;
 

@@ -1,5 +1,5 @@
-use crate::brc30::error::BRC30Error;
-use crate::brc30::params::MAX_DECIMAL_WIDTH;
+use crate::okx::protocol::BRC30::params::MAX_DECIMAL_WIDTH;
+use crate::okx::protocol::BRC30::BRC30Error;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
 use bigdecimal::{BigDecimal, One, ToPrimitive};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -147,8 +147,6 @@ impl<'de> Deserialize<'de> for Num {
     ))
   }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -433,4 +431,3 @@ mod tests {
     );
   }
 }
-

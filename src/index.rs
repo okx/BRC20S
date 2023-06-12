@@ -1,9 +1,6 @@
-use crate::okx::{
-  datastore::{
-    ScriptKey,
-    BRC20::{self, BRC20DataStoreReadOnly},
-  },
-  protocol::BRC20::BRC20DataStoreReader,
+use crate::okx::datastore::{
+  ScriptKey,
+  BRC20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
 };
 
 use {
@@ -23,11 +20,12 @@ use {
 };
 
 pub(super) use self::entry::{InscriptionEntryValue, InscriptionIdValue};
-pub(super) use self::ord_db::OrdDbReader;
+// pub(super) use self::ord_db::OrdDbReader;
+
+use crate::okx::datastore::ORD::ord_db::OrdDbReader;
 
 mod entry;
 mod fetcher;
-mod ord_db;
 mod rtx;
 mod updater;
 
@@ -306,9 +304,7 @@ impl Index {
     Ok(utxos)
   }
 
-  pub(crate) fn get_unspent_output_ranges(
-    &self,
-  ) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
+  pub(crate) fn get_unspent_output_ranges(&self) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
     self
       .get_unspent_outputs()?
       .into_keys()
@@ -2561,11 +2557,7 @@ mod tests {
       let mnemonic = Mnemonic::from_entropy(&entropy).unwrap();
       context.rpc_server.mine_blocks(1);
       assert_regex_match!(
-        context
-          .index
-          .get_unspent_outputs()
-          .unwrap_err()
-          .to_string(),
+        context.index.get_unspent_outputs().unwrap_err().to_string(),
         r"output in Bitcoin Core wallet but not in ord index: [[:xdigit:]]{64}:\d+"
       );
     }

@@ -1,6 +1,5 @@
 use crate::{Inscription, Result};
 use error::JSONError;
-mod datastore;
 mod error;
 mod num;
 mod operation;
@@ -8,7 +7,6 @@ mod params;
 pub mod updater;
 
 pub(crate) use self::{
-  datastore::{BRC20DataStore, BRC20DataStoreReader},
   num::Num,
   operation::{deserialize_brc20, Deploy, Mint, Operation, Transfer},
   updater::{Action, BRC20Updater, InscriptionData},

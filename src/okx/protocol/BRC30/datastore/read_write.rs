@@ -1,9 +1,12 @@
 use super::*;
-use crate::brc30::ledger::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
-use crate::brc30::{
-  BRC30Error, Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId,
-  TickInfo, TransferableAsset, UserInfo,
+use crate::okx::datastore::BRC30::{
+  Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId, TickInfo,
+  TransferableAsset, UserInfo,
 };
+
+use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+use crate::okx::protocol::BRC30::BRC30Error;
+
 use crate::InscriptionId;
 use bitcoin::Script;
 use bitcoin::Txid;
@@ -171,8 +174,8 @@ impl<'db, 'a> BRC30DbReadWriteAPI for BRC30DbReadWriter<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::brc30::ledger::BRC30DbReadWriteAPI;
-  use crate::brc30::BRC30Tick;
+  use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+  use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
   use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;

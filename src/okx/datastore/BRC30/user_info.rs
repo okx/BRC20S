@@ -1,5 +1,6 @@
 use super::*;
-use crate::brc30::types::pool_info::Pid;
+use crate::okx::datastore::BRC30::pool_info::Pid;
+
 use crate::InscriptionId;
 use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

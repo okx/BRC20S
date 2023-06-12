@@ -1,6 +1,8 @@
-use crate::brc20::{ActionReceipt, ScriptKey, Tick, TokenInfo, TransferableLog};
-use crate::brc30::TickId;
+use super::TickId;
+use crate::okx::datastore::ScriptKey;
+use crate::okx::datastore::BRC20::{ActionReceipt, Tick, TokenInfo, TransferableLog};
 use crate::InscriptionId;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]

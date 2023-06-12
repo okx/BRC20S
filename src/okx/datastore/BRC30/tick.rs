@@ -1,10 +1,10 @@
-use super::super::error::BRC30Error;
-use crate::brc30::params::{
+use crate::okx::protocol::BRC30::params::{
   TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT, TICK_SPECIAL,
 };
+use crate::okx::protocol::BRC30::BRC30Error;
 
-use crate::brc20::ScriptKey;
-use crate::brc20::Tick;
+use crate::okx::datastore::ScriptKey;
+use crate::okx::datastore::BRC20::{ActionReceipt, Tick, TokenInfo, TransferableLog};
 use crate::InscriptionId;
 
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};

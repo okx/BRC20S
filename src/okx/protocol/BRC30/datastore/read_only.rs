@@ -1,6 +1,6 @@
 use super::*;
-use crate::brc30::ledger::BRC30DbReadAPI;
-use crate::brc30::{
+use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+use crate::okx::datastore::BRC30::{
   Balance, InscriptionOperation, Pid, PoolInfo, Receipt, TickId, TickInfo, TransferableAsset,
   UserInfo,
 };
@@ -16,7 +16,9 @@ pub struct BRC30DbReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }
 
-pub(super) fn new_with_wtx<'db, 'a>(wtx: &'a WriteTransaction<'db>) -> BRC30DbReader<'db, 'a> {
+pub(in crate::okx) fn new_with_wtx<'db, 'a>(
+  wtx: &'a WriteTransaction<'db>,
+) -> BRC30DbReader<'db, 'a> {
   BRC30DbReader {
     wrapper: ReaderWrapper::Wtx(wtx),
   }

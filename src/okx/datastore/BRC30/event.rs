@@ -1,6 +1,8 @@
-use super::{super::error::*, *};
+use crate::okx::protocol::BRC30::BRC30Error;
 use crate::{InscriptionId, SatPoint};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+
+use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Receipt {

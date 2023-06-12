@@ -1,22 +1,20 @@
 use crate::{Inscription, Result};
 use error::JSONError;
-mod error;
-pub mod ledger;
-mod num;
+pub mod datastore;
+pub mod error;
+pub mod num;
 mod operation;
-mod params;
-mod types;
+pub mod params;
 pub mod updater;
 
 pub use self::{
   error::{BRC30Error, Error},
   num::Num,
   operation::{deserialize_brc30, Deploy, Mint, Operation, Stake, Transfer, UnStake},
-  types::*,
   updater::{Action, InscriptionData},
 };
 
-use ledger::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
 
 pub fn deserialize_brc30_operation(
   inscription: Inscription,

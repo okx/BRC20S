@@ -10,6 +10,8 @@ use redb::{
 use std::borrow::Borrow;
 use std::ops::RangeBounds;
 
+use anyhow::anyhow;
+use bitcoin::hashes::Hash;
 use std::fmt::{Debug, Display};
 
 const OUTPOINT_TO_SCRIPT: TableDefinition<&str, &[u8]> = TableDefinition::new("OUTPOINT_TO_SCRIPT");
@@ -17,7 +19,7 @@ const OUTPOINT_TO_SCRIPT: TableDefinition<&str, &[u8]> = TableDefinition::new("O
 pub trait OrdDbReadAPI {
   type Error: Debug + Display;
 
-  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<u64>;
+  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64>;
 
   fn get_outpoint_to_script(&self, outpoint: &str) -> Result<Option<Script>, Self::Error>;
 }
@@ -95,12 +97,18 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
 impl<'db, 'a> OrdDbReadAPI for OrdDbReader<'db, 'a> {
   type Error = redb::Error;
 
-  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<u64> {
+  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64> {
+    let mut value = [0; 36];
+    let (txid, index) = value.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_inner());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+    // value
+
     Ok(
       self
         .wrapper
         .open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY)?
-        .get(&inscription_id.store())?
+        .get(&value)?
         .ok_or(anyhow!(
           "failed to find inscription number for {}",
           inscription_id
@@ -134,7 +142,7 @@ impl<'db, 'a> OrdDbReadWriter<'db, 'a> {
 impl<'db, 'a> OrdDbReadAPI for OrdDbReadWriter<'db, 'a> {
   type Error = redb::Error;
 
-  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<u64> {
+  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64> {
     new_with_wtx(self.wtx).get_number_by_inscription_id(inscription_id)
   }
 
@@ -157,8 +165,9 @@ impl<'db, 'a> OrdDbReadWriteAPI for OrdDbReadWriter<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::brc30::ledger::BRC30DbReadWriteAPI;
-  use crate::brc30::BRC30Tick;
+  use crate::okx::datastore::BRC30::{
+    BRC30DbReadWriteAPI, BRC30Tick, Pid, PledgedTick, PoolType, TickId,
+  };
   use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;

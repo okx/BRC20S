@@ -1,19 +1,22 @@
 use std::str::FromStr;
 
-use super::{
-  BRC30DbReadWriteAPI, BRC30Event, Balance, Deploy, Error, EventType, InscriptionOperation, Mint,
-  MintEvent, Num, Operation, Pid, PoolInfo, Receipt, Stake, TickId, TickInfo, Transfer,
-  TransferableAsset, UnStake, UserInfo,
+use crate::okx::datastore::BRC30::{
+  BRC30DbReadAPI, BRC30DbReadWriteAPI, BRC30Event, Balance, EventType, InscriptionOperation,
+  MintEvent, Pid, PoolInfo, Receipt, TickId, TickInfo, TransferableAsset, UserInfo,
 };
 
-use crate::brc20::ScriptKey;
-use crate::brc30::params::BIGDECIMAL_TEN;
+use crate::okx::protocol::BRC30::{
+  num::Num, operation::*, params::BIGDECIMAL_TEN, params::MAX_DECIMAL_WIDTH, BRC30Error, Error,
+};
+
+use crate::okx::datastore::ScriptKey;
+
 use crate::{
-  brc30::{error::BRC30Error, params::MAX_DECIMAL_WIDTH},
   index::{InscriptionEntryValue, InscriptionIdValue},
   Index, InscriptionId, SatPoint, Txid,
 };
 use bigdecimal::num_bigint::Sign;
+use bigdecimal::ToPrimitive;
 use redb::Table;
 
 #[derive(Clone)]
@@ -70,7 +73,7 @@ impl<'a, 'db, 'tx, L: BRC30DbReadWriteAPI> BRC30Updater<'a, 'db, 'tx, L> {
               block_number,
               block_time,
               operation.inscription_id,
-              inscription_number,
+              inscription_number.to_u64().unwrap(),
               operation.to_script.clone(),
             )
           }
@@ -91,7 +94,7 @@ impl<'a, 'db, 'tx, L: BRC30DbReadWriteAPI> BRC30Updater<'a, 'db, 'tx, L> {
             self.process_inscribe_transfer(
               transfer,
               operation.inscription_id,
-              inscription_number,
+              inscription_number.to_u64().unwrap(),
               operation.to_script.clone(),
             )
           }

@@ -71,9 +71,7 @@ use {
   tokio::{runtime::Runtime, task},
 };
 
-pub use crate::{
-  object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
-};
+pub use crate::{object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint};
 
 #[cfg(test)]
 #[macro_use]
@@ -94,8 +92,6 @@ macro_rules! tprintln {
 
 mod arguments;
 mod blocktime;
-mod brc20;
-mod brc30;
 mod chain;
 mod config;
 mod decimal;

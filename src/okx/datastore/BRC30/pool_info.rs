@@ -1,7 +1,9 @@
-use super::super::error::BRC30Error;
 use super::*;
-use crate::brc30::params::PID_BYTE_COUNT;
-use crate::brc30::PledgedTick;
+use crate::okx::protocol::BRC30::BRC30Error;
+
+use crate::okx::datastore::BRC30::{BRC30Tick, PledgedTick, TickId};
+use crate::okx::protocol::BRC30::params::{MAX_DECIMAL_WIDTH, PID_BYTE_COUNT};
+
 use crate::InscriptionId;
 use std::str::FromStr;
 

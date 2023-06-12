@@ -602,7 +602,7 @@ impl Updater {
     for (txid, brc20_transaction) in inscription_collects {
       brc20_updater
         .index_transaction(self.height, block.header.time, txid, brc20_transaction)
-        .map_err(|e| anyhow!("failed to parse BRC20 protocol for {txid} reason {e}"))? as u64;
+        .map_err(|e| anyhow!("failed to parse brc20 protocol for {txid} reason {e}"))? as u64;
     }
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;

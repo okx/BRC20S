@@ -173,17 +173,17 @@ pub enum PledgedTick {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct TickInfo {
-  pub tick_id: TickId,               // tick id
-  pub name: BRC30Tick,               // tick 显示的名称
-  pub inscription_id: InscriptionId, // 部署的铭文id
-  pub only: bool,                    // 是否独占
-  pub allocated: u128,               // 已分配到各个池子的总和
-  pub decimal: u8,                   // 精度
-  pub minted: u128,                  // 已产出数量
-  pub supply: u128,                  // 总量
-  pub deployer: ScriptKey,           // 部署人
-  pub deploy_block: u64,             // 部署时的块高
-  pub latest_mint_block: u64,        // 最后一次造币的块高
+  pub tick_id: TickId,
+  pub name: BRC30Tick,
+  pub inscription_id: InscriptionId,
+  pub only: bool,
+  pub allocated: u128,
+  pub decimal: u8,
+  pub minted: u128,
+  pub supply: u128,
+  pub deployer: ScriptKey,
+  pub deploy_block: u64,
+  pub latest_mint_block: u64,
 }
 
 #[cfg(test)]

@@ -77,48 +77,47 @@ pub struct DeployTickEvent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct DeployPoolEvent {
-  pid: Pid,           // 池子id
-  ptype: PoolType,    // 池子类型
-  stake: PledgedTick, // 质押的代币名称
-  erate: u128,        // 产币速率
-  dmax: u128,         // 可挖矿数量
+  pid: Pid,
+  ptype: PoolType,
+  stake: PledgedTick,
+  erate: u128,
+  dmax: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct DepositEvent {
-  pid: Pid, // 池子id
+  pid: Pid,
   amt: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct WithdrawEvent {
-  pid: Pid, // 池子id
+  pid: Pid,
   amt: u128,
   initiative: bool,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct MintEvent {
-  pid: Pid, // tick id
+  pid: Pid,
   amt: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct InscribeTransferEvent {
-  tick_id: TickId, // tick id
+  tick_id: TickId,
   amt: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct TransferEvent {
-  tick_id: TickId, // tick id
+  tick_id: TickId,
   amt: u128,
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bitcoin::Address;
   use std::str::FromStr;
 
   #[test]

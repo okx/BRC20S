@@ -86,15 +86,15 @@ pub enum PoolType {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct PoolInfo {
-  pub pid: Pid,        // pid为池子的唯一标识
-  pub ptype: PoolType, // 池子类型
+  pub pid: Pid,
+  pub ptype: PoolType,
   pub inscription_id: InscriptionId,
-  pub stake: PledgedTick,         // 质押的代币
-  pub erate: u128,                // 每个区块收益数量
-  pub minted: u128,               // 已产出数量
-  pub staked: u128,               // 已经质押了token的数量
-  pub allocated: u128,            // 该池分配的数量
-  pub acc_reward_per_share: u128, // 单位share可获取的收益累积
-  pub last_update_block: u64,     // 上次更新acc的块高
-  pub only: bool,                 // 是否是独占池
+  pub stake: PledgedTick,
+  pub erate: u128,
+  pub minted: u128,
+  pub staked: u128,
+  pub allocated: u128,
+  pub acc_reward_per_share: u128,
+  pub last_update_block: u64,
+  pub only: bool,
 }

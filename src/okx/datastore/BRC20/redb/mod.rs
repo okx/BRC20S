@@ -3,7 +3,7 @@ mod read_write;
 
 pub use self::{read_only::BRC20DataStoreReader, read_write::BRC20DataStore};
 
-use crate::okx::datastore::brc20::storage_balance::StoreBalance;
+use crate::okx::datastore::BRC20::storage_balance::StoreBalance;
 
 use crate::InscriptionId;
 use bitcoin::Txid;

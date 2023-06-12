@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::brc30::{PledgedTick, TickId};
+use crate::okx::datastore::BRC30::{PledgedTick, TickId};
 use crate::okx::protocol::brc30::{params::PID_BYTE_COUNT, BRC30Error};
 use crate::InscriptionId;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};

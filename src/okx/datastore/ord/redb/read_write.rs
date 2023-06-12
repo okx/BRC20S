@@ -43,7 +43,7 @@ impl<'db, 'a> OrdDataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
+  use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
   use redb::Database;
   use std::str::FromStr;
   use tempfile::NamedTempFile;

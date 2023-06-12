@@ -1,4 +1,4 @@
-use crate::okx::datastore::brc30::{BRC30DataStoreReadWrite, BRC30Event, EventType, Receipt};
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, EventType, Receipt};
 use crate::okx::protocol::brc30::{operation::*, BRC30Error, Error};
 
 use crate::okx::datastore::ScriptKey;

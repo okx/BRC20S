@@ -341,7 +341,7 @@ mod tests {
 
   #[test]
   fn test_max_value() {
-    // brc20 protocol stipulate that a max integer value is 64 bit, and decimal has 18 numbers at most.
+    // BRC20 protocol stipulate that a max integer value is 64 bit, and decimal has 18 numbers at most.
     let max = format!("{}.999999999999999999", u64::MAX);
 
     BigDecimal::from_str(&max).unwrap();

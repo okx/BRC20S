@@ -1,5 +1,5 @@
-pub mod brc20;
-pub mod brc30;
+pub mod BRC20;
+pub mod BRC30;
 pub mod ord;
 mod script_key;
 

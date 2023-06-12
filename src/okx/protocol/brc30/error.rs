@@ -3,11 +3,11 @@ use crate::InscriptionId;
 use protocol::brc30::num::Num;
 use serde::{Deserialize, Serialize};
 
-use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
+use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: BRC30DataStoreReadOnly> {
-  #[error("brc30 error: {0}")]
+  #[error("BRC30 error: {0}")]
   BRC30Error(BRC30Error),
 
   #[error("ledger error: {0}")]
@@ -28,7 +28,7 @@ pub enum JSONError {
   #[error("invalid json string")]
   InvalidJson,
 
-  #[error("not brc30 json")]
+  #[error("not BRC30 json")]
   NotBRC30Json,
 
   #[error("parse operation json error: {0}")]

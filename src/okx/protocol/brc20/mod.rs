@@ -12,7 +12,7 @@ pub(crate) use self::{
   updater::{Action, BRC20Updater, InscriptionData},
 };
 
-use crate::okx::datastore::{brc20, ScriptKey};
+use crate::okx::datastore::{ScriptKey, BRC20};
 
 pub fn deserialize_brc20_operation(
   inscription: Inscription,

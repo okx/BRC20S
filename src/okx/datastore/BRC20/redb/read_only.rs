@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::brc20::{
+use crate::okx::datastore::BRC20::{
   ActionReceipt, BRC20DataStoreReadOnly, Balance, Tick, TokenInfo, TransferableLog,
 };
 use redb::{

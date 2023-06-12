@@ -1,15 +1,15 @@
 use super::params::BIGDECIMAL_TEN;
 use super::params::MAX_DECIMAL_WIDTH;
 use super::{
-  brc20::{
-    ActionReceipt, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, Balance, DeployEvent,
-    EventType, MintEvent, Tick, TokenInfo, TransferPhase1Event, TransferPhase2Event,
-    TransferableLog,
-  },
   error::Error,
   num::Num,
   operation::{Deploy, Mint, Operation, Transfer},
   ScriptKey,
+  BRC20::{
+    ActionReceipt, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, Balance, DeployEvent,
+    EventType, MintEvent, Tick, TokenInfo, TransferPhase1Event, TransferPhase2Event,
+    TransferableLog,
+  },
 };
 use crate::{
   index::{InscriptionEntryValue, InscriptionIdValue},

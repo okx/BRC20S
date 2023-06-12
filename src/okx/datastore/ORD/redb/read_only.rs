@@ -1,4 +1,3 @@
-use super::*;
 use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
 use crate::InscriptionId;
 use crate::Result;
@@ -12,23 +11,12 @@ use std::ops::RangeBounds;
 
 use anyhow::anyhow;
 use bitcoin::hashes::Hash;
-use std::fmt::{Debug, Display};
+
+use crate::okx::datastore::ORD::OrdDataStoreReadOnly;
 
 const OUTPOINT_TO_SCRIPT: TableDefinition<&str, &[u8]> = TableDefinition::new("OUTPOINT_TO_SCRIPT");
 
-pub trait OrdDbReadAPI {
-  type Error: Debug + Display;
-
-  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64>;
-
-  fn get_outpoint_to_script(&self, outpoint: &str) -> Result<Option<Script>, Self::Error>;
-}
-
-pub trait OrdDbReadWriteAPI: OrdDbReadAPI {
-  fn set_outpoint_to_script(&self, outpoint: &str, script: &Script) -> Result<(), Self::Error>;
-}
-
-pub(crate) struct OrdDbReader<'db, 'a> {
+pub struct OrdDbReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }
 
@@ -94,7 +82,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> OrdDbReadAPI for OrdDbReader<'db, 'a> {
+impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
   type Error = redb::Error;
 
   fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64> {
@@ -126,69 +114,5 @@ impl<'db, 'a> OrdDbReadAPI for OrdDbReader<'db, 'a> {
         .get(outpoint)?
         .map(|v| bincode::deserialize::<Script>(v.value()).unwrap()),
     )
-  }
-}
-
-pub struct OrdDbReadWriter<'db, 'a> {
-  wtx: &'a WriteTransaction<'db>,
-}
-
-impl<'db, 'a> OrdDbReadWriter<'db, 'a> {
-  pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
-    Self { wtx }
-  }
-}
-
-impl<'db, 'a> OrdDbReadAPI for OrdDbReadWriter<'db, 'a> {
-  type Error = redb::Error;
-
-  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64> {
-    new_with_wtx(self.wtx).get_number_by_inscription_id(inscription_id)
-  }
-
-  fn get_outpoint_to_script(&self, outpoint: &str) -> Result<Option<Script>, Self::Error> {
-    new_with_wtx(self.wtx).get_outpoint_to_script(outpoint)
-  }
-}
-
-impl<'db, 'a> OrdDbReadWriteAPI for OrdDbReadWriter<'db, 'a> {
-  // 3.3.1 OUTPOINT_TO_SCRIPT, todo, replace outpoint
-  fn set_outpoint_to_script(&self, outpoint: &str, script: &Script) -> Result<(), Self::Error> {
-    self
-      .wtx
-      .open_table(OUTPOINT_TO_SCRIPT)?
-      .insert(outpoint, bincode::serialize(script).unwrap().as_slice())?;
-    Ok(())
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use crate::okx::datastore::BRC30::{
-    BRC30DataStoreReadWrite, BRC30Tick, Pid, PledgedTick, PoolType, TickId,
-  };
-  use crate::SatPoint;
-  use bitcoin::Address;
-  use redb::Database;
-  use std::str::FromStr;
-  use tempfile::NamedTempFile;
-
-  #[test]
-  fn test_outpoint_to_script() {
-    let dbfile = NamedTempFile::new().unwrap();
-    let db = Database::create(dbfile.path()).unwrap();
-    let wtx = db.begin_write().unwrap();
-    let brc30db = OrdDbReadWriter::new(&wtx);
-
-    let outpoint1: &str = "outpoint-1";
-    let script = Script::from_str("12345678").unwrap();
-
-    brc30db.set_outpoint_to_script(&outpoint1, &script).unwrap();
-
-    assert_eq!(
-      brc30db.get_outpoint_to_script(&outpoint1).unwrap().unwrap(),
-      script
-    );
   }
 }

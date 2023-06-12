@@ -1,6 +1,8 @@
 use crate::okx::datastore::{
   ScriptKey,
   BRC20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
+  BRC30::redb::BRC30DataStore,
+  ORD::OrdDataStoreReadOnly,
 };
 
 use {
@@ -20,7 +22,6 @@ use {
 };
 
 pub(super) use self::entry::{InscriptionEntryValue, InscriptionIdValue};
-use crate::okx::datastore::ORD::ord_db::OrdDbReader;
 
 mod entry;
 mod fetcher;

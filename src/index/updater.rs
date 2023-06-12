@@ -1,4 +1,6 @@
-use crate::okx::datastore::BRC20::redb::BRC20DataStore;
+use crate::okx::datastore::{
+  BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore, ORD::OrdDbReader,
+};
 use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
 
 use {
@@ -10,7 +12,6 @@ use {
 };
 
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
-use crate::okx::datastore::ORD::ord_db::OrdDbReadAPI;
 
 const FAST_QUERY_HEIGHT: u64 = 10;
 
@@ -458,6 +459,7 @@ impl Updater {
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
     let BRC20_data_store = BRC20DataStore::new(wtx);
+    let BRC30_data_store = BRC30DataStore::new(wtx);
 
     let test = OrdDbReader::new(&wtx);
     // let test = OrdDbReader::new(&wtx);

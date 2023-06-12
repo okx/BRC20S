@@ -12,19 +12,19 @@ use redb::{
 use std::borrow::Borrow;
 use std::ops::RangeBounds;
 
-pub struct BRC30DbReader<'db, 'a> {
+pub struct BRC30DataStoreReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }
 
 pub(in crate::okx) fn new_with_wtx<'db, 'a>(
   wtx: &'a WriteTransaction<'db>,
-) -> BRC30DbReader<'db, 'a> {
-  BRC30DbReader {
+) -> BRC30DataStoreReader<'db, 'a> {
+  BRC30DataStoreReader {
     wrapper: ReaderWrapper::Wtx(wtx),
   }
 }
 
-impl<'db, 'a> BRC30DbReader<'db, 'a> {
+impl<'db, 'a> BRC30DataStoreReader<'db, 'a> {
   pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
       wrapper: ReaderWrapper::Rtx(rtx),
@@ -80,7 +80,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DbReader<'db, 'a> {
+impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>

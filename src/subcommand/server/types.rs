@@ -1,6 +1,9 @@
 use super::*;
-use crate::brc20::{
-  Action, Deploy as InsDeploy, Mint as InsMint, Operation, ScriptKey, Transfer as InsTransfer,
+use crate::okx::{
+  datastore::ScriptKey,
+  protocol::BRC20::{
+    Action, Deploy as InsDeploy, Mint as InsMint, Operation, Transfer as InsTransfer,
+  },
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

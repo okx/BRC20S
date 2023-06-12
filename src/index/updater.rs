@@ -1,5 +1,5 @@
-use crate::brc20::{updater::BRC20Updater, InscriptionData};
-use crate::okx::BRC20Database;
+use crate::okx::protocol::BRC20::BRC20DataStore;
+use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
 
 use {
   self::inscription_updater::InscriptionUpdater,
@@ -456,7 +456,7 @@ impl Updater {
     let mut satpoint_to_inscription_id = wtx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
-    let brc20_database = BRC20Database::new(wtx);
+    let BRC20_data_store = BRC20DataStore::new(wtx);
 
     let mut lost_sats = statistic_to_count
       .get(&Statistic::LostSats.key())?
@@ -590,7 +590,7 @@ impl Updater {
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
     let mut brc20_updater =
-      BRC20Updater::new(&brc20_database, &inscription_id_to_inscription_entry);
+      BRC20Updater::new(&BRC20_data_store, &inscription_id_to_inscription_entry);
 
     for (txid, brc20_transaction) in inscription_collects {
       brc20_updater

@@ -1,4 +1,4 @@
-use crate::brc20::{Balance, Tick};
+use super::BRC20::{Balance, Tick};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

@@ -1034,7 +1034,7 @@ components:
         - number
         - amount
         - tick
-        - ouwner
+        - owner
       properties:
         id:
           type: string
@@ -1052,9 +1052,9 @@ components:
           type: string
           description: The inscription tick.
           example: "ordi"
-        ouwner:
+        owner:
           type: string
-          description: The inscription ouwner.
+          description: The inscription owner.
           example: "bc1pxaneaf3w4d27hl2y93fuft2xk6m4u3wc4rafevc6slgd7f5tq2dqyfgy06"
     BRC20TransferableInscriptions:
       type: object

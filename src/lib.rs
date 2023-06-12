@@ -92,7 +92,6 @@ macro_rules! tprintln {
 
 mod arguments;
 mod blocktime;
-mod brc20;
 mod chain;
 mod config;
 mod decimal;

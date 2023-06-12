@@ -1,9 +1,20 @@
-use super::types::*;
+pub(super) mod balance;
+pub(super) mod errors;
+pub(super) mod events;
+pub(super) mod tick;
+pub(super) mod token_info;
+pub(super) mod transferable_log;
+
+pub use self::{
+  balance::Balance, errors::BRC20Error, events::ActionReceipt, events::*, tick::Tick,
+  token_info::TokenInfo, transferable_log::TransferableLog,
+};
+use super::ScriptKey;
 use crate::InscriptionId;
 use bitcoin::Txid;
 use std::fmt::{Debug, Display};
 
-pub trait LedgerRead {
+pub trait BRC20DataStoreReadOnly {
   type Error: Debug + Display;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error>;
@@ -31,7 +42,7 @@ pub trait LedgerRead {
   ) -> Result<Option<TransferableLog>, Self::Error>;
 }
 
-pub trait LedgerReadWrite: LedgerRead {
+pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
   fn update_token_balance(
     &self,
     script_key: &ScriptKey,

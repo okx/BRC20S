@@ -1,6 +1,7 @@
+use super::BRC20::{
+  ActionReceipt, BRC20DataStoreReadOnly, Balance, Tick, TokenInfo, TransferableLog,
+};
 use super::*;
-use crate::brc20::ledger::LedgerRead;
-use crate::brc20::{ActionReceipt, Balance, ScriptKey, Tick, TokenInfo, TransferableLog};
 use redb::{
   AccessGuard, Error, RangeIter, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
   Table, TableDefinition, WriteTransaction,
@@ -8,19 +9,19 @@ use redb::{
 use std::borrow::Borrow;
 use std::ops::RangeBounds;
 
-pub struct BRC20DatabaseReader<'db, 'a> {
+pub struct BRC20DataStoreReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }
 
 pub(super) fn new_with_wtx<'db, 'a>(
   wtx: &'a WriteTransaction<'db>,
-) -> BRC20DatabaseReader<'db, 'a> {
-  BRC20DatabaseReader {
+) -> BRC20DataStoreReader<'db, 'a> {
+  BRC20DataStoreReader {
     wrapper: ReaderWrapper::Wtx(wtx),
   }
 }
 
-impl<'db, 'a> BRC20DatabaseReader<'db, 'a> {
+impl<'db, 'a> BRC20DataStoreReader<'db, 'a> {
   pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
       wrapper: ReaderWrapper::Rtx(rtx),
@@ -76,7 +77,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> LedgerRead for BRC20DatabaseReader<'db, 'a> {
+impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error> {

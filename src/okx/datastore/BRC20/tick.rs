@@ -1,8 +1,8 @@
-use super::super::error::BRC20Error;
-use crate::brc20::params::TICK_BYTE_COUNT;
+use super::*;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
+pub const TICK_BYTE_COUNT: usize = 4;
 #[derive(Debug, Clone)]
 pub struct Tick([u8; TICK_BYTE_COUNT]);
 

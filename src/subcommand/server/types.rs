@@ -1,7 +1,7 @@
 use super::*;
 use crate::okx::{
   datastore::ScriptKey,
-  protocol::BRC20::{
+  protocol::brc20::{
     Action, Deploy as InsDeploy, Mint as InsMint, Operation, Transfer as InsTransfer,
   },
 };

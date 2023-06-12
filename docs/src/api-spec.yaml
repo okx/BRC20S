@@ -8,8 +8,8 @@ servers:
 tags:
   - name: Node Status
     description: node status information
-  - name: BRC20
-    description: Access to blocks, transactions, accounts, and ticks for BRC20 protocol.
+  - name: brc20
+    description: Access to blocks, transactions, accounts, and ticks for brc20 protocol.
   - name: Ord
     description: Access to inscriptions for ordinals protocol.
 paths:
@@ -62,7 +62,7 @@ paths:
   /brc20/tick:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 tick list
       description: |-
         Returns a json object with the brc20 tick list.
@@ -100,7 +100,7 @@ paths:
   /brc20/tick/{tick}:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 tick by name
       description: |-
         Returns a json object with the brc20 tick info.
@@ -146,7 +146,7 @@ paths:
   /brc20/tick/{tick}/address/{address}/balance:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 balance by tick and address
       description: |-
         Returns a json object with the brc20 balance info.
@@ -199,7 +199,7 @@ paths:
   /brc20/tick/{tick}/address/{address}/transferable:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 transferable by tick and address
       description: |-
         Returns a json object with the brc20 transferable info.
@@ -252,7 +252,7 @@ paths:
   /brc20/address/{address}/balance:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 balance by btc address
       description: |-
         Returns a json object with the brc20 balance info.
@@ -298,7 +298,7 @@ paths:
   /brc20/address/{address}/transferable:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 transferable by btc address
       description: |-
         Returns a json object with the brc20 transferable info.
@@ -344,7 +344,7 @@ paths:
   /brc20/tx/{txid}:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 tx by txid
       description: |-
         Returns a json object with the brc20 tx info.
@@ -390,7 +390,7 @@ paths:
   /brc20/tx/{txid}/events:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 tx events by txid
       description: |-
         Returns a json object with the brc20 tx info.
@@ -436,7 +436,7 @@ paths:
   /brc20/block/{blockHash}/events:
     get:
       tags:
-        - BRC20
+        - brc20
       summary: Get brc20 block by blockHash
       description: |-
         Returns a json object with the brc20 block info.

@@ -1,7 +1,7 @@
 use crate::okx::datastore::{
-  BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore, ORD::OrdDbReader,
+  brc20::redb::BRC20DataStore, brc30::redb::BRC30DataStore, ord::OrdDbReader,
 };
-use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
+use crate::okx::protocol::brc20::{BRC20Updater, InscriptionData};
 
 use {
   self::inscription_updater::InscriptionUpdater,
@@ -458,10 +458,10 @@ impl Updater {
     let mut satpoint_to_inscription_id = wtx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
-    let BRC20_data_store = BRC20DataStore::new(wtx);
-    let BRC30_data_store = BRC30DataStore::new(wtx);
+    let brc20_data_store = BRC20DataStore::new(wtx);
+    let brc30_data_store = BRC30DataStore::new(wtx);
 
-    let test = OrdDbReader::new(&wtx);
+    let ord_db_reader = OrdDbReader::new(&wtx);
     // let test = OrdDbReader::new(&wtx);
     // test.get_number_by_inscription_id()
 
@@ -597,7 +597,7 @@ impl Updater {
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
     let mut brc20_updater =
-      BRC20Updater::new(&BRC20_data_store, &inscription_id_to_inscription_entry);
+      BRC20Updater::new(&brc20_data_store, &inscription_id_to_inscription_entry);
 
     for (txid, brc20_transaction) in inscription_collects {
       brc20_updater

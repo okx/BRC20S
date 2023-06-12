@@ -166,7 +166,7 @@ impl<'db, 'a> OrdDbReadWriteAPI for OrdDbReadWriter<'db, 'a> {
 mod tests {
   use super::*;
   use crate::okx::datastore::BRC30::{
-    BRC30DbReadWriteAPI, BRC30Tick, Pid, PledgedTick, PoolType, TickId,
+    BRC30DataStoreReadWrite, BRC30Tick, Pid, PledgedTick, PoolType, TickId,
   };
   use crate::SatPoint;
   use bitcoin::Address;

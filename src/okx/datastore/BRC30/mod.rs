@@ -1,6 +1,7 @@
 mod balance;
 mod event;
 mod pool_info;
+pub mod redb;
 mod temp;
 mod tick;
 mod user_info;
@@ -27,7 +28,7 @@ use {
   std::{iter::Peekable, str},
 };
 
-pub trait BRC30DbReadAPI {
+pub trait BRC30DataStoreReadOnly {
   type Error: Debug + Display;
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
@@ -69,7 +70,7 @@ pub trait BRC30DbReadAPI {
   fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error>;
 }
 
-pub trait BRC30DbReadWriteAPI: BRC30DbReadAPI {
+pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
   fn set_txid_to_inscription_receipts(
     &self,

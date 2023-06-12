@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
 use crate::okx::datastore::BRC30::{
-  BRC30DbReadAPI, BRC30DbReadWriteAPI, BRC30Event, Balance, EventType, InscriptionOperation,
-  MintEvent, Pid, PoolInfo, Receipt, TickId, TickInfo, TransferableAsset, UserInfo,
+  BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Event, Balance, EventType,
+  InscriptionOperation, MintEvent, Pid, PoolInfo, Receipt, TickId, TickInfo, TransferableAsset,
+  UserInfo,
 };
 
 use crate::okx::protocol::BRC30::{
@@ -35,11 +36,11 @@ pub struct InscriptionData {
   pub action: Action,
 }
 
-pub(crate) struct BRC30Updater<'a, 'db, 'tx, L: BRC30DbReadWriteAPI> {
+pub(crate) struct BRC30Updater<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> {
   ledger: &'a L,
   id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
 }
-impl<'a, 'db, 'tx, L: BRC30DbReadWriteAPI> BRC30Updater<'a, 'db, 'tx, L> {
+impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
   pub fn new(
     ledger: &'a L,
     id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,

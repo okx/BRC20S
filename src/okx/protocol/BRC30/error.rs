@@ -3,15 +3,15 @@ use crate::InscriptionId;
 use protocol::BRC30::num::Num;
 use serde::{Deserialize, Serialize};
 
-use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite};
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<L: BRC30DbReadAPI> {
+pub enum Error<L: BRC30DataStoreReadOnly> {
   #[error("BRC30 error: {0}")]
   BRC30Error(BRC30Error),
 
   #[error("ledger error: {0}")]
-  LedgerError(<L as BRC30DbReadAPI>::Error),
+  LedgerError(<L as BRC30DataStoreReadOnly>::Error),
 
   #[error("others: {0}")]
   Others(anyhow::Error),
@@ -94,7 +94,7 @@ pub enum BRC30Error {
   InternalError(String),
 }
 
-impl<L: BRC30DbReadAPI> From<BRC30Error> for Error<L> {
+impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {
   fn from(e: BRC30Error) -> Self {
     Self::BRC30Error(e)
   }

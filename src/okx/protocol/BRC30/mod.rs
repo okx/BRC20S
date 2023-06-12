@@ -1,6 +1,5 @@
 use crate::{Inscription, Result};
 use error::JSONError;
-pub mod datastore;
 pub mod error;
 pub mod num;
 mod operation;
@@ -14,7 +13,7 @@ pub use self::{
   updater::{Action, InscriptionData},
 };
 
-use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite};
 
 pub fn deserialize_brc30_operation(
   inscription: Inscription,

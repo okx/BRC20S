@@ -460,6 +460,7 @@ impl Updater {
     let BRC20_data_store = BRC20DataStore::new(wtx);
 
     let test = OrdDbReader::new(&wtx);
+    // let test = OrdDbReader::new(&wtx);
     // test.get_number_by_inscription_id()
 
     let mut lost_sats = statistic_to_count

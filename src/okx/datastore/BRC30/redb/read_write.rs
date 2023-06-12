@@ -4,7 +4,7 @@ use crate::okx::datastore::BRC30::{
   TransferableAsset, UserInfo,
 };
 
-use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite};
 use crate::okx::protocol::BRC30::BRC30Error;
 
 use crate::InscriptionId;
@@ -22,7 +22,7 @@ impl<'db, 'a> BRC30DbReadWriter<'db, 'a> {
   }
 }
 
-impl<'db, 'a> BRC30DbReadAPI for BRC30DbReadWriter<'db, 'a> {
+impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DbReadWriter<'db, 'a> {
   type Error = redb::Error;
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
@@ -80,7 +80,7 @@ impl<'db, 'a> BRC30DbReadAPI for BRC30DbReadWriter<'db, 'a> {
   }
 }
 
-impl<'db, 'a> BRC30DbReadWriteAPI for BRC30DbReadWriter<'db, 'a> {
+impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DbReadWriter<'db, 'a> {
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
   fn set_txid_to_inscription_receipts(
     &self,
@@ -174,7 +174,7 @@ impl<'db, 'a> BRC30DbReadWriteAPI for BRC30DbReadWriter<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+  use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite};
   use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
   use crate::SatPoint;
   use bitcoin::Address;

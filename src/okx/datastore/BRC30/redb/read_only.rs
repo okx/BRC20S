@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::BRC30::{BRC30DbReadAPI, BRC30DbReadWriteAPI};
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite};
 use crate::okx::datastore::BRC30::{
   Balance, InscriptionOperation, Pid, PoolInfo, Receipt, TickId, TickInfo, TransferableAsset,
   UserInfo,
@@ -80,7 +80,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> BRC30DbReadAPI for BRC30DbReader<'db, 'a> {
+impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DbReader<'db, 'a> {
   type Error = redb::Error;
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>

@@ -2,8 +2,8 @@ mod deploy;
 mod mint;
 mod transfer;
 
-use crate::brc20::error::JSONError;
-use crate::brc20::params::*;
+use super::error::JSONError;
+use super::params::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 

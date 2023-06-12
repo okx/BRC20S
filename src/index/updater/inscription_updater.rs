@@ -1,6 +1,5 @@
 use super::*;
-use brc20::deserialize_brc20_operation;
-use brc20::{Action, InscriptionData, Operation};
+use okx::protocol::BRC20::{deserialize_brc20_operation, Action, InscriptionData, Operation};
 
 #[derive(Debug, Clone)]
 pub(super) struct Flotsam {

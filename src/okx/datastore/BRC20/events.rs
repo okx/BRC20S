@@ -1,4 +1,4 @@
-use super::{super::error::*, *};
+use super::*;
 use crate::{InscriptionId, SatPoint};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 

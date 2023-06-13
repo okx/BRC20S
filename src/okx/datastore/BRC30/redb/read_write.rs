@@ -172,7 +172,7 @@ mod tests {
   use super::*;
   use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite};
   use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
-  use crate::okx::protocol::brc30::BRC30Error;
+  use crate::okx::protocol::BRC30::BRC30Error;
   use bitcoin::Address;
   use redb::Database;
   use std::str::FromStr;

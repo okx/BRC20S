@@ -1,9 +1,9 @@
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::BRC20::Tick;
-use crate::okx::protocol::brc30::params::{
+use crate::okx::protocol::BRC30::params::{
   TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT, TICK_SPECIAL,
 };
-use crate::okx::protocol::brc30::BRC30Error;
+use crate::okx::protocol::BRC30::BRC30Error;
 use crate::InscriptionId;
 
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};

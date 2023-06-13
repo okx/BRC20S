@@ -63,7 +63,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 tick list
+      summary: Get BRC20 tick list
       description: |-
         Returns a json object with the brc20 tick list.
       responses:
@@ -101,7 +101,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 tick by name
+      summary: Get BRC20 tick by name
       description: |-
         Returns a json object with the brc20 tick info.
       parameters:
@@ -147,7 +147,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 balance by tick and address
+      summary: Get BRC20 balance by tick and address
       description: |-
         Returns a json object with the brc20 balance info.
       parameters:
@@ -200,7 +200,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 transferable by tick and address
+      summary: Get BRC20 transferable by tick and address
       description: |-
         Returns a json object with the brc20 transferable info.
       parameters:
@@ -253,7 +253,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 balance by btc address
+      summary: Get BRC20 balance by btc address
       description: |-
         Returns a json object with the brc20 balance info.
       parameters:
@@ -299,7 +299,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 transferable by btc address
+      summary: Get BRC20 transferable by btc address
       description: |-
         Returns a json object with the brc20 transferable info.
       parameters:
@@ -345,7 +345,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 tx by txid
+      summary: Get BRC20 tx by txid
       description: |-
         Returns a json object with the brc20 tx info.
       parameters:
@@ -391,7 +391,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 tx events by txid
+      summary: Get BRC20 tx events by txid
       description: |-
         Returns a json object with the brc20 tx info.
       parameters:
@@ -437,7 +437,7 @@ paths:
     get:
       tags:
         - BRC20
-      summary: Get brc20 block by blockHash
+      summary: Get BRC20 block by blockHash
       description: |-
         Returns a json object with the brc20 block info.
       parameters:

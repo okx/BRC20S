@@ -4,8 +4,8 @@ mod stake;
 mod transfer;
 mod unstake;
 
-use crate::okx::protocol::brc30::params::*;
-use crate::okx::protocol::brc30::JSONError;
+use crate::okx::protocol::BRC30::params::*;
+use crate::okx::protocol::BRC30::JSONError;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 

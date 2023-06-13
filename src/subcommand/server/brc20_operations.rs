@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::protocol::brc20::{deserialize_brc20_operation, Operation};
+use crate::okx::protocol::BRC20::{deserialize_brc20_operation, Operation};
 
 fn index_brc20_operations(
   Extension(index): Extension<Arc<Index>>,

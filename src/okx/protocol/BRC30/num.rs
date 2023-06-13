@@ -1,5 +1,5 @@
-use crate::okx::protocol::brc30::params::MAX_DECIMAL_WIDTH;
-use crate::okx::protocol::brc30::BRC30Error;
+use crate::okx::protocol::BRC30::params::MAX_DECIMAL_WIDTH;
+use crate::okx::protocol::BRC30::BRC30Error;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
 use bigdecimal::{BigDecimal, One, ToPrimitive};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

@@ -1,4 +1,4 @@
-use crate::okx::protocol::brc30::num::Num;
+use crate::okx::protocol::BRC30::num::Num;
 use once_cell::sync::Lazy;
 
 pub const PROTOCOL_LITERAL: &str = "brc-30";

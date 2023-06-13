@@ -1,6 +1,6 @@
 use crate::okx::protocol;
 use crate::InscriptionId;
-use protocol::brc30::num::Num;
+use protocol::BRC30::num::Num;
 use serde::{Deserialize, Serialize};
 
 use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;

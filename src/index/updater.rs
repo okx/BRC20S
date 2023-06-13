@@ -150,8 +150,7 @@ impl Updater {
         // commit must be done before making savepoint
         // do not make savepoint in fast sync mode
         if !is_fast_sync && self.height % SAVEPOINT_INTERVAL == 0 {
-          self.commit(wtx, value_cache)?;
-          value_cache = HashMap::new();
+          self.commit(wtx)?;
           uncommitted = 0;
           wtx = index.begin_write()?;
           let sp = wtx.savepoint()?;

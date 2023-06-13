@@ -47,18 +47,18 @@ mod tests {
   fn test_deploy_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "deploy",
-  "t": "type_earning",
-  "pid": "pid",
-  "stake": "stake",
-  "earn": "earn",
-  "erate": "earn_rate",
-  "dmax": "distribution_max",
-  "total": "total_supply",
-  "only": "only",
-  "dec": "decimals"
-}}"##
+        "p": "brc-30",
+        "op": "deploy",
+        "t": "type_earning",
+        "pid": "pid",
+        "stake": "stake",
+        "earn": "earn",
+        "erate": "earn_rate",
+        "dmax": "distribution_max",
+        "total": "total_supply",
+        "only": "only",
+        "dec": "decimals"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -85,11 +85,11 @@ mod tests {
   fn test_stake_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "stake",
-  "pid": "pid",
-  "amt": "amt"
-}}"##
+        "p": "brc-30",
+        "op": "stake",
+        "pid": "pid",
+        "amt": "amt"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -109,12 +109,12 @@ mod tests {
   fn test_mint_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "mint",
-  "pid": "pid",
-  "tick": "tick",
-  "amt": "amt"
-}}"##
+        "p": "brc-30",
+        "op": "mint",
+        "pid": "pid",
+        "tick": "tick",
+        "amt": "amt"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -135,11 +135,11 @@ mod tests {
   fn test_unstake_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "unstake",
-  "pid": "pid",
-  "amt": "amt"
-}}"##
+        "p": "brc-30",
+        "op": "unstake",
+        "pid": "pid",
+        "amt": "amt"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -159,12 +159,12 @@ mod tests {
   fn test_transfer_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "transfer",
-  "pid": "pid",
-  "tick": "tick",
-  "amt": "amt"
-}}"##
+        "p": "brc-30",
+        "op": "transfer",
+        "pid": "pid",
+        "tick": "tick",
+        "amt": "amt"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);

@@ -83,12 +83,11 @@ impl<'de> Deserialize<'de> for TickId {
 }
 
 #[derive(Debug, Clone)]
-pub struct BRC30Tick([u8; TICK_BYTE_MAX_COUNT]);
+pub struct BRC30Tick(Vec<u8>);
 
 impl FromStr for BRC30Tick {
   type Err = BRC30Error;
 
-  // TODO 4,5 will panic
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let bytes = s.as_bytes();
 
@@ -138,11 +137,11 @@ impl BRC30Tick {
   }
 
   pub fn min_hex() -> String {
-    Self([0u8; TICK_BYTE_MAX_COUNT]).hex()
+    Self(Vec::new()).hex()
   }
 
   pub fn max_hex() -> String {
-    Self([0xffu8; TICK_BYTE_MAX_COUNT]).hex()
+    Self(vec![0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8]).hex()
   }
 }
 
@@ -169,6 +168,7 @@ impl<'de> Deserialize<'de> for BRC30Tick {
 pub enum PledgedTick {
   NATIVE,
   BRC20Tick(Tick),
+  BRC30Tick(TickId),
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

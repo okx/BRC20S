@@ -3,7 +3,7 @@ use crate::InscriptionId;
 use protocol::BRC30::num::Num;
 use serde::{Deserialize, Serialize};
 
-use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, Pid};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: BRC30DataStoreReadOnly> {
@@ -96,11 +96,14 @@ pub enum BRC30Error {
   #[error("insufficient supply error: {0}")]
   InsufficientTickSupply(String),
 
-  #[error("tick is {0} already exist")]
+  #[error("tick {0} is already exist")]
   TickAlreadyExist(String),
 
   #[error("tick name {0} is not match")]
   TickNameNotMatch(String),
+
+  #[error("pool {0} is already exist")]
+  PoolAlreadyExist(Pid)
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

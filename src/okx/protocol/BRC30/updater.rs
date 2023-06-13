@@ -137,6 +137,8 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     inscription_number: u64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
+    //TODO need validate deploy
+    //Prepare the data
     let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
@@ -147,6 +149,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     let name = deploy.get_earn_id();
     let dmax = deploy.get_distribution_max();
 
+    //Get or create the tick
     let tick = if let Some(temp_tick) = self
       .ledger
       .get_tick_info(&tick_id)
@@ -172,7 +175,6 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
       }
       let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
 
-
       let total_supply = Num::from_str(&deploy.total_supply
         .ok_or( Error::BRC30Error(BRC30Error::InvalidSupply(Num::from(0_u128))))?)?;
 
@@ -183,23 +185,38 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
         return Err(Error::BRC30Error(BRC30Error::InvalidSupply(total_supply)));
       }
 
-      TickInfo::new(tick_id, &name, &inscription_id, only,0,decimal,0,total_supply.checked_to_u128()?,&to_script_key, block_number, 0)
+      let tick = TickInfo::new(tick_id, &name, &inscription_id,0_u128, decimal,0_u128,total_supply.checked_to_u128()?,&to_script_key, block_number, block_number);
+      self
+        .ledger
+        .set_tick_id_to_tickinfo(&tick_id, &tick)
+        .map_err(|e| Error::LedgerError(e))?;
+      tick
     };
 
+    // check dmax
     if tick.supply - tick.allocated < dmax {
       return Err(Error::BRC30Error(BRC30Error::InsufficientTickSupply(deploy.distribution_max)));
     }
+
+    // check pool is exist, if true return error
+    if let Some(_) = self
+      .ledger
+      .get_pid_to_poolinfo(&pid)
+      .map_err(|e| Error::LedgerError(e))? {
+      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid)));
+    }
+
     let pool = PoolInfo::new(
       &pid,
       &ptype,
       &inscription_id,
       &stake,
       erate,
-      0,
-      0,
-      0,
-      0,
-      0,
+      tick.minted,
+      0,  //TODO need change
+      tick.allocated,
+      0, //TODO need change
+      tick.latest_mint_block,
       only,
     );
 

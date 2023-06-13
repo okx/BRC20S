@@ -1,5 +1,7 @@
-use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, EventType, Receipt};
-use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error};
+use std::str::FromStr;
+use bigdecimal::num_bigint::Sign;
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, DeployPoolEvent, EventType, Pid, PledgedTick, PoolInfo, Receipt, TickInfo};
+use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 
 use crate::okx::datastore::ScriptKey;
 
@@ -8,7 +10,11 @@ use crate::{
   Index, InscriptionId, SatPoint, Txid,
 };
 use bigdecimal::ToPrimitive;
+use futures::future::ok;
 use redb::Table;
+use crate::okx::datastore::BRC20::Tick;
+use crate::okx::datastore::BRC30::PoolType::Pool;
+use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_SUPPLY_WIDTH, MAXIMUM_SUPPLY};
 
 #[derive(Clone)]
 pub enum Action {
@@ -131,7 +137,80 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     inscription_number: u64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
+    let tick_id = deploy.get_tick_id();
+    let pid = deploy.get_pool_id();
+    let ptype = deploy.get_pool_type();
+    let stake = deploy.get_stake_id();
+    let erate = deploy.get_earn_rate();
+    let only = deploy.get_only();
+    let name = deploy.get_earn_id();
+    let dmax = deploy.get_distribution_max();
+
+    let tick = if let Some(temp_tick) = self
+      .ledger
+      .get_tick_info(&tick_id)
+      .map_err(|e| Error::LedgerError(e))?
+    {
+      if temp_tick.name != name {
+        return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
+          deploy.earn.clone(),
+        )));
+      }
+      //TODO need change get_stake_tick_id_to_pid
+      // if let Some(_) = self.ledger.get_stake_tick_id_to_pid().get(&tick_id)? {
+      //   return Err(Error::BRC30Error(BRC30Error::TickAlreadyExist(
+      //     deploy.earn.clone(),
+      //   )));
+      // }
+      temp_tick
+    } else {
+      let decimal = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
+        .checked_to_u8()?;
+      if decimal > MAX_DECIMAL_WIDTH {
+        return Err(Error::BRC30Error(BRC30Error::DecimalsTooLarge(decimal)));
+      }
+      let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
+
+
+      let total_supply = Num::from_str(&deploy.total_supply
+        .ok_or( Error::BRC30Error(BRC30Error::InvalidSupply(Num::from(0_u128))))?)?;
+
+      if total_supply.sign() == Sign::NoSign
+        || total_supply > Into::<Num>::into(u64::MAX)
+        || total_supply.scale() > decimal as i64
+      {
+        return Err(Error::BRC30Error(BRC30Error::InvalidSupply(total_supply)));
+      }
+
+      TickInfo::new(tick_id, &name, &inscription_id, only,0,decimal,0,total_supply.checked_to_u128()?,&to_script_key, block_number, 0)
+    };
+
+    if tick.supply - tick.allocated < dmax {
+      return Err(Error::BRC30Error(BRC30Error::InsufficientTickSupply(deploy.distribution_max)));
+    }
+    let pool = PoolInfo::new(
+      &pid,
+      &ptype,
+      &inscription_id,
+      &stake,
+      erate,
+      0,
+      0,
+      0,
+      0,
+      0,
+      only,
+    );
+
+    self.ledger.set_pid_to_poolinfo(&pool.pid, &pool).map_err(|e| Error::LedgerError(e))?;
+    Ok(BRC30Event::DeployPool(DeployPoolEvent {
+      pid: pid,
+      ptype: ptype,
+      stake: stake,
+      erate: erate,
+      dmax: dmax,
+    }))
   }
 
   fn process_stake(

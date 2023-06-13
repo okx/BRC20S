@@ -92,6 +92,15 @@ pub enum BRC30Error {
   /// and should not happen under normal circumstances
   #[error("internal error: {0}")]
   InternalError(String),
+
+  #[error("insufficient supply error: {0}")]
+  InsufficientTickSupply(String),
+
+  #[error("tick is {0} already exist")]
+  TickAlreadyExist(String),
+
+  #[error("tick name {0} is not match")]
+  TickNameNotMatch(String),
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

@@ -3,11 +3,12 @@ use crate::okx::datastore::BRC20::Tick;
 use crate::okx::protocol::BRC30::params::{
   TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT, TICK_SPECIAL,
 };
-use crate::okx::protocol::BRC30::BRC30Error;
+use crate::okx::protocol::BRC30::{BRC30Error, Deploy};
 use crate::InscriptionId;
 
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
+use crate::okx::protocol::BRC20::Num;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TickId([u8; TICK_ID_BYTE_COUNT]);
@@ -168,7 +169,7 @@ impl<'de> Deserialize<'de> for BRC30Tick {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum PledgedTick {
   NATIVE,
-  BRC20Tick(Tick),
+  BRC20Tick(TickId),
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -184,6 +185,36 @@ pub struct TickInfo {
   pub deployer: ScriptKey,
   pub deploy_block: u64,
   pub latest_mint_block: u64,
+}
+
+impl TickInfo {
+  pub fn new(
+    tick_id: TickId,
+    name: &BRC30Tick,
+    inscription_id: &InscriptionId,
+    only: bool,
+    allocated: u128,
+    decimal: u8,
+    minted: u128,
+    supply: u128,
+    deployer: &ScriptKey,
+    deploy_block: u64,
+    latest_mint_block: u64,
+  ) -> Self {
+    Self {
+      tick_id,
+      name: name.to_lowercase(),
+      inscription_id:inscription_id.clone(),
+      only,
+      allocated,
+      decimal,
+      minted,
+      supply,
+      deployer:deployer.clone(),
+      deploy_block,
+      latest_mint_block,
+    }
+  }
 }
 
 #[cfg(test)]

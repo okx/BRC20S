@@ -1,4 +1,12 @@
+use std::fmt::format;
+use std::str::FromStr;
+use bitcoin::util::base58::from;
 use serde::{Deserialize, Serialize};
+use serde_json::from_str;
+use crate::okx::datastore::BRC20::Tick;
+use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
+use crate::okx::protocol::BRC30::params::NATIVE_TOKEN;
+use crate::okx::protocol::BRC30::Stake;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Deploy {
@@ -31,15 +39,84 @@ pub struct Deploy {
 
   // Total supply
   #[serde(rename = "total")]
-  pub total_supply: String,
-
-  // Assets only deposit this pool，must be yes
-  #[serde(rename = "only")]
-  pub only: String,
+  pub total_supply: Option<String>,
 
   // The decimal precision of earn token, default: 18
   #[serde(rename = "dec")]
   pub decimals: Option<String>,
+
+  // Assets only deposit this pool，must be yes
+  #[serde(rename = "only")]
+  pub only: Option<String>,
+
+
+}
+
+impl Deploy {
+  pub fn new(
+    pool_type: String,
+    pool_id: String,
+    stake: String,
+    earn: String,
+    earn_rate: String,
+    distribution_max: String,
+    total_supply: Option<String>,
+    only: Option<String>,
+    decimals: Option<String>,
+  ) -> Self {
+    Self {
+      pool_type,
+      pool_id,
+      stake,
+      earn,
+      earn_rate,
+      distribution_max,
+      total_supply,
+      only,
+      decimals,
+    }
+  }
+
+  pub fn get_pool_type(&self) -> PoolType {
+    if self.pool_type == "pool" {
+      return PoolType::Pool;
+    } else {
+      return PoolType::Fixed;
+    }
+  }
+
+  pub fn get_pool_id(&self) -> Pid {
+    Pid::from_str(self.pool_id.as_str()).unwrap()
+  }
+
+  pub fn get_stake_id(&self) -> PledgedTick {
+    if NATIVE_TOKEN == self.stake {
+      return PledgedTick::NATIVE;
+    } else {
+      return PledgedTick::BRC20Tick(self.get_tick_id())
+    }
+  }
+
+  pub fn get_earn_id(&self) -> BRC30Tick {
+    return BRC30Tick::from_str(self.earn.as_str()).unwrap()
+  }
+
+  pub fn get_earn_rate(&self) -> u128 {
+    from_str(self.earn_rate.as_str()).unwrap()
+  }
+
+  pub fn get_distribution_max(&self) -> u128 {
+    from_str(self.distribution_max.as_str()).unwrap()
+  }
+
+  pub fn get_only(&self) -> bool {
+    self.only == Some("1".to_string())
+  }
+
+  pub fn get_tick_id(&self) -> TickId {
+    let tick_str = self.pool_id.as_str().split("#").next().unwrap();
+    TickId::from_str(tick_str).unwrap()
+  }
 }
 
 #[cfg(test)]
@@ -51,32 +128,132 @@ mod tests {
   fn test_serialize() {
     let obj = Deploy {
       pool_type: "abcd".to_string(),
-      pool_id: "12000".to_string(),
+      pool_id: "a3668daeaa#1f".to_string(),
       stake: "12".to_string(),
       earn: "12".to_string(),
       earn_rate: "12".to_string(),
       distribution_max: "12".to_string(),
-      total_supply: "12".to_string(),
-      only: "12".to_string(),
+      total_supply: Some("12".to_string()),
       decimals: Some("11".to_string()),
+      only: Some("1".to_string()),
     };
 
     assert_eq!(
       serde_json::to_string(&obj).unwrap(),
       format!(
-        r##"{{"t":"{}","pid":"{}","stake":"{}","earn":"{}","erate":"{}","dmax":"{}","total":"{}","only":"{}","dec":"{}"}}"##,
+        r##"{{"t":"{}","pid":"{}","stake":"{}","earn":"{}","erate":"{}","dmax":"{}","total":"{}","dec":"{}","only":"{}"}}"##,
         obj.pool_type,
         obj.pool_id,
         obj.stake,
         obj.earn,
         obj.earn_rate,
         obj.distribution_max,
-        obj.total_supply,
-        obj.only,
-        obj.decimals.unwrap()
+        obj.total_supply.unwrap(),
+        obj.decimals.unwrap(),
+        obj.only.unwrap(),
       )
-    )
+    );
   }
 
-  //TODO test
+  #[test]
+  fn test_deserialize() {
+    assert_eq!(
+      deserialize_brc30(
+        r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##
+      )
+        .unwrap(),
+      Operation::Deploy(Deploy {
+        pool_type: "pool".to_string(),
+        pool_id: "a3668daeaa#1f".to_string(),
+        stake: "btc".to_string(),
+        earn: "ordi".to_string(),
+        earn_rate: "10".to_string(),
+        distribution_max: "12000000".to_string(),
+        decimals: Some("18".to_string()),
+        total_supply: Some("21000000".to_string()),
+        only: Some("1".to_string()),
+      })
+    );
+  }
+
+  #[test]
+  fn test_loss_require_key() {
+    assert_eq!(
+      deserialize_brc30(r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##)
+        .unwrap_err(),
+      JSONError::ParseOperationJsonError("missing field `max`".to_string())
+    );
+  }
+
+  #[test]
+  fn test_loss_option_key() {
+    // loss only
+    assert_eq!(
+      deserialize_brc30(r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000"}"##)
+        .unwrap(),
+      Operation::Deploy(Deploy {
+        pool_type: "pool".to_string(),
+        pool_id: "a3668daeaa#1f".to_string(),
+        stake: "btc".to_string(),
+        earn: "ordi".to_string(),
+        earn_rate: "10".to_string(),
+        distribution_max: "12000000".to_string(),
+        decimals: Some("18".to_string()),
+        total_supply: Some("21000000".to_string()),
+        only: None,
+      })
+    );
+
+    // loss dec
+    assert_eq!(
+      deserialize_brc30(r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","only":"1"}"##)
+        .unwrap(),
+      Operation::Deploy(Deploy {
+        pool_type: "pool".to_string(),
+        pool_id: "a3668daeaa#1f".to_string(),
+        stake: "btc".to_string(),
+        earn: "ordi".to_string(),
+        earn_rate: "10".to_string(),
+        distribution_max: "12000000".to_string(),
+        decimals: Some("18".to_string()),
+        total_supply: None,
+        only: Some("1".to_string()),
+      })
+    );
+
+    // loss all option
+    assert_eq!(
+      deserialize_brc30(r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","total":"21000000","only":"1"}"##).unwrap(),
+      Operation::Deploy(Deploy {
+        pool_type: "pool".to_string(),
+        pool_id: "a3668daeaa#1f".to_string(),
+        stake: "btc".to_string(),
+        earn: "ordi".to_string(),
+        earn_rate: "10".to_string(),
+        distribution_max: "12000000".to_string(),
+        decimals: None,
+        total_supply: Some("21000000".to_string()),
+        only: Some("1".to_string()),
+      })
+    );
+  }
+
+  #[test]
+  fn test_duplicate_key() {
+    let json_str = r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","dec":"20","total":"21000000","only":"1"}"##;
+    assert_eq!(
+      deserialize_brc30(json_str).unwrap(),
+      Operation::Deploy(Deploy {
+        pool_type: "pool".to_string(),
+        pool_id: "a3668daeaa#1f".to_string(),
+        stake: "btc".to_string(),
+        earn: "ordi".to_string(),
+        earn_rate: "10".to_string(),
+        distribution_max: "12000000".to_string(),
+        decimals: Some("18".to_string()),
+        total_supply: Some("21000000".to_string()),
+        only: Some("1".to_string()),
+      })
+    );
+  }
 }

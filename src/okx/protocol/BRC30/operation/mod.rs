@@ -4,8 +4,8 @@ mod stake;
 mod transfer;
 mod unstake;
 
-use crate::okx::protocol::BRC30::params::*;
-use crate::okx::protocol::BRC30::JSONError;
+use super::params::*;
+use super::error::JSONError;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -46,19 +46,7 @@ mod tests {
   #[test]
   fn test_deploy_deserialize() {
     let json_str = format!(
-      r##"{{
-  "p": "brc-30",
-  "op": "deploy",
-  "t": "type_earning",
-  "pid": "pid",
-  "stake": "stake",
-  "earn": "earn",
-  "erate": "earn_rate",
-  "dmax": "distribution_max",
-  "total": "total_supply",
-  "only": "only",
-  "dec": "decimals"
-}}"##
+      r##"{{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -68,15 +56,15 @@ mod tests {
     assert_eq!(
       deserialize_brc30(&json_str).unwrap(),
       Operation::Deploy(Deploy {
-        pool_type: "type_earning".to_string(),
-        pool_id: "pid".to_string(),
-        stake: "stake".to_string(),
-        earn: "earn".to_string(),
-        earn_rate: "earn_rate".to_string(),
-        distribution_max: "distribution_max".to_string(),
-        total_supply: "total_supply".to_string(),
-        only: "only".to_string(),
-        decimals: Some("decimals".to_string()),
+        pool_type: "pool".to_string(),
+        pool_id: "a3668daeaa#1f".to_string(),
+        stake: "btc".to_string(),
+        earn: "ordi".to_string(),
+        earn_rate: "10".to_string(),
+        distribution_max: "12000000".to_string(),
+        decimals: Some("18".to_string()),
+        total_supply: Some("21000000".to_string()),
+        only: Some("1".to_string()),
       })
     );
   }

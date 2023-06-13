@@ -462,8 +462,6 @@ impl Updater {
     let brc30_data_store = BRC30DataStore::new(wtx);
 
     let ord_db_reader = OrdDbReader::new(&wtx);
-    // let test = OrdDbReader::new(&wtx);
-    // test.get_number_by_inscription_id()
 
     let mut lost_sats = statistic_to_count
       .get(&Statistic::LostSats.key())?

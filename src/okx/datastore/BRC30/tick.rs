@@ -191,10 +191,62 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test_tick_compare_ignore_case() {
+  fn test_tickid_compare_ignore_case() {
     assert_eq!(TickId::from_str("aBc1a"), TickId::from_str("AbC1A"));
 
     assert_ne!(TickId::from_str("aBc1D"), TickId::from_str("aBc2d"));
+  }
+
+  #[test]
+  fn test_tickid_serialize() {
+    let obj = TickId::from_str("Ab1D;").unwrap();
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""Ab1D;""##);
+  }
+
+  #[test]
+  fn test_tickid_deserialize() {
+    assert_eq!(
+      serde_json::from_str::<TickId>(r##""Ab1D;""##).unwrap(),
+      TickId::from_str("Ab1D;").unwrap()
+    );
+  }
+
+  #[test]
+  fn test_tick_length_case() {
+    assert_eq!(
+      BRC30Tick::from_str(""),
+      Err(BRC30Error::InvalidTickLen("".to_string()))
+    );
+
+    assert_eq!(
+      BRC30Tick::from_str("1"),
+      Err(BRC30Error::InvalidTickLen("1".to_string()))
+    );
+
+    assert_eq!(
+      BRC30Tick::from_str("12"),
+      Err(BRC30Error::InvalidTickLen("12".to_string()))
+    );
+
+    assert_eq!(
+      BRC30Tick::from_str("123"),
+      Err(BRC30Error::InvalidTickLen("123".to_string()))
+    );
+
+    assert_eq!(BRC30Tick::from_str("1234"), BRC30Tick::from_str("1234"));
+    assert_eq!(BRC30Tick::from_str("12345"), BRC30Tick::from_str("12345"));
+    assert_eq!(BRC30Tick::from_str("123456"), BRC30Tick::from_str("123456"));
+    assert_eq!(
+      BRC30Tick::from_str("1234567"),
+      Err(BRC30Error::InvalidTickLen("1234567".to_string()))
+    );
+  }
+
+  #[test]
+  fn test_tick_compare_ignore_case() {
+    assert_eq!(BRC30Tick::from_str("aBc1a"), BRC30Tick::from_str("AbC1A"));
+
+    assert_ne!(BRC30Tick::from_str("aBc1D"), BRC30Tick::from_str("aBc2d"));
   }
 
   #[test]
@@ -208,6 +260,47 @@ mod tests {
     assert_eq!(
       serde_json::from_str::<TickId>(r##""Ab1D;""##).unwrap(),
       TickId::from_str("Ab1D;").unwrap()
+    );
+  }
+
+  #[test]
+  fn test_tick_str() {
+    assert_eq!(
+      BRC30Tick::from_str("aBc1a").unwrap().as_str(),
+      "aBc1a".to_string()
+    );
+
+    assert_eq!(
+      BRC30Tick::from_str("aBc1a")
+        .unwrap()
+        .to_lowercase()
+        .as_str(),
+      "abc1a".to_string()
+    );
+
+    assert_eq!(
+      BRC30Tick::from_str("aBc1a").unwrap().as_bytes(),
+      "aBc1a".as_bytes()
+    );
+
+    assert_eq!(
+      BRC30Tick::from_str("aBc1a").unwrap().hex(),
+      "6142633161".to_string()
+    );
+
+    assert_eq!(BRC30Tick::min_hex(), "".to_string());
+    assert_eq!(BRC30Tick::max_hex(), "ffffffffffff".to_string());
+  }
+
+  #[test]
+  fn test_tick_btc() {
+    assert_eq!(BRC30Tick::from_str("btc"), BRC30Tick::from_str("btc"));
+    assert_eq!(BRC30Tick::from_str("btc"), BRC30Tick::from_str("BTC"));
+    assert_eq!(BRC30Tick::from_str("btc"), BRC30Tick::from_str("Btc"));
+    assert_ne!(BRC30Tick::from_str("btc123"), BRC30Tick::from_str("btc"));
+    assert_eq!(
+      serde_json::from_str::<BRC30Tick>(r##""btc""##).unwrap(),
+      BRC30Tick::from_str("btc").unwrap()
     );
   }
 }

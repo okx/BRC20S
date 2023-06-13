@@ -1,4 +1,4 @@
-use super::BRC20::{Balance, Tick};
+use crate::okx::datastore::BRC20::{Balance, Tick};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

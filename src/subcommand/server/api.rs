@@ -463,7 +463,7 @@ pub(crate) async fn brc20_tx(
   let tx_info = get_operations_by_txid(Extension(index), &txid)?;
 
   if tx_info.inscriptions.is_empty() {
-    return Err(ApiError::not_found("brc20 operation not found"));
+    return Err(ApiError::not_found("BRC20 operation not found"));
   }
 
   log::debug!("rpc: get brc20_tx: {} {:?}", txid, tx_info);

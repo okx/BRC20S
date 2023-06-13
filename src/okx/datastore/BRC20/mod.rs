@@ -1,6 +1,8 @@
 pub(super) mod balance;
 pub(super) mod errors;
 pub(super) mod events;
+pub mod redb;
+pub mod storage_balance;
 pub(super) mod tick;
 pub(super) mod token_info;
 pub(super) mod transferable_log;

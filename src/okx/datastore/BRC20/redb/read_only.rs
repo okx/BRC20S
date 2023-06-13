@@ -1,7 +1,7 @@
-use super::BRC20::{
+use super::*;
+use crate::okx::datastore::BRC20::{
   ActionReceipt, BRC20DataStoreReadOnly, Balance, Tick, TokenInfo, TransferableLog,
 };
-use super::*;
 use redb::{
   AccessGuard, Error, RangeIter, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
   Table, TableDefinition, WriteTransaction,

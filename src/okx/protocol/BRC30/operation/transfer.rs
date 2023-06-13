@@ -37,5 +37,70 @@ mod tests {
     )
   }
 
-  //TODO test
+  #[test]
+  fn test_deserialize() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "transfer",
+        "pid": "pid",
+        "tick": "tick",
+        "amt": "amt"
+      }}"##
+    );
+
+    let reuslt = deserialize_brc30(&json_str);
+
+    assert!(!deserialize_brc30(&json_str).is_err());
+
+    assert_eq!(
+      deserialize_brc30(&json_str).unwrap(),
+      Operation::Transfer(Transfer {
+        tick: "tick".to_string(),
+        pool_id: "pid".to_string(),
+        amount: "amt".to_string(),
+      })
+    );
+  }
+
+  #[test]
+  fn test_loss_require_key() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "transfer",
+        "tick": "tick",
+        "amt": "amt"
+      }}"##
+    );
+
+    let reuslt = deserialize_brc30(&json_str);
+
+    assert_eq!(
+      deserialize_brc30(&json_str).unwrap_err(),
+      JSONError::ParseOperationJsonError("missing field `pid`".to_string())
+    );
+  }
+
+  #[test]
+  fn test_duplicate_key() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "transfer",
+        "pid": "pid",
+        "tick": "tick-1",
+        "tick": "tick-2",
+        "amt": "amt"
+      }}"##
+    );
+    assert_eq!(
+      deserialize_brc30(&json_str).unwrap(),
+      Operation::Transfer(Transfer {
+        tick: "tick-2".to_string(),
+        pool_id: "pid".to_string(),
+        amount: "amt".to_string(),
+      })
+    );
+  }
 }

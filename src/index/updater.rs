@@ -10,6 +10,7 @@ use {
 };
 
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
+use crate::okx::protocol::manager::ProtocolManager;
 
 const FAST_QUERY_HEIGHT: u64 = 10;
 
@@ -456,8 +457,6 @@ impl Updater {
     let mut satpoint_to_inscription_id = wtx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
-    let BRC20_data_store = BRC20DataStore::new(wtx);
-
     let mut lost_sats = statistic_to_count
       .get(&Statistic::LostSats.key())?
       .map(|lost_sats| lost_sats.value())
@@ -536,6 +535,7 @@ impl Updater {
             index_inscriptions,
           )?,
         ));
+        //protocol_manager.collect();
 
         coinbase_inputs.extend(input_sat_ranges);
       }
@@ -588,16 +588,13 @@ impl Updater {
     }
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
-
-    let mut brc20_updater =
-      BRC20Updater::new(&BRC20_data_store, &inscription_id_to_inscription_entry);
-
-    for (txid, brc20_transaction) in inscription_collects {
-      brc20_updater
-        .index_transaction(self.height, block.header.time, txid, brc20_transaction)
-        .map_err(|e| anyhow!("failed to parse brc20 protocol for {txid} reason {e}"))? as u64;
+    let BRC20_data_store = BRC20DataStore::new(wtx);
+    let mut protocol_manager =
+      ProtocolManager::new(&BRC20_data_store, &inscription_id_to_inscription_entry);
+    for (tx_id, brc20_transaction) in inscription_collects {
+      protocol_manager.register(tx_id, brc20_transaction);
     }
-
+    protocol_manager.execute_protocols(self.height, block.header.time)?;
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 
     statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;

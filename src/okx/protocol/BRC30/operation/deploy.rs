@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Deploy {
-
   // Type:Type of earning(pool,fixed)
   // pool: share earning with all pool deposits.
   // fixed: earn solo,and have a fixed rate.

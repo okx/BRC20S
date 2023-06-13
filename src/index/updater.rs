@@ -11,8 +11,10 @@ use {
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
 };
 
+#[cfg(feature = "rollback")]
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
 
+#[cfg(feature = "rollback")]
 const FAST_QUERY_HEIGHT: u64 = 10;
 
 mod inscription_updater;
@@ -108,14 +110,13 @@ impl Updater {
     let rx = Self::fetch_blocks_from(index, self.height, self.index_sats)?;
 
     let mut uncommitted = 0;
-    let mut tx_cache = HashMap::new();
     loop {
       let block = match rx.recv() {
         Ok(block) => block,
         Err(mpsc::RecvError) => break,
       };
 
-      self.index_block(index, &mut wtx, block, &mut tx_cache)?;
+      self.index_block(index, &mut wtx, block)?;
 
       if let Some(progress_bar) = &mut progress_bar {
         progress_bar.inc(1);
@@ -297,7 +298,6 @@ impl Updater {
     index: &Index,
     wtx: &mut WriteTransaction,
     block: BlockData,
-    tx_cache: &mut HashMap<Txid, Transaction>,
   ) -> Result<()> {
     let mut outpoint_to_entry = wtx.open_table(OUTPOINT_TO_ENTRY)?;
 
@@ -365,7 +365,6 @@ impl Updater {
       .unwrap_or(0);
 
     let mut inscription_updater = InscriptionUpdater::new(
-      index,
       self.height,
       &mut inscription_id_to_satpoint,
       &mut inscription_id_to_inscription_entry,
@@ -376,9 +375,7 @@ impl Updater {
       &mut satpoint_to_inscription_id,
       block.header.time,
       unbound_inscriptions,
-      tx_cache,
     )?;
-    let mut inscription_collects: Vec<(Txid, Vec<InscriptionData>)> = Vec::new();
     if self.index_sats {
       let mut sat_to_satpoint = wtx.open_table(SAT_TO_SATPOINT)?;
       let mut outpoint_to_sat_ranges = wtx.open_table(OUTPOINT_TO_SAT_RANGES)?;
@@ -417,19 +414,16 @@ impl Updater {
           }
         }
 
-        inscription_collects.push((
+        self.index_transaction_sats(
+          tx,
           *txid,
-          self.index_transaction_sats(
-            tx,
-            *txid,
-            &mut sat_to_satpoint,
-            &mut input_sat_ranges,
-            &mut sat_ranges_written,
-            &mut outputs_in_block,
-            &mut inscription_updater,
-            index_inscriptions,
-          )?,
-        ));
+          &mut sat_to_satpoint,
+          &mut input_sat_ranges,
+          &mut sat_ranges_written,
+          &mut outputs_in_block,
+          &mut inscription_updater,
+          index_inscriptions,
+        )?;
 
         coinbase_inputs.extend(input_sat_ranges);
       }
@@ -474,23 +468,14 @@ impl Updater {
       }
     } else {
       for (tx, txid) in block.txdata.iter().skip(1).chain(block.txdata.first()) {
-        let tx_inscription_collects =
-          inscription_updater.index_transaction_inscriptions(tx, *txid, None)?;
-        inscription_collects.push((*txid, tx_inscription_collects));
+        inscription_updater.index_transaction_inscriptions(tx, *txid, None)?;
       }
-      inscription_collects.pop();
     }
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
-    let mut brc20_updater =
-      BRC20Updater::new(&brc20_data_store, &inscription_id_to_inscription_entry);
-
-    for (txid, brc20_transaction) in inscription_collects {
-      brc20_updater
-        .index_transaction(self.height, block.header.time, txid, brc20_transaction)
-        .map_err(|e| anyhow!("failed to parse BRC20 protocol for {txid} reason {e}"))? as u64;
-    }
+    // let inscription_operations = inscription_updater.operations;
+    // todo!("index BRC20 and BRC30 transactions");
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 
@@ -519,11 +504,9 @@ impl Updater {
     outputs_traversed: &mut u64,
     inscription_updater: &mut InscriptionUpdater,
     index_inscriptions: bool,
-  ) -> Result<Vec<InscriptionData>> {
-    let mut tx_inscription_collects = Vec::new();
+  ) -> Result {
     if index_inscriptions {
-      tx_inscription_collects =
-        inscription_updater.index_transaction_inscriptions(tx, txid, Some(input_sat_ranges))?;
+      inscription_updater.index_transaction_inscriptions(tx, txid, Some(input_sat_ranges))?;
     }
 
     for (vout, output) in tx.output.iter().enumerate() {
@@ -574,7 +557,7 @@ impl Updater {
       self.outputs_inserted_since_flush += 1;
     }
 
-    Ok(tx_inscription_collects)
+    Ok(())
   }
 
   fn commit(&mut self, wtx: WriteTransaction) -> Result {

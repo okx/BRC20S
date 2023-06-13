@@ -6,6 +6,7 @@ use crate::okx::datastore::BRC30::redb::BRC30DataStore;
 use crate::okx::datastore::BRC30::BRC30DataStoreReadWrite;
 use crate::okx::protocol::protocol::Protocol;
 use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
+use crate::okx::protocol::BRC30::updater::BRC30Updater;
 use anyhow::anyhow;
 use bitcoin::{Transaction, Txid};
 use redb::Table;
@@ -23,7 +24,7 @@ pub struct ProtocolManager<
   pub brc30_data_store: &'a rw3,
   pub ord_reader: &'a or,
   pub id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
-  pub protocols: VecDeque<(Txid, Vec<InscriptionData>)>,
+  pub protocols: VecDeque<Protocol>,
 }
 
 impl<
@@ -50,17 +51,27 @@ impl<
     }
   }
 
-  pub fn register(&mut self, tx_id: Txid, protocols: Vec<InscriptionData>) {
-    self.protocols.push_back((tx_id, protocols));
+  pub fn register(&mut self, p: Protocol) {
+    self.protocols.push_back(p);
   }
 
   pub fn execute_protocols(&mut self, height: u64, block_time: u32) -> Result<(), anyhow::Error> {
     let mut brc20_updater = BRC20Updater::new(self.brc20_data_store, self.id_to_entry);
+    let mut brc30_updater = BRC30Updater::new(self.brc30_data_store, self.id_to_entry);
     loop {
-      if let Some((tx_id, brc20_transaction)) = self.protocols.pop_front() {
-        brc20_updater
-          .index_transaction(height, block_time, tx_id, brc20_transaction)
-          .map_err(|e| anyhow!("failed to parse brc20 protocol for {tx_id} reason {e}"))?;
+      if let Some(p) = self.protocols.pop_front() {
+        match p {
+          Protocol::BRC20((tx_id, brc20_transactions)) => {
+            brc20_updater
+              .index_transaction(height, block_time, tx_id, brc20_transactions)
+              .map_err(|e| anyhow!("failed to parse brc20 protocol for {tx_id} reason {e}"))?;
+          }
+          Protocol::BRC30((tx_id, brc30_transactions)) => {
+            brc30_updater
+              .index_transaction(height, block_time, tx_id, brc30_transactions)
+              .map_err(|e| anyhow!("failed to parse brc20 protocol for {tx_id} reason {e}"))?;
+          }
+        }
       } else {
         break;
       }

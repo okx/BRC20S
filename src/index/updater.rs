@@ -13,6 +13,7 @@ use {
 
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
 use crate::okx::protocol::manager::ProtocolManager;
+use crate::okx::protocol::protocol::Protocol;
 
 const FAST_QUERY_HEIGHT: u64 = 10;
 
@@ -490,9 +491,10 @@ impl Updater {
       &ord_db_reader,
       &inscription_id_to_inscription_entry,
     );
-    for (tx_id, brc20_transaction) in inscription_collects {
-      protocol_manager.register(tx_id, brc20_transaction);
-    }
+    // todo: convert operations to Protocol
+    // if let Some(protocol) = Protocol::inner_conversion() {
+    //   protocol_manager.register(protocol);
+    // }
     protocol_manager.execute_protocols(self.height, block.header.time)?;
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 

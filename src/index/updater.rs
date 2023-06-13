@@ -311,7 +311,7 @@ impl Updater {
           txid,
         };
         let mut entry = Vec::new();
-        output.consensus_encode(&mut entry.as_mut_slice()).unwrap();
+        output.consensus_encode(&mut entry)?;
         outpoint_to_entry.insert(&outpoint.store(), entry.as_slice())?;
       }
     }

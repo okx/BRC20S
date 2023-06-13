@@ -1,5 +1,5 @@
 use crate::okx::datastore::{
-  ord::OrdDbReader, BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore,
+  BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore, ORD::OrdDbReader,
 };
 use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
 

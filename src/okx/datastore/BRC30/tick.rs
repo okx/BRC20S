@@ -26,6 +26,14 @@ impl FromStr for TickId {
   }
 }
 
+impl TickId {
+  pub fn from_bytes(bytes: &[u8]) -> Result<Self, BRC30Error> {
+    if bytes.len() != TICK_ID_BYTE_COUNT {
+      return Err(BRC30Error::InvalidTickLen(hex::encode(bytes)));
+    }
+    Ok(Self(bytes.try_into().unwrap()))
+  }
+}
 impl PartialEq for TickId {
   fn eq(&self, other: &Self) -> bool {
     self.to_lowercase().0 == other.to_lowercase().0

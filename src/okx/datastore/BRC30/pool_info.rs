@@ -82,6 +82,7 @@ impl<'de> Deserialize<'de> for Pid {
 pub enum PoolType {
   Pool,
   Fixed,
+  Unknown,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

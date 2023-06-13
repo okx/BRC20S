@@ -330,7 +330,6 @@ mod tests {
       tick_id: tick_id.clone(),
       name: BRC30Tick::from_str("aBc1ab").unwrap(),
       inscription_id: inscription_id.clone(),
-      only: true,
       allocated: 100,
       decimal: 8,
       minted: 100,

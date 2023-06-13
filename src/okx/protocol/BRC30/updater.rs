@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use bigdecimal::num_bigint::Sign;
-use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, DeployPoolEvent, EventType, Pid, PledgedTick, PoolInfo, Receipt, TickInfo};
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, DeployPoolEvent, EventType, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickInfo};
 use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 
 use crate::okx::datastore::ScriptKey;
@@ -14,6 +14,7 @@ use futures::future::ok;
 use redb::Table;
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::PoolType::Pool;
+use crate::okx::protocol::BRC30::hash::caculate_tick_id;
 use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_SUPPLY_WIDTH, MAXIMUM_SUPPLY};
 
 #[derive(Clone)]
@@ -65,13 +66,14 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
         Action::Inscribe(inscribe) => match inscribe {
           Operation::Deploy(deploy) => {
             op = EventType::DeployTick;
+
             self.process_deploy(
               deploy,
               block_number,
-              block_time,
               operation.inscription_id,
-              inscription_number.to_u64().unwrap(),
+              Some(operation.from_script.clone()),
               operation.to_script.clone(),
+
             )
           }
           Operation::Stake(stake) => {
@@ -132,17 +134,20 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     &mut self,
     deploy: Deploy,
     block_number: u64,
-    block_time: u32,
     inscription_id: InscriptionId,
-    inscription_number: u64,
+    from_script_key: Option<ScriptKey>,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
     //TODO need validate deploy
     //Prepare the data
     let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
+    let from_script_key = from_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let ptype = deploy.get_pool_type().map_err(|e| Error::BRC30Error(e))?;
+    let ptype = deploy.get_pool_type();
+    if PoolType::Unknown == ptype {
+      return Err(Error::BRC30Error(BRC30Error::UnknownPoolType));
+    }
     let stake = deploy.get_stake_id();
     let erate = deploy.get_earn_rate();
     let only = deploy.get_only();
@@ -150,7 +155,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     let dmax = deploy.get_distribution_max();
 
     //Get or create the tick
-    let tick = if let Some(temp_tick) = self
+    if let Some(mut temp_tick) = self
       .ledger
       .get_tick_info(&tick_id)
       .map_err(|e| Error::LedgerError(e))?
@@ -160,13 +165,25 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
           deploy.earn.clone(),
         )));
       }
+
+      // check stake has exist in tick's pools
       //TODO need change get_stake_tick_id_to_pid
       // if let Some(_) = self.ledger.get_stake_tick_id_to_pid().get(&tick_id)? {
       //   return Err(Error::BRC30Error(BRC30Error::TickAlreadyExist(
       //     deploy.earn.clone(),
       //   )));
       // }
-      temp_tick
+
+      // check dmax
+      if temp_tick.supply - temp_tick.allocated < dmax {
+        return Err(Error::BRC30Error(BRC30Error::InsufficientTickSupply(deploy.distribution_max)));
+      }
+      let mut new_allocated = temp_tick.allocated + dmax;
+      temp_tick.allocated = new_allocated;
+      self
+        .ledger
+        .set_tick_info(&tick_id, &temp_tick)
+        .map_err(|e| Error::LedgerError(e))?;
     } else {
       let decimal = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
         .checked_to_u8()?;
@@ -185,25 +202,25 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
         return Err(Error::BRC30Error(BRC30Error::InvalidSupply(total_supply)));
       }
 
-      let tick = TickInfo::new(tick_id, &name, &inscription_id,0_u128, decimal,0_u128,total_supply.checked_to_u128()?,&to_script_key, block_number, block_number);
+      if tick_id != caculate_tick_id(total_supply.checked_to_u128()?,decimal,&from_script_key,&to_script_key) {
+        return Err(Error::BRC30Error(BRC30Error::InvalidTickId(tick_id.hex())));
+      }
+
+      let supply = total_supply.checked_mul(&base)?.checked_to_u128()?;
+
+      let tick = TickInfo::new(tick_id, &name, &inscription_id,0_u128, decimal,0_u128,supply,&to_script_key, block_number, block_number);
       self
         .ledger
-        .set_tick_id_to_tickinfo(&tick_id, &tick)
+        .set_tick_info(&tick_id, &tick)
         .map_err(|e| Error::LedgerError(e))?;
-      tick
     };
-
-    // check dmax
-    if tick.supply - tick.allocated < dmax {
-      return Err(Error::BRC30Error(BRC30Error::InsufficientTickSupply(deploy.distribution_max)));
-    }
 
     // check pool is exist, if true return error
     if let Some(_) = self
       .ledger
       .get_pid_to_poolinfo(&pid)
       .map_err(|e| Error::LedgerError(e))? {
-      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid)));
+      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid.hex())));
     }
 
     let pool = PoolInfo::new(
@@ -212,11 +229,11 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
       &inscription_id,
       &stake,
       erate,
-      tick.minted,
-      0,  //TODO need change
-      tick.allocated,
+      0,
+      0,
+      0,
       0, //TODO need change
-      tick.latest_mint_block,
+      block_number,
       only,
     );
 

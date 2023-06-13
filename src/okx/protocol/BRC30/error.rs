@@ -55,6 +55,9 @@ pub enum BRC30Error {
   #[error("illegal tick length '{0}'")]
   InvalidTickLen(String),
 
+  #[error("illegal tick id '{0}'")]
+  InvalidTickId(String),
+
   #[error("decimals {0} too large")]
   DecimalsTooLarge(u8),
 
@@ -103,7 +106,10 @@ pub enum BRC30Error {
   TickNameNotMatch(String),
 
   #[error("pool {0} is already exist")]
-  PoolAlreadyExist(Pid)
+  PoolAlreadyExist(String),
+
+  #[error("unknown pool type")]
+  UnknownPoolType,
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

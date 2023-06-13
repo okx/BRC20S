@@ -1,12 +1,14 @@
 use std::fmt::format;
 use std::str::FromStr;
+use bitcoin::hashes::{Hash, sha256};
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::base58::from;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
 use crate::okx::protocol::BRC30::params::{FIXED_TYPE, NATIVE_TOKEN, POOL_TYPE};
-use crate::okx::protocol::BRC30::Stake;
+use crate::okx::protocol::BRC30::{BRC30Error, Error, Stake};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Deploy {
@@ -77,11 +79,11 @@ impl Deploy {
     }
   }
 
-  pub fn get_pool_type(&self) -> Result<PoolType,Err(T)> {
+  pub fn get_pool_type(&self) -> PoolType {
     match self.pool_type.as_str() {
-      POOL_TYPE => Ok(PoolType::Pool),
-      FIXED_TYPE => Ok(PoolType::Fixed),
-      _ => Err("pool type error")
+      POOL_TYPE => PoolType::Pool,
+      FIXED_TYPE => PoolType::Fixed,
+      _ => PoolType::Unknown,
     }
   }
 

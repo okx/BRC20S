@@ -198,24 +198,24 @@ impl Server {
           get(ord_inscription_number),
         )
         .route("/ord/outpoint/:outpoint/info", get(ord_outpoint))
-        .route("/brc20/tick/:tick", get(brc20_tick_info))
-        .route("/brc20/tick", get(brc20_all_tick_info))
+        .route("/BRC20/tick/:tick", get(brc20_tick_info))
+        .route("/BRC20/tick", get(brc20_all_tick_info))
         .route(
-          "/brc20/tick/:tick/address/:address/balance",
+          "/BRC20/tick/:tick/address/:address/balance",
           get(brc20_balance),
         )
-        .route("/brc20/address/:address/balance", get(brc20_all_balance))
+        .route("/BRC20/address/:address/balance", get(brc20_all_balance))
         .route(
-          "/brc20/tick/:tick/address/:address/transferable",
+          "/BRC20/tick/:tick/address/:address/transferable",
           get(brc20_transferable),
         )
         .route(
-          "/brc20/address/:address/transferable",
+          "/BRC20/address/:address/transferable",
           get(brc20_all_transferable),
         )
-        .route("/brc20/tx/:txid/events", get(brc20_tx_events))
-        .route("/brc20/tx/:txid", get(brc20_tx))
-        .route("/brc20/block/:block_hash/events", get(brc20_block_events));
+        .route("/BRC20/tx/:txid/events", get(brc20_tx_events))
+        .route("/BRC20/tx/:txid", get(brc20_tx))
+        .route("/BRC20/block/:block_hash/events", get(brc20_block_events));
 
       let api_router = Router::new().nest("/v1", api_v1_router);
 
@@ -2617,14 +2617,14 @@ mod tests {
     let test_server = TestServer::new();
 
     for url in [
-      "/brc20/tick/🍎",
-      "/brc20/tick",
-      "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
-      "/brc20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
-      "/brc20/tx/b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735",
-      "/brc20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable",
-      "/brc20/block/00000000000000000003a337a676b0101f3f7ef7dcbc01debb69f85c6da04dcf",
-      "/brc20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable"
+      "/BRC20/tick/🍎",
+      "/BRC20/tick",
+      "/BRC20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
+      "/BRC20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/balance",
+      "/BRC20/tx/b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735",
+      "/BRC20/tick/ordi/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable",
+      "/BRC20/block/00000000000000000003a337a676b0101f3f7ef7dcbc01debb69f85c6da04dcf",
+      "/BRC20/address/bc1pjdmfs5lvqfl6qmzpc0e4ewfdgfmdyz2t79scrsaz8ep98374wwnsywz7t4/transferable"
     ] {
 
       println!("{}", url);
@@ -2638,7 +2638,7 @@ mod tests {
       println!("{}", json_text);
     }
 
-    // let response = test_server.get("/brc20/tick/🍎");
+    // let response = test_server.get("/BRC20/tick/🍎");
     //
     // println!("{:?}", response.status());
     //

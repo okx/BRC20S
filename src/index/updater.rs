@@ -1,4 +1,6 @@
-use crate::okx::protocol::BRC20::BRC20DataStore;
+use crate::okx::datastore::{
+  ord::OrdDbReader, BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore,
+};
 use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
 
 use {
@@ -348,7 +350,10 @@ impl Updater {
     let mut satpoint_to_inscription_id = wtx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
-    let BRC20_data_store = BRC20DataStore::new(wtx);
+    let brc20_data_store = BRC20DataStore::new(wtx);
+    let brc30_data_store = BRC30DataStore::new(wtx);
+
+    let ord_db_reader = OrdDbReader::new(&wtx);
 
     let mut lost_sats = statistic_to_count
       .get(&Statistic::LostSats.key())?
@@ -480,12 +485,12 @@ impl Updater {
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
     let mut brc20_updater =
-      BRC20Updater::new(&BRC20_data_store, &inscription_id_to_inscription_entry);
+      BRC20Updater::new(&brc20_data_store, &inscription_id_to_inscription_entry);
 
     for (txid, brc20_transaction) in inscription_collects {
       brc20_updater
         .index_transaction(self.height, block.header.time, txid, brc20_transaction)
-        .map_err(|e| anyhow!("failed to parse brc20 protocol for {txid} reason {e}"))? as u64;
+        .map_err(|e| anyhow!("failed to parse BRC20 protocol for {txid} reason {e}"))? as u64;
     }
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;

@@ -1,7 +1,8 @@
-use super::BRC20::{
+use crate::okx::datastore::BRC20::{
   ActionReceipt, BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, Balance, Tick, TokenInfo,
   TransferableLog,
 };
+
 use super::*;
 use crate::InscriptionId;
 use bitcoin::Txid;
@@ -170,10 +171,11 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 
 #[cfg(test)]
 mod tests {
-  use super::BRC20::{
+  use crate::okx::datastore::BRC20::{
     ActionReceipt, BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event,
     Balance, EventType, MintEvent, Tick, TokenInfo, TransferPhase2Event, TransferableLog,
   };
+
   use super::*;
   use crate::SatPoint;
   use bitcoin::Address;

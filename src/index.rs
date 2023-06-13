@@ -1,9 +1,8 @@
-use crate::okx::{
-  datastore::{
-    ScriptKey,
-    BRC20::{self, BRC20DataStoreReadOnly},
-  },
-  protocol::BRC20::BRC20DataStoreReader,
+use crate::okx::datastore::{
+  ord::OrdDataStoreReadOnly,
+  ScriptKey,
+  BRC20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
+  BRC30::redb::BRC30DataStore,
 };
 
 use {
@@ -36,7 +35,7 @@ const SCHEMA_VERSION: u64 = 4;
 
 macro_rules! define_table {
   ($name:ident, $key:ty, $value:ty) => {
-    const $name: TableDefinition<$key, $value> = TableDefinition::new(stringify!($name));
+    pub const $name: TableDefinition<$key, $value> = TableDefinition::new(stringify!($name));
   };
 }
 

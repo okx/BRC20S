@@ -5,13 +5,13 @@ use super::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: BRC20DataStoreReadOnly> {
-  #[error("brc20 error: {0}")]
+  #[error("BRC20 error: {0}")]
   BRC20Error(BRC20Error),
 
   #[error("ledger error: {0}")]
   LedgerError(<L as BRC20DataStoreReadOnly>::Error),
 
-  #[error("brc20 num error: {0}")]
+  #[error("BRC20 num error: {0}")]
   NumError(NumError),
 
   #[error("others: {0}")]
@@ -29,7 +29,7 @@ pub enum JSONError {
   #[error("invalid json string")]
   InvalidJson,
 
-  #[error("not brc20 json")]
+  #[error("not BRC20 json")]
   NotBRC20Json,
 
   #[error("parse operation json error: {0}")]

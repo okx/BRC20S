@@ -228,10 +228,8 @@ impl Index {
         tx.open_table(STATISTIC_TO_COUNT)?
           .insert(&Statistic::Schema.key(), &SCHEMA_VERSION)?;
 
-        if options.index_sats {
-          tx.open_table(OUTPOINT_TO_SAT_RANGES)?
-            .insert(&OutPoint::null().store(), [].as_slice())?;
-        }
+        tx.open_table(OUTPOINT_TO_SAT_RANGES)?
+          .insert(&OutPoint::null().store(), [].as_slice())?;
 
         tx.commit()?;
 
@@ -1055,7 +1053,6 @@ impl Index {
         .2,
     )
   }
-
 
   pub(crate) fn get_transaction_output_by_outpoint(
     outpoint_to_entry: &impl ReadableTable<&'static OutPointValue, &'static [u8]>,

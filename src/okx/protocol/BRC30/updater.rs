@@ -140,7 +140,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let ptype = deploy.get_pool_type();
+    let ptype = deploy.get_pool_type().map_err(|e| Error::BRC30Error(e))?;
     let stake = deploy.get_stake_id();
     let erate = deploy.get_earn_rate();
     let only = deploy.get_only();

@@ -1,7 +1,7 @@
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::protocol::BRC30::params::{
-  TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT, TICK_SPECIAL,
+  TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT, NATIVE_TOKEN,
 };
 use crate::okx::protocol::BRC30::{BRC30Error, Deploy};
 use crate::InscriptionId;
@@ -98,7 +98,7 @@ impl FromStr for BRC30Tick {
       return Err(BRC30Error::InvalidTickLen("".to_string()));
     }
 
-    if length == TICK_SPECIAL.len() && s.to_lowercase() == TICK_SPECIAL {
+    if length == NATIVE_TOKEN.len() && s.to_lowercase() == NATIVE_TOKEN {
       return Ok(Self(bytes.try_into().unwrap()));
     }
 

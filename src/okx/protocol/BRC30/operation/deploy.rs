@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
-use crate::okx::protocol::BRC30::params::NATIVE_TOKEN;
+use crate::okx::protocol::BRC30::params::{FIXED_TYPE, NATIVE_TOKEN, POOL_TYPE};
 use crate::okx::protocol::BRC30::Stake;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
@@ -77,11 +77,11 @@ impl Deploy {
     }
   }
 
-  pub fn get_pool_type(&self) -> PoolType {
-    if self.pool_type == "pool" {
-      return PoolType::Pool;
-    } else {
-      return PoolType::Fixed;
+  pub fn get_pool_type(&self) -> Result<PoolType,Err(T)> {
+    match self.pool_type.as_str() {
+      POOL_TYPE => Ok(PoolType::Pool),
+      FIXED_TYPE => Ok(PoolType::Fixed),
+      _ => Err("pool type error")
     }
   }
 
@@ -90,10 +90,9 @@ impl Deploy {
   }
 
   pub fn get_stake_id(&self) -> PledgedTick {
-    if NATIVE_TOKEN == self.stake {
-      return PledgedTick::NATIVE;
-    } else {
-      return PledgedTick::BRC20Tick(self.get_tick_id())
+    match self.stake.as_str() {
+      NATIVE_TOKEN => PledgedTick::NATIVE,
+      _ => PledgedTick::BRC20Tick(self.get_tick_id())
     }
   }
 

@@ -5,6 +5,7 @@ use crate::okx::protocol::BRC30::params::{
 };
 use crate::okx::protocol::BRC30::BRC30Error;
 use crate::InscriptionId;
+use std::mem;
 
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
@@ -169,6 +170,18 @@ pub enum PledgedTick {
   NATIVE,
   BRC20Tick(Tick),
   BRC30Tick(TickId),
+}
+
+impl PledgedTick {
+  pub fn max_hex() -> String {
+    const max_size: usize = mem::size_of::<PledgedTick>();
+    hex::encode([0xffu8; max_size])
+  }
+
+  pub fn min_hex() -> String {
+    const max_size: usize = mem::size_of::<PledgedTick>();
+    hex::encode([0u8; max_size])
+  }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

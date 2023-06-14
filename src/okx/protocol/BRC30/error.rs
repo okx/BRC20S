@@ -119,6 +119,12 @@ pub enum BRC30Error {
 
   #[error("{0} can not empty")]
   EmptyParams(String),
+
+  #[error("stake {0} has already exist in pool {1}")]
+  StakeAlreadyExist(String, String),
+
+  #[error("unknown stake type")]
+  UnknownStakeType,
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

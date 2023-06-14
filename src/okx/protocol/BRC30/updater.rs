@@ -150,7 +150,12 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     if PoolType::Unknown == ptype {
       return Err(Error::BRC30Error(BRC30Error::UnknownPoolType));
     }
-    let stake = deploy.get_stake_id();
+
+    let stake   = deploy.get_stake_id();
+    if PledgedTick::UNKNOWN == stake {
+       return Err(Error::BRC30Error(BRC30Error::UnknownStakeType));
+     };
+
     let erate = deploy.get_earn_rate();
     let only = deploy.get_only();
     let name = deploy.get_earn_id();
@@ -170,6 +175,11 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
 
       // check stake has exist in tick's pools
       //TODO need change get_stake_tick_id_to_pid
+      if let Some(_) = self.ledger.get_stake_tickid_to_pid(&stake,&tick_id).map_err(|e| Error::LedgerError(e))? {
+        return Err(Error::BRC30Error(BRC30Error::StakeAlreadyExist(
+          stake.to_string(),tick_id.to_lowercase().hex())));
+      }
+
       // if let Some(_) = self.ledger.get_stake_tick_id_to_pid().get(&tick_id)? {
       //   return Err(Error::BRC30Error(BRC30Error::TickAlreadyExist(
       //     deploy.earn.clone(),

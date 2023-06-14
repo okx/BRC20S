@@ -73,11 +73,11 @@ mod tests {
   fn test_stake_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "stake",
-  "pid": "pid",
-  "amt": "amt"
-}}"##
+        "p": "brc-30",
+        "op": "stake",
+        "pid": "pid",
+        "amt": "amt"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -97,12 +97,12 @@ mod tests {
   fn test_mint_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "mint",
-  "pid": "pid",
-  "tick": "tick",
-  "amt": "amt"
-}}"##
+        "p": "brc-30",
+        "op": "mint",
+        "pid": "pid",
+        "tick": "tick",
+        "amt": "amt"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -123,11 +123,11 @@ mod tests {
   fn test_unstake_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "unstake",
-  "pid": "pid",
-  "amt": "amt"
-}}"##
+        "p": "brc-30",
+        "op": "unstake",
+        "pid": "pid",
+        "amt": "amt"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -147,12 +147,12 @@ mod tests {
   fn test_transfer_deserialize() {
     let json_str = format!(
       r##"{{
-  "p": "brc-30",
-  "op": "transfer",
-  "pid": "pid",
-  "tick": "tick",
-  "amt": "amt"
-}}"##
+        "p": "brc-30",
+        "op": "transfer",
+        "pid": "pid",
+        "tick": "tick",
+        "amt": "amt"
+      }}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -169,5 +169,81 @@ mod tests {
     );
   }
 
-  //TODO test
+  #[test]
+  fn test_json_duplicate_field() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "stake",
+        "pid": "pid-1",
+        "pid": "pid-2",
+        "amt": "amt"
+      }}"##
+    );
+    assert_eq!(
+      deserialize_brc30(&json_str).unwrap(),
+      Operation::Stake(Stake {
+        pool_id: "pid-2".to_string(),
+        amount: "amt".to_string(),
+      })
+    );
+  }
+
+  #[test]
+  fn test_json_non_brc30() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-40",
+        "op": "stake",
+        "pid": "pid",
+        "amt": "amt"
+      }}"##
+    );
+    assert_eq!(deserialize_brc30(&json_str), Err(JSONError::NotBRC30Json))
+  }
+
+  #[test]
+  fn test_json_non_string() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "stake",
+        "pid": "pid",
+        "amt": "amt",
+      }}"##
+    );
+    assert_eq!(deserialize_brc30(&json_str), Err(JSONError::InvalidJson))
+  }
+
+  #[test]
+  fn test_deserialize_case_insensitive() {
+    let json_str = format!(
+      r##"{{
+        "P": "brc-30",
+        "OP": "transfer",
+        "Pid": "pid",
+        "ticK": "tick",
+        "amt": "amt"
+      }}"##
+    );
+
+    assert_eq!(deserialize_brc30(&json_str), Err(JSONError::NotBRC30Json));
+
+    let json_str1 = format!(
+      r##"{{
+        "p": "brc-30",
+        "OP": "transfer",
+        "Pid": "pid",
+        "ticK": "tick",
+        "amt": "amt"
+      }}"##
+    );
+
+    assert_eq!(
+      deserialize_brc30(&json_str1),
+      Err(JSONError::ParseOperationJsonError(
+        "missing field `op`".to_string()
+      ))
+    );
+  }
 }

@@ -12,7 +12,6 @@ use crate::okx::protocol::BRC30::util::validate_pool_str;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Deploy {
-
   // Type:Type of earning(pool,fixed)
   // pool: share earning with all pool deposits.
   // fixed: earn solo,and have a fixed rate.
@@ -94,7 +93,11 @@ impl Deploy {
   pub fn get_stake_id(&self) -> PledgedTick {
     match self.stake.as_str() {
       NATIVE_TOKEN => PledgedTick::NATIVE,
-      _ => PledgedTick::BRC20Tick(self.get_tick_id())
+      _ => match self.stake.len() {
+        4 => PledgedTick::BRC30Tick(self.get_tick_id()),
+        5 => PledgedTick::BRC30Tick(self.get_tick_id()),
+        _ => PledgedTick::UNKNOWN,
+      }
     }
   }
 
@@ -224,7 +227,7 @@ mod tests {
     assert_eq!(
       deserialize_brc30(r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##)
         .unwrap_err(),
-      JSONError::ParseOperationJsonError("missing field `max`".to_string())
+      JSONError::ParseOperationJsonError("missing field `stake`".to_string())
     );
   }
 
@@ -293,7 +296,7 @@ mod tests {
         earn: "ordi".to_string(),
         earn_rate: "10".to_string(),
         distribution_max: "12000000".to_string(),
-        decimals: Some("18".to_string()),
+        decimals: Some("20".to_string()),
         total_supply: Some("21000000".to_string()),
         only: Some("1".to_string()),
       })

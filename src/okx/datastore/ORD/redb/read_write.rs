@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::ord::{OrdDataStoreReadOnly, OrdDataStoreReadWrite};
+use crate::okx::datastore::ORD::{OrdDataStoreReadOnly, OrdDataStoreReadWrite};
 use crate::InscriptionId;
 use crate::Result;
 use bitcoin::Script;
@@ -30,7 +30,7 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
 }
 
 impl<'db, 'a> OrdDataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
-  // 3.3.1 OUTPOINT_TO_SCRIPT, todo, replace outpoint
+  // 3.3.1 OUTPOINT_TO_SCRIPT
   fn set_outpoint_to_script(&self, outpoint: &str, script: &Script) -> Result<(), Self::Error> {
     self
       .wtx

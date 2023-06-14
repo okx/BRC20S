@@ -160,7 +160,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID 和 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
+  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
   fn set_stake_tickid_to_pid(
     &self,
     pledged: &PledgedTick,
@@ -174,6 +174,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
+  // 3.3.7 BRC30_TICKID_STAKE_TO_PID
   fn set_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,

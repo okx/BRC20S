@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::ord::{OrdDataStoreReadOnly, OrdDataStoreReadWrite};
+use crate::okx::datastore::ORD::{OrdDataStoreReadOnly, OrdDataStoreReadWrite};
 use crate::InscriptionId;
 use crate::Result;
 use bitcoin::Script;

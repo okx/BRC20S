@@ -12,7 +12,7 @@ use std::ops::RangeBounds;
 use anyhow::anyhow;
 use bitcoin::hashes::Hash;
 
-use crate::okx::datastore::ord::OrdDataStoreReadOnly;
+use crate::okx::datastore::ORD::OrdDataStoreReadOnly;
 
 const OUTPOINT_TO_SCRIPT: TableDefinition<&str, &[u8]> = TableDefinition::new("OUTPOINT_TO_SCRIPT");
 

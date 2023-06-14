@@ -146,7 +146,7 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID, TODO zhujianguo
+  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
   fn get_stake_tickid_to_pid(
     &self,
     pledged: &PledgedTick,

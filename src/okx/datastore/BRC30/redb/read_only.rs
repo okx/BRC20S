@@ -1,8 +1,8 @@
 use super::*;
 use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;
 use crate::okx::datastore::BRC30::{
-  Balance, InscriptionOperation, Pid, PoolInfo, Receipt, TickId, TickInfo, TransferableAsset,
-  UserInfo,
+  Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo, Receipt, StakeInfo, TickId, TickInfo,
+  TransferableAsset, UserInfo,
 };
 use redb::{
   AccessGuard, Error, RangeIter, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
@@ -82,7 +82,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
 impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
-  //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS, todo, replace <Vec<InscriptionOperation>
+  //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS
   fn get_txid_to_inscription_receipts(
     &self,
     txid: &Txid,
@@ -120,7 +120,22 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.5 BRC30_PID_TO_USERINFO
+  // 3.3.5 BRC30_USER_STAKEINFO
+  fn get_user_stakeinfo(
+    &self,
+    script_key: ScriptKey,
+    pledged_tick: PledgedTick,
+  ) -> Result<Option<StakeInfo>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_USER_STAKEINFO)?
+        .get(script_pledged_key(&script_key, &pledged_tick).as_str())?
+        .map(|v| bincode::deserialize::<StakeInfo>(v.value()).unwrap()),
+    )
+  }
+
+  // 3.3.6 BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(&self, pid: &Pid) -> Result<Option<UserInfo>, Self::Error> {
     Ok(
       self
@@ -131,10 +146,37 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.6 BRC30_STAKE_TICKID_TO_PID 和 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
-  // fn get_stake_tick_id_to_pid(&self);
+  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
+  fn get_stake_tickid_to_pid(
+    &self,
+    pledged: &PledgedTick,
+    tick_id: &TickId,
+  ) -> Result<Option<Pid>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_STAKE_TICKID_TO_PID)?
+        .get(pledgedtick_tickid_key(pledged, tick_id).as_str())?
+        .map(|v| bincode::deserialize::<Pid>(v.value()).unwrap()),
+    )
+  }
 
-  // 3.3.7 BRC30_BALANCE
+  // 3.3.7 BRC30_TICKID_STAKE_TO_PID
+  fn get_tickid_stake_to_pid(
+    &self,
+    tick_id: &TickId,
+    pledged: &PledgedTick,
+  ) -> Result<Option<Pid>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_TICKID_STAKE_TO_PID)?
+        .get(pledgedtick_tickid_key(pledged, tick_id).as_str())?
+        .map(|v| bincode::deserialize::<Pid>(v.value()).unwrap()),
+    )
+  }
+
+  // 3.3.8 BRC30_BALANCE
   fn get_balance(
     &self,
     script_key: &ScriptKey,
@@ -169,7 +211,7 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.8 BRC30_TRANSFERABLE_ASSETS
+  // 3.3.9 BRC30_TRANSFERABLE_ASSETS
   fn get_transferable_assets(
     &self,
     script_key: &ScriptKey,
@@ -185,7 +227,7 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.9 BRC30_TXID_TO_RECEIPTS, TODO replace BRC30ActionReceipt
+  // 3.3.10 BRC30_TXID_TO_RECEIPTS
   fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     Ok(
       self

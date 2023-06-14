@@ -9,7 +9,7 @@ pub const TICK_BYTE_MIN_COUNT: usize = 4;
 pub const TICK_BYTE_MAX_COUNT: usize = 6;
 pub const TICK_SPECIAL: &str = "btc";
 
-pub const PID_BYTE_COUNT: usize = 6;
+pub const PID_BYTE_COUNT: usize = 6; // TickId + index(u8)
 
 pub static MAXIMUM_SUPPLY: Lazy<Num> = Lazy::new(|| Num::from(u64::MAX));
 

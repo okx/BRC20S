@@ -98,3 +98,51 @@ pub struct PoolInfo {
   pub last_update_block: u64,
   pub only: bool,
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_pid_compare_ignore_case() {
+    assert_eq!(Pid::from_str("aBca1D"), Pid::from_str("ABCA1D"));
+    assert_ne!(Pid::from_str("aBca1D"), Pid::from_str("aBca2d"));
+    assert_ne!(Pid::from_str("aBc11D"), Pid::from_str("aBc21d"));
+  }
+
+  #[test]
+  fn test_pid_length_case() {
+    assert_eq!(
+      Pid::from_str("aD"),
+      Err(BRC30Error::InvalidTickLen("aD".to_string()))
+    );
+    assert_eq!(
+      Pid::from_str(""),
+      Err(BRC30Error::InvalidTickLen("".to_string()))
+    );
+
+    assert_eq!(
+      Pid::from_str("12345"),
+      Err(BRC30Error::InvalidTickLen("12345".to_string()))
+    );
+
+    assert_eq!(
+      Pid::from_str("1234567"),
+      Err(BRC30Error::InvalidTickLen("1234567".to_string()))
+    );
+  }
+
+  #[test]
+  fn test_pid_serialize() {
+    let obj = Pid::from_str("Ab1Dd;").unwrap();
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""Ab1Dd;""##);
+  }
+
+  #[test]
+  fn test_pid_deserialize() {
+    assert_eq!(
+      serde_json::from_str::<Pid>(r##""Ab1D1;""##).unwrap(),
+      Pid::from_str("Ab1D1;").unwrap()
+    );
+  }
+}

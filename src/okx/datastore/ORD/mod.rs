@@ -4,6 +4,7 @@ use bitcoin::Script;
 use std::fmt::{Debug, Display};
 
 pub use self::redb::{OrdDbReadWriter, OrdDbReader};
+pub mod operation;
 pub mod redb;
 
 pub trait OrdDataStoreReadOnly {

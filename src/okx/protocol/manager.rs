@@ -1,9 +1,9 @@
 use crate::index::{InscriptionEntryValue, InscriptionIdValue};
-use crate::okx::datastore::ord::{OrdDataStoreReadOnly, OrdDbReader};
 use crate::okx::datastore::BRC20::redb::BRC20DataStore;
 use crate::okx::datastore::BRC20::BRC20DataStoreReadWrite;
 use crate::okx::datastore::BRC30::redb::BRC30DataStore;
 use crate::okx::datastore::BRC30::BRC30DataStoreReadWrite;
+use crate::okx::datastore::ORD::{OrdDataStoreReadOnly, OrdDbReader};
 use crate::okx::protocol::protocol::Protocol;
 use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
 use crate::okx::protocol::BRC30::updater::BRC30Updater;

@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Deploy {
-
   // Type:Type of earning(pool,fixed)
   // pool: share earning with all pool deposits.
   // fixed: earn solo,and have a fixed rate.
@@ -78,5 +77,127 @@ mod tests {
     )
   }
 
-  //TODO test
+  #[test]
+  fn test_deserialize() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "deploy",
+        "t": "type_earning",
+        "pid": "pid",
+        "stake": "stake",
+        "earn": "earn",
+        "erate": "earn_rate",
+        "dmax": "distribution_max",
+        "total": "total_supply",
+        "only": "only",
+        "dec": "decimals"
+      }}"##
+    );
+
+    assert_eq!(
+      deserialize_brc30(&json_str).unwrap(),
+      Operation::Deploy(Deploy {
+        pool_type: "type_earning".to_string(),
+        pool_id: "pid".to_string(),
+        stake: "stake".to_string(),
+        earn: "earn".to_string(),
+        earn_rate: "earn_rate".to_string(),
+        distribution_max: "distribution_max".to_string(),
+        total_supply: "total_supply".to_string(),
+        only: "only".to_string(),
+        decimals: Some("decimals".to_string()),
+      })
+    );
+  }
+
+  #[test]
+  fn test_loss_require_key() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "deploy",
+        "t": "type_earning",
+        "pid": "pid",
+        "earn": "earn",
+        "erate": "earn_rate",
+        "dmax": "distribution_max",
+        "total": "total_supply",
+        "only": "only",
+        "dec": "decimals"
+      }}"##
+    );
+
+    assert_eq!(
+      deserialize_brc30(&json_str).unwrap_err(),
+      JSONError::ParseOperationJsonError("missing field `stake`".to_string())
+    );
+  }
+
+  #[test]
+  fn test_loss_option_key() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "deploy",
+        "t": "type_earning",
+        "pid": "pid",
+        "stake": "stake",
+        "earn": "earn",
+        "erate": "earn_rate",
+        "dmax": "distribution_max",
+        "total": "total_supply",
+        "only": "only"
+      }}"##
+    );
+
+    assert_eq!(
+      deserialize_brc30(&json_str).unwrap(),
+      Operation::Deploy(Deploy {
+        pool_type: "type_earning".to_string(),
+        pool_id: "pid".to_string(),
+        stake: "stake".to_string(),
+        earn: "earn".to_string(),
+        earn_rate: "earn_rate".to_string(),
+        distribution_max: "distribution_max".to_string(),
+        total_supply: "total_supply".to_string(),
+        only: "only".to_string(),
+        decimals: None,
+      })
+    );
+  }
+
+  #[test]
+  fn test_duplicate_key() {
+    let json_str = format!(
+      r##"{{
+        "p": "brc-30",
+        "op": "deploy",
+        "t": "type_earning",
+        "pid": "pid",
+        "stake": "stake-1",
+        "stake": "stake-2",
+        "earn": "earn",
+        "erate": "earn_rate",
+        "dmax": "distribution_max",
+        "total": "total_supply",
+        "only": "only",
+        "dec": "decimals"
+      }}"##
+    );
+    assert_eq!(
+      deserialize_brc30(&json_str).unwrap(),
+      Operation::Deploy(Deploy {
+        pool_type: "type_earning".to_string(),
+        pool_id: "pid".to_string(),
+        stake: "stake-2".to_string(),
+        earn: "earn".to_string(),
+        earn_rate: "earn_rate".to_string(),
+        distribution_max: "distribution_max".to_string(),
+        total_supply: "total_supply".to_string(),
+        only: "only".to_string(),
+        decimals: Some("decimals".to_string()),
+      })
+    )
+  }
 }

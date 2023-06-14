@@ -4,7 +4,7 @@ mod read_write;
 pub use self::{read_only::BRC30DataStoreReader, read_write::BRC30DataStore};
 
 use crate::okx::datastore::ScriptKey;
-use crate::okx::datastore::BRC30::{PledgedTick, TickId};
+use crate::okx::datastore::BRC30::{Pid, PledgedTick, TickId};
 use crate::InscriptionId;
 use bitcoin::Txid;
 use redb::TableDefinition;
@@ -43,6 +43,10 @@ fn script_tickid_inscriptionid_key(
     tick_id.to_lowercase().hex(),
     inscriptionid.to_string()
   )
+}
+
+fn script_pid_key(script: &ScriptKey, pid: &Pid) -> String {
+  format!("{}_{}", script.to_string(), pid.to_lowercase().hex(),)
 }
 
 fn script_pledged_key(script: &ScriptKey, pledged_tick: &PledgedTick) -> String {

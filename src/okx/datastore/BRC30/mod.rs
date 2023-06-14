@@ -36,7 +36,11 @@ pub trait BRC30DataStoreReadOnly {
   ) -> Result<Option<StakeInfo>, Self::Error>;
 
   // 3.3.6 BRC30_PID_TO_USERINFO
-  fn get_pid_to_use_info(&self, pid: &Pid) -> Result<Option<UserInfo>, Self::Error>;
+  fn get_pid_to_use_info(
+    &self,
+    script_key: &ScriptKey,
+    pid: &Pid,
+  ) -> Result<Option<UserInfo>, Self::Error>;
 
   // 3.3.7 BRC30_STAKE_TICKID_TO_PID
   fn get_stake_tickid_to_pid(
@@ -96,7 +100,12 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
   ) -> Result<(), Self::Error>;
 
   // 3.3.6 BRC30_PID_TO_USERINFO
-  fn set_pid_to_use_info(&self, pid: &Pid, user_info: &UserInfo) -> Result<(), Self::Error>;
+  fn set_pid_to_use_info(
+    &self,
+    script_key: &ScriptKey,
+    pid: &Pid,
+    user_info: &UserInfo,
+  ) -> Result<(), Self::Error>;
 
   // 3.3.7 BRC30_STAKE_TICKID_TO_PID
   fn set_stake_tickid_to_pid(

@@ -52,8 +52,12 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.6 BRC30_PID_TO_USERINFO
-  fn get_pid_to_use_info(&self, pid: &Pid) -> Result<Option<UserInfo>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_pid_to_use_info(pid)
+  fn get_pid_to_use_info(
+    &self,
+    script_key: &ScriptKey,
+    pid: &Pid,
+  ) -> Result<Option<UserInfo>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_pid_to_use_info(script_key, pid)
   }
 
   // 3.3.7 BRC30_STAKE_TICKID_TO_PID
@@ -152,9 +156,14 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.6 BRC30_PID_TO_USERINFO
-  fn set_pid_to_use_info(&self, pid: &Pid, user_info: &UserInfo) -> Result<(), Self::Error> {
+  fn set_pid_to_use_info(
+    &self,
+    script_key: &ScriptKey,
+    pid: &Pid,
+    user_info: &UserInfo,
+  ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_PID_TO_USERINFO)?.insert(
-      pid.to_lowercase().hex().as_str(),
+      script_pid_key(&script_key, &pid).as_str(),
       bincode::serialize(user_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -497,11 +506,18 @@ mod tests {
       reward_debt: 0,
       latest_updated_block: 0,
     };
+    let script_key =
+      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
 
-    brc30db.set_pid_to_use_info(&pid, &user_info).unwrap();
+    brc30db
+      .set_pid_to_use_info(&script_key, &pid, &user_info)
+      .unwrap();
 
     assert_eq!(
-      brc30db.get_pid_to_use_info(&pid).unwrap().unwrap(),
+      brc30db
+        .get_pid_to_use_info(&script_key, &pid)
+        .unwrap()
+        .unwrap(),
       user_info
     );
   }

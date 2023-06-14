@@ -136,12 +136,16 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
   }
 
   // 3.3.6 BRC30_PID_TO_USERINFO
-  fn get_pid_to_use_info(&self, pid: &Pid) -> Result<Option<UserInfo>, Self::Error> {
+  fn get_pid_to_use_info(
+    &self,
+    script_key: &ScriptKey,
+    pid: &Pid,
+  ) -> Result<Option<UserInfo>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_PID_TO_USERINFO)?
-        .get(pid.to_lowercase().hex().as_str())?
+        .get(script_pid_key(&script_key, &pid).as_str())?
         .map(|v| bincode::deserialize::<UserInfo>(v.value()).unwrap()),
     )
   }

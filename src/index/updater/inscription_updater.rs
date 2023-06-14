@@ -25,19 +25,17 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   index: &'a Index,
   height: u64,
   id_to_satpoint: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, &'static SatPointValue>,
-  value_receiver: &'a mut Receiver<u64>,
   id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
   pub(super) lost_sats: u64,
   next_cursed_number: i64,
   next_number: i64,
   number_to_id: &'a mut Table<'db, 'tx, i64, &'static InscriptionIdValue>,
-  outpoint_to_value: &'a mut Table<'db, 'tx, &'static OutPointValue, u64>,
+  outpoint_to_entry: &'a mut Table<'db, 'tx, &'static OutPointValue, &'static [u8]>,
   reward: u64,
   sat_to_inscription_id: &'a mut Table<'db, 'tx, u64, &'static InscriptionIdValue>,
   satpoint_to_id: &'a mut Table<'db, 'tx, &'static SatPointValue, &'static InscriptionIdValue>,
   timestamp: u32,
   pub(super) unbound_inscriptions: u64,
-  value_cache: &'a mut HashMap<OutPoint, u64>,
   tx_cache: &'a mut HashMap<Txid, Transaction>,
 }
 
@@ -46,16 +44,14 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     index: &'a Index,
     height: u64,
     id_to_satpoint: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, &'static SatPointValue>,
-    value_receiver: &'a mut Receiver<u64>,
     id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
     lost_sats: u64,
     number_to_id: &'a mut Table<'db, 'tx, i64, &'static InscriptionIdValue>,
-    outpoint_to_value: &'a mut Table<'db, 'tx, &'static OutPointValue, u64>,
+    outpoint_to_entry: &'a mut Table<'db, 'tx, &'static OutPointValue, &'static [u8]>,
     sat_to_inscription_id: &'a mut Table<'db, 'tx, u64, &'static InscriptionIdValue>,
     satpoint_to_id: &'a mut Table<'db, 'tx, &'static SatPointValue, &'static InscriptionIdValue>,
     timestamp: u32,
     unbound_inscriptions: u64,
-    value_cache: &'a mut HashMap<OutPoint, u64>,
     tx_cache: &'a mut HashMap<Txid, Transaction>,
   ) -> Result<Self> {
     let next_cursed_number = number_to_id
@@ -76,19 +72,17 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       index,
       height,
       id_to_satpoint,
-      value_receiver,
       id_to_entry,
       lost_sats,
       next_cursed_number,
       next_number,
       number_to_id,
-      outpoint_to_value,
+      outpoint_to_entry,
       reward: Height(height).subsidy(),
       sat_to_inscription_id,
       satpoint_to_id,
       timestamp,
       unbound_inscriptions,
-      value_cache,
       tx_cache,
     })
   }
@@ -180,22 +174,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
       let offset = input_value;
 
-      // multi-level cache for UTXO set to get to the input amount
-      input_value += if let Some(value) = self.value_cache.remove(&tx_in.previous_output) {
-        value
-      } else if let Some(value) = self
-        .outpoint_to_value
-        .remove(&tx_in.previous_output.store())?
-      {
-        value.value()
-      } else {
-        self.value_receiver.blocking_recv().ok_or_else(|| {
-          anyhow!(
-            "failed to get transaction for {}",
-            tx_in.previous_output.txid
-          )
-        })?
-      };
+      input_value +=
+        Index::get_transaction_output_by_outpoint(self.outpoint_to_entry, &tx_in.previous_output)
+          .map(|txout| txout.value)?;
 
       // go through all inscriptions in this input
       while let Some(inscription) = new_inscriptions.peek() {
@@ -354,14 +335,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       }
 
       output_value = end;
-
-      self.value_cache.insert(
-        OutPoint {
-          vout: vout.try_into().unwrap(),
-          txid,
-        },
-        tx_out.value,
-      );
     }
     let (_, collects): (Vec<u64>, Vec<InscriptionData>) =
       inscriptions_collector.into_iter().unzip();

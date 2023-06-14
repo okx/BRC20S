@@ -44,7 +44,7 @@ define_table! { INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, &InscriptionIdValue, Inscri
 define_table! { INSCRIPTION_ID_TO_SATPOINT, &InscriptionIdValue, &SatPointValue }
 define_table! { INSCRIPTION_NUMBER_TO_INSCRIPTION_ID, i64, &InscriptionIdValue }
 define_table! { OUTPOINT_TO_SAT_RANGES, &OutPointValue, &[u8] }
-define_table! { OUTPOINT_TO_VALUE, &OutPointValue, u64}
+define_table! { OUTPOINT_TO_ENTRY, &OutPointValue, &[u8] }
 define_table! { SATPOINT_TO_INSCRIPTION_ID, &SatPointValue, &InscriptionIdValue }
 define_table! { SAT_TO_INSCRIPTION_ID, u64, &InscriptionIdValue }
 define_table! { SAT_TO_SATPOINT, u64, &SatPointValue }
@@ -219,7 +219,7 @@ impl Index {
         tx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY)?;
         tx.open_table(INSCRIPTION_ID_TO_SATPOINT)?;
         tx.open_table(INSCRIPTION_NUMBER_TO_INSCRIPTION_ID)?;
-        tx.open_table(OUTPOINT_TO_VALUE)?;
+        tx.open_table(OUTPOINT_TO_ENTRY)?;
         tx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
         tx.open_table(SAT_TO_INSCRIPTION_ID)?;
         tx.open_table(SAT_TO_SATPOINT)?;
@@ -228,10 +228,8 @@ impl Index {
         tx.open_table(STATISTIC_TO_COUNT)?
           .insert(&Statistic::Schema.key(), &SCHEMA_VERSION)?;
 
-        if options.index_sats {
-          tx.open_table(OUTPOINT_TO_SAT_RANGES)?
-            .insert(&OutPoint::null().store(), [].as_slice())?;
-        }
+        tx.open_table(OUTPOINT_TO_SAT_RANGES)?
+          .insert(&OutPoint::null().store(), [].as_slice())?;
 
         tx.commit()?;
 
@@ -290,10 +288,8 @@ impl Index {
         Amount::from_sat(self.client.get_raw_transaction(&txid, None)?.output[vout as usize].value),
       );
     }
-    let rtx = self.database.begin_read()?;
-    let outpoint_to_value = rtx.open_table(OUTPOINT_TO_VALUE)?;
     for outpoint in utxos.keys() {
-      if outpoint_to_value.get(&outpoint.store())?.is_none() {
+      if self.get_outpoint_entry(outpoint)?.is_none() {
         return Err(anyhow!(
           "output in Bitcoin Core wallet but not in ord index: {outpoint}"
         ));
@@ -301,6 +297,17 @@ impl Index {
     }
 
     Ok(utxos)
+  }
+
+  pub(crate) fn get_outpoint_entry(&self, outpoint: &OutPoint) -> Result<Option<TxOut>> {
+    Ok(
+      self
+        .database
+        .begin_read()?
+        .open_table(OUTPOINT_TO_ENTRY)?
+        .get(&outpoint.store())?
+        .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap()),
+    )
   }
 
   pub(crate) fn get_unspent_output_ranges(&self) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
@@ -1045,6 +1052,16 @@ impl Index {
         .value()
         .2,
     )
+  }
+
+  pub(crate) fn get_transaction_output_by_outpoint(
+    outpoint_to_entry: &impl ReadableTable<&'static OutPointValue, &'static [u8]>,
+    outpoint: &OutPoint,
+  ) -> Result<TxOut> {
+    outpoint_to_entry
+      .get(&outpoint.store())?
+      .ok_or(anyhow!("failed to find outpoint entry for {}", outpoint))
+      .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap())
   }
 
   pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<BRC20::TokenInfo>> {

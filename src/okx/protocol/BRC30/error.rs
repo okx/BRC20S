@@ -110,6 +110,15 @@ pub enum BRC30Error {
 
   #[error("unknown pool type")]
   UnknownPoolType,
+
+  #[error("illegal pool id '{0}' error: {1}")]
+  InvalidPoolId(String,String),
+
+  #[error("illegal hex str error: {0}")]
+  InvalidHexStr(String),
+
+  #[error("{0} can not empty")]
+  EmptyParams(String),
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

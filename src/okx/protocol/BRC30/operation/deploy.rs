@@ -3,12 +3,16 @@ use std::str::FromStr;
 use bitcoin::hashes::{Hash, sha256};
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::base58::from;
+use bitcoincore_rpc::json::Bip125Replaceable::No;
+use futures::future::ok;
+use hex::FromHexError;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
-use crate::okx::protocol::BRC30::params::{FIXED_TYPE, NATIVE_TOKEN, POOL_TYPE};
-use crate::okx::protocol::BRC30::{BRC30Error, Error, Stake};
+use crate::okx::protocol::BRC30::params::{FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE};
+use crate::okx::protocol::BRC30::{BRC30Error, Error, Num, Stake};
+use crate::okx::protocol::BRC30::util::validate_pool_str;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Deploy {
@@ -118,7 +122,49 @@ impl Deploy {
     let tick_str = self.pool_id.as_str().split("#").next().unwrap();
     TickId::from_str(tick_str).unwrap()
   }
+  pub fn validate_basic(&self) -> Result<(), BRC30Error> {
+    if self.get_pool_type() == PoolType::Unknown {
+      return Err(BRC30Error::UnknownPoolType);
+    }
+    let iserr= validate_pool_str(self.pool_id.as_str()).err();
+    if None != iserr  {
+      return Err(iserr.unwrap());
+    }
+
+    if self.stake.is_empty() {
+      return Err(BRC30Error::EmptyParams(self.stake.clone()));
+    }
+
+    if self.earn.is_empty() {
+      return Err(BRC30Error::EmptyParams(self.earn.clone()));
+    }
+
+
+    if let Some(iserr) = Num::from_str(self.earn_rate.as_str()).err()  {
+      return Err(BRC30Error::InvalidNum(self.earn_rate.clone()+iserr.to_string().as_str()));
+    }
+    if let Some(iserr) = Num::from_str(self.distribution_max.as_str()).err()  {
+      return Err(BRC30Error::InvalidNum(self.distribution_max.clone()+iserr.to_string().as_str()));
+    }
+
+    if let Some(supply) = self.total_supply.as_ref() {
+      if let Some(iserr) = Num::from_str(supply.as_str()).err()  {
+        return Err(BRC30Error::InvalidNum(supply+ iserr.to_string().as_str()));
+      }
+    }
+
+    if let Some(dec) = self.decimals.as_ref() {
+      if let Some(iserr) = Num::from_str(dec.as_str()).err()  {
+        return Err(BRC30Error::InvalidNum(dec+ iserr.to_string().as_str()));
+      }
+    }
+
+
+    Ok(())
+  }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -257,4 +303,88 @@ mod tests {
       })
     );
   }
+
+  #[test]
+  fn test_validate_basics() {
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "a3668daeaa#1f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("18".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    assert_eq!((),deploy.validate_basic().map_err(|e| { println!("{}", e);e }).unwrap());
+
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "a668daeaa#1f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("18".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    assert_eq!(true,deploy.validate_basic().is_err());
+
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "a3668daeaa#1".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("18".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    assert_eq!(true,deploy.validate_basic().is_err());
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "a3668dae#a#1f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("18".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    assert_eq!(true,deploy.validate_basic().is_err());
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "a3&68daeaa#1f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("18".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    assert_eq!(true,deploy.validate_basic().is_err());
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "a3668daeaa#&f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("18".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    assert_eq!(true,deploy.validate_basic().is_err());
+  }
+
 }

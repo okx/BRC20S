@@ -6,6 +6,7 @@ mod operation;
 pub mod params;
 pub mod updater;
 mod hash;
+mod util;
 
 pub use self::{
   error::{BRC30Error, Error},

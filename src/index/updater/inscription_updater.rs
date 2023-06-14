@@ -1,10 +1,12 @@
 use super::*;
-use okx::protocol::BRC20::{deserialize_brc20_operation, Action, InscriptionData, Operation};
+use okx::datastore::ord::operation::{Action, Operation};
 
 #[derive(Debug, Clone)]
 pub(super) struct Flotsam {
+  txid: Txid,
   inscription_id: InscriptionId,
   offset: u64,
+  old_satpoint: SatPoint,
   origin: Origin,
 }
 
@@ -15,14 +17,12 @@ enum Origin {
     cursed: bool,
     unbound: bool,
   },
-  Old {
-    old_satpoint: SatPoint,
-  },
+  Old,
 }
 
 pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   flotsam: Vec<Flotsam>,
-  index: &'a Index,
+  pub(super) operations: Vec<Operation>,
   height: u64,
   id_to_satpoint: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, &'static SatPointValue>,
   id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
@@ -36,12 +36,10 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   satpoint_to_id: &'a mut Table<'db, 'tx, &'static SatPointValue, &'static InscriptionIdValue>,
   timestamp: u32,
   pub(super) unbound_inscriptions: u64,
-  tx_cache: &'a mut HashMap<Txid, Transaction>,
 }
 
 impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
   pub(super) fn new(
-    index: &'a Index,
     height: u64,
     id_to_satpoint: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, &'static SatPointValue>,
     id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
@@ -52,7 +50,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     satpoint_to_id: &'a mut Table<'db, 'tx, &'static SatPointValue, &'static InscriptionIdValue>,
     timestamp: u32,
     unbound_inscriptions: u64,
-    tx_cache: &'a mut HashMap<Txid, Transaction>,
   ) -> Result<Self> {
     let next_cursed_number = number_to_id
       .iter()?
@@ -69,7 +66,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
     Ok(Self {
       flotsam: Vec::new(),
-      index,
+      operations: Vec::new(),
       height,
       id_to_satpoint,
       id_to_entry,
@@ -83,7 +80,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       satpoint_to_id,
       timestamp,
       unbound_inscriptions,
-      tx_cache,
     })
   }
 
@@ -92,8 +88,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     tx: &Transaction,
     txid: Txid,
     input_sat_ranges: Option<&VecDeque<(u64, u64)>>,
-  ) -> Result<Vec<InscriptionData>> {
-    let mut inscriptions_collector = Vec::new();
+  ) -> Result {
     let mut new_inscriptions = Inscription::from_transaction(tx).into_iter().peekable();
     let mut floating_inscriptions = Vec::new();
     let mut inscribed_offsets = BTreeMap::new();
@@ -113,63 +108,14 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       {
         let offset = input_value + old_satpoint.offset;
         floating_inscriptions.push(Flotsam {
+          txid,
           offset,
+          old_satpoint,
           inscription_id,
-          origin: Origin::Old { old_satpoint },
+          origin: Origin::Old,
         });
 
         inscribed_offsets.insert(offset, inscription_id);
-        let inscribe_satpoint = SatPoint {
-          outpoint: OutPoint::new(inscription_id.txid, 0),
-          offset: 0,
-        };
-
-        if old_satpoint == inscribe_satpoint {
-          let inscribe_tx = if let Some(t) = self.tx_cache.remove(&inscription_id.txid) {
-            t
-          } else {
-            self
-              .index
-              .get_transaction_with_retries(inscription_id.txid)?
-              .ok_or(anyhow!(
-                "failed to get inscription transaction for {}",
-                inscription_id.txid
-              ))?
-          };
-          if let Ok(Operation::Transfer(transfer)) = deserialize_brc20_operation(
-            Inscription::from_transaction(&inscribe_tx)
-              .get(0)
-              .unwrap()
-              .inscription
-              .clone(),
-            true,
-          ) {
-            inscriptions_collector.push((
-              input_value + old_satpoint.offset,
-              InscriptionData {
-                txid,
-                inscription_id,
-                old_satpoint,
-                new_satpoint: None,
-                from_script: ScriptKey::from_script(
-                  &inscribe_tx
-                    .output
-                    .get(old_satpoint.outpoint.vout as usize)
-                    .ok_or(anyhow!(
-                      "failed to find output {} for {}",
-                      old_satpoint.outpoint.vout,
-                      inscription_id.txid
-                    ))?
-                    .script_pubkey
-                    .clone(),
-                  self.index.get_chain_network(),
-                ),
-                to_script: None,
-                action: Action::Transfer(transfer),
-              },
-            ))
-          }
-        };
       }
 
       let offset = input_value;
@@ -211,6 +157,11 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         };
 
         floating_inscriptions.push(Flotsam {
+          txid,
+          old_satpoint: SatPoint {
+            outpoint: tx_in.previous_output,
+            offset: 0,
+          },
           inscription_id,
           offset,
           origin: Origin::New {
@@ -219,34 +170,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             unbound,
           },
         });
-
-        if !cursed && !unbound {
-          if let Ok(operation) = deserialize_brc20_operation(inscription.inscription.clone(), false)
-          {
-            let from_script = self.get_previous_output_script(
-              tx.input
-                .get(0)
-                .ok_or(anyhow!("failed to find input {} for {}", 0, txid))?
-                .previous_output,
-            )?;
-            inscriptions_collector.push((
-              0,
-              InscriptionData {
-                txid,
-                inscription_id: txid.into(),
-                old_satpoint: SatPoint {
-                  outpoint: tx.input.get(0).unwrap().previous_output,
-                  offset: 0,
-                },
-                new_satpoint: None,
-                from_script: ScriptKey::from_script(&from_script, self.index.get_chain_network()),
-                to_script: None,
-                action: Action::Inscribe(operation),
-              },
-            ))
-          };
-          self.tx_cache.insert(txid, tx.to_owned());
-        }
 
         new_inscriptions.next();
         id_counter += 1;
@@ -259,6 +182,8 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       .into_iter()
       .map(|flotsam| {
         if let Flotsam {
+          txid,
+          old_satpoint,
           inscription_id,
           offset,
           origin:
@@ -270,6 +195,8 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         } = flotsam
         {
           Flotsam {
+            txid,
+            old_satpoint,
             inscription_id,
             offset,
             origin: Origin::New {
@@ -295,14 +222,13 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     }
 
     floating_inscriptions.sort_by_key(|flotsam| flotsam.offset);
-    inscriptions_collector.sort_by_key(|key| key.0);
-
     let mut inscriptions = floating_inscriptions.into_iter().peekable();
+
     let mut output_value = 0;
     for (vout, tx_out) in tx.output.iter().enumerate() {
       let end = output_value + tx_out.value;
 
-      while let Some(flotsam) = inscriptions.peek().cloned() {
+      while let Some(flotsam) = inscriptions.peek() {
         if flotsam.offset >= end {
           break;
         }
@@ -320,24 +246,10 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           inscriptions.next().unwrap(),
           new_satpoint,
         )?;
-
-        if let Some(inscription_data) = inscriptions_collector
-          .iter_mut()
-          .find(|key: &&mut (u64, InscriptionData)| key.1.inscription_id == flotsam.inscription_id)
-          .map(|value| &mut value.1)
-        {
-          inscription_data.to_script = Some(ScriptKey::from_script(
-            &tx_out.script_pubkey,
-            self.index.get_chain_network(),
-          ));
-          inscription_data.new_satpoint = Some(new_satpoint);
-        }
       }
 
       output_value = end;
     }
-    let (_, collects): (Vec<u64>, Vec<InscriptionData>) =
-      inscriptions_collector.into_iter().unzip();
 
     if is_coinbase {
       for flotsam in inscriptions {
@@ -348,14 +260,14 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         self.update_inscription_location(input_sat_ranges, flotsam, new_satpoint)?;
       }
       self.lost_sats += self.reward - output_value;
-      Ok(Vec::new())
+      Ok(())
     } else {
       self.flotsam.extend(inscriptions.map(|flotsam| Flotsam {
         offset: self.reward + flotsam.offset - output_value,
         ..flotsam
       }));
       self.reward += input_value - output_value;
-      Ok(collects)
+      Ok(())
     }
   }
 
@@ -367,8 +279,8 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
   ) -> Result {
     let inscription_id = flotsam.inscription_id.store();
     let unbound = match flotsam.origin {
-      Origin::Old { old_satpoint } => {
-        self.satpoint_to_id.remove(&old_satpoint.store())?;
+      Origin::Old => {
+        self.satpoint_to_id.remove(&flotsam.old_satpoint.store())?;
 
         false
       }
@@ -438,27 +350,20 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       new_satpoint.store()
     };
 
+    self.operations.push(Operation {
+      txid: flotsam.txid,
+      inscription_id: flotsam.inscription_id,
+      action: match flotsam.origin {
+        Origin::Old => Action::Transfer,
+        Origin::New { .. } => Action::New,
+      },
+      old_satpoint: flotsam.old_satpoint,
+      new_satpoint: Entry::load(satpoint),
+    });
+
     self.satpoint_to_id.insert(&satpoint, &inscription_id)?;
     self.id_to_satpoint.insert(&inscription_id, &satpoint)?;
 
     Ok(())
-  }
-
-  fn get_previous_output_script(&self, outpoint: OutPoint) -> Result<Script> {
-    let tx = self
-      .index
-      .get_transaction_with_retries(outpoint.txid)?
-      .ok_or(anyhow!("failed to get transaction for {}", outpoint.txid))?;
-    Ok(
-      tx.output
-        .get(outpoint.vout as usize)
-        .ok_or(anyhow!(
-          "failed to get output {} for {}",
-          outpoint.vout,
-          outpoint.txid
-        ))?
-        .script_pubkey
-        .clone(),
-    )
   }
 }

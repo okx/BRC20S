@@ -47,6 +47,7 @@ use self::api::*;
 use self::response::ApiResponse;
 use self::types::*;
 
+#[cfg(feature = "rollback")]
 use crate::index::GLOBAL_SAVEPOINTS;
 
 enum BlockQuery {

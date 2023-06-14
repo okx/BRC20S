@@ -50,13 +50,13 @@ define_table! { SAT_TO_INSCRIPTION_ID, u64, &InscriptionIdValue }
 define_table! { SAT_TO_SATPOINT, u64, &SatPointValue }
 define_table! { STATISTIC_TO_COUNT, u64, u64 }
 define_table! { WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP, u64, u128 }
-
+#[cfg(feature = "rollback")]
 pub(crate) struct HeightSavepoint(pub u64, pub Savepoint);
-
+#[cfg(feature = "rollback")]
 pub(crate) static mut GLOBAL_SAVEPOINTS: OnceCell<VecDeque<HeightSavepoint>> = OnceCell::new();
-
+#[cfg(feature = "rollback")]
 pub(crate) const SAVEPOINT_INTERVAL: u64 = 3;
-
+#[cfg(feature = "rollback")]
 pub(crate) const MAX_SAVEPOINTS: usize = 4;
 
 pub(crate) struct Index {
@@ -401,6 +401,7 @@ impl Index {
     self.reorged.store(false, atomic::Ordering::Relaxed);
   }
 
+  #[cfg(feature = "rollback")]
   pub(crate) unsafe fn backup_at_init(&self) -> Result {
     let height = self.height().unwrap().unwrap_or(Height(0)).n();
     GLOBAL_SAVEPOINTS.get_or_init(|| VecDeque::new());

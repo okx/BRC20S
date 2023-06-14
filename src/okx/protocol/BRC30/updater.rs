@@ -138,7 +138,9 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     from_script_key: Option<ScriptKey>,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    //TODO need validate deploy
+    if let Some(iserr) = deploy.validate_basic().err() {
+      return Err(Error::BRC30Error(iserr));
+    }
     //Prepare the data
     let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
     let from_script_key = from_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;

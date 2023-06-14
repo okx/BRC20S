@@ -3,12 +3,8 @@ use std::str::FromStr;
 use bitcoin::hashes::{Hash, sha256};
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::base58::from;
-use bitcoincore_rpc::json::Bip125Replaceable::No;
-use futures::future::ok;
-use hex::FromHexError;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
-use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
 use crate::okx::protocol::BRC30::params::{FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE};
 use crate::okx::protocol::BRC30::{BRC30Error, Error, Num, Stake};
@@ -149,13 +145,13 @@ impl Deploy {
 
     if let Some(supply) = self.total_supply.as_ref() {
       if let Some(iserr) = Num::from_str(supply.as_str()).err()  {
-        return Err(BRC30Error::InvalidNum(supply+ iserr.to_string().as_str()));
+        return Err(BRC30Error::InvalidNum(supply.to_string() + iserr.to_string().as_str()));
       }
     }
 
     if let Some(dec) = self.decimals.as_ref() {
       if let Some(iserr) = Num::from_str(dec.as_str()).err()  {
-        return Err(BRC30Error::InvalidNum(dec+ iserr.to_string().as_str()));
+        return Err(BRC30Error::InvalidNum(dec.to_string() + iserr.to_string().as_str()));
       }
     }
 

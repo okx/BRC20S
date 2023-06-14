@@ -13,6 +13,8 @@ use {
 
 #[cfg(feature = "rollback")]
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
+use crate::okx::protocol::manager::ProtocolManager;
+use crate::okx::protocol::protocol::Protocol;
 
 #[cfg(feature = "rollback")]
 const FAST_QUERY_HEIGHT: u64 = 10;
@@ -349,11 +351,6 @@ impl Updater {
     let mut satpoint_to_inscription_id = wtx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
-    let brc20_data_store = BRC20DataStore::new(wtx);
-    let brc30_data_store = BRC30DataStore::new(wtx);
-
-    let ord_db_reader = OrdDbReader::new(&wtx);
-
     let mut lost_sats = statistic_to_count
       .get(&Statistic::LostSats.key())?
       .map(|lost_sats| lost_sats.value())
@@ -474,8 +471,20 @@ impl Updater {
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
-    // let inscription_operations = inscription_updater.operations;
-    // todo!("index BRC20 and BRC30 transactions");
+    let brc20_data_store = BRC20DataStore::new(wtx);
+    let brc30_data_store = BRC30DataStore::new(wtx);
+    let ord_db_reader = OrdDbReader::new(&wtx);
+    let mut protocol_manager = ProtocolManager::new(
+      &brc20_data_store,
+      &brc30_data_store,
+      &ord_db_reader,
+      &inscription_id_to_inscription_entry,
+    );
+    // todo: convert operations to Protocol
+    // if let Some(protocol) = Protocol::inner_conversion() {
+    //   protocol_manager.register(protocol);
+    // }
+    protocol_manager.execute_protocols(self.height, block.header.time)?;
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 

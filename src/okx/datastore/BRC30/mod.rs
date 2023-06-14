@@ -38,7 +38,14 @@ pub trait BRC30DataStoreReadOnly {
   // 3.3.6 BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(&self, pid: &Pid) -> Result<Option<UserInfo>, Self::Error>;
 
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID 和 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
+  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
+  fn get_pledgedtick_tickid_to_pid(
+    &self,
+    pledged: &PledgedTick,
+    tick_id: &TickId,
+  ) -> Result<Option<Pid>, Self::Error>;
+
+  // 3.3.7 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
   // fn get_stake_tick_id_to_pid(&self);
 
   // 3.3.8 BRC30_BALANCE
@@ -87,8 +94,15 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
   // 3.3.6 BRC30_PID_TO_USERINFO
   fn set_pid_to_use_info(&self, pid: &Pid, user_info: &UserInfo) -> Result<(), Self::Error>;
 
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID 和 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
-  fn set_stake_tick_id_to_pid(&self) -> Result<(), Self::Error>;
+  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
+  fn set_pledgedtick_tickid_to_pid(
+    &self,
+    pledged: &PledgedTick,
+    tick_id: &TickId,
+    pid: &Pid,
+  ) -> Result<(), Self::Error>;
+
+  // 3.3.7 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
 
   // 3.3.8 BRC30_BALANCE
   fn set_token_balance(

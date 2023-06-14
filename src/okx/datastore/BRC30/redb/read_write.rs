@@ -56,7 +56,16 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_pid_to_use_info(pid)
   }
 
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID 和 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
+  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
+  fn get_pledgedtick_tickid_to_pid(
+    &self,
+    pledged: &PledgedTick,
+    tick_id: &TickId,
+  ) -> Result<Option<Pid>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_pledgedtick_tickid_to_pid(pledged, tick_id)
+  }
+
+  // 3.3.7 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
   // fn get_stake_tick_id_to_pid(&self);
 
   // 3.3.8 BRC30_BALANCE
@@ -146,11 +155,16 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.7 BRC30_STAKE_TICKID_TO_PID 和 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
-  fn set_stake_tick_id_to_pid(&self) -> Result<(), Self::Error> {
-    // self.wtx.open_table(BRC30_PID_TO_USERINFO)?.insert(
-    //   pid.as_str(),
-    //   bincode::serialize(user_info).unwrap().as_slice(),
-    // )?;
+  fn set_pledgedtick_tickid_to_pid(
+    &self,
+    pledged: &PledgedTick,
+    tick_id: &TickId,
+    pid: &Pid,
+  ) -> Result<(), Self::Error> {
+    self.wtx.open_table(BRC30_STAKE_TICKID_TO_PID)?.insert(
+      pledgedtick_tickid_key(pledged, tick_id).as_str(),
+      bincode::serialize(pid).unwrap().as_slice(),
+    )?;
     Ok(())
   }
 
@@ -542,5 +556,76 @@ mod tests {
     brc30db.set_txid_to_receipts(&txid, &op_vec).unwrap();
 
     assert_eq!(brc30db.get_txid_to_receipts(&txid).unwrap(), op_vec);
+  }
+
+  #[test]
+  fn test_pledgedtick_tickid_to_pid() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30DataStore::new(&wtx);
+
+    let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
+    let pid_20 = Pid::from_str("tick20").unwrap();
+    let stake_info_20 = StakeInfo {
+      stake: pledged_tick_20.clone(),
+      total_share: 123,
+      total_only: 123,
+      pids: vec![pid_20.clone()],
+    };
+
+    let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("tck30").unwrap());
+    let pid_30 = Pid::from_str("tick30").unwrap();
+    let stake_info_30 = StakeInfo {
+      stake: pledged_tick_30.clone(),
+      total_share: 123,
+      total_only: 123,
+      pids: vec![pid_30.clone()],
+    };
+
+    let tick1 = TickId::from_str("abcdd").unwrap();
+    let tick2 = TickId::from_str("12345").unwrap();
+    let tick3 = TickId::from_str(";23!@").unwrap();
+
+    let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("btc00").unwrap());
+    let pid_btc = Pid::from_str("btcbtc").unwrap();
+    let stake_info_btc = StakeInfo {
+      stake: pledged_tick_btc.clone(),
+      total_share: 123,
+      total_only: 123,
+      pids: vec![pid_btc.clone()],
+    };
+
+    brc30db
+      .set_pledgedtick_tickid_to_pid(&pledged_tick_20, &tick1, &pid_20)
+      .unwrap();
+    brc30db
+      .set_pledgedtick_tickid_to_pid(&pledged_tick_30, &tick2, &pid_30)
+      .unwrap();
+    brc30db
+      .set_pledgedtick_tickid_to_pid(&pledged_tick_btc, &tick3, &pid_btc)
+      .unwrap();
+
+    assert_eq!(
+      brc30db
+        .get_pledgedtick_tickid_to_pid(&pledged_tick_20, &tick1)
+        .unwrap()
+        .unwrap(),
+      pid_20
+    );
+    assert_eq!(
+      brc30db
+        .get_pledgedtick_tickid_to_pid(&pledged_tick_30, &tick2)
+        .unwrap()
+        .unwrap(),
+      pid_30
+    );
+    assert_eq!(
+      brc30db
+        .get_pledgedtick_tickid_to_pid(&pledged_tick_btc, &tick3)
+        .unwrap()
+        .unwrap(),
+      pid_btc
+    );
   }
 }

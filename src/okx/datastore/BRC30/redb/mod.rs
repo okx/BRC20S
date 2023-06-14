@@ -60,6 +60,27 @@ fn script_pledged_key(script: &ScriptKey, pledged_tick: &PledgedTick) -> String 
   format!("{}_{}", script.to_string(), pledged_key)
 }
 
+fn pledgedtick_tickid_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
+  let mut pledged_key: String;
+  match pledged_tick {
+    PledgedTick::NATIVE => {
+      pledged_key = hex::encode("btc").to_string();
+    }
+    PledgedTick::BRC20Tick(tick) => {
+      pledged_key = tick.to_lowercase().hex();
+    }
+    PledgedTick::BRC30Tick(tick_id) => {
+      pledged_key = tick_id.to_lowercase().hex();
+    }
+  }
+
+  format!(
+    "{}_{}",
+    pledged_key.to_string(),
+    tick_id.to_lowercase().hex()
+  )
+}
+
 fn min_script_tick_id_key(script: &ScriptKey) -> String {
   format!("{}_{}", script.to_string(), TickId::min_hex())
 }

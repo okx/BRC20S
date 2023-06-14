@@ -147,7 +147,7 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
   }
 
   // 3.3.7 BRC30_STAKE_TICKID_TO_PID, TODO zhujianguo
-  fn get_pledgedtick_tickid_to_pid(
+  fn get_stake_tickid_to_pid(
     &self,
     pledged: &PledgedTick,
     tick_id: &TickId,
@@ -161,9 +161,20 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
-  // fn get_stake_tick_id_to_pid(&self);
-
-  // 3.3.7 BRC30_TICKID_STAKE_TO_PID, TODO zhujianguo
+  // 3.3.7 BRC30_TICKID_STAKE_TO_PID
+  fn get_tickid_stake_to_pid(
+    &self,
+    tick_id: &TickId,
+    pledged: &PledgedTick,
+  ) -> Result<Option<Pid>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_TICKID_STAKE_TO_PID)?
+        .get(pledgedtick_tickid_key(pledged, tick_id).as_str())?
+        .map(|v| bincode::deserialize::<Pid>(v.value()).unwrap()),
+    )
+  }
 
   // 3.3.8 BRC30_BALANCE
   fn get_balance(

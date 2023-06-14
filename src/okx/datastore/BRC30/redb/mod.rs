@@ -20,6 +20,8 @@ const BRC30_PID_TO_USERINFO: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC30_PID_TO_USERINFO");
 const BRC30_STAKE_TICKID_TO_PID: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC30_STAKE_TICKID_TO_PID");
+const BRC30_TICKID_STAKE_TO_PID: TableDefinition<&str, &[u8]> =
+  TableDefinition::new("BRC30_TICKID_STAKE_TO_PID");
 const BRC30_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC30_BALANCE");
 const BRC30_TRANSFERABLE_ASSETS: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC30_TRANSFERABLE_ASSETS");

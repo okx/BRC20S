@@ -1,7 +1,7 @@
 use crate::okx::protocol::BRC30::params::MAX_DECIMAL_WIDTH;
 use crate::okx::protocol::BRC30::BRC30Error;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
-use bigdecimal::{BigDecimal, One, ToPrimitive};
+use bigdecimal::{BigDecimal, One, ToPrimitive, Zero};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -12,6 +12,10 @@ pub struct Num(BigDecimal);
 impl Num {
   pub fn new(num: BigDecimal) -> Self {
     Self(num)
+  }
+
+  pub fn zero() -> Self {
+    Self(BigDecimal::zero())
   }
 
   pub fn checked_add(&self, other: &Num) -> Result<Self, BRC30Error> {

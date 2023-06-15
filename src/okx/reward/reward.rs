@@ -118,12 +118,46 @@ impl<'db, 'a> Pool<'db, 'a> {
     stake_alter: u128,
     is_add: bool,
   ) -> Result<(), RewardError> {
+    // if (_amount > 0) {
+    //   pool.lpToken.safeTransferFrom(
+    //     address(msg.sender),
+    //     address(this),
+    //     _amount
+    //   );
+    //   user.amount = user.amount.add(_amount);
+    // }
+    // user.rewardDebt = user.amount.mul(pool.accCakePerShare).div(1e12);
+
     // return Err(RewardError::InvalidNum("er".to_string()));
+    let mut user = self
+      .brc30db
+      .get_pid_to_use_info(&script_key.clone(), &pid.clone())
+      .unwrap()
+      .unwrap();
+
+    let mut pool = self
+      .brc30db
+      .get_pid_to_poolinfo(&pid.clone())
+      .unwrap()
+      .unwrap();
+
     //1.判断是否stake_alter是否大于0
+    if (stake_alter > 0) {
+      //2.大于0，则进行相应增加或者减少, TODO check overflow
+      if is_add {
+        user.staked += stake_alter;
+      } else {
+        user.staked -= stake_alter;
+      }
+    }
 
-    //2.大于0，则进行相应增加或者减少
+    //3.更新用户的 reward_debt, TODO check overflow
+    user.reward_debt = user.staked * pool.acc_reward_per_share;
 
-    //3.更新用户的 reward_debt
+    //4.保存用户信息
+    self
+      .brc30db
+      .set_pid_to_use_info(&script_key.clone(), &pid.clone(), &user);
 
     return Ok(());
   }

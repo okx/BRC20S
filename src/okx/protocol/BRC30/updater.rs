@@ -165,6 +165,15 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     let name = deploy.get_earn_id();
     let dmax = deploy.get_distribution_max();
 
+    // check pool is exist, if true return error
+    if let Some(_) = self
+      .ledger
+      .get_pid_to_poolinfo(&pid)
+      .map_err(|e| Error::LedgerError(e))?
+    {
+      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid.hex())));
+    }
+
     //Get or create the tick
     if let Some(mut temp_tick) = self
       .ledger
@@ -197,6 +206,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
       }
       let mut new_allocated = temp_tick.allocated + dmax;
       temp_tick.allocated = new_allocated;
+      temp_tick.pids.push(pid.clone());
       self
         .ledger
         .set_tick_info(&tick_id, &temp_tick)
@@ -232,7 +242,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
       }
 
       let supply = total_supply.checked_mul(&base)?.checked_to_u128()?;
-
+      let pids = vec![pid.clone()];
       let tick = TickInfo::new(
         tick_id,
         &name,
@@ -244,21 +254,13 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
         &to_script_key,
         block_number,
         block_number,
+        pids,
       );
       self
         .ledger
         .set_tick_info(&tick_id, &tick)
         .map_err(|e| Error::LedgerError(e))?;
     };
-
-    // check pool is exist, if true return error
-    if let Some(_) = self
-      .ledger
-      .get_pid_to_poolinfo(&pid)
-      .map_err(|e| Error::LedgerError(e))?
-    {
-      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid.hex())));
-    }
 
     let pool = PoolInfo::new(
       &pid,

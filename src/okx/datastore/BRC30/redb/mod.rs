@@ -57,6 +57,10 @@ fn script_pledged_key(script: &ScriptKey, pledged_tick: &PledgedTick) -> String 
     PledgedTick::BRC30Tick(tick_id) => {
       pledged_key = tick_id.to_lowercase().hex();
     }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
+    }
   }
 
   format!("{}_{}", script.to_string(), pledged_key)
@@ -73,6 +77,10 @@ fn pledgedtick_tickid_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> Strin
     }
     PledgedTick::BRC30Tick(tick_id) => {
       pledged_key = tick_id.to_lowercase().hex();
+    }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
     }
   }
 

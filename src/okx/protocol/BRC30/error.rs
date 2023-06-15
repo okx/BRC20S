@@ -3,7 +3,7 @@ use crate::InscriptionId;
 use protocol::BRC30::num::Num;
 use serde::{Deserialize, Serialize};
 
-use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, Pid};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: BRC30DataStoreReadOnly> {
@@ -55,6 +55,9 @@ pub enum BRC30Error {
   #[error("illegal tick length '{0}'")]
   InvalidTickLen(String),
 
+  #[error("illegal tick id '{0}'")]
+  InvalidTickId(String),
+
   #[error("decimals {0} too large")]
   DecimalsTooLarge(u8),
 
@@ -92,6 +95,36 @@ pub enum BRC30Error {
   /// and should not happen under normal circumstances
   #[error("internal error: {0}")]
   InternalError(String),
+
+  #[error("insufficient supply error: {0}")]
+  InsufficientTickSupply(String),
+
+  #[error("tick {0} is already exist")]
+  TickAlreadyExist(String),
+
+  #[error("tick name {0} is not match")]
+  TickNameNotMatch(String),
+
+  #[error("pool {0} is already exist")]
+  PoolAlreadyExist(String),
+
+  #[error("unknown pool type")]
+  UnknownPoolType,
+
+  #[error("illegal pool id '{0}' error: {1}")]
+  InvalidPoolId(String,String),
+
+  #[error("illegal hex str error: {0}")]
+  InvalidHexStr(String),
+
+  #[error("{0} can not empty")]
+  EmptyParams(String),
+
+  #[error("stake {0} has already exist in pool {1}")]
+  StakeAlreadyExist(String, String),
+
+  #[error("unknown stake type")]
+  UnknownStakeType,
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

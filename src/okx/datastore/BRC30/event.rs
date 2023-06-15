@@ -77,11 +77,11 @@ pub struct DeployTickEvent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct DeployPoolEvent {
-  pid: Pid,
-  ptype: PoolType,
-  stake: PledgedTick,
-  erate: u128,
-  dmax: u128,
+  pub pid: Pid,
+  pub ptype: PoolType,
+  pub stake: PledgedTick,
+  pub erate: u128,
+  pub dmax: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

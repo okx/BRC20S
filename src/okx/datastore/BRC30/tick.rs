@@ -1,13 +1,14 @@
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::protocol::BRC30::params::{
-  TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT, TICK_SPECIAL,
+  TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT, NATIVE_TOKEN,
 };
-use crate::okx::protocol::BRC30::BRC30Error;
+use crate::okx::protocol::BRC30::{BRC30Error, Deploy};
 use crate::InscriptionId;
 
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
+use crate::okx::protocol::BRC20::Num;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TickId([u8; TICK_ID_BYTE_COUNT]);
@@ -25,6 +26,14 @@ impl FromStr for TickId {
   }
 }
 
+impl TickId {
+  pub fn from_bytes(bytes: &[u8]) -> Result<Self, BRC30Error> {
+    if bytes.len() != TICK_ID_BYTE_COUNT {
+      return Err(BRC30Error::InvalidTickLen(hex::encode(bytes)));
+    }
+    Ok(Self(bytes.try_into().unwrap()))
+  }
+}
 impl PartialEq for TickId {
   fn eq(&self, other: &Self) -> bool {
     self.to_lowercase().0 == other.to_lowercase().0
@@ -96,7 +105,7 @@ impl FromStr for BRC30Tick {
       return Err(BRC30Error::InvalidTickLen("".to_string()));
     }
 
-    if length == TICK_SPECIAL.len() && s.to_lowercase() == TICK_SPECIAL {
+    if length == NATIVE_TOKEN.len() && s.to_lowercase() == NATIVE_TOKEN {
       return Ok(Self(bytes.try_into().unwrap()));
     }
 
@@ -166,9 +175,21 @@ impl<'de> Deserialize<'de> for BRC30Tick {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum PledgedTick {
+  UNKNOWN,
   NATIVE,
   BRC20Tick(Tick),
   BRC30Tick(TickId),
+}
+
+impl PledgedTick {
+  pub fn to_string(&self) -> String {
+    match self {
+      PledgedTick::UNKNOWN => "UNKNOWN".to_string(),
+      PledgedTick::NATIVE => NATIVE_TOKEN.to_string(),
+      PledgedTick::BRC20Tick(tick) => tick.to_lowercase().hex(),
+      PledgedTick::BRC30Tick(tickid) => tickid.to_lowercase().hex(),
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -176,7 +197,6 @@ pub struct TickInfo {
   pub tick_id: TickId,
   pub name: BRC30Tick,
   pub inscription_id: InscriptionId,
-  pub only: bool,
   pub allocated: u128,
   pub decimal: u8,
   pub minted: u128,
@@ -184,6 +204,34 @@ pub struct TickInfo {
   pub deployer: ScriptKey,
   pub deploy_block: u64,
   pub latest_mint_block: u64,
+}
+
+impl TickInfo {
+  pub fn new(
+    tick_id: TickId,
+    name: &BRC30Tick,
+    inscription_id: &InscriptionId,
+    allocated: u128,
+    decimal: u8,
+    minted: u128,
+    supply: u128,
+    deployer: &ScriptKey,
+    deploy_block: u64,
+    latest_mint_block: u64,
+  ) -> Self {
+    Self {
+      tick_id,
+      name: name.to_lowercase(),
+      inscription_id:inscription_id.clone(),
+      allocated,
+      decimal,
+      minted,
+      supply,
+      deployer:deployer.clone(),
+      deploy_block,
+      latest_mint_block,
+    }
+  }
 }
 
 #[cfg(test)]
@@ -194,7 +242,7 @@ mod tests {
   fn test_tickid_compare_ignore_case() {
     assert_eq!(TickId::from_str("aBc1a"), TickId::from_str("AbC1A"));
 
-    assert_ne!(TickId::from_str("aBc1D"), TickId::from_str("aBc2d"));
+    assert_ne!(TickId::from_str("aBc1F"), TickId::from_str("aBc2f"));
   }
 
   #[test]

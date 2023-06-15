@@ -5,6 +5,8 @@ pub mod num;
 mod operation;
 pub mod params;
 pub mod updater;
+mod hash;
+mod util;
 
 pub use self::{
   error::{BRC30Error, Error},
@@ -60,7 +62,7 @@ mod tests {
         Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-30","op":"deploy","t":"12000","pid":"12000","stake":"12","earn":"12","erate":"12","dmax":"12","total":"12","only":"12","dec":"11"}"##
+            r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -69,15 +71,15 @@ mod tests {
       )
       .unwrap(),
       Operation::Deploy(Deploy {
-        pool_type: "12000".to_string(),
-        pool_id: "12000".to_string(),
-        stake: "12".to_string(),
-        earn: "12".to_string(),
-        earn_rate: "12".to_string(),
-        distribution_max: "12".to_string(),
-        total_supply: "12".to_string(),
-        only: "12".to_string(),
-        decimals: Some("11".to_string()),
+        pool_type: "pool".to_string(),
+        pool_id: "a3668daeaa#1f".to_string(),
+        stake: "btc".to_string(),
+        earn: "ordi".to_string(),
+        earn_rate: "10".to_string(),
+        distribution_max: "12000000".to_string(),
+        decimals: Some("18".to_string()),
+        total_supply: Some("21000000".to_string()),
+        only: Some("1".to_string()),
       }),
     );
 

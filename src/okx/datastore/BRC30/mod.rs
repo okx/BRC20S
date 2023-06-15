@@ -36,21 +36,24 @@ pub trait BRC30DataStoreReadOnly {
   ) -> Result<Option<StakeInfo>, Self::Error>;
 
   // 3.3.6 BRC30_PID_TO_USERINFO
-  fn get_pid_to_use_info(&self, pid: &Pid) -> Result<Option<UserInfo>, Self::Error>;
+  fn get_pid_to_use_info(
+    &self,
+    script_key: &ScriptKey,
+    pid: &Pid,
+  ) -> Result<Option<UserInfo>, Self::Error>;
 
   // 3.3.7 BRC30_STAKE_TICKID_TO_PID
-  fn get_stake_tickid_to_pid(
-    &self,
-    pledged: &PledgedTick,
-    tick_id: &TickId,
-  ) -> Result<Option<Pid>, Self::Error>;
-
-  // 3.3.7 BRC30_TICKID_STAKE_TO_PID
   fn get_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,
     pledged: &PledgedTick,
   ) -> Result<Option<Pid>, Self::Error>;
+
+  // 3.3.7 get_tickid_to_all_pid
+  fn get_tickid_to_all_pid(&self, tick_id: &TickId) -> Result<Vec<Pid>, Self::Error>;
+
+  // 3.3.7 get_stake_to_all_pid
+  fn get_stake_to_all_pid(&self, pledged: &PledgedTick) -> Result<Vec<Pid>, Self::Error>;
 
   // 3.3.8 BRC30_BALANCE
   fn get_balance(
@@ -96,17 +99,14 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
   ) -> Result<(), Self::Error>;
 
   // 3.3.6 BRC30_PID_TO_USERINFO
-  fn set_pid_to_use_info(&self, pid: &Pid, user_info: &UserInfo) -> Result<(), Self::Error>;
-
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
-  fn set_stake_tickid_to_pid(
+  fn set_pid_to_use_info(
     &self,
-    pledged: &PledgedTick,
-    tick_id: &TickId,
+    script_key: &ScriptKey,
     pid: &Pid,
+    user_info: &UserInfo,
   ) -> Result<(), Self::Error>;
 
-  // 3.3.7 BRC30_TICKID_STAKE_TO_PID
+  // 3.3.7 BRC30_STAKE_TICKID_TO_PID, BRC30_TICKID_STAKE_TO_PID
   fn set_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,

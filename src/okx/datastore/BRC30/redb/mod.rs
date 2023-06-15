@@ -4,7 +4,7 @@ mod read_write;
 pub use self::{read_only::BRC30DataStoreReader, read_write::BRC30DataStore};
 
 use crate::okx::datastore::ScriptKey;
-use crate::okx::datastore::BRC30::{PledgedTick, TickId};
+use crate::okx::datastore::BRC30::{Pid, PledgedTick, TickId};
 use crate::InscriptionId;
 use bitcoin::Txid;
 use redb::TableDefinition;
@@ -45,6 +45,10 @@ fn script_tickid_inscriptionid_key(
   )
 }
 
+fn script_pid_key(script: &ScriptKey, pid: &Pid) -> String {
+  format!("{}_{}", script.to_string(), pid.to_lowercase().hex(),)
+}
+
 fn script_pledged_key(script: &ScriptKey, pledged_tick: &PledgedTick) -> String {
   let mut pledged_key: String;
   match pledged_tick {
@@ -66,7 +70,7 @@ fn script_pledged_key(script: &ScriptKey, pledged_tick: &PledgedTick) -> String 
   format!("{}_{}", script.to_string(), pledged_key)
 }
 
-fn pledgedtick_tickid_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
+fn stake_tickid_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
   let mut pledged_key: String;
   match pledged_tick {
     PledgedTick::NATIVE => {
@@ -91,10 +95,93 @@ fn pledgedtick_tickid_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> Strin
   )
 }
 
+fn tickid_stake_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
+  let mut pledged_key: String;
+  match pledged_tick {
+    PledgedTick::NATIVE => {
+      pledged_key = hex::encode("btc").to_string();
+    }
+    PledgedTick::BRC20Tick(tick) => {
+      pledged_key = tick.to_lowercase().hex();
+    }
+    PledgedTick::BRC30Tick(tick_id) => {
+      pledged_key = tick_id.to_lowercase().hex();
+    }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
+    }
+  }
+
+  format!(
+    "{}_{}",
+    tick_id.to_lowercase().hex(),
+    pledged_key.to_string()
+  )
+}
+
 fn min_script_tick_id_key(script: &ScriptKey) -> String {
   format!("{}_{}", script.to_string(), TickId::min_hex())
 }
 
 fn max_script_tick_id_key(script: &ScriptKey) -> String {
   format!("{}_{}", script.to_string(), TickId::max_hex())
+}
+
+fn min_tickid_stake_key(tick_id: &TickId) -> String {
+  format!(
+    "{}_{}",
+    tick_id.to_lowercase().hex(),
+    PledgedTick::min_hex()
+  )
+}
+
+fn max_tickid_stake_key(tick_id: &TickId) -> String {
+  format!(
+    "{}_{}",
+    tick_id.to_lowercase().hex(),
+    PledgedTick::max_hex()
+  )
+}
+
+fn min_stake_tickid_key(pledged: &PledgedTick) -> String {
+  let mut pledged_key: String;
+  match pledged {
+    PledgedTick::NATIVE => {
+      pledged_key = hex::encode("btc").to_string();
+    }
+    PledgedTick::BRC20Tick(tick) => {
+      pledged_key = tick.to_lowercase().hex();
+    }
+    PledgedTick::BRC30Tick(tick_id) => {
+      pledged_key = tick_id.to_lowercase().hex();
+    }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
+    }
+  }
+
+  format!("{}_{}", pledged_key.to_string(), TickId::min_hex())
+}
+
+fn max_stake_tickid_key(pledged: &PledgedTick) -> String {
+  let mut pledged_key: String;
+  match pledged {
+    PledgedTick::NATIVE => {
+      pledged_key = hex::encode("btc").to_string();
+    }
+    PledgedTick::BRC20Tick(tick) => {
+      pledged_key = tick.to_lowercase().hex();
+    }
+    PledgedTick::BRC30Tick(tick_id) => {
+      pledged_key = tick_id.to_lowercase().hex();
+    }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
+    }
+  }
+
+  format!("{}_{}", pledged_key.to_string(), TickId::max_hex())
 }

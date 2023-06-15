@@ -1,14 +1,15 @@
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::protocol::BRC30::params::{
-  TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT, NATIVE_TOKEN,
+  NATIVE_TOKEN, TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT,
 };
 use crate::okx::protocol::BRC30::{BRC30Error, Deploy};
 use crate::InscriptionId;
+use std::mem;
 
+use crate::okx::protocol::BRC20::Num;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
-use crate::okx::protocol::BRC20::Num;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TickId([u8; TICK_ID_BYTE_COUNT]);
@@ -182,6 +183,15 @@ pub enum PledgedTick {
 }
 
 impl PledgedTick {
+  pub fn max_hex() -> String {
+    const max_size: usize = mem::size_of::<PledgedTick>();
+    hex::encode([0xffu8; max_size])
+  }
+
+  pub fn min_hex() -> String {
+    const max_size: usize = mem::size_of::<PledgedTick>();
+    hex::encode([0u8; max_size])
+  }
   pub fn to_string(&self) -> String {
     match self {
       PledgedTick::UNKNOWN => "UNKNOWN".to_string(),
@@ -222,12 +232,12 @@ impl TickInfo {
     Self {
       tick_id,
       name: name.to_lowercase(),
-      inscription_id:inscription_id.clone(),
+      inscription_id: inscription_id.clone(),
       allocated,
       decimal,
       minted,
       supply,
-      deployer:deployer.clone(),
+      deployer: deployer.clone(),
       deploy_block,
       latest_mint_block,
     }

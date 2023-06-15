@@ -136,32 +136,21 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
   }
 
   // 3.3.6 BRC30_PID_TO_USERINFO
-  fn get_pid_to_use_info(&self, pid: &Pid) -> Result<Option<UserInfo>, Self::Error> {
+  fn get_pid_to_use_info(
+    &self,
+    script_key: &ScriptKey,
+    pid: &Pid,
+  ) -> Result<Option<UserInfo>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_PID_TO_USERINFO)?
-        .get(pid.to_lowercase().hex().as_str())?
+        .get(script_pid_key(&script_key, &pid).as_str())?
         .map(|v| bincode::deserialize::<UserInfo>(v.value()).unwrap()),
     )
   }
 
   // 3.3.7 BRC30_STAKE_TICKID_TO_PID
-  fn get_stake_tickid_to_pid(
-    &self,
-    pledged: &PledgedTick,
-    tick_id: &TickId,
-  ) -> Result<Option<Pid>, Self::Error> {
-    Ok(
-      self
-        .wrapper
-        .open_table(BRC30_STAKE_TICKID_TO_PID)?
-        .get(pledgedtick_tickid_key(pledged, tick_id).as_str())?
-        .map(|v| bincode::deserialize::<Pid>(v.value()).unwrap()),
-    )
-  }
-
-  // 3.3.7 BRC30_TICKID_STAKE_TO_PID
   fn get_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,
@@ -170,9 +159,41 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_TICKID_STAKE_TO_PID)?
-        .get(pledgedtick_tickid_key(pledged, tick_id).as_str())?
+        .open_table(BRC30_STAKE_TICKID_TO_PID)?
+        .get(stake_tickid_key(pledged, tick_id).as_str())?
         .map(|v| bincode::deserialize::<Pid>(v.value()).unwrap()),
+    )
+  }
+
+  // 3.3.7 get_tickid_to_all_pid
+  fn get_tickid_to_all_pid(&self, tick_id: &TickId) -> Result<Vec<Pid>, Self::Error> {
+    let min = min_tickid_stake_key(tick_id);
+    let max = max_tickid_stake_key(tick_id);
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_TICKID_STAKE_TO_PID)?
+        .range(min.as_str()..max.as_str())?
+        .map(|(_, data)| {
+          let pid = bincode::deserialize::<Pid>(data.value()).unwrap();
+          pid
+        })
+        .collect(),
+    )
+  }
+
+  // 3.3.7 get_stake_to_all_pid
+  fn get_stake_to_all_pid(&self, pledged: &PledgedTick) -> Result<Vec<Pid>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_STAKE_TICKID_TO_PID)?
+        .range(min_stake_tickid_key(pledged).as_str()..max_stake_tickid_key(pledged).as_str())?
+        .map(|(_, data)| {
+          let pid = bincode::deserialize::<Pid>(data.value()).unwrap();
+          pid
+        })
+        .collect(),
     )
   }
 

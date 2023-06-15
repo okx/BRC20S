@@ -115,10 +115,10 @@ impl PoolInfo {
     only: bool,
   ) -> Self {
     Self {
-      pid:pid.clone(),
-      ptype:ptype.clone(),
-      inscription_id:inscription_id.clone(),
-      stake:stake.clone(),
+      pid: pid.clone(),
+      ptype: ptype.clone(),
+      inscription_id: inscription_id.clone(),
+      stake: stake.clone(),
       erate,
       minted,
       staked,

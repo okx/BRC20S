@@ -61,6 +61,10 @@ fn script_pledged_key(script: &ScriptKey, pledged_tick: &PledgedTick) -> String 
     PledgedTick::BRC30Tick(tick_id) => {
       pledged_key = tick_id.to_lowercase().hex();
     }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
+    }
   }
 
   format!("{}_{}", script.to_string(), pledged_key)
@@ -77,6 +81,10 @@ fn stake_tickid_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
     }
     PledgedTick::BRC30Tick(tick_id) => {
       pledged_key = tick_id.to_lowercase().hex();
+    }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
     }
   }
 
@@ -98,6 +106,10 @@ fn tickid_stake_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
     }
     PledgedTick::BRC30Tick(tick_id) => {
       pledged_key = tick_id.to_lowercase().hex();
+    }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
     }
   }
 
@@ -144,6 +156,10 @@ fn min_stake_tickid_key(pledged: &PledgedTick) -> String {
     PledgedTick::BRC30Tick(tick_id) => {
       pledged_key = tick_id.to_lowercase().hex();
     }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
+    }
   }
 
   format!("{}_{}", pledged_key.to_string(), TickId::min_hex())
@@ -160,6 +176,10 @@ fn max_stake_tickid_key(pledged: &PledgedTick) -> String {
     }
     PledgedTick::BRC30Tick(tick_id) => {
       pledged_key = tick_id.to_lowercase().hex();
+    }
+    PledgedTick::UNKNOWN => {
+      //TODO need return error
+      pledged_key = "unknown".to_string();
     }
   }
 

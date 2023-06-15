@@ -351,7 +351,7 @@ mod tests {
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let pid = Pid::from_str("123456").unwrap();
+    let pid = Pid::from_str("1234567890#01").unwrap();
 
     let pool_info = PoolInfo {
       pid: pid.clone(),
@@ -387,7 +387,7 @@ mod tests {
     let brc30db = BRC30DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
-    let pid_20 = Pid::from_str("tick20").unwrap();
+    let pid_20 = Pid::from_str("0000000000#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
       total_share: 123,
@@ -396,7 +396,7 @@ mod tests {
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("tck30").unwrap());
-    let pid_30 = Pid::from_str("tick30").unwrap();
+    let pid_30 = Pid::from_str("0000000000#02").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
       total_share: 123,
@@ -405,7 +405,7 @@ mod tests {
     };
 
     let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("btc00").unwrap());
-    let pid_btc = Pid::from_str("btcbtc").unwrap();
+    let pid_btc = Pid::from_str("0000000000#03").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
       total_share: 123,
@@ -466,7 +466,6 @@ mod tests {
       tick_id: tick_id.clone(),
       name: BRC30Tick::from_str("aBc1ab").unwrap(),
       inscription_id: inscription_id.clone(),
-      only: true,
       allocated: 100,
       decimal: 8,
       minted: 100,
@@ -490,7 +489,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc30db = BRC30DataStore::new(&wtx);
 
-    let pid = Pid::from_str("123456").unwrap();
+    let pid = Pid::from_str("1234567890#01").unwrap();
     let user_info = UserInfo {
       pid: pid.clone(),
       staked: 0,
@@ -594,7 +593,7 @@ mod tests {
     let brc30db = BRC30DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
-    let pid_20 = Pid::from_str("tick20").unwrap();
+    let pid_20 = Pid::from_str("1234567890#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
       total_share: 123,
@@ -603,7 +602,7 @@ mod tests {
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("tck30").unwrap());
-    let pid_30 = Pid::from_str("tick30").unwrap();
+    let pid_30 = Pid::from_str("1234567891#01").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
       total_share: 123,
@@ -616,7 +615,7 @@ mod tests {
     let tick3 = TickId::from_str(";23!@").unwrap();
 
     let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("btc00").unwrap());
-    let pid_btc = Pid::from_str("btcbtc").unwrap();
+    let pid_btc = Pid::from_str("1234567890#01").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
       total_share: 123,
@@ -665,7 +664,7 @@ mod tests {
     let brc30db = BRC30DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
-    let pid_20 = Pid::from_str("tick20").unwrap();
+    let pid_20 = Pid::from_str("1234567890#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
       total_share: 123,
@@ -674,7 +673,7 @@ mod tests {
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("tck30").unwrap());
-    let pid_30 = Pid::from_str("tick30").unwrap();
+    let pid_30 = Pid::from_str("1234567891#01").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
       total_share: 123,
@@ -687,7 +686,7 @@ mod tests {
     let tick3 = TickId::from_str(";23!@").unwrap();
 
     let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("btc00").unwrap());
-    let pid_btc = Pid::from_str("btcbtc").unwrap();
+    let pid_btc = Pid::from_str("1234567892#01").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
       total_share: 123,

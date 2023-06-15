@@ -82,6 +82,7 @@ impl<'de> Deserialize<'de> for Pid {
 pub enum PoolType {
   Pool,
   Fixed,
+  Unknown,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -97,6 +98,36 @@ pub struct PoolInfo {
   pub acc_reward_per_share: u128,
   pub last_update_block: u64,
   pub only: bool,
+}
+
+impl PoolInfo {
+  pub fn new(
+    pid: &Pid,
+    ptype: &PoolType,
+    inscription_id: &InscriptionId,
+    stake: &PledgedTick,
+    erate: u128,
+    minted: u128,
+    staked: u128,
+    allocated: u128,
+    acc_reward_per_share: u128,
+    last_update_block: u64,
+    only: bool,
+  ) -> Self {
+    Self {
+      pid:pid.clone(),
+      ptype:ptype.clone(),
+      inscription_id:inscription_id.clone(),
+      stake:stake.clone(),
+      erate,
+      minted,
+      staked,
+      allocated,
+      acc_reward_per_share,
+      last_update_block,
+      only,
+    }
+  }
 }
 
 #[cfg(test)]

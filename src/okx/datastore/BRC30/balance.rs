@@ -11,6 +11,16 @@ pub struct Balance {
   pub transferable_balance: u128,
 }
 
+impl Balance {
+  pub fn new(tick_id: TickId) -> Self {
+    Self {
+      tick_id,
+      overall_balance: 0u128,
+      transferable_balance: 0u128,
+    }
+  }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct TransferableAsset {
   pub inscription_id: InscriptionId,

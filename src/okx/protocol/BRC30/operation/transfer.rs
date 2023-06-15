@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Transfer {
   // 10 letter identifier of the pool id，pool number not included
-  #[serde(rename = "pid")]
-  pub pool_id: String,
+  #[serde(rename = "tid")]
+  pub tick_id: String,
 
   // Ticker: 4-6 letter identifier of the brc-30
   #[serde(rename = "tick")]
@@ -23,7 +23,7 @@ mod tests {
   #[test]
   fn test_serialize() {
     let obj = Transfer {
-      pool_id: "pid".to_string(),
+      tick_id: "tid".to_string(),
       tick: "tick".to_string(),
       amount: "amt".to_string(),
     };
@@ -31,8 +31,8 @@ mod tests {
     assert_eq!(
       serde_json::to_string(&obj).unwrap(),
       format!(
-        r##"{{"pid":"{}","tick":"{}","amt":"{}"}}"##,
-        obj.pool_id, obj.tick, obj.amount
+        r##"{{"tid":"{}","tick":"{}","amt":"{}"}}"##,
+        obj.tick_id, obj.tick, obj.amount
       )
     )
   }
@@ -43,7 +43,7 @@ mod tests {
       r##"{{
         "p": "brc-30",
         "op": "transfer",
-        "pid": "pid",
+        "tid": "tid",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -57,7 +57,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Transfer(Transfer {
         tick: "tick".to_string(),
-        pool_id: "pid".to_string(),
+        tick_id: "tid".to_string(),
         amount: "amt".to_string(),
       })
     );
@@ -88,7 +88,7 @@ mod tests {
       r##"{{
         "p": "brc-30",
         "op": "transfer",
-        "pid": "pid",
+        "tid": "tid",
         "tick": "tick-1",
         "tick": "tick-2",
         "amt": "amt"
@@ -98,7 +98,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Transfer(Transfer {
         tick: "tick-2".to_string(),
-        pool_id: "pid".to_string(),
+        tick_id: "tid".to_string(),
         amount: "amt".to_string(),
       })
     );

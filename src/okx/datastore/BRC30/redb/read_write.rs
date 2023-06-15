@@ -45,8 +45,8 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   // 3.3.5 BRC30_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,
-    script_key: ScriptKey,
-    pledged_tick: PledgedTick,
+    script_key: &ScriptKey,
+    pledged_tick: &PledgedTick,
   ) -> Result<Option<StakeInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_user_stakeinfo(script_key, pledged_tick)
   }
@@ -145,12 +145,12 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   // 3.3.5 BRC30_USER_STAKEINFO
   fn set_user_stakeinfo(
     &self,
-    script_key: ScriptKey,
-    pledged_tick: PledgedTick,
+    script_key: &ScriptKey,
+    pledged_tick: &PledgedTick,
     stake_info: &StakeInfo,
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_USER_STAKEINFO)?.insert(
-      script_pledged_key(&script_key, &pledged_tick).as_str(),
+      script_pledged_key(script_key, pledged_tick).as_str(),
       bincode::serialize(stake_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -390,7 +390,7 @@ mod tests {
     let pid_20 = Pid::from_str("0000000000#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_20.clone()],
     };
@@ -399,7 +399,7 @@ mod tests {
     let pid_30 = Pid::from_str("0000000000#02").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_30.clone()],
     };
@@ -408,26 +408,26 @@ mod tests {
     let pid_btc = Pid::from_str("0000000000#03").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_btc.clone()],
     };
 
     brc30db
-      .set_user_stakeinfo(script.clone(), pledged_tick_20.clone(), &stake_info_20)
+      .set_user_stakeinfo(&script, &pledged_tick_20, &stake_info_20)
       .unwrap();
 
     brc30db
-      .set_user_stakeinfo(script.clone(), pledged_tick_30.clone(), &stake_info_30)
+      .set_user_stakeinfo(&script, &pledged_tick_20, &stake_info_30)
       .unwrap();
 
     brc30db
-      .set_user_stakeinfo(script.clone(), pledged_tick_btc.clone(), &stake_info_btc)
+      .set_user_stakeinfo(&script, &pledged_tick_20, &stake_info_btc)
       .unwrap();
 
     assert_eq!(
       brc30db
-        .get_user_stakeinfo(script.clone(), pledged_tick_20.clone())
+        .get_user_stakeinfo(&script, &pledged_tick_20)
         .unwrap()
         .unwrap(),
       stake_info_20
@@ -435,7 +435,7 @@ mod tests {
 
     assert_eq!(
       brc30db
-        .get_user_stakeinfo(script.clone(), pledged_tick_30.clone())
+        .get_user_stakeinfo(&script, &pledged_tick_30)
         .unwrap()
         .unwrap(),
       stake_info_30
@@ -443,7 +443,7 @@ mod tests {
 
     assert_eq!(
       brc30db
-        .get_user_stakeinfo(script.clone(), pledged_tick_btc.clone())
+        .get_user_stakeinfo(&script, &pledged_tick_btc)
         .unwrap()
         .unwrap(),
       stake_info_btc
@@ -596,7 +596,7 @@ mod tests {
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_20.clone()],
     };
@@ -605,7 +605,7 @@ mod tests {
     let pid_30 = Pid::from_str("1234567891#01").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_30.clone()],
     };
@@ -618,7 +618,7 @@ mod tests {
     let pid_btc = Pid::from_str("1234567890#01").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_btc.clone()],
     };
@@ -667,7 +667,7 @@ mod tests {
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_20.clone()],
     };
@@ -676,7 +676,7 @@ mod tests {
     let pid_30 = Pid::from_str("1234567891#01").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_30.clone()],
     };
@@ -689,7 +689,7 @@ mod tests {
     let pid_btc = Pid::from_str("1234567892#01").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
-      total_share: 123,
+      max_share: 123,
       total_only: 123,
       pids: vec![pid_btc.clone()],
     };

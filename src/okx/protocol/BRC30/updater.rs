@@ -1,14 +1,13 @@
-use crate::okx::datastore::BRC30::{
-  BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, DeployPoolEvent, EventType, Pid, PledgedTick,
-  PoolInfo, PoolType, Receipt, TickInfo,
-};
+use std::cmp::max;
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, DeployPoolEvent, DepositEvent, EventType, Pid, PledgedTick, PoolInfo, PoolType, Receipt, StakeInfo, TickInfo, UserInfo};
 use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
 
 use crate::okx::datastore::ScriptKey;
+use crate::okx::datastore::balance::get_user_common_balance;
 
-use crate::okx::datastore::BRC20::Tick;
+use crate::okx::datastore::BRC20::{BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, Tick};
 use crate::okx::datastore::BRC30::PoolType::Pool;
 use crate::okx::protocol::BRC30::hash::caculate_tick_id;
 use crate::okx::protocol::BRC30::params::{
@@ -38,17 +37,20 @@ pub struct InscriptionData {
   pub action: Action,
 }
 
-pub(crate) struct BRC30Updater<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> {
+pub(crate) struct BRC30Updater<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> {
   ledger: &'a L,
+  brc20ledger: &'a M,
   id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
 }
-impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
+impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L, M> {
   pub fn new(
     ledger: &'a L,
+    brc20ledge: &'a M,
     id_to_entry: &'a Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
   ) -> Self {
     Self {
       ledger,
+      brc20ledger: brc20ledge,
       id_to_entry,
     }
   }
@@ -177,6 +179,14 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
         )));
       }
 
+      if temp_tick.deployer.eq(&to_script_key) {
+        return Err(Error::BRC30Error(BRC30Error::DeployerNotEqual(pid.hex(),temp_tick.deployer.to_string(),to_script_key.to_string())));
+      }
+
+      if to_script_key.eq(&from_script_key) {
+        return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(from_script_key.to_string(),to_script_key.to_string())));
+      }
+
       // check stake has exist in tick's pools
       if let Some(_) = self
         .ledger
@@ -188,13 +198,14 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
           tick_id.to_lowercase().hex(),
         )));
       }
-
+      // TODO Need to check the number of share pool < 5
       // check dmax
       if temp_tick.supply - temp_tick.allocated < dmax {
         return Err(Error::BRC30Error(BRC30Error::InsufficientTickSupply(
           deploy.distribution_max,
         )));
       }
+
       let mut new_allocated = temp_tick.allocated + dmax;
       temp_tick.allocated = new_allocated;
       self
@@ -278,6 +289,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
       .ledger
       .set_pid_to_poolinfo(&pool.pid, &pool)
       .map_err(|e| Error::LedgerError(e))?;
+    self.ledger.set_tickid_stake_to_pid(&tick_id,&stake,&pid).map_err(|e| Error::LedgerError(e))?;
     Ok(BRC30Event::DeployPool(DeployPoolEvent {
       pid,
       ptype,
@@ -293,7 +305,63 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     block_number: u64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    if let Some(iserr) = stake.validate_basics().err() {
+      return Err(Error::BRC30Error(iserr));
+    }
+    let pool_id = stake.get_pool_id();
+    let amount = stake.get_amount();
+    let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
+
+    let mut pool = self
+      .ledger
+      .get_pid_to_poolinfo(&pool_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(pool_id.hex())))?;
+
+    let stake = pool.stake.clone();
+
+    // check user balance of stake is more than ammount to staked
+    let balance = get_user_common_balance(&to_script_key,&stake,self.ledger,self.brc20ledger);
+    let mut userinfo = self.ledger
+      .get_pid_to_use_info(&to_script_key, &pool_id)
+      .map_or(Some(UserInfo::default(&pool_id)),|v|v).unwrap();
+    if balance < userinfo.staked {
+      return Err(Error::BRC30Error(BRC30Error::InValidStakeInfo(userinfo.staked, balance)));
+    }
+
+    if amount+userinfo.staked > balance {
+      return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(Num::from(amount), Num::from(balance-userinfo.staked))));
+    }
+    // updated user balance of staked
+    userinfo.staked = userinfo.staked + amount;
+    self.ledger.set_pid_to_use_info(&to_script_key,&pool_id,&userinfo).map_err(|e| Error::LedgerError(e))?;
+
+
+    //update the stake_info of user
+    let mut user_stakeinfo = self
+      .ledger
+      .get_user_stakeinfo(&to_script_key, &stake)
+      .map_err(|e| Error::LedgerError(e))?
+      .map_or(
+        StakeInfo::new(&vec![pool_id.clone()], &stake,0,0), |v|v);
+
+    if pool.only {
+      user_stakeinfo.total_only = user_stakeinfo.total_only + amount
+    } else {
+      user_stakeinfo.max_share = max(user_stakeinfo.max_share,userinfo.staked)
+    }
+    self.ledger.set_user_stakeinfo(&to_script_key,&stake,&user_stakeinfo).map_err(|e| Error::LedgerError(e))?;
+
+
+    // update pool_info for stake
+    pool.staked = pool.staked + amount;
+    self.ledger.set_pid_to_poolinfo(&pool_id, &pool).map_err(|e| Error::LedgerError(e))?;
+    // TODO update user reward 获取用户的收益
+
+    return Ok(BRC30Event::Deposit(DepositEvent {
+      pid: pool_id,
+      amt: 0,
+    }));
   }
 
   fn process_unstake(

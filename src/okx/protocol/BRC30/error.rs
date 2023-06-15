@@ -88,6 +88,12 @@ pub enum BRC30Error {
   #[error("invalid inscribe to coinbase")]
   InscribeToCoinbase,
 
+  #[error("from {0} must equal to to {1}")]
+  FromToNotEqual(String,String),
+
+  #[error("pool {0}  only be deployed by {0},but got {2}")]
+  DeployerNotEqual(String,String,String),
+
   #[error("transferable owner not match {0}")]
   TransferableOwnerNotMatch(InscriptionId),
 
@@ -108,6 +114,9 @@ pub enum BRC30Error {
   #[error("pool {0} is already exist")]
   PoolAlreadyExist(String),
 
+  #[error("pool {0} is not exist")]
+  PoolNotExist(String),
+
   #[error("unknown pool type")]
   UnknownPoolType,
 
@@ -125,6 +134,9 @@ pub enum BRC30Error {
 
   #[error("unknown stake type")]
   UnknownStakeType,
+
+  #[error("user has staked:{0} > user can staked:{1}")]
+  InValidStakeInfo(u128, u128),
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

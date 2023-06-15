@@ -86,8 +86,8 @@ pub struct DeployPoolEvent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct DepositEvent {
-  pid: Pid,
-  amt: u128,
+  pub(crate) pid: Pid,
+  pub(crate) amt: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

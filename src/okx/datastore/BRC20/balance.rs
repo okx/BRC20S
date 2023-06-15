@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use crate::okx::datastore::BRC20::Tick;
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub struct Balance {
   pub overall_balance: u128,

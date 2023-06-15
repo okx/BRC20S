@@ -2,7 +2,7 @@ use super::error::RewardError;
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::BRC30::{
   BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, Balance, InscriptionOperation, Pid, PledgedTick,
-  PoolInfo, Receipt, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
+  PoolInfo, PoolType, Receipt, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
 };
 
 use crate::okx::datastore::{
@@ -30,33 +30,44 @@ impl<'db, 'a> Pool<'db, 'a> {
   }
 
   pub fn update_pool(&mut self, pid: &Pid, block_num: u64) -> Result<(), RewardError> {
-    // PoolInfo storage pool = poolInfo[_pid];
-    // if (block.number <= pool.lastRewardBlock) {
-    //   return;
-    // }
-    // uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-    // if (lpSupply == 0) {
-    //   pool.lastRewardBlock = block.number;
-    //   return;
-    // }
-    // uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-    // uint256 cakeReward = multiplier
-    //   .mul(cakePerBlock)
-    //   .mul(pool.allocPoint)
-    //   .div(totalAllocPoint);
-    // pool.accCakePerShare = pool.accCakePerShare.add(
-    //   cakeReward.mul(1e12).div(lpSupply)
-    // );
-    // pool.lastRewardBlock = block.number;
-
     //1. 查询pool是否存在
+    let mut pool = self
+      .brc30db
+      .get_pid_to_poolinfo(&pid.clone())
+      .unwrap()
+      .unwrap();
 
     //2. 查询pool的block number是否为最新
+    if block_num <= pool.last_update_block {
+      return Ok(());
+    }
 
-    //3. 判断池子模式，分别为fixed和pool，使用不同的rewardPerTokenStored，计算 accRewardPerShare
+    //3.查询是否已经发行完毕
+    if pool.minted >= pool.allocated {
+      pool.last_update_block = block_num;
+      return Ok(());
+    }
 
-    //4. 更新区块高度
+    //4. 判断池子模式，分别为fixed和pool，使用不同的rewardPerTokenStored，计算 accRewardPerShare
+    let mut reward_per_token_stored = 0;
+    let mut nums = (block_num - pool.last_update_block) as u128;
+    if pool.ptype == PoolType::Fixed {
+      reward_per_token_stored = pool.erate * nums;
+    } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
+      reward_per_token_stored = pool.erate * nums / pool.staked;
+    }
 
+    pool.acc_reward_per_share += reward_per_token_stored;
+
+    //5. 更新区块高度
+    pool.last_update_block = block_num;
+
+    println!(
+      "update_pool-block:{}, acc_reward_per_share:{}, reward_per_token_stored:{}",
+      block_num, pool.acc_reward_per_share, reward_per_token_stored
+    );
+    //6. 更新池子
+    self.brc30db.set_pid_to_poolinfo(&pid.clone(), &pool);
     return Ok(());
   }
 
@@ -108,7 +119,12 @@ impl<'db, 'a> Pool<'db, 'a> {
       self.brc30db.set_pid_to_poolinfo(&pid.clone(), &pool);
     }
 
-    return Ok(0u128);
+    println!(
+      "withdraw_user_reward-reward:{}, user.reward_debt:{}, user.staked:{}, pool.acc_reward_per_share:{}",
+      reward, user.reward_debt, user.staked, pool.acc_reward_per_share
+    );
+
+    return Ok(reward);
   }
 
   pub fn update_user_stake(
@@ -118,17 +134,6 @@ impl<'db, 'a> Pool<'db, 'a> {
     stake_alter: u128,
     is_add: bool,
   ) -> Result<(), RewardError> {
-    // if (_amount > 0) {
-    //   pool.lpToken.safeTransferFrom(
-    //     address(msg.sender),
-    //     address(this),
-    //     _amount
-    //   );
-    //   user.amount = user.amount.add(_amount);
-    // }
-    // user.rewardDebt = user.amount.mul(pool.accCakePerShare).div(1e12);
-
-    // return Err(RewardError::InvalidNum("er".to_string()));
     let mut user = self
       .brc30db
       .get_pid_to_use_info(&script_key.clone(), &pid.clone())
@@ -146,18 +151,26 @@ impl<'db, 'a> Pool<'db, 'a> {
       //2.大于0，则进行相应增加或者减少, TODO check overflow
       if is_add {
         user.staked += stake_alter;
+        pool.staked += stake_alter;
       } else {
         user.staked -= stake_alter;
+        pool.staked -= stake_alter;
       }
     }
 
-    //3.更新用户的 reward_debt, TODO check overflow
+    //3.更新用户的 reward_debt，TODO check overflow
     user.reward_debt = user.staked * pool.acc_reward_per_share;
 
-    //4.保存用户信息
+    println!(
+      "update_user_stake--reward_debt:{}, user staked:{}, acc_reward_per_share:{}, pool staked:{}",
+      user.reward_debt, user.staked, pool.acc_reward_per_share, pool.staked
+    );
+
+    //4.保存用户信息和池子信息
     self
       .brc30db
       .set_pid_to_use_info(&script_key.clone(), &pid.clone(), &user);
+    self.brc30db.set_pid_to_poolinfo(&pid.clone(), &pool);
 
     return Ok(());
   }
@@ -166,31 +179,170 @@ impl<'db, 'a> Pool<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::InscriptionId;
   use bitcoin::Address;
   use redb::Database;
   use std::str::FromStr;
   use tempfile::NamedTempFile;
+
   #[test]
-  fn test_flow() {
+  fn test_one_user() {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-
-    let mut pool = Pool::new(&wtx);
+    let brc30db = BRC30DataStore::new(&wtx);
 
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
     let script_key =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    new_pid(&wtx, &pid.clone(), PoolType::Fixed, 10, 100000000000);
+    new_user(&wtx, &pid, &script_key);
 
-    // 1.from deposit, withdraw
+    let mut pool = Pool::new(&wtx);
+    // stake-1
+    {
+      pool.update_pool(&pid, 1u64);
+      pool.withdraw_user_reward(&pid, &script_key);
+      pool.update_user_stake(&pid, &script_key, 1u128, true);
+      assert_eq!(
+        brc30db
+          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
+          .unwrap()
+          .unwrap()
+          .reward,
+        0
+      );
+    }
 
-    // 2.update_pool
-    // pool.update_pool(&pid, 0u64);
+    // stake-2
+    {
+      pool.update_pool(&pid, 2u64);
+      pool.withdraw_user_reward(&pid, &script_key);
+      pool.update_user_stake(&pid, &script_key, 1u128, true);
+      assert_eq!(
+        brc30db
+          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
+          .unwrap()
+          .unwrap()
+          .reward,
+        10
+      );
+    }
 
-    // 2.if no stake, return 0
-    // pool.withdraw_user_reward(&pid, &script_key);
+    // stake-3
+    {
+      pool.update_pool(&pid, 3u64);
+      pool.withdraw_user_reward(&pid, &script_key);
+      pool.update_user_stake(&pid, &script_key, 1u128, true);
+      assert_eq!(
+        brc30db
+          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
+          .unwrap()
+          .unwrap()
+          .reward,
+        30
+      );
+    }
 
-    // 3. calculate and update the user's new stake.
-    // pool.update_user_stake(&pid, &script_key, 0u128, true);
+    // withdraw-1
+    {
+      pool.update_pool(&pid, 4u64);
+      pool.withdraw_user_reward(&pid, &script_key);
+      pool.update_user_stake(&pid, &script_key, 1u128, false);
+      assert_eq!(
+        brc30db
+          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
+          .unwrap()
+          .unwrap()
+          .reward,
+        60
+      );
+    }
+
+    // withdraw-2
+    {
+      pool.update_pool(&pid, 5u64);
+      pool.withdraw_user_reward(&pid, &script_key);
+      pool.update_user_stake(&pid, &script_key, 1u128, false);
+      assert_eq!(
+        brc30db
+          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
+          .unwrap()
+          .unwrap()
+          .reward,
+        80
+      );
+    }
+
+    // withdraw-3
+    {
+      pool.update_pool(&pid, 6u64);
+      pool.withdraw_user_reward(&pid, &script_key);
+      pool.update_user_stake(&pid, &script_key, 1u128, false);
+      assert_eq!(
+        brc30db
+          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
+          .unwrap()
+          .unwrap()
+          .reward,
+        90
+      );
+    }
+  }
+
+  fn new_pid<'db, 'a>(
+    wtx: &'a WriteTransaction<'db>,
+    pid: &Pid,
+    pool_type: PoolType,
+    erate_new: u128,
+    allocated_new: u128,
+  ) {
+    let brc30db = BRC30DataStore::new(&wtx);
+    let pool_info = PoolInfo {
+      pid: pid.clone(),
+      ptype: pool_type,
+      inscription_id: InscriptionId::from_str(
+        "2111111111111111111111111111111111111111111111111111111111111111i1",
+      )
+      .unwrap(),
+      stake: PledgedTick::NATIVE,
+      erate: erate_new,
+      minted: 0,
+      staked: 0,
+      allocated: allocated_new,
+      acc_reward_per_share: 0,
+      last_update_block: 0,
+      only: true,
+    };
+
+    brc30db.set_pid_to_poolinfo(&pid, &pool_info).unwrap();
+    assert_eq!(
+      brc30db.get_pid_to_poolinfo(&pid).unwrap().unwrap(),
+      pool_info
+    );
+  }
+
+  fn new_user<'db, 'a>(wtx: &'a WriteTransaction<'db>, pid: &Pid, script_key: &ScriptKey) {
+    let brc30db = BRC30DataStore::new(&wtx);
+
+    let user_info = UserInfo {
+      pid: pid.clone(),
+      staked: 0,
+      reward: 0,
+      reward_debt: 0,
+      latest_updated_block: 0,
+    };
+
+    brc30db
+      .set_pid_to_use_info(&script_key, &pid, &user_info)
+      .unwrap();
+
+    assert_eq!(
+      brc30db
+        .get_pid_to_use_info(&script_key, &pid)
+        .unwrap()
+        .unwrap(),
+      user_info
+    );
   }
 }

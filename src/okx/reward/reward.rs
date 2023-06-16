@@ -11,169 +11,102 @@ use crate::okx::datastore::{
 
 use redb::WriteTransaction;
 
-pub struct Pool<'db, 'a> {
-  wtx: &'a WriteTransaction<'db>,
-  brc30db: BRC30DataStore<'db, 'a>,
+// pub struct Pool<'db, 'a> {
+//   wtx: &'a WriteTransaction<'db>,
+//   brc30db: BRC30DataStore<'db, 'a>,
+// }
+//
+// impl<'db, 'a> Pool<'db, 'a> {
+//   pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
+//     let brc30db = BRC30DataStore::new(&wtx);
+//     Self { wtx, brc30db }
+//   }
+// }
+
+pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u128, RewardError> {
+  let mut user_temp = user;
+  let mut pool_temp = pool;
+  update_pool(&mut pool_temp, block_num).expect("TODO: panic message");
+  return withdraw_user_reward(&mut user_temp, &mut pool_temp);
 }
 
-impl<'db, 'a> Pool<'db, 'a> {
-  pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
-    let brc30db = BRC30DataStore::new(&wtx);
-    Self { wtx, brc30db }
-  }
-}
-
-impl<'db, 'a> Pool<'db, 'a> {
-  pub fn query_reward(&mut self, pid: &Pid, script_key: &ScriptKey) -> (String, u128) {
-    //TODO query_reward
-    return (script_key.to_string(), 1u128);
-  }
-
-  pub fn update_pool(&mut self, pid: &Pid, block_num: u64) -> Result<(), RewardError> {
-    //1 check pool is exist
-    let mut pool = self
-      .brc30db
-      .get_pid_to_poolinfo(&pid.clone())
-      .unwrap()
-      .unwrap();
-
-    //2 check block num of pool is latest
-    if block_num <= pool.last_update_block {
-      return Ok(());
-    }
-
-    //3 check allocated has been minted
-    if pool.minted >= pool.dmax {
-      pool.last_update_block = block_num;
-      return Ok(());
-    }
-
-    //4 pool type: fixed and pool, for calculating accRewardPerShare
-    let mut reward_per_token_stored = 0;
-    let mut nums = (block_num - pool.last_update_block) as u128;
-    if pool.ptype == PoolType::Fixed {
-      reward_per_token_stored = pool.erate * nums;
-    } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
-      reward_per_token_stored = pool.erate * nums / pool.staked;
-    }
-
-    pool.acc_reward_per_share += reward_per_token_stored;
-
-    //5 update latest block num
-    pool.last_update_block = block_num;
-
-    println!(
-      "update_pool-block:{}, acc_reward_per_share:{}, reward_per_token_stored:{}",
-      block_num, pool.acc_reward_per_share, reward_per_token_stored
-    );
-    //6 update pool
-    self.brc30db.set_pid_to_poolinfo(&pid.clone(), &pool);
+// need to save pool_info, when call success
+pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), RewardError> {
+  //1 check block num of pool is latest
+  if block_num <= pool.last_update_block {
     return Ok(());
   }
 
-  pub fn withdraw_user_reward(
-    &mut self,
-    pid: &Pid,
-    script_key: &ScriptKey,
-  ) -> Result<u128, RewardError> {
-    //1 check user's staked gt 0
-    let mut user = self
-      .brc30db
-      .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-      .unwrap()
-      .unwrap();
+  //2 check allocated has been minted
+  if pool.minted >= pool.dmax {
+    pool.last_update_block = block_num;
+    return Ok(());
+  }
 
-    if user.staked <= 0 {
-      return Err(RewardError::NoStaked(
-        pid.to_lowercase().hex(),
-        script_key.to_string(),
-      ));
-    }
+  //3 pool type: fixed and pool, for calculating accRewardPerShare
+  let mut reward_per_token_stored = 0;
+  let mut nums = (block_num - pool.last_update_block) as u128;
+  if pool.ptype == PoolType::Fixed {
+    reward_per_token_stored = pool.erate * nums;
+  } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
+    reward_per_token_stored = pool.erate * nums / pool.staked;
+  }
 
-    let mut pool = self
-      .brc30db
-      .get_pid_to_poolinfo(&pid.clone())
-      .unwrap()
-      .unwrap();
+  pool.acc_reward_per_share += reward_per_token_stored;
 
-    //2 reward = staked * accRewardPerShare - user reward_debt
-    let mut a = 0;
-    match user.staked.checked_mul(pool.acc_reward_per_share) {
-      Some(result) => a = result,
-      None => println!("Multiplication failed!"),
-    }
+  //4 update latest block num
+  pool.last_update_block = block_num;
 
-    let mut reward: u128 = 0;
-    match a.checked_sub(user.reward_debt) {
-      Some(result) => reward = result,
-      None => println!("Division failed!"),
-    }
+  println!(
+    "update_pool-block:{}, acc_reward_per_share:{}, reward_per_token_stored:{}",
+    block_num, pool.acc_reward_per_share, reward_per_token_stored
+  );
+  return Ok(());
+}
 
-    if reward > 0 {
-      //3 update minted of user_info and pool, TODO check overflow
-      user.reward += reward;
-      pool.minted += reward;
-      self
-        .brc30db
-        .set_pid_to_use_info(&script_key.clone(), &pid.clone(), &user);
-      self.brc30db.set_pid_to_poolinfo(&pid.clone(), &pool);
-    }
+// need to save pool_info and user_info, when call success
+pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<u128, RewardError> {
+  //1 check user's staked gt 0
+  if user.staked <= 0 {
+    return Err(RewardError::NoStaked(user.pid.to_lowercase().hex()));
+  }
 
-    println!(
+  //2 reward = staked * accRewardPerShare - user reward_debt
+  let mut a = 0;
+  match user.staked.checked_mul(pool.acc_reward_per_share) {
+    Some(result) => a = result,
+    None => println!("Multiplication failed!"),
+  }
+
+  let mut reward: u128 = 0;
+  match a.checked_sub(user.reward_debt) {
+    Some(result) => reward = result,
+    None => println!("Division failed!"),
+  }
+
+  if reward > 0 {
+    //3 update minted of user_info and pool, TODO check overflow
+    user.reward += reward;
+    pool.minted += reward;
+  }
+
+  println!(
       "withdraw_user_reward-reward:{}, user.reward_debt:{}, user.staked:{}, pool.acc_reward_per_share:{}",
       reward, user.reward_debt, user.staked, pool.acc_reward_per_share
     );
 
-    return Ok(reward);
-  }
+  return Ok(reward);
+}
 
-  pub fn update_user_stake(
-    &mut self,
-    pid: &Pid,
-    script_key: &ScriptKey,
-    stake_alter: u128,
-    is_add: bool,
-  ) -> Result<(), RewardError> {
-    let mut user = self
-      .brc30db
-      .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-      .unwrap()
-      .unwrap();
-
-    let mut pool = self
-      .brc30db
-      .get_pid_to_poolinfo(&pid.clone())
-      .unwrap()
-      .unwrap();
-
-    //1 check stake_alter gt 0
-    if (stake_alter > 0) {
-      //2 add or sub, TODO check overflow
-      if is_add {
-        user.staked += stake_alter;
-        pool.staked += stake_alter;
-      } else {
-        user.staked -= stake_alter;
-        pool.staked -= stake_alter;
-      }
-    }
-
-    //3 update user's reward_debt，TODO check overflow
-    user.reward_debt = user.staked * pool.acc_reward_per_share;
-
-    println!(
-      "update_user_stake--reward_debt:{}, user staked:{}, acc_reward_per_share:{}, pool staked:{}",
-      user.reward_debt, user.staked, pool.acc_reward_per_share, pool.staked
-    );
-
-    //4 save user info and pool info
-    self
-      .brc30db
-      .set_pid_to_use_info(&script_key.clone(), &pid.clone(), &user);
-    self.brc30db.set_pid_to_poolinfo(&pid.clone(), &pool);
-
-    return Ok(());
-  }
+// need to update staked  before, and save pool_info and user_info when call success
+pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), RewardError> {
+  //1 update user's reward_debt，TODO check overflow
+  user.reward_debt = user.staked * pool.acc_reward_per_share;
+  println!(
+    "update_user_stake--reward_debt:{}, user staked:{}, acc_reward_per_share:{}, pool staked:{}",
+    user.reward_debt, user.staked, pool.acc_reward_per_share, pool.staked
+  );
+  return Ok(());
 }
 
 #[cfg(test)]
@@ -195,13 +128,12 @@ mod tests {
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
     let script_key =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
-    new_pid(&wtx, &pid.clone(), PoolType::Fixed, 10, 100000000000);
-    new_user(&wtx, &pid, &script_key);
+    let mut pool = new_pool(&pid.clone(), PoolType::Fixed, 10, 100000000000);
+    let mut user = new_user(&pid, &script_key);
 
-    let mut pool = Pool::new(&wtx);
     // stake-1
     do_nonce(
-      &wtx,
+      &mut user,
       &mut pool,
       &pid.clone(),
       1u64,
@@ -217,7 +149,7 @@ mod tests {
 
     // stake-2
     do_nonce(
-      &wtx,
+      &mut user,
       &mut pool,
       &pid.clone(),
       2u64,
@@ -233,7 +165,7 @@ mod tests {
 
     // stake-3
     do_nonce(
-      &wtx,
+      &mut user,
       &mut pool,
       &pid.clone(),
       3u64,
@@ -249,7 +181,7 @@ mod tests {
 
     // withdraw-1
     do_nonce(
-      &wtx,
+      &mut user,
       &mut pool,
       &pid.clone(),
       4u64,
@@ -265,7 +197,7 @@ mod tests {
 
     // withdraw-2
     do_nonce(
-      &wtx,
+      &mut user,
       &mut pool,
       &pid.clone(),
       5u64,
@@ -281,7 +213,7 @@ mod tests {
 
     // withdraw-3
     do_nonce(
-      &wtx,
+      &mut user,
       &mut pool,
       &pid.clone(),
       6u64,
@@ -296,9 +228,9 @@ mod tests {
     );
   }
 
-  fn do_nonce<'db, 'a>(
-    wtx: &'a WriteTransaction<'db>,
-    pool: &mut Pool,
+  fn do_nonce(
+    user: &mut UserInfo,
+    pool: &mut PoolInfo,
     pid: &Pid,
     block_mum: u64,
     script_key: &ScriptKey,
@@ -310,16 +242,17 @@ mod tests {
     expect_pool_minted: u128,
     expect_pool_block: u64,
   ) {
-    let brc30db = BRC30DataStore::new(&wtx);
-    pool.update_pool(&pid, block_mum);
-    pool.withdraw_user_reward(&pid, &script_key);
-    pool.update_user_stake(&pid, &script_key, stake_alter, is_add);
+    update_pool(pool, block_mum);
+    withdraw_user_reward(user, pool);
+    if is_add {
+      user.staked += stake_alter;
+      pool.staked += stake_alter;
+    } else {
+      user.staked -= stake_alter;
+      pool.staked -= stake_alter;
+    }
+    update_user_stake(user, pool);
 
-    let user = brc30db
-      .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-      .unwrap()
-      .unwrap();
-    let pool = brc30db.get_pid_to_poolinfo(&pid.clone()).unwrap().unwrap();
     assert_eq!(user.reward, expect_user_reward);
     assert_eq!(user.staked, expert_user_staked);
     assert_eq!(user.reward, expect_user_reward);
@@ -328,15 +261,8 @@ mod tests {
     assert_eq!(pool.last_update_block, expect_pool_block);
   }
 
-  fn new_pid<'db, 'a>(
-    wtx: &'a WriteTransaction<'db>,
-    pid: &Pid,
-    pool_type: PoolType,
-    erate_new: u128,
-    dmax: u128,
-  ) {
-    let brc30db = BRC30DataStore::new(&wtx);
-    let pool_info = PoolInfo {
+  fn new_pool(pid: &Pid, pool_type: PoolType, erate_new: u128, dmax: u128) -> PoolInfo {
+    PoolInfo {
       pid: pid.clone(),
       ptype: pool_type,
       inscription_id: InscriptionId::from_str(
@@ -351,32 +277,16 @@ mod tests {
       acc_reward_per_share: 0,
       last_update_block: 0,
       only: true,
-    };
-    brc30db.set_pid_to_poolinfo(&pid, &pool_info).unwrap();
-    assert_eq!(
-      brc30db.get_pid_to_poolinfo(&pid).unwrap().unwrap(),
-      pool_info
-    );
+    }
   }
 
-  fn new_user<'db, 'a>(wtx: &'a WriteTransaction<'db>, pid: &Pid, script_key: &ScriptKey) {
-    let brc30db = BRC30DataStore::new(&wtx);
-    let user_info = UserInfo {
+  fn new_user(pid: &Pid, script_key: &ScriptKey) -> UserInfo {
+    UserInfo {
       pid: pid.clone(),
       staked: 0,
       reward: 0,
       reward_debt: 0,
       latest_updated_block: 0,
-    };
-    brc30db
-      .set_pid_to_use_info(&script_key, &pid, &user_info)
-      .unwrap();
-    assert_eq!(
-      brc30db
-        .get_pid_to_use_info(&script_key, &pid)
-        .unwrap()
-        .unwrap(),
-      user_info
-    );
+    }
   }
 }

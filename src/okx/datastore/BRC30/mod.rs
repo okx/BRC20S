@@ -65,10 +65,18 @@ pub trait BRC30DataStoreReadOnly {
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(TickId, Balance)>, Self::Error>;
 
   // 3.3.9 BRC30_TRANSFERABLE_ASSETS
-  fn get_transferable_assets(
+  fn get_transferable_asset(
     &self,
     script_key: &ScriptKey,
     tick_id: &TickId,
+    inscription_id: &InscriptionId,
+  ) -> Result<Option<TransferableAsset>, Self::Error>;
+
+  fn get_transferable(&self, script: &ScriptKey) -> Result<Vec<TransferableAsset>, Self::Error>;
+
+  fn get_transferable_by_id(
+    &self,
+    script: &ScriptKey,
     inscription_id: &InscriptionId,
   ) -> Result<Option<TransferableAsset>, Self::Error>;
 
@@ -133,4 +141,11 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
   fn set_txid_to_receipts(&self, txid: &Txid, receipts: &Vec<Receipt>) -> Result<(), Self::Error>;
+
+  fn remove_transferable(
+    &self,
+    script: &ScriptKey,
+    tick_id: &TickId,
+    inscription_id: &InscriptionId,
+  ) -> Result<(), Self::Error>;
 }

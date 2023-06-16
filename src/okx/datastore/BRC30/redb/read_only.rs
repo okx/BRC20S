@@ -233,7 +233,7 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
   }
 
   // 3.3.9 BRC30_TRANSFERABLE_ASSETS
-  fn get_transferable_assets(
+  fn get_transferable_asset(
     &self,
     script_key: &ScriptKey,
     tick_id: &TickId,
@@ -245,6 +245,32 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .open_table(BRC30_TRANSFERABLE_ASSETS)?
         .get(script_tickid_inscriptionid_key(script_key, tick_id, inscription_id).as_str())?
         .map(|v| bincode::deserialize::<TransferableAsset>(v.value()).unwrap()),
+    )
+  }
+
+  fn get_transferable(&self, script: &ScriptKey) -> Result<Vec<TransferableAsset>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_TRANSFERABLE_ASSETS)?
+        .range(min_script_tick_id_key(script).as_str()..max_script_tick_id_key(script).as_str())?
+        .map(|(_, v)| bincode::deserialize::<Vec<TransferableAsset>>(v.value()).unwrap())
+        .flatten()
+        .collect(),
+    )
+  }
+
+  fn get_transferable_by_id(
+    &self,
+    script: &ScriptKey,
+    inscription_id: &InscriptionId,
+  ) -> Result<Option<TransferableAsset>, Self::Error> {
+    Ok(
+      self
+        .get_transferable(script)?
+        .iter()
+        .find(|log| log.inscription_id == *inscription_id)
+        .map(|log| log.clone()),
     )
   }
 

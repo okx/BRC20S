@@ -112,7 +112,7 @@ pub enum BRC30Error {
   UnknownPoolType,
 
   #[error("illegal pool id '{0}' error: {1}")]
-  InvalidPoolId(String,String),
+  InvalidPoolId(String, String),
 
   #[error("illegal hex str error: {0}")]
   InvalidHexStr(String),
@@ -125,6 +125,9 @@ pub enum BRC30Error {
 
   #[error("unknown stake type")]
   UnknownStakeType,
+
+  #[error("no stake: pid:{0}")]
+  NoStaked(String),
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

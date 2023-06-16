@@ -18,6 +18,7 @@ impl Num {
     Self(BigDecimal::zero())
   }
 
+  // TODO check overflow
   pub fn checked_add(&self, other: &Num) -> Result<Self, BRC30Error> {
     Ok(Self(self.0.clone() + &other.0))
   }
@@ -34,8 +35,14 @@ impl Num {
     Ok(Self(self.0.clone() - &other.0))
   }
 
+  // TODO check overflow
   pub fn checked_mul(&self, other: &Num) -> Result<Self, BRC30Error> {
     Ok(Self(self.0.clone() * &other.0))
+  }
+
+  // TODO check overflow
+  pub fn checked_div(&self, other: &Num) -> Result<Self, BRC30Error> {
+    Ok(Self(self.0.clone() / &other.0))
   }
 
   pub fn checked_powu(&self, exp: u64) -> Result<Self, BRC30Error> {

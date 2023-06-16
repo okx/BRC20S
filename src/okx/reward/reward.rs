@@ -1,29 +1,8 @@
-use super::error::RewardError;
-use crate::okx::datastore::ScriptKey;
-use crate::okx::datastore::BRC30::{
-  BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, Balance, InscriptionOperation, Pid, PledgedTick,
-  PoolInfo, PoolType, Receipt, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
-};
+// use super::error::RewardError;
+use crate::okx::datastore::BRC30::{PoolInfo, PoolType, UserInfo};
+use crate::okx::protocol::BRC30::{BRC30Error, Num};
 
-use crate::okx::datastore::{
-  BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore, ORD::OrdDbReader,
-};
-
-use redb::WriteTransaction;
-
-// pub struct Pool<'db, 'a> {
-//   wtx: &'a WriteTransaction<'db>,
-//   brc30db: BRC30DataStore<'db, 'a>,
-// }
-//
-// impl<'db, 'a> Pool<'db, 'a> {
-//   pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
-//     let brc30db = BRC30DataStore::new(&wtx);
-//     Self { wtx, brc30db }
-//   }
-// }
-
-pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u128, RewardError> {
+pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u128, BRC30Error> {
   let mut user_temp = user;
   let mut pool_temp = pool;
   update_pool(&mut pool_temp, block_num).expect("TODO: panic message");
@@ -31,28 +10,42 @@ pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u1
 }
 
 // need to save pool_info, when call success
-pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), RewardError> {
+pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error> {
   //1 check block num of pool is latest
   if block_num <= pool.last_update_block {
     return Ok(());
   }
 
   //2 check allocated has been minted
-  if pool.minted >= pool.dmax {
+  let pool_minted = Into::<Num>::into(pool.minted);
+  let pool_dmax = Into::<Num>::into(pool.dmax);
+  if pool_minted >= pool_dmax {
     pool.last_update_block = block_num;
     return Ok(());
   }
 
   //3 pool type: fixed and pool, for calculating accRewardPerShare
-  let mut reward_per_token_stored = 0;
-  let mut nums = (block_num - pool.last_update_block) as u128;
+  let mut reward_per_token_stored = Num::zero();
+  let mut nums = Into::<Num>::into(block_num - pool.last_update_block);
+  let erate = Into::<Num>::into(pool.erate);
+  let pool_stake = Into::<Num>::into(pool.staked);
   if pool.ptype == PoolType::Fixed {
-    reward_per_token_stored = pool.erate * nums;
+    reward_per_token_stored = erate.checked_mul(&nums).unwrap();
   } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
-    reward_per_token_stored = pool.erate * nums / pool.staked;
+    // reward_per_token_stored = pool.erate * nums / pool.staked);
+    reward_per_token_stored = erate
+      .checked_mul(&nums)
+      .unwrap()
+      .checked_div(&pool_stake)
+      .unwrap();
+  } else {
+    return Err(BRC30Error::UnknownPoolType);
   }
 
-  pool.acc_reward_per_share += reward_per_token_stored;
+  let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
+  pool.acc_reward_per_share = reward_per_token_stored
+    .checked_add(&acc_reward_per_share)?
+    .checked_to_u128()?;
 
   //4 update latest block num
   pool.last_update_block = block_num;
@@ -65,10 +58,10 @@ pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), RewardErro
 }
 
 // need to save pool_info and user_info, when call success
-pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<u128, RewardError> {
+pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<u128, BRC30Error> {
   //1 check user's staked gt 0
   if user.staked <= 0 {
-    return Err(RewardError::NoStaked(user.pid.to_lowercase().hex()));
+    return Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex()));
   }
 
   //2 reward = staked * accRewardPerShare - user reward_debt
@@ -99,7 +92,7 @@ pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<
 }
 
 // need to update staked  before, and save pool_info and user_info when call success
-pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), RewardError> {
+pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), BRC30Error> {
   //1 update user's reward_debt，TODO check overflow
   user.reward_debt = user.staked * pool.acc_reward_per_share;
   println!(
@@ -112,19 +105,14 @@ pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), Rew
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::okx::datastore::ScriptKey;
+  use crate::okx::datastore::BRC30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
   use crate::InscriptionId;
   use bitcoin::Address;
-  use redb::Database;
   use std::str::FromStr;
-  use tempfile::NamedTempFile;
 
   #[test]
   fn test_hello() {
-    let dbfile = NamedTempFile::new().unwrap();
-    let db = Database::create(dbfile.path()).unwrap();
-    let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
-
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
     let script_key =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
@@ -136,7 +124,7 @@ mod tests {
       assert_eq!(update_pool(&mut pool, 1), Ok(()));
       assert_eq!(
         withdraw_user_reward(&mut user, &mut pool).expect_err(""),
-        RewardError::NoStaked("62636131646162636131642331".to_string())
+        BRC30Error::NoStaked("62636131646162636131642331".to_string())
       );
       user.staked += 2;
       pool.staked += 2;
@@ -160,11 +148,6 @@ mod tests {
 
   #[test]
   fn test_fix_one_user() {
-    let dbfile = NamedTempFile::new().unwrap();
-    let db = Database::create(dbfile.path()).unwrap();
-    let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
-
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
     let script_key =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());

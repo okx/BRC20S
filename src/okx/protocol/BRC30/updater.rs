@@ -1,6 +1,7 @@
 use crate::okx::datastore::BRC30::{
-  BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, EventType, MintEvent,
-  Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId, TickInfo,
+  BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, EventType,
+  InscribeTransferEvent, MintEvent, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId,
+  TickInfo, TransferEvent, TransferableAsset,
 };
 use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 use bigdecimal::num_bigint::Sign;
@@ -406,7 +407,76 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     inscription_number: u64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
+    // check tick
+    let tick_id = TickId::from_str(transfer.tick_id.as_str())?;
+    let tick_info = self
+      .ledger
+      .get_tick_info(&tick_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .ok_or(BRC30Error::TickNotFound(tick_id.as_str().to_string()))?;
+
+    let tick_name = BRC30Tick::from_str(transfer.tick.as_str())?;
+    if tick_info.name != tick_name {
+      return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
+        transfer.tick.clone(),
+      )));
+    }
+
+    // check amount
+    let mut amt = Num::from_str(&transfer.amount)?;
+    if amt.scale() > tick_info.decimal as i64 {
+      return Err(Error::BRC30Error(BRC30Error::AmountOverflow(amt)));
+    }
+    let base = BIGDECIMAL_TEN.checked_powu(tick_info.decimal as u64)?;
+    amt = amt.checked_mul(&base)?;
+    if amt.sign() == Sign::NoSign {
+      return Err(Error::BRC30Error(BRC30Error::InvalidZeroAmount));
+    }
+
+    // update balance
+    let mut balance = self
+      .ledger
+      .get_balance(&to_script_key, &tick_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .map_or(Balance::new(tick_id.clone()), |v| v);
+
+    let overall = Into::<Num>::into(balance.overall_balance);
+    let transferable = Into::<Num>::into(balance.transferable_balance);
+    let available = overall.checked_sub(&transferable)?;
+    if available < amt {
+      return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
+        available, amt,
+      )));
+    }
+    balance.transferable_balance = transferable.checked_add(&amt)?.checked_to_u128()?;
+    self
+      .ledger
+      .set_token_balance(&to_script_key, &tick_id, balance)
+      .map_err(|e| Error::LedgerError(e))?;
+
+    // insert transferable assets
+    let amount = amt.checked_to_u128()?;
+    let transferable_assets = TransferableAsset {
+      inscription_id,
+      amount,
+      tick_id,
+      owner: to_script_key.clone(),
+    };
+    self
+      .ledger
+      .set_transferable_assets(
+        &to_script_key,
+        &tick_id,
+        &inscription_id,
+        &transferable_assets,
+      )
+      .map_err(|e| Error::LedgerError(e))?;
+
+    Ok(BRC30Event::InscribeTransfer(InscribeTransferEvent {
+      tick_id,
+      amt: amount,
+    }))
   }
 
   fn process_transfer(
@@ -415,6 +485,79 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
     from_script_key: ScriptKey,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    let transferable = self
+      .ledger
+      .get_transferable_by_id(&from_script_key, &inscription_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .ok_or(BRC30Error::TransferableNotFound(inscription_id))?;
+
+    let amt = Into::<Num>::into(transferable.amount);
+
+    if transferable.owner != from_script_key {
+      return Err(Error::BRC30Error(BRC30Error::TransferableOwnerNotMatch(
+        inscription_id,
+      )));
+    }
+
+    let tick_info = self
+      .ledger
+      .get_tick_info(&transferable.tick_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .ok_or(BRC30Error::TickNotFound(
+        transferable.tick_id.as_str().to_string(),
+      ))?;
+
+    // update from key balance.
+    let mut from_balance = self
+      .ledger
+      .get_balance(&from_script_key, &transferable.tick_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .map_or(Balance::new(transferable.tick_id), |v| v);
+
+    let from_overall = Into::<Num>::into(from_balance.overall_balance);
+    let from_transferable = Into::<Num>::into(from_balance.transferable_balance);
+
+    let from_overall = from_overall.checked_sub(&amt)?.checked_to_u128()?;
+    let from_transferable = from_transferable.checked_sub(&amt)?.checked_to_u128()?;
+
+    from_balance.overall_balance = from_overall;
+    from_balance.transferable_balance = from_transferable;
+
+    self
+      .ledger
+      .set_token_balance(&from_script_key, &transferable.tick_id, from_balance)
+      .map_err(|e| Error::LedgerError(e))?;
+
+    // redirect receiver to sender if transfer to conibase.
+    let to_script_key = if let None = to_script_key.clone() {
+      from_script_key.clone()
+    } else {
+      to_script_key.unwrap()
+    };
+
+    // update to key balance.
+    let mut to_balance = self
+      .ledger
+      .get_balance(&to_script_key, &transferable.tick_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .map_or(Balance::new(transferable.tick_id), |v| v);
+
+    let to_overall = Into::<Num>::into(to_balance.overall_balance);
+    to_balance.overall_balance = to_overall.checked_add(&amt)?.checked_to_u128()?;
+
+    self
+      .ledger
+      .set_token_balance(&to_script_key, &transferable.tick_id, to_balance)
+      .map_err(|e| Error::LedgerError(e))?;
+
+    self
+      .ledger
+      .remove_transferable(&from_script_key, &transferable.tick_id, &inscription_id)
+      .map_err(|e| Error::LedgerError(e))?;
+
+    Ok(BRC30Event::Transfer(TransferEvent {
+      tick_id: transferable.tick_id,
+      amt: amt.checked_to_u128()?,
+    }))
   }
 }

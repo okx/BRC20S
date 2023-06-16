@@ -105,14 +105,14 @@ pub struct MintEvent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct InscribeTransferEvent {
-  tick_id: TickId,
-  amt: u128,
+  pub tick_id: TickId,
+  pub amt: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct TransferEvent {
-  tick_id: TickId,
-  amt: u128,
+  pub tick_id: TickId,
+  pub amt: u128,
 }
 
 #[cfg(test)]

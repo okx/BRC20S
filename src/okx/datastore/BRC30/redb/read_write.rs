@@ -101,13 +101,25 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.9 BRC30_TRANSFERABLE_ASSETS
-  fn get_transferable_assets(
+  fn get_transferable_asset(
     &self,
     script_key: &ScriptKey,
     tick_id: &TickId,
     inscription_id: &InscriptionId,
   ) -> Result<Option<TransferableAsset>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_transferable_assets(script_key, tick_id, inscription_id)
+    read_only::new_with_wtx(self.wtx).get_transferable_asset(script_key, tick_id, inscription_id)
+  }
+
+  fn get_transferable(&self, script: &ScriptKey) -> Result<Vec<TransferableAsset>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_transferable(script)
+  }
+
+  fn get_transferable_by_id(
+    &self,
+    script: &ScriptKey,
+    inscription_id: &InscriptionId,
+  ) -> Result<Option<TransferableAsset>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_transferable_by_id(script, inscription_id)
   }
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
@@ -232,6 +244,19 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
       txid.to_string().as_str(),
       bincode::serialize(receipts).unwrap().as_slice(),
     )?;
+    Ok(())
+  }
+
+  fn remove_transferable(
+    &self,
+    script_key: &ScriptKey,
+    tick_id: &TickId,
+    inscription_id: &InscriptionId,
+  ) -> Result<(), Self::Error> {
+    self
+      .wtx
+      .open_table(BRC30_TRANSFERABLE_ASSETS)?
+      .remove(script_tickid_inscriptionid_key(script_key, tick_id, inscription_id).as_str())?;
     Ok(())
   }
 }
@@ -554,7 +579,7 @@ mod tests {
 
     assert_eq!(
       brc30db
-        .get_transferable_assets(&script_key, &tick_id, &inscription_id)
+        .get_transferable_asset(&script_key, &tick_id, &inscription_id)
         .unwrap()
         .unwrap(),
       transferable_asset

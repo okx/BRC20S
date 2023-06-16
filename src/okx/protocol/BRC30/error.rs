@@ -4,6 +4,7 @@ use protocol::BRC30::num::Num;
 use serde::{Deserialize, Serialize};
 
 use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, Pid};
+use crate::okx::reward::error::RewardError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: BRC30DataStoreReadOnly> {
@@ -12,6 +13,9 @@ pub enum Error<L: BRC30DataStoreReadOnly> {
 
   #[error("ledger error: {0}")]
   LedgerError(<L as BRC30DataStoreReadOnly>::Error),
+
+  #[error("reward error: {0}")]
+  RewardError(RewardError),
 
   #[error("others: {0}")]
   Others(anyhow::Error),

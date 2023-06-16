@@ -23,6 +23,7 @@ use crate::{
 use bigdecimal::ToPrimitive;
 use futures::future::ok;
 use redb::Table;
+use crate::okx::reward::reward;
 
 #[derive(Clone)]
 pub enum Action {
@@ -339,6 +340,9 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
     } else if stake_balance.checked_sub(&has_staked)?.lt(&amount) {
       return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(amount.clone(), stake_balance.checked_sub(&has_staked)?)));
     }
+    reward::update_pool(&mut pool, block_number)?;
+    let reward = reward::withdraw_user_reward(&mut userinfo,&mut pool)?;
+    reward::update_user_stake(&mut userinfo,&mut pool)?;
     // updated user balance of stakedhehe =
     userinfo.staked = has_staked
       .checked_add(&amount)?
@@ -376,12 +380,10 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       .checked_add(&amount)?
       .checked_to_u128()?;
     self.ledger.set_pid_to_poolinfo(&pool_id, &pool).map_err(|e| Error::LedgerError(e))?;
-    // TODO update user reward 获取用户的收益
-    // TODO update pool rate
 
     return Ok(BRC30Event::Deposit(DepositEvent {
       pid: pool_id,
-      amt: 0,
+      amt: amount.checked_to_u128()?,
     }));
   }
 
@@ -418,6 +420,10 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(has_staked.clone(), amount.clone())));
     }
 
+    reward::update_pool(&mut pool, block_number)?;
+    let reward = reward::withdraw_user_reward(&mut userinfo,&mut pool)?;
+    reward::update_user_stake(&mut userinfo,&mut pool)?;
+
     userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
     self.ledger.set_pid_to_use_info(&to_script_key, &pool_id, &userinfo).map_err(|e| Error::LedgerError(e))?;
 
@@ -448,13 +454,9 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
         .ok_or(Error::BRC30Error(BRC30Error::InternalError("stakes info can not got max_share".to_string())))?;
       user_stakeinfo.max_share = max_pool_stakes.2
     }
-
-
-    // TODO update user reward 获取用户的收益
-    // TODO update pool rate
     return Ok(BRC30Event::Withdraw(WithdrawEvent {
       pid: pool_id,
-      amt: 0,
+      amt: amount.checked_to_u128()?,
       initiative: false,
     }));
   }

@@ -1,5 +1,5 @@
 use std::cmp::max;
-use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, DeployPoolEvent, DepositEvent, EventType, Pid, PledgedTick, PoolInfo, PoolType, Receipt, StakeInfo, TickInfo, UserInfo};
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, DeployPoolEvent, DepositEvent, EventType, Pid, PledgedTick, PoolInfo, PoolType, Receipt, StakeInfo, TickInfo, UserInfo, WithdrawEvent};
 use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
@@ -343,7 +343,14 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       .get_user_stakeinfo(&to_script_key, &stake)
       .map_err(|e| Error::LedgerError(e))?
       .map_or(
-        StakeInfo::new(&vec![pool_id.clone()], &stake,0,0), |v|v);
+        StakeInfo::new(&vec![(pool_id.clone(),pool.only,userinfo.staked)], &stake,0,0), |v|v);
+
+    for pool_stake in user_stakeinfo.pool_stakes.iter_mut() {
+      if pool_stake.0 == pool_id {
+        pool_stake.2 = user_stakeinfo.staked;
+        break;
+      }
+    }
 
     if pool.only {
       user_stakeinfo.total_only = user_stakeinfo.total_only + amount
@@ -357,6 +364,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
     pool.staked = pool.staked + amount;
     self.ledger.set_pid_to_poolinfo(&pool_id, &pool).map_err(|e| Error::LedgerError(e))?;
     // TODO update user reward 获取用户的收益
+    // TODO update pool rate
 
     return Ok(BRC30Event::Deposit(DepositEvent {
       pid: pool_id,
@@ -370,7 +378,69 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
     block_number: u64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    if let Some(iserr) = stake.validate_basics().err() {
+      return Err(Error::BRC30Error(iserr));
+    }
+    let pool_id = stake.get_pool_id();
+    let amount = stake.get_amount();
+    let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
+
+    let mut pool = self
+      .ledger
+      .get_pid_to_poolinfo(&pool_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(pool_id.hex())))?;
+
+    let stake = pool.stake.clone();
+
+    let mut userinfo = self.ledger
+      .get_pid_to_use_info(&to_script_key, &pool_id)
+      .map_or(Some(UserInfo::default(&pool_id)),|v|v).unwrap();
+    if userinfo.staked < amount {
+      return Err(Error::BRC30Error(BRC30Error::InValidStakeInfo(amount, userinfo.staked)));
+    }
+    userinfo.staked = userinfo.staked - amount;
+    self.ledger.set_pid_to_use_info(&to_script_key,&pool_id,&userinfo).map_err(|e| Error::LedgerError(e))?;
+
+
+    let mut user_stakeinfo = self
+      .ledger
+      .get_user_stakeinfo(&to_script_key, &stake)
+      .map_err(|e| Error::LedgerError(e))?
+      .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(Num::from(amount),Num::from(0))))?;
+
+
+    if pool.only {
+      if user_stakeinfo.total_only < amount {
+        return Err(Error::BRC30Error(BRC30Error::InValidStakeInfo(amount, user_stakeinfo.total_only)));
+      }
+      user_stakeinfo.total_only = user_stakeinfo.total_only - amount
+    } else {
+
+      //update pool_stakes
+      for pool_stake in user_stakeinfo.pool_stakes.iter_mut() {
+        if pool_stake.0 == pool_id {
+          pool_stake.2 = user_stakeinfo.staked;
+          break;
+        }
+      }
+      //search max stake within share pools
+      let max_pool_stakes = user_stakeinfo
+        .pool_stakes.iter()
+        .filter(|(pid,only,staked)| *only)//filter only pool
+        .max_by_key(|(pid,only,stake)| stake.clone())//search max stake
+        .ok_or(Err(Error::BRC30Error(BRC30Error::InternalError("stakes info can not got max_share".to_string()))))?;
+      user_stakeinfo.max_share = max_pool_stakes.2
+    }
+
+
+    // TODO update user reward 获取用户的收益
+    // TODO update pool rate
+    return Ok(BRC30Event::Withdraw(WithdrawEvent {
+      pid: pool_id,
+      amt: 0,
+      initiative: false,
+    }));
   }
 
   fn process_mint(

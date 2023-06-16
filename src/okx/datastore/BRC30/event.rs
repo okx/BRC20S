@@ -92,9 +92,9 @@ pub struct DepositEvent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct WithdrawEvent {
-  pid: Pid,
-  amt: u128,
-  initiative: bool,
+  pub(crate) pid: Pid,
+  pub(crate) amt: u128,
+  pub(crate) initiative: bool,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

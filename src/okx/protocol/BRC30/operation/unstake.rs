@@ -1,4 +1,8 @@
+use std::str::FromStr;
 use serde::{Deserialize, Serialize};
+use crate::okx::datastore::BRC30::{Pid, TickId};
+use crate::okx::protocol::BRC30::{BRC30Error, Num};
+use crate::okx::protocol::BRC30::util::validate_pool_str;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct UnStake {
@@ -9,6 +13,38 @@ pub struct UnStake {
   // Amount to withdraw: States the amount of the brc-20 to withdraw.
   #[serde(rename = "amt")]
   pub amount: String,
+}
+
+impl UnStake {
+  pub fn new(pool_id: &str, amount: &str) -> Self {
+    Self {
+      pool_id: pool_id.to_string(),
+      amount:amount.to_string()
+    }
+  }
+
+  pub fn get_pool_id(&self) -> Pid {
+    Pid::from_str(self.pool_id.as_str()).unwrap()
+  }
+
+  pub fn get_amount(&self) -> u128 {
+    self.amount.parse::<u128>().unwrap()
+  }
+
+  pub fn validate_basics(&self) -> Result<(), BRC30Error> {
+    validate_pool_str(self.pool_id.as_str())
+      .map_err(|e| BRC30Error::InvalidPoolId(self.pool_id.to_string(),e.to_string()))?;
+
+    if let Some(iserr) = Num::from_str(self.amount.as_str()).err()  {
+      return Err(BRC30Error::InvalidNum(self.amount.clone()+iserr.to_string().as_str()));
+    }
+
+    Ok(())
+  }
+  pub fn get_tick_id(&self) -> TickId {
+    let tick_str = self.pool_id.as_str().split("#").next().unwrap();
+    TickId::from_str(tick_str).unwrap()
+  }
 }
 
 #[cfg(test)]

@@ -35,6 +35,11 @@ pub trait BRC30DataStoreReadOnly {
     pledged_tick: &PledgedTick,
   ) -> Result<Option<StakeInfo>, Self::Error>;
 
+  fn get_user_stakeinfos(
+    &self,
+    script_key: &ScriptKey,
+  ) -> Result<Option<Vec<StakeInfo>>, Self::Error>;
+
   // 3.3.6 BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(
     &self,

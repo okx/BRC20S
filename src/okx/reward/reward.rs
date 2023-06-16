@@ -186,7 +186,7 @@ mod tests {
   use tempfile::NamedTempFile;
 
   #[test]
-  fn test_one_user() {
+  fn test_fix_one_user() {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
@@ -200,94 +200,132 @@ mod tests {
 
     let mut pool = Pool::new(&wtx);
     // stake-1
-    {
-      pool.update_pool(&pid, 1u64);
-      pool.withdraw_user_reward(&pid, &script_key);
-      pool.update_user_stake(&pid, &script_key, 1u128, true);
-      assert_eq!(
-        brc30db
-          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-          .unwrap()
-          .unwrap()
-          .reward,
-        0
-      );
-    }
+    do_nonce(
+      &wtx,
+      &mut pool,
+      &pid.clone(),
+      1u64,
+      &script_key.clone(),
+      1u128,
+      true,
+      0,
+      1,
+      1,
+      0,
+      1,
+    );
 
     // stake-2
-    {
-      pool.update_pool(&pid, 2u64);
-      pool.withdraw_user_reward(&pid, &script_key);
-      pool.update_user_stake(&pid, &script_key, 1u128, true);
-      assert_eq!(
-        brc30db
-          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-          .unwrap()
-          .unwrap()
-          .reward,
-        10
-      );
-    }
+    do_nonce(
+      &wtx,
+      &mut pool,
+      &pid.clone(),
+      2u64,
+      &script_key.clone(),
+      1u128,
+      true,
+      10,
+      2,
+      2,
+      10,
+      2,
+    );
 
     // stake-3
-    {
-      pool.update_pool(&pid, 3u64);
-      pool.withdraw_user_reward(&pid, &script_key);
-      pool.update_user_stake(&pid, &script_key, 1u128, true);
-      assert_eq!(
-        brc30db
-          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-          .unwrap()
-          .unwrap()
-          .reward,
-        30
-      );
-    }
+    do_nonce(
+      &wtx,
+      &mut pool,
+      &pid.clone(),
+      3u64,
+      &script_key.clone(),
+      1u128,
+      true,
+      30,
+      3,
+      3,
+      30,
+      3,
+    );
 
     // withdraw-1
-    {
-      pool.update_pool(&pid, 4u64);
-      pool.withdraw_user_reward(&pid, &script_key);
-      pool.update_user_stake(&pid, &script_key, 1u128, false);
-      assert_eq!(
-        brc30db
-          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-          .unwrap()
-          .unwrap()
-          .reward,
-        60
-      );
-    }
+    do_nonce(
+      &wtx,
+      &mut pool,
+      &pid.clone(),
+      4u64,
+      &script_key.clone(),
+      1u128,
+      false,
+      60,
+      2,
+      2,
+      60,
+      4,
+    );
 
     // withdraw-2
-    {
-      pool.update_pool(&pid, 5u64);
-      pool.withdraw_user_reward(&pid, &script_key);
-      pool.update_user_stake(&pid, &script_key, 1u128, false);
-      assert_eq!(
-        brc30db
-          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-          .unwrap()
-          .unwrap()
-          .reward,
-        80
-      );
-    }
+    do_nonce(
+      &wtx,
+      &mut pool,
+      &pid.clone(),
+      5u64,
+      &script_key.clone(),
+      1u128,
+      false,
+      80,
+      1,
+      1,
+      80,
+      5,
+    );
 
     // withdraw-3
-    {
-      pool.update_pool(&pid, 6u64);
-      pool.withdraw_user_reward(&pid, &script_key);
-      pool.update_user_stake(&pid, &script_key, 1u128, false);
-      assert_eq!(
-        brc30db
-          .get_pid_to_use_info(&script_key.clone(), &pid.clone())
-          .unwrap()
-          .unwrap()
-          .reward,
-        90
-      );
-    }
+    do_nonce(
+      &wtx,
+      &mut pool,
+      &pid.clone(),
+      6u64,
+      &script_key.clone(),
+      1u128,
+      false,
+      90,
+      0,
+      0,
+      90,
+      6,
+    );
+  }
+
+  fn do_nonce<'db, 'a>(
+    wtx: &'a WriteTransaction<'db>,
+    pool: &mut Pool,
+    pid: &Pid,
+    block_mum: u64,
+    script_key: &ScriptKey,
+    stake_alter: u128,
+    is_add: bool,
+    expect_user_reward: u128,
+    expert_user_staked: u128,
+    expect_pool_staked: u128,
+    expect_pool_minted: u128,
+    expect_pool_block: u64,
+  ) {
+    let brc30db = BRC30DataStore::new(&wtx);
+    pool.update_pool(&pid, block_mum);
+    pool.withdraw_user_reward(&pid, &script_key);
+    pool.update_user_stake(&pid, &script_key, stake_alter, is_add);
+
+    let user = brc30db
+      .get_pid_to_use_info(&script_key.clone(), &pid.clone())
+      .unwrap()
+      .unwrap();
+    let pool = brc30db.get_pid_to_poolinfo(&pid.clone()).unwrap().unwrap();
+    assert_eq!(user.reward, expect_user_reward);
+    assert_eq!(user.staked, expert_user_staked);
+    assert_eq!(user.reward, expect_user_reward);
+    assert_eq!(pool.staked, expect_pool_staked);
+    assert_eq!(pool.minted, expect_pool_minted);
+    assert_eq!(pool.last_update_block, expect_pool_block);
   }
 
   fn new_pid<'db, 'a>(
@@ -314,7 +352,6 @@ mod tests {
       last_update_block: 0,
       only: true,
     };
-
     brc30db.set_pid_to_poolinfo(&pid, &pool_info).unwrap();
     assert_eq!(
       brc30db.get_pid_to_poolinfo(&pid).unwrap().unwrap(),
@@ -324,7 +361,6 @@ mod tests {
 
   fn new_user<'db, 'a>(wtx: &'a WriteTransaction<'db>, pid: &Pid, script_key: &ScriptKey) {
     let brc30db = BRC30DataStore::new(&wtx);
-
     let user_info = UserInfo {
       pid: pid.clone(),
       staked: 0,
@@ -332,11 +368,9 @@ mod tests {
       reward_debt: 0,
       latest_updated_block: 0,
     };
-
     brc30db
       .set_pid_to_use_info(&script_key, &pid, &user_info)
       .unwrap();
-
     assert_eq!(
       brc30db
         .get_pid_to_use_info(&script_key, &pid)

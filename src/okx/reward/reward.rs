@@ -2,6 +2,12 @@
 use crate::okx::datastore::BRC30::{PoolInfo, PoolType, UserInfo};
 use crate::okx::protocol::BRC30::{BRC30Error, Num};
 
+// demo
+// | Pool type | earn brc30 dec | earn rate | total stake brc20  | user A stake  brc20  | block | User A reward                              |
+// |-----------|----------------|-----------|--------------------|----------------------|-------|--------------------------------------------|
+// | Fix       | 10             | 0.5       | 100                | 20(10**18)           | 1     | 20 * 0.5 *(10**10) * 1 = 10 e10            |
+// | Pool      | 10             | 0.5       | 100                | 20(10**18)           | 1     | 20 * 0.5 *(10**10)   / 100 = 0.1 * 10** 10 |
+
 pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u128, BRC30Error> {
   let mut user_temp = user;
   let mut pool_temp = pool;

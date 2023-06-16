@@ -30,25 +30,25 @@ impl<'db, 'a> Pool<'db, 'a> {
   }
 
   pub fn update_pool(&mut self, pid: &Pid, block_num: u64) -> Result<(), RewardError> {
-    //1. 查询pool是否存在
+    //1 check pool is exist
     let mut pool = self
       .brc30db
       .get_pid_to_poolinfo(&pid.clone())
       .unwrap()
       .unwrap();
 
-    //2. 查询pool的block number是否为最新
+    //2 check block num of pool is latest
     if block_num <= pool.last_update_block {
       return Ok(());
     }
 
-    //3.查询是否已经发行完毕
+    //3 check allocated has been minted
     if pool.minted >= pool.allocated {
       pool.last_update_block = block_num;
       return Ok(());
     }
 
-    //4. 判断池子模式，分别为fixed和pool，使用不同的rewardPerTokenStored，计算 accRewardPerShare
+    //4 pool type: fixed and pool, for calculating accRewardPerShare
     let mut reward_per_token_stored = 0;
     let mut nums = (block_num - pool.last_update_block) as u128;
     if pool.ptype == PoolType::Fixed {
@@ -59,14 +59,14 @@ impl<'db, 'a> Pool<'db, 'a> {
 
     pool.acc_reward_per_share += reward_per_token_stored;
 
-    //5. 更新区块高度
+    //5 update latest block num
     pool.last_update_block = block_num;
 
     println!(
       "update_pool-block:{}, acc_reward_per_share:{}, reward_per_token_stored:{}",
       block_num, pool.acc_reward_per_share, reward_per_token_stored
     );
-    //6. 更新池子
+    //6 update pool
     self.brc30db.set_pid_to_poolinfo(&pid.clone(), &pool);
     return Ok(());
   }
@@ -76,7 +76,7 @@ impl<'db, 'a> Pool<'db, 'a> {
     pid: &Pid,
     script_key: &ScriptKey,
   ) -> Result<u128, RewardError> {
-    //1. 判断用户的 staked 是否大于0
+    //1 check user's staked gt 0
     let mut user = self
       .brc30db
       .get_pid_to_use_info(&script_key.clone(), &pid.clone())
@@ -96,7 +96,7 @@ impl<'db, 'a> Pool<'db, 'a> {
       .unwrap()
       .unwrap();
 
-    //2. 根据用户的质押数计算收益： staked * accRewardPerShare - user reward_debt，并存储
+    //2 reward = staked * accRewardPerShare - user reward_debt
     let mut a = 0;
     match user.staked.checked_mul(pool.acc_reward_per_share) {
       Some(result) => a = result,
@@ -110,7 +110,7 @@ impl<'db, 'a> Pool<'db, 'a> {
     }
 
     if reward > 0 {
-      //3 更新 user_info 和pool 的 minted，TODO check overflow
+      //3 update minted of user_info and pool, TODO check overflow
       user.reward += reward;
       pool.minted += reward;
       self
@@ -146,9 +146,9 @@ impl<'db, 'a> Pool<'db, 'a> {
       .unwrap()
       .unwrap();
 
-    //1.判断是否stake_alter是否大于0
+    //1 check stake_alter gt 0
     if (stake_alter > 0) {
-      //2.大于0，则进行相应增加或者减少, TODO check overflow
+      //2 add or sub, TODO check overflow
       if is_add {
         user.staked += stake_alter;
         pool.staked += stake_alter;
@@ -158,7 +158,7 @@ impl<'db, 'a> Pool<'db, 'a> {
       }
     }
 
-    //3.更新用户的 reward_debt，TODO check overflow
+    //3 update user's reward_debt，TODO check overflow
     user.reward_debt = user.staked * pool.acc_reward_per_share;
 
     println!(
@@ -166,7 +166,7 @@ impl<'db, 'a> Pool<'db, 'a> {
       user.reward_debt, user.staked, pool.acc_reward_per_share, pool.staked
     );
 
-    //4.保存用户信息和池子信息
+    //4 save user info and pool info
     self
       .brc30db
       .set_pid_to_use_info(&script_key.clone(), &pid.clone(), &user);

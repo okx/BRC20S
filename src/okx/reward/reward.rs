@@ -11,14 +11,19 @@ pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u1
 
 // need to save pool_info, when call success
 pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error> {
+  let pool_minted = Into::<Num>::into(pool.minted);
+  let pool_dmax = Into::<Num>::into(pool.dmax);
+  let nums = Into::<Num>::into(block_num - pool.last_update_block);
+  let rate = Into::<Num>::into(pool.erate);
+  let pool_stake = Into::<Num>::into(pool.staked);
+  let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
+
   //1 check block num of pool is latest
   if block_num <= pool.last_update_block {
     return Ok(());
   }
 
   //2 check allocated has been minted
-  let pool_minted = Into::<Num>::into(pool.minted);
-  let pool_dmax = Into::<Num>::into(pool.dmax);
   if pool_minted >= pool_dmax {
     pool.last_update_block = block_num;
     return Ok(());
@@ -26,19 +31,15 @@ pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error
 
   //3 pool type: fixed and pool, for calculating accRewardPerShare
   let mut reward_per_token_stored = Num::zero();
-  let mut nums = Into::<Num>::into(block_num - pool.last_update_block);
-  let erate = Into::<Num>::into(pool.erate);
-  let pool_stake = Into::<Num>::into(pool.staked);
   if pool.ptype == PoolType::Fixed {
-    reward_per_token_stored = erate.checked_mul(&nums)?;
+    reward_per_token_stored = rate.checked_mul(&nums)?;
   } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
     // reward_per_token_stored = pool.erate * nums / pool.staked);
-    reward_per_token_stored = erate.checked_mul(&nums)?.checked_div(&pool_stake)?;
+    reward_per_token_stored = rate.checked_mul(&nums)?.checked_div(&pool_stake)?;
   } else {
     return Err(BRC30Error::UnknownPoolType);
   }
 
-  let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
   pool.acc_reward_per_share = reward_per_token_stored
     .checked_add(&acc_reward_per_share)?
     .checked_to_u128()?;
@@ -55,28 +56,26 @@ pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error
 
 // need to save pool_info and user_info, when call success
 pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<u128, BRC30Error> {
+  let user_staked = Into::<Num>::into(user.staked);
+  let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
+  let reward_debt = Into::<Num>::into(user.reward_debt);
+  let user_reward = Into::<Num>::into(user.reward);
+  let pool_minted = Into::<Num>::into(pool.minted);
+
   //1 check user's staked gt 0
-  if user.staked <= 0 {
+  if user_staked <= Num::zero() {
     return Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex()));
   }
 
   //2 reward = staked * accRewardPerShare - user reward_debt
-  let mut a = 0;
-  match user.staked.checked_mul(pool.acc_reward_per_share) {
-    Some(result) => a = result,
-    None => println!("Multiplication failed!"),
-  }
+  let mut reward = user_staked
+    .checked_mul(&acc_reward_per_share)?
+    .checked_sub(&reward_debt)?;
 
-  let mut reward: u128 = 0;
-  match a.checked_sub(user.reward_debt) {
-    Some(result) => reward = result,
-    None => println!("Division failed!"),
-  }
-
-  if reward > 0 {
-    //3 update minted of user_info and pool, TODO check overflow
-    user.reward += reward;
-    pool.minted += reward;
+  if reward > Num::zero() {
+    //3 update minted of user_info and pool
+    user.reward = user_reward.checked_add(&reward)?.checked_to_u128()?;
+    pool.minted = pool_minted.checked_add(&reward)?.checked_to_u128()?;
   }
 
   println!(
@@ -84,13 +83,18 @@ pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<
       reward, user.reward_debt, user.staked, pool.acc_reward_per_share
     );
 
-  return Ok(reward);
+  return reward.checked_to_u128();
 }
 
 // need to update staked  before, and save pool_info and user_info when call success
 pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), BRC30Error> {
-  //1 update user's reward_debt，TODO check overflow
-  user.reward_debt = user.staked * pool.acc_reward_per_share;
+  let user_staked = Into::<Num>::into(user.staked);
+  let pool_acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
+
+  //1 update user's reward_debt
+  user.reward_debt = user_staked
+    .checked_mul(&pool_acc_reward_per_share)?
+    .checked_to_u128()?;
   println!(
     "update_user_stake--reward_debt:{}, user staked:{}, acc_reward_per_share:{}, pool staked:{}",
     user.reward_debt, user.staked, pool.acc_reward_per_share, pool.staked

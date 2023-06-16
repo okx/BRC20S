@@ -1,5 +1,9 @@
+use std::str::FromStr;
+use bigdecimal::num_bigint::Sign;
+use crate::okx::datastore::BRC30::PledgedTick;
+use crate::okx::protocol::BRC30::Num;
 use crate::okx::protocol::BRC30::BRC30Error;
-use crate::okx::protocol::BRC30::params::PID_BYTE_COUNT;
+use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, PID_BYTE_COUNT};
 
 pub fn validate_hex(s: &str) -> Result<(), BRC30Error> {
   let prefix = hex::decode(s);

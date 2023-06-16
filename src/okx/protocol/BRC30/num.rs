@@ -1,4 +1,4 @@
-use crate::okx::protocol::BRC30::params::MAX_DECIMAL_WIDTH;
+use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH};
 use crate::okx::protocol::BRC30::BRC30Error;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
 use bigdecimal::{BigDecimal, One, ToPrimitive, Zero};

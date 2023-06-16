@@ -1,7 +1,9 @@
 use std::str::FromStr;
+use bigdecimal::num_bigint::Sign;
 use serde::{Deserialize, Serialize};
 use crate::okx::datastore::BRC30::{Pid, TickId};
-use crate::okx::protocol::BRC30::{BRC30Error, Num};
+use crate::okx::protocol::BRC30::{BRC30Error, Error, Num};
+use crate::okx::protocol::BRC30::params::BIGDECIMAL_TEN;
 use crate::okx::protocol::BRC30::util::validate_pool_str;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
@@ -19,7 +21,7 @@ impl Stake {
   pub fn new(pool_id: &str, amount: &str) -> Self {
     Self {
       pool_id: pool_id.to_string(),
-      amount:amount.to_string()
+      amount: amount.to_string()
     }
   }
 
@@ -27,8 +29,20 @@ impl Stake {
     Pid::from_str(self.pool_id.as_str()).unwrap()
   }
 
-  pub fn get_amount(&self) -> u128 {
-    self.amount.parse::<u128>().unwrap()
+  pub fn get_amount(&self, decimal: u8) -> Result<Option<Num>,BRC30Error> {
+    let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
+    let mut amt = Num::from_str(self.amount.as_str()).unwrap();
+
+    if amt.scale() > decimal as i64 {
+      return Err(BRC30Error::InvalidNum(amt.to_string()));
+    }
+
+    amt = amt.checked_mul(&base)?;
+    if amt.sign() == Sign::NoSign {
+      return Err(BRC30Error::InvalidZeroAmount);
+    }
+
+    Ok(Some(amt))
   }
 
   pub fn validate_basics(&self) -> Result<(), BRC30Error> {

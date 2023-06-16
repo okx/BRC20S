@@ -1,16 +1,14 @@
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::BRC20::Tick;
-use crate::okx::protocol::BRC30::params::{
-  NATIVE_TOKEN, TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT,
-};
-use crate::okx::protocol::BRC30::{BRC30Error, Deploy};
+use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, NATIVE_TOKEN, TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT};
+use crate::okx::protocol::BRC30::{BRC30Error, Deploy, Num};
 use crate::InscriptionId;
 use std::mem;
 
 use crate::okx::datastore::BRC30::Pid;
-use crate::okx::protocol::BRC20::Num;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
+use bigdecimal::num_bigint::Sign;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TickId([u8; TICK_ID_BYTE_COUNT]);

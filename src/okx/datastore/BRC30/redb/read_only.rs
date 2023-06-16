@@ -136,19 +136,6 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
-  fn get_user_stakeinfos(&self, script_key: &ScriptKey) -> Result<Option<Vec<StakeInfo>>, Self::Error> {
-    Ok(
-      self
-        .wrapper
-        .open_table(BRC30_USER_STAKEINFO)?
-        .range(min_script_key(script_key).as_str()..max_script_key(script_key).as_str())?
-        .map(|(_,data)|{
-          bincode::deserialize::<StakeInfo>(data.value()).unwrap()
-        })
-        .collect(),
-    )
-  }
-
   // 3.3.6 BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(
     &self,

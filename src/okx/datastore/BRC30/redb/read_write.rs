@@ -51,13 +51,6 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_user_stakeinfo(script_key, pledged_tick)
   }
 
-  fn get_user_stakeinfos(
-    &self,
-    script_key: &ScriptKey,
-  ) -> Result<Option<Vec<StakeInfo>>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_user_stakeinfos(script_key)
-  }
-
 
   // 3.3.6 BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(

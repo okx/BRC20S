@@ -1,3 +1,4 @@
+use std::cmp::max;
 use crate::okx::datastore::BRC30::{
   BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, EventType,
   InscribeTransferEvent, MintEvent, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId,
@@ -9,8 +10,7 @@ use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
 
 use crate::okx::datastore::ScriptKey;
-use crate::okx::datastore::balance::get_user_common_balance;
-
+use crate::okx::datastore::balance::{convert_pledged_tick_with_decimal, get_user_common_balance};
 use crate::okx::datastore::BRC30::PoolType::Pool;
 use crate::okx::protocol::BRC30::hash::caculate_tick_id;
 use crate::okx::protocol::BRC30::params::{
@@ -192,11 +192,11 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       }
 
       if temp_tick.deployer.eq(&to_script_key) {
-        return Err(Error::BRC30Error(BRC30Error::DeployerNotEqual(pid.hex(),temp_tick.deployer.to_string(),to_script_key.to_string())));
+        return Err(Error::BRC30Error(BRC30Error::DeployerNotEqual(pid.hex(), temp_tick.deployer.to_string(), to_script_key.to_string())));
       }
 
       if to_script_key.eq(&from_script_key) {
-        return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(from_script_key.to_string(),to_script_key.to_string())));
+        return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(from_script_key.to_string(), to_script_key.to_string())));
       }
 
       // check stake has exist in tick's pools
@@ -245,11 +245,11 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
 
       if tick_id
         != caculate_tick_id(
-          total_supply.checked_to_u128()?,
-          decimal,
-          &from_script_key,
-          &to_script_key,
-        )
+        total_supply.checked_to_u128()?,
+        decimal,
+        &from_script_key,
+        &to_script_key,
+      )
       {
         return Err(Error::BRC30Error(BRC30Error::InvalidTickId(tick_id.hex())));
       }
@@ -293,7 +293,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       .ledger
       .set_pid_to_poolinfo(&pool.pid, &pool)
       .map_err(|e| Error::LedgerError(e))?;
-    self.ledger.set_tickid_stake_to_pid(&tick_id,&stake,&pid).map_err(|e| Error::LedgerError(e))?;
+    self.ledger.set_tickid_stake_to_pid(&tick_id, &stake, &pid).map_err(|e| Error::LedgerError(e))?;
     Ok(BRC30Event::DeployPool(DeployPoolEvent {
       pid,
       ptype,
@@ -305,15 +305,15 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
 
   fn process_stake(
     &mut self,
-    stake: Stake,
+    stakeMsg: Stake,
     block_number: u64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    if let Some(iserr) = stake.validate_basics().err() {
+    if let Some(iserr) = stakeMsg.validate_basics().err() {
       return Err(Error::BRC30Error(iserr));
     }
-    let pool_id = stake.get_pool_id();
-    let amount = stake.get_amount();
+    let pool_id = stakeMsg.get_pool_id();
+
     let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
 
     let mut pool = self
@@ -322,50 +322,59 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       .map_err(|e| Error::LedgerError(e))?
       .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(pool_id.hex())))?;
 
-    let stake = pool.stake.clone();
+    let stake_tick = pool.stake.clone();
+    let amount = convert_pledged_tick_with_decimal(
+      &stake_tick,
+      stakeMsg.amount.as_str(),
+      self.ledger, self.brc20ledger)?;
 
     // check user balance of stake is more than ammount to staked
-    let balance = get_user_common_balance(&to_script_key,&stake,self.ledger,self.brc20ledger);
+    let stake_balance = get_user_common_balance(&to_script_key, &stake_tick, self.ledger, self.brc20ledger);
     let mut userinfo = self.ledger
       .get_pid_to_use_info(&to_script_key, &pool_id)
       .map_or(Some(UserInfo::default(&pool_id)),|v|v).unwrap();
-    if balance < userinfo.staked {
-      return Err(Error::BRC30Error(BRC30Error::InValidStakeInfo(userinfo.staked, balance)));
+    let has_staked = Num::from(userinfo.staked);
+    if stake_balance.lt(&has_staked) {
+      return Err(Error::BRC30Error(BRC30Error::InValidStakeInfo(userinfo.staked, stake_balance.checked_to_u128()?)));
+    } else if stake_balance.checked_sub(&has_staked)?.lt(&amount) {
+      return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(amount.clone(), stake_balance.checked_sub(&has_staked)?)));
     }
-
-    if amount+userinfo.staked > balance {
-      return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(Num::from(amount), Num::from(balance-userinfo.staked))));
-    }
-    // updated user balance of staked
-    userinfo.staked = userinfo.staked + amount;
-    self.ledger.set_pid_to_use_info(&to_script_key,&pool_id,&userinfo).map_err(|e| Error::LedgerError(e))?;
+    // updated user balance of stakedhehe =
+    userinfo.staked = has_staked
+      .checked_add(&amount)?
+      .checked_to_u128()?;
+    self.ledger.set_pid_to_use_info(&to_script_key, &pool_id, &userinfo).map_err(|e| Error::LedgerError(e))?;
 
 
     //update the stake_info of user
     let mut user_stakeinfo = self
       .ledger
-      .get_user_stakeinfo(&to_script_key, &stake)
+      .get_user_stakeinfo(&to_script_key, &stake_tick)
       .map_err(|e| Error::LedgerError(e))?
       .map_or(
-        StakeInfo::new(&vec![(pool_id.clone(),pool.only,userinfo.staked)], &stake,0,0), |v|v);
+        StakeInfo::new(&vec![(pool_id.clone(), pool.only, userinfo.staked)], &stake_tick, 0, 0), |v| v);
 
     for pool_stake in user_stakeinfo.pool_stakes.iter_mut() {
       if pool_stake.0 == pool_id {
-        pool_stake.2 = user_stakeinfo.staked;
+        pool_stake.2 = userinfo.staked;
         break;
       }
     }
 
     if pool.only {
-      user_stakeinfo.total_only = user_stakeinfo.total_only + amount
+      user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)
+        .checked_add(&amount)?
+        .checked_to_u128()?;
     } else {
-      user_stakeinfo.max_share = max(user_stakeinfo.max_share,userinfo.staked)
+      user_stakeinfo.max_share = max(user_stakeinfo.max_share, userinfo.staked)
     }
-    self.ledger.set_user_stakeinfo(&to_script_key,&stake,&user_stakeinfo).map_err(|e| Error::LedgerError(e))?;
+    self.ledger.set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo).map_err(|e| Error::LedgerError(e))?;
 
 
     // update pool_info for stake
-    pool.staked = pool.staked + amount;
+    pool.staked = Num::from(pool.staked)
+      .checked_add(&amount)?
+      .checked_to_u128()?;
     self.ledger.set_pid_to_poolinfo(&pool_id, &pool).map_err(|e| Error::LedgerError(e))?;
     // TODO update user reward 获取用户的收益
     // TODO update pool rate
@@ -378,15 +387,14 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
 
   fn process_unstake(
     &mut self,
-    unstake: UnStake,
+    unstakeMsg: UnStake,
     block_number: u64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    if let Some(iserr) = stake.validate_basics().err() {
+    if let Some(iserr) = unstakeMsg.validate_basics().err() {
       return Err(Error::BRC30Error(iserr));
     }
-    let pool_id = stake.get_pool_id();
-    let amount = stake.get_amount();
+    let pool_id = unstakeMsg.get_pool_id();
     let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
 
     let mut pool = self
@@ -395,45 +403,49 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       .map_err(|e| Error::LedgerError(e))?
       .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(pool_id.hex())))?;
 
-    let stake = pool.stake.clone();
+    let stake_tick = pool.stake.clone();
+
+    let amount = convert_pledged_tick_with_decimal(
+      &stake_tick,
+      unstakeMsg.amount.as_str(),
+      self.ledger, self.brc20ledger)?;
 
     let mut userinfo = self.ledger
       .get_pid_to_use_info(&to_script_key, &pool_id)
-      .map_or(Some(UserInfo::default(&pool_id)),|v|v).unwrap();
-    if userinfo.staked < amount {
-      return Err(Error::BRC30Error(BRC30Error::InValidStakeInfo(amount, userinfo.staked)));
+      .map_or(Some(UserInfo::default(&pool_id)), |v| v).unwrap();
+    let has_staked = Num::from(userinfo.staked);
+    if has_staked.lt(&amount){
+      return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(has_staked.clone(), amount.clone())));
     }
-    userinfo.staked = userinfo.staked - amount;
-    self.ledger.set_pid_to_use_info(&to_script_key,&pool_id,&userinfo).map_err(|e| Error::LedgerError(e))?;
+
+    userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
+    self.ledger.set_pid_to_use_info(&to_script_key, &pool_id, &userinfo).map_err(|e| Error::LedgerError(e))?;
 
 
     let mut user_stakeinfo = self
       .ledger
-      .get_user_stakeinfo(&to_script_key, &stake)
+      .get_user_stakeinfo(&to_script_key, &stake_tick)
       .map_err(|e| Error::LedgerError(e))?
-      .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(Num::from(amount),Num::from(0))))?;
+      .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(Num::from(amount.clone()), Num::from(0_u128))))?;
 
 
     if pool.only {
-      if user_stakeinfo.total_only < amount {
-        return Err(Error::BRC30Error(BRC30Error::InValidStakeInfo(amount, user_stakeinfo.total_only)));
-      }
-      user_stakeinfo.total_only = user_stakeinfo.total_only - amount
+      user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only).checked_sub(&amount)?.checked_to_u128()?;
     } else {
 
       //update pool_stakes
       for pool_stake in user_stakeinfo.pool_stakes.iter_mut() {
         if pool_stake.0 == pool_id {
-          pool_stake.2 = user_stakeinfo.staked;
+          pool_stake.2 = userinfo.staked;
           break;
         }
       }
       //search max stake within share pools
       let max_pool_stakes = user_stakeinfo
         .pool_stakes.iter()
-        .filter(|(pid,only,staked)| *only)//filter only pool
-        .max_by_key(|(pid,only,stake)| stake.clone())//search max stake
-        .ok_or(Err(Error::BRC30Error(BRC30Error::InternalError("stakes info can not got max_share".to_string()))))?;
+        .filter(|(pid, only, staked)| *only)//filter only pool
+        .max_by_key(|(pid, only, stake)| stake.clone())//search max stake
+        .ok_or(Error::BRC30Error(BRC30Error::InternalError("stakes info can not got max_share".to_string())))?;
       user_stakeinfo.max_share = max_pool_stakes.2
     }
 

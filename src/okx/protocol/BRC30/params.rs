@@ -3,6 +3,7 @@ use once_cell::sync::Lazy;
 
 pub const PROTOCOL_LITERAL: &str = "brc-30";
 pub const NATIVE_TOKEN: &str = "btc";
+pub const NATIVE_TOKEN_DECIMAL: u8 = 8_u8;
 pub const MAX_DECIMAL_WIDTH: u8 = 18;
 pub const MAX_SUPPLY_WIDTH: u128 = 18;
 pub const TICK_ID_BYTE_COUNT: usize = 5;

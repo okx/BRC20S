@@ -1,43 +1,88 @@
-use crate::okx::datastore::BRC20::{BRC20DataStoreReadOnly, BRC20DataStoreReadWrite};
+use std::str::FromStr;
+use anyhow::anyhow;
+use bigdecimal::num_bigint::Sign;
+use crate::okx::datastore::BRC20::{BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error};
 use crate::okx::datastore::BRC20::BRC20Error::InsufficientBalance;
 use crate::okx::datastore::BRC20::redb::BRC20DataStore;
 use crate::okx::datastore::BRC20::balance::Balance as BRC20Balance;
 use crate::okx::datastore::BRC30::{Balance as BRC30Balance, BRC30DataStoreReadOnly, Pid, UserInfo};
 use crate::okx::datastore::BRC30::{ BRC30DataStoreReadWrite, PledgedTick};
 use crate::okx::datastore::ScriptKey;
-use crate::okx::protocol::BRC30::BRC30Error;
+use crate::okx::protocol::BRC30::{BRC30Error, Error, Num};
+use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, NATIVE_TOKEN_DECIMAL};
 
 
 pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite>
-  (script: &ScriptKey,token: &PledgedTick, brc30ledger: &'a L, brc20ledger: &'a M) -> u128 {
+  (script: &ScriptKey,token: &PledgedTick, brc30ledger: &'a L, brc20ledger: &'a M) -> Num {
   match token {
-    PledgedTick::NATIVE => {0_u128},
+    PledgedTick::NATIVE => {Num::from(0_u128)},
     PledgedTick::BRC30Tick(tickid) => {
       let balance = brc30ledger
         .get_balance(&script,&tickid)
         .map_or(Some(BRC30Balance::default(tickid)), |v | v).unwrap();
-      balance.overall_balance
+      Num::from(balance.overall_balance)
     },
     PledgedTick::BRC20Tick(tick) => {
       let balance = brc20ledger
         .get_balance(&script,tick)
         .map_or(Some(BRC20Balance::new()),|v|v).unwrap();
-      balance.overall_balance
+      Num::from(balance.overall_balance)
     },
-    PledgedTick::UNKNOWN => {0_u128}
+    PledgedTick::UNKNOWN => {Num::from(0_u128)}
   }
 }
 
-pub fn get_user_avaliable_balance<'a, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite>
-      (script: &ScriptKey,token: &PledgedTick, pid:&Pid, brc30ledger: &'a L, brc20ledger: &'a M)
-  -> Result<u128,BRC30Error> {
-  let balance = get_user_common_balance(script,token,brc30ledger,brc20ledger);
+// pub fn get_user_available_balance<'a, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite>
+//       (script: &ScriptKey, token: &PledgedTick, pid:&Pid, brc30ledger: &'a L, brc20ledger: &'a M)
+//   -> Result<u128,BRC30Error> {
+//   let balance = get_user_common_balance(script,token,brc30ledger,brc20ledger);
+//
+//   let userinfo = brc30ledger
+//     .get_pid_to_use_info(script, pid)
+//     .map_or(Some(UserInfo::default(pid)),|v|v).unwrap();
+//   if balance < userinfo.staked {
+//     return Err(BRC30Error::InValidStakeInfo(userinfo.staked,balance))
+//   }
+//   Ok(balance-userinfo.staked)
+// }
 
-  let userinfo = brc30ledger
-    .get_pid_to_use_info(script, pid)
-    .map_or(Some(UserInfo::default(pid)),|v|v).unwrap();
-  if balance < userinfo.staked {
-    return Err(BRC30Error::InValidStakeInfo(userinfo.staked,balance))
+pub fn convert_pledged_tick_with_decimal<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
+  (tick: &PledgedTick, amount: &str, brc30ledger: &'a L, brc20ledger: &'a M)
+   -> Result<Num, Error<L>> {
+    match tick {
+      PledgedTick::UNKNOWN => { Err(Error::BRC30Error(BRC30Error::UnknownStakeType)) },
+      PledgedTick::NATIVE => { convert_amount_with_decimal(amount, NATIVE_TOKEN_DECIMAL) },
+      PledgedTick::BRC20Tick(tick) => {
+        let token = brc20ledger.get_token_info(tick)
+          .map_err(|e|
+            Error::Others(anyhow!("brc20_query failed:{}",e)))?
+          .ok_or(BRC30Error::TickNotFound(tick.hex()))?;
+
+        convert_amount_with_decimal(amount, token.decimal)
+      },
+      PledgedTick::BRC30Tick(tickid) => {
+        let tick = brc30ledger.get_tick_info(tickid)
+          .map_err(|e| Error::LedgerError(e))?
+          .ok_or(BRC30Error::TickNotFound(tickid.to_lowercase().hex()))?;
+
+        convert_amount_with_decimal(amount, tick.decimal)
+      },
+    }
   }
-  Ok(balance-userinfo.staked)
+
+pub fn convert_amount_with_decimal<L: BRC30DataStoreReadWrite>(amount:&str,decimal:u8) -> Result<Num,Error<L>> {
+  let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
+  let mut amt = Num::from_str(amount)?;
+
+  if amt.scale() > decimal as i64 {
+    return Err(Error::from(BRC30Error::InvalidNum(amt.to_string())));
+  }
+
+  amt = amt.checked_mul(&base)?;
+  if amt.sign() == Sign::NoSign {
+    return Err(Error::from(BRC30Error::InvalidZeroAmount));
+  }
+
+  Ok(amt)
 }
+

@@ -1,11 +1,11 @@
 use crate::{Inscription, Result};
 use error::JSONError;
 pub mod error;
+mod hash;
 pub mod num;
 mod operation;
 pub mod params;
 pub mod updater;
-mod hash;
 mod util;
 
 pub use self::{
@@ -107,7 +107,7 @@ mod tests {
         Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-30","op":"mint","tick":"tick","pid":"pool_id","amt":"12000"}"##
+            r##"{"p":"brc-30","op":"mint","tick":"tick","tid":"tick_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -117,7 +117,7 @@ mod tests {
       .unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        pool_id: "pool_id".to_string(),
+        tick_id: "tick_id".to_string(),
         amount: "12000".to_string()
       })
     );
@@ -172,7 +172,7 @@ mod tests {
         Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-30","op":"transfer","pid":"pool_id","tick":"abcd","amt":"12000"}"##
+            r##"{"p":"brc-30","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -181,7 +181,7 @@ mod tests {
       )
       .unwrap(),
       Operation::Transfer(Transfer {
-        pool_id: "pool_id".to_string(),
+        tick_id: "tick_id".to_string(),
         tick: "abcd".to_string(),
         amount: "12000".to_string()
       })

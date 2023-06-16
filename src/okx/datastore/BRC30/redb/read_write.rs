@@ -369,7 +369,7 @@ mod tests {
       erate: 0,
       minted: 0,
       staked: 0,
-      allocated: 0,
+      dmax: 0,
       acc_reward_per_share: 0,
       last_update_block: 0,
       only: true,
@@ -470,6 +470,7 @@ mod tests {
         .unwrap();
     let tick_id = TickId::from_str("abcdd").unwrap();
 
+    let pid = Pid::from_str("1234567890#01").unwrap();
     let tick_info = TickInfo {
       tick_id: tick_id.clone(),
       name: BRC30Tick::from_str("aBc1ab").unwrap(),
@@ -483,6 +484,7 @@ mod tests {
       ),
       deploy_block: 100,
       latest_mint_block: 100,
+      pids: vec![pid],
     };
 
     brc30db.set_tick_info(&tick_id, &tick_info).unwrap();

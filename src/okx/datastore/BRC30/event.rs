@@ -99,8 +99,8 @@ pub struct WithdrawEvent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct MintEvent {
-  pid: Pid,
-  amt: u128,
+  pub tick_id: TickId,
+  pub amt: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

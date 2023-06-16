@@ -1,5 +1,7 @@
-use std::cmp::max;
-use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, DeployPoolEvent, DepositEvent, EventType, Pid, PledgedTick, PoolInfo, PoolType, Receipt, StakeInfo, TickInfo, UserInfo, WithdrawEvent};
+use crate::okx::datastore::BRC30::{
+  BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, EventType, MintEvent,
+  Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId, TickInfo,
+};
 use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
@@ -7,7 +9,6 @@ use std::str::FromStr;
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::balance::get_user_common_balance;
 
-use crate::okx::datastore::BRC20::{BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, Tick};
 use crate::okx::datastore::BRC30::PoolType::Pool;
 use crate::okx::protocol::BRC30::hash::caculate_tick_id;
 use crate::okx::protocol::BRC30::params::{
@@ -167,6 +168,15 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
     let name = deploy.get_earn_id();
     let dmax = deploy.get_distribution_max();
 
+    // check pool is exist, if true return error
+    if let Some(_) = self
+      .ledger
+      .get_pid_to_poolinfo(&pid)
+      .map_err(|e| Error::LedgerError(e))?
+    {
+      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid.hex())));
+    }
+
     //Get or create the tick
     if let Some(mut temp_tick) = self
       .ledger
@@ -205,9 +215,9 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
           deploy.distribution_max,
         )));
       }
-
-      let mut new_allocated = temp_tick.allocated + dmax;
+      let new_allocated = temp_tick.allocated + dmax;
       temp_tick.allocated = new_allocated;
+      temp_tick.pids.push(pid.clone());
       self
         .ledger
         .set_tick_info(&tick_id, &temp_tick)
@@ -243,7 +253,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       }
 
       let supply = total_supply.checked_mul(&base)?.checked_to_u128()?;
-
+      let pids = vec![pid.clone()];
       let tick = TickInfo::new(
         tick_id,
         &name,
@@ -255,21 +265,13 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
         &to_script_key,
         block_number,
         block_number,
+        pids,
       );
       self
         .ledger
         .set_tick_info(&tick_id, &tick)
         .map_err(|e| Error::LedgerError(e))?;
     };
-
-    // check pool is exist, if true return error
-    if let Some(_) = self
-      .ledger
-      .get_pid_to_poolinfo(&pid)
-      .map_err(|e| Error::LedgerError(e))?
-    {
-      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid.hex())));
-    }
 
     let pool = PoolInfo::new(
       &pid,
@@ -279,7 +281,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       erate,
       0,
       0,
-      0,
+      dmax,
       0, //TODO need change
       block_number,
       only,
@@ -449,7 +451,91 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
     block_number: u64,
     to_script_key: Option<ScriptKey>,
   ) -> Result<BRC30Event, Error<L>> {
-    return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    let to_script_key = to_script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
+    // check tick
+    let tick_id = TickId::from_str(mint.tick_id.as_str())?;
+    let mut tick_info = self
+      .ledger
+      .get_tick_info(&tick_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .ok_or(BRC30Error::TickNotFound(mint.tick.clone()))?;
+
+    let tick_name = BRC30Tick::from_str(mint.tick.as_str())?;
+    if tick_info.name != tick_name {
+      return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
+        mint.tick.clone(),
+      )));
+    }
+
+    // check amount
+    let mut amt = Num::from_str(&mint.amount)?;
+    if amt.scale() > tick_info.decimal as i64 {
+      return Err(Error::BRC30Error(BRC30Error::AmountOverflow(amt)));
+    }
+    let base = BIGDECIMAL_TEN.checked_powu(tick_info.decimal as u64)?;
+    amt = amt.checked_mul(&base)?;
+    if amt.sign() == Sign::NoSign {
+      return Err(Error::BRC30Error(BRC30Error::InvalidZeroAmount));
+    }
+    // get all staked pools and calculate total reward
+    let staked_pools: Vec<(Pid, Num)> = Vec::new();
+    let total_reward = Num::zero();
+    for pid in tick_info.pids.clone() {
+      // TODO: query reward
+      // let reward = queryReward(pid, to_script_key);
+      // if reward > 0 {
+      //   total_reward += reward;
+      //   staked_pools.push(pid)
+      // }
+    }
+    if amt > total_reward {
+      return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
+    }
+
+    // claim rewards
+    let mut remain_amt = amt.clone();
+    for (pid, reward) in staked_pools {
+      if remain_amt <= Num::zero() {
+        break;
+      }
+      let reward = if reward < remain_amt {
+        reward
+      } else {
+        remain_amt.clone()
+      };
+      // TODO: claim reward
+      // updateReward(pid, to_script_key);
+      remain_amt = remain_amt.checked_sub(&reward)?;
+    }
+
+    // update tick info
+    tick_info.minted += amt.checked_to_u128()?;
+    tick_info.latest_mint_block = block_number;
+    self
+      .ledger
+      .set_tick_info(&tick_id, &tick_info)
+      .map_err(|e| Error::LedgerError(e))?;
+
+    // update user balance
+    let mut user_balance = self
+      .ledger
+      .get_balance(&to_script_key, &tick_id)
+      .map_err(|e| Error::LedgerError(e))?
+      .map_or(Balance::new(tick_id.clone()), |v| v);
+
+    user_balance.overall_balance = Into::<Num>::into(user_balance.overall_balance)
+      .checked_add(&amt)?
+      .checked_to_u128()?;
+
+    self
+      .ledger
+      .set_token_balance(&to_script_key, &tick_id, user_balance)
+      .map_err(|e| Error::LedgerError(e))?;
+
+    Ok(BRC30Event::Mint(MintEvent {
+      tick_id,
+      amt: amt.checked_to_u128()?,
+    }))
   }
 
   fn process_inscribe_transfer(

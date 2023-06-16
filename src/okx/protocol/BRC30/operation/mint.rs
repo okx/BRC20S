@@ -7,8 +7,8 @@ pub struct Mint {
   pub tick: String,
 
   // 10 letter identifier of the pool id，pool number not included
-  #[serde(rename = "pid")]
-  pub pool_id: String,
+  #[serde(rename = "tid")]
+  pub tick_id: String,
 
   // Amount to mint: States the amount of the brc-30 to mint. Has to be less than "lim" above if stated
   #[serde(rename = "amt")]
@@ -24,15 +24,15 @@ mod tests {
   fn test_serialize() {
     let obj = Mint {
       tick: "tick".to_string(),
-      pool_id: "pid".to_string(),
+      tick_id: "tid".to_string(),
       amount: "amt".to_string(),
     };
 
     assert_eq!(
       serde_json::to_string(&obj).unwrap(),
       format!(
-        r##"{{"tick":"{}","pid":"{}","amt":"{}"}}"##,
-        obj.tick, obj.pool_id, obj.amount
+        r##"{{"tick":"{}","tid":"{}","amt":"{}"}}"##,
+        obj.tick, obj.tick_id, obj.amount
       )
     )
   }
@@ -43,7 +43,7 @@ mod tests {
       r##"{{
         "p": "brc-30",
         "op": "mint",
-        "pid": "pid",
+        "tid": "tid",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -57,7 +57,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        pool_id: "pid".to_string(),
+        tick_id: "tid".to_string(),
         amount: "amt".to_string(),
       })
     );
@@ -88,8 +88,8 @@ mod tests {
       r##"{{
         "p": "brc-30",
         "op": "mint",
-        "pid": "pid-1",
-        "pid": "pid-2",
+        "tid": "pid-1",
+        "tid": "pid-2",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -98,7 +98,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        pool_id: "pid-2".to_string(),
+        tick_id: "tid-2".to_string(),
         amount: "amt".to_string(),
       })
     );

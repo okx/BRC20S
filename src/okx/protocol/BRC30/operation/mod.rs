@@ -4,8 +4,8 @@ mod stake;
 mod transfer;
 mod unstake;
 
-use super::params::*;
 use super::error::JSONError;
+use super::params::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -99,7 +99,7 @@ mod tests {
       r##"{{
         "p": "brc-30",
         "op": "mint",
-        "pid": "pid",
+        "tid": "tid",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -113,7 +113,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        pool_id: "pid".to_string(),
+        tick_id: "tid".to_string(),
         amount: "amt".to_string(),
       })
     );
@@ -149,7 +149,7 @@ mod tests {
       r##"{{
         "p": "brc-30",
         "op": "transfer",
-        "pid": "pid",
+        "tid": "tid",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -163,7 +163,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Transfer(Transfer {
         tick: "tick".to_string(),
-        pool_id: "pid".to_string(),
+        tick_id: "tid".to_string(),
         amount: "amt".to_string(),
       })
     );

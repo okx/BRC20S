@@ -7,6 +7,7 @@ use crate::okx::protocol::BRC30::{BRC30Error, Deploy};
 use crate::InscriptionId;
 use std::mem;
 
+use crate::okx::datastore::BRC30::Pid;
 use crate::okx::protocol::BRC20::Num;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
@@ -214,6 +215,7 @@ pub struct TickInfo {
   pub deployer: ScriptKey,
   pub deploy_block: u64,
   pub latest_mint_block: u64,
+  pub pids: Vec<Pid>,
 }
 
 impl TickInfo {
@@ -228,6 +230,7 @@ impl TickInfo {
     deployer: &ScriptKey,
     deploy_block: u64,
     latest_mint_block: u64,
+    pids: Vec<Pid>,
   ) -> Self {
     Self {
       tick_id,
@@ -240,6 +243,7 @@ impl TickInfo {
       deployer: deployer.clone(),
       deploy_block,
       latest_mint_block,
+      pids,
     }
   }
 }

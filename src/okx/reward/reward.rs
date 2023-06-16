@@ -5,7 +5,7 @@ use crate::okx::protocol::BRC30::{BRC30Error, Num};
 pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u128, BRC30Error> {
   let mut user_temp = user;
   let mut pool_temp = pool;
-  update_pool(&mut pool_temp, block_num).expect("TODO: panic message");
+  update_pool(&mut pool_temp, block_num)?;
   return withdraw_user_reward(&mut user_temp, &mut pool_temp);
 }
 
@@ -30,14 +30,10 @@ pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error
   let erate = Into::<Num>::into(pool.erate);
   let pool_stake = Into::<Num>::into(pool.staked);
   if pool.ptype == PoolType::Fixed {
-    reward_per_token_stored = erate.checked_mul(&nums).unwrap();
+    reward_per_token_stored = erate.checked_mul(&nums)?;
   } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
     // reward_per_token_stored = pool.erate * nums / pool.staked);
-    reward_per_token_stored = erate
-      .checked_mul(&nums)
-      .unwrap()
-      .checked_div(&pool_stake)
-      .unwrap();
+    reward_per_token_stored = erate.checked_mul(&nums)?.checked_div(&pool_stake)?;
   } else {
     return Err(BRC30Error::UnknownPoolType);
   }
@@ -105,19 +101,15 @@ pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), BRC
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::ScriptKey;
   use crate::okx::datastore::BRC30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
   use crate::InscriptionId;
-  use bitcoin::Address;
   use std::str::FromStr;
 
   #[test]
   fn test_hello() {
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    let script_key =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
     let mut pool = new_pool(&pid.clone(), PoolType::Fixed, 10, 100000000000);
-    let mut user = new_user(&pid, &script_key);
+    let mut user = new_user(&pid);
 
     //stake, no reward
     {
@@ -149,124 +141,61 @@ mod tests {
   #[test]
   fn test_fix_one_user() {
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    let script_key =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
     let mut pool = new_pool(&pid.clone(), PoolType::Fixed, 10, 100000000000);
-    let mut user = new_user(&pid, &script_key);
+    let mut user = new_user(&pid);
 
     // stake-1
-    do_nonce(
-      &mut user,
-      &mut pool,
-      &pid.clone(),
-      1u64,
-      &script_key.clone(),
-      1u128,
-      true,
-      0,
-      1,
-      1,
-      0,
-      1,
-    );
+    do_nonce(&mut user, &mut pool, 1u64, 1u128, true, 0, 0, 1, 1, 0, 1);
 
     // stake-2
-    do_nonce(
-      &mut user,
-      &mut pool,
-      &pid.clone(),
-      2u64,
-      &script_key.clone(),
-      1u128,
-      true,
-      10,
-      2,
-      2,
-      10,
-      2,
-    );
+    do_nonce(&mut user, &mut pool, 2u64, 1u128, true, 10, 10, 2, 2, 10, 2);
 
     // stake-3
-    do_nonce(
-      &mut user,
-      &mut pool,
-      &pid.clone(),
-      3u64,
-      &script_key.clone(),
-      1u128,
-      true,
-      30,
-      3,
-      3,
-      30,
-      3,
-    );
+    do_nonce(&mut user, &mut pool, 3u64, 1u128, true, 20, 30, 3, 3, 30, 3);
 
     // withdraw-1
     do_nonce(
-      &mut user,
-      &mut pool,
-      &pid.clone(),
-      4u64,
-      &script_key.clone(),
-      1u128,
-      false,
-      60,
-      2,
-      2,
-      60,
-      4,
+      &mut user, &mut pool, 4u64, 1u128, false, 30, 60, 2, 2, 60, 4,
     );
 
     // withdraw-2
     do_nonce(
-      &mut user,
-      &mut pool,
-      &pid.clone(),
-      5u64,
-      &script_key.clone(),
-      1u128,
-      false,
-      80,
-      1,
-      1,
-      80,
-      5,
+      &mut user, &mut pool, 5u64, 1u128, false, 20, 80, 1, 1, 80, 5,
     );
 
     // withdraw-3
     do_nonce(
-      &mut user,
-      &mut pool,
-      &pid.clone(),
-      6u64,
-      &script_key.clone(),
-      1u128,
-      false,
-      90,
-      0,
-      0,
-      90,
-      6,
+      &mut user, &mut pool, 6u64, 1u128, false, 10, 90, 0, 0, 90, 6,
     );
   }
 
   fn do_nonce(
     user: &mut UserInfo,
     pool: &mut PoolInfo,
-    pid: &Pid,
     block_mum: u64,
-    script_key: &ScriptKey,
     stake_alter: u128,
     is_add: bool,
-    expect_user_reward: u128,
+    expect_user_new_reward: u128,
+    expect_user_remain_reward: u128,
     expert_user_staked: u128,
     expect_pool_staked: u128,
     expect_pool_minted: u128,
     expect_pool_block: u64,
   ) {
-    update_pool(pool, block_mum);
-    withdraw_user_reward(user, pool);
+    assert_eq!(update_pool(pool, block_mum), Ok(()));
+
+    if expect_user_new_reward == 0 {
+      assert_eq!(
+        withdraw_user_reward(user, pool).expect_err(""),
+        BRC30Error::NoStaked("62636131646162636131642331".to_string())
+      );
+    } else {
+      assert_eq!(
+        withdraw_user_reward(user, pool).unwrap(),
+        expect_user_new_reward
+      );
+    }
+
     if is_add {
       user.staked += stake_alter;
       pool.staked += stake_alter;
@@ -274,11 +203,10 @@ mod tests {
       user.staked -= stake_alter;
       pool.staked -= stake_alter;
     }
-    update_user_stake(user, pool);
+    assert_eq!(update_user_stake(user, pool), Ok(()));
 
-    assert_eq!(user.reward, expect_user_reward);
+    assert_eq!(user.reward, expect_user_remain_reward);
     assert_eq!(user.staked, expert_user_staked);
-    assert_eq!(user.reward, expect_user_reward);
     assert_eq!(pool.staked, expect_pool_staked);
     assert_eq!(pool.minted, expect_pool_minted);
     assert_eq!(pool.last_update_block, expect_pool_block);
@@ -303,7 +231,7 @@ mod tests {
     }
   }
 
-  fn new_user(pid: &Pid, script_key: &ScriptKey) -> UserInfo {
+  fn new_user(pid: &Pid) -> UserInfo {
     UserInfo {
       pid: pid.clone(),
       staked: 0,

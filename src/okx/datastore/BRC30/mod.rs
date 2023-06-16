@@ -1,6 +1,6 @@
 mod balance;
 mod event;
-mod pool_info;
+pub mod pool_info;
 pub mod redb;
 mod stake_info;
 mod temp;

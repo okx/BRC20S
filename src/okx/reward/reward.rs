@@ -43,7 +43,7 @@ impl<'db, 'a> Pool<'db, 'a> {
     }
 
     //3 check allocated has been minted
-    if pool.minted >= pool.allocated {
+    if pool.minted >= pool.dmax {
       pool.last_update_block = block_num;
       return Ok(());
     }
@@ -333,7 +333,7 @@ mod tests {
     pid: &Pid,
     pool_type: PoolType,
     erate_new: u128,
-    allocated_new: u128,
+    dmax: u128,
   ) {
     let brc30db = BRC30DataStore::new(&wtx);
     let pool_info = PoolInfo {
@@ -347,7 +347,7 @@ mod tests {
       erate: erate_new,
       minted: 0,
       staked: 0,
-      allocated: allocated_new,
+      dmax,
       acc_reward_per_share: 0,
       last_update_block: 0,
       only: true,

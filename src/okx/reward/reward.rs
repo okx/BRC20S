@@ -119,6 +119,46 @@ mod tests {
   use tempfile::NamedTempFile;
 
   #[test]
+  fn test_hello() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30DataStore::new(&wtx);
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let script_key =
+      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let mut pool = new_pool(&pid.clone(), PoolType::Fixed, 10, 100000000000);
+    let mut user = new_user(&pid, &script_key);
+
+    //stake, no reward
+    {
+      assert_eq!(update_pool(&mut pool, 1), Ok(()));
+      assert_eq!(
+        withdraw_user_reward(&mut user, &mut pool).expect_err(""),
+        RewardError::NoStaked("62636131646162636131642331".to_string())
+      );
+      user.staked += 2;
+      pool.staked += 2;
+      assert_eq!(update_user_stake(&mut user, &mut pool), Ok(()));
+    }
+
+    //withdraw, has reward
+    {
+      assert_eq!(update_pool(&mut pool, 2), Ok(()));
+      assert_eq!(withdraw_user_reward(&mut user, &mut pool).unwrap(), 20);
+      user.staked -= 1;
+      pool.staked -= 1;
+      assert_eq!(update_user_stake(&mut user, &mut pool), Ok(()));
+    }
+
+    // query reward
+    {
+      assert_eq!(query_reward(user, pool, 3).unwrap(), 10);
+    }
+  }
+
+  #[test]
   fn test_fix_one_user() {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();

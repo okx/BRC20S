@@ -1,7 +1,6 @@
-use crate::okx::datastore::BRC30::{
-  BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, EventType, MintEvent,
-  Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId, TickInfo,
-};
+use std::cmp::max;
+use crate::okx::datastore::BRC20::BRC20DataStoreReadWrite;
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, EventType, MintEvent, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId, TickInfo, UserInfo, StakeInfo, DepositEvent, WithdrawEvent};
 use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;

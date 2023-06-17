@@ -7,6 +7,8 @@ pub const NATIVE_TOKEN_DECIMAL: u8 = 8_u8;
 pub const MAX_DECIMAL_WIDTH: u8 = 18;
 pub const MAX_SUPPLY_WIDTH: u128 = 18;
 pub const TICK_ID_BYTE_COUNT: usize = 5;
+pub const TICK_ID_STR_COUNT: usize = 10;
+pub const TICK_BYTE_COUNT: usize = 4;
 
 pub const TICK_BYTE_MIN_COUNT: usize = 4;
 pub const TICK_BYTE_MAX_COUNT: usize = 6;

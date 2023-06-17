@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::{PledgedTick, TickId};
 use crate::okx::protocol::BRC30::{BRC30Error, Num};
-use crate::okx::protocol::BRC30::params::NATIVE_TOKEN;
+use crate::okx::protocol::BRC30::params::{NATIVE_TOKEN,TICK_BYTE_COUNT,TICK_ID_STR_COUNT};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct PassiveUnStake {
@@ -31,8 +31,8 @@ impl PassiveUnStake {
     match stake {
       NATIVE_TOKEN => PledgedTick::NATIVE,
       _ => match self.stake.len() {
-        4 => PledgedTick::BRC20Tick( Tick::from_str(stake).unwrap() ),
-        5 => PledgedTick::BRC30Tick( TickId::from_str(stake).unwrap()),
+        TICK_BYTE_COUNT => PledgedTick::BRC20Tick( Tick::from_str(stake).unwrap() ),
+        TICK_ID_STR_COUNT => PledgedTick::BRC30Tick( TickId::from_str(stake).unwrap()),
         _ => PledgedTick::UNKNOWN,
       }
     }

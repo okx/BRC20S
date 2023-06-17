@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
-use crate::okx::protocol::BRC30::params::{FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE};
+use crate::okx::protocol::BRC30::params::{FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE,TICK_BYTE_COUNT,TICK_ID_STR_COUNT};
 use crate::okx::protocol::BRC30::{BRC30Error, Error, Num, Stake};
 use crate::okx::protocol::BRC30::util::validate_pool_str;
 
@@ -96,8 +96,8 @@ impl Deploy {
     match stake {
       NATIVE_TOKEN => PledgedTick::NATIVE,
       _ => match self.stake.len() {
-        4 => PledgedTick::BRC20Tick( Tick::from_str(stake).unwrap() ),
-        5 => PledgedTick::BRC30Tick( TickId::from_str(stake).unwrap()),
+        TICK_BYTE_COUNT => PledgedTick::BRC20Tick( Tick::from_str(stake).unwrap() ),
+        TICK_ID_STR_COUNT => PledgedTick::BRC30Tick( TickId::from_str(stake).unwrap()),
         _ => PledgedTick::UNKNOWN,
       }
     }

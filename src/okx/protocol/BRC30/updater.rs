@@ -140,7 +140,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
     Ok(receipts.len())
   }
 
-  fn process_deploy(
+  pub fn process_deploy(
     &mut self,
     deploy: Deploy,
     block_number: u64,
@@ -244,13 +244,13 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
         return Err(Error::BRC30Error(BRC30Error::InvalidSupply(total_supply)));
       }
 
-      if tick_id
-        != caculate_tick_id(
+      let c_tick_id = caculate_tick_id(
         total_supply.checked_to_u128()?,
         decimal,
         &from_script_key,
         &to_script_key,
-      )
+      );
+      if !c_tick_id.to_lowercase().eq(&tick_id)
       {
         return Err(Error::BRC30Error(BRC30Error::InvalidTickId(tick_id.hex())));
       }
@@ -626,7 +626,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       .ledger
       .get_tick_info(&tick_id)
       .map_err(|e| Error::LedgerError(e))?
-      .ok_or(BRC30Error::TickNotFound(tick_id.as_str().to_string()))?;
+      .ok_or(BRC30Error::TickNotFound(tick_id.hex()))?;
 
     let tick_name = BRC30Tick::from_str(transfer.tick.as_str())?;
     if tick_info.name != tick_name {
@@ -716,7 +716,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       .get_tick_info(&transferable.tick_id)
       .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC30Error::TickNotFound(
-        transferable.tick_id.as_str().to_string(),
+        transferable.tick_id.hex(),
       ))?;
 
     // update from key balance.
@@ -771,5 +771,65 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       tick_id: transferable.tick_id,
       amt: amt.checked_to_u128()?,
     }))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use redb::{Database, WriteTransaction};
+  use tempfile::NamedTempFile;
+  use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
+  use crate::okx::datastore::BRC20::redb::BRC20DataStore;
+  use crate::okx::datastore::BRC30::redb::BRC30DataStore;
+  use std::borrow::Borrow;
+  use bitcoin::Address;
+  use super::super::*;
+  use super::*;
+
+  #[test]
+  fn test_process_deploy() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let mut inscription_id_to_inscription_entry =
+      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
+
+    let brc20_data_store = BRC20DataStore::new(&wtx);
+    let brc30_data_store = BRC30DataStore::new(&wtx);
+    let mut brc30update = BRC30Updater::new(&brc30_data_store,&brc20_data_store,&inscription_id_to_inscription_entry);
+
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "c8195197bc#1f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi1".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("18".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    let addr1 = Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
+    let script = ScriptKey::from_address(addr1);
+    let inscruptionId = InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+    let result = brc30update.process_deploy(
+      deploy,
+      0,
+      inscruptionId,
+      Some(script.clone()),
+      Some(script.clone()),
+    );
+
+    let result:Result<BRC30Event,BRC30Error> = match result {
+      Ok(event) => Ok(event),
+      Err(Error::BRC30Error(e)) => Err(e),
+      Err(e) => {
+        Err(BRC30Error::InternalError(e.to_string()))
+      }
+    };
+
+    println!("success:{}",serde_json::to_string_pretty(&result).unwrap());
+
   }
 }

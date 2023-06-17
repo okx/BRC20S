@@ -17,12 +17,15 @@ impl FromStr for TickId {
   type Err = BRC30Error;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    let bytes = s.as_bytes();
-
+    let bytes = hex::decode(s);
+    if bytes.is_err() {
+      return Err(BRC30Error::InternalError(bytes.err().unwrap().to_string()))
+    }
+    let bytes = bytes.unwrap();
     if bytes.len() != TICK_ID_BYTE_COUNT {
       return Err(BRC30Error::InvalidTickLen(s.to_string()));
     }
-    Ok(Self(bytes.try_into().unwrap()))
+    Ok(Self(bytes.as_slice().try_into().unwrap()))
   }
 }
 
@@ -45,14 +48,11 @@ impl PartialEq for TickId {
 }
 
 impl TickId {
-  pub fn as_str(&self) -> &str {
-    // NOTE: TickId comes from &str by from_str,
-    // so it could be calling unwrap when convert to str
-    std::str::from_utf8(self.0.as_slice()).unwrap()
-  }
 
   pub fn to_lowercase(&self) -> TickId {
-    Self::from_str(self.as_str().to_lowercase().as_str()).unwrap()
+    let binding = self.hex().to_lowercase();
+    let lowercase = binding.as_str();
+    Self::from_str(lowercase).unwrap()
   }
 
   pub fn as_bytes(&self) -> &[u8] {
@@ -77,7 +77,7 @@ impl Serialize for TickId {
   where
     S: Serializer,
   {
-    self.as_str().serialize(serializer)
+    self.hex().serialize(serializer)
   }
 }
 

@@ -15,6 +15,7 @@ pub enum BRC30Event {
   DeployPool(DeployPoolEvent),
   Deposit(DepositEvent),
   Withdraw(WithdrawEvent),
+  PassiveWithdraw(PassiveWithdrawEvent),
   Mint(MintEvent),
   InscribeTransfer(InscribeTransferEvent),
   Transfer(TransferEvent),
@@ -26,6 +27,7 @@ pub enum EventType {
   DeployPool,
   Deposit,
   Withdraw,
+  PassiveWithdraw,
   Mint,
   InscribeTransfer,
   Transfer,
@@ -41,6 +43,7 @@ impl Serialize for EventType {
       Self::DeployPool => "deployPool".serialize(serializer),
       Self::Deposit => "deposit".serialize(serializer),
       Self::Withdraw => "withdraw".serialize(serializer),
+      Self::PassiveWithdraw => "passive_withdraw".serialize(serializer),
       Self::Mint => "mint".serialize(serializer),
       Self::InscribeTransfer => "inscribeTransfer".serialize(serializer),
       Self::Transfer => "transfer".serialize(serializer),
@@ -58,6 +61,7 @@ impl<'de> Deserialize<'de> for EventType {
       "deployPool" => Ok(Self::DeployPool),
       "deposit" => Ok(Self::Deposit),
       "withdraw" => Ok(Self::Withdraw),
+      "passive_withdraw" => Ok(Self::PassiveWithdraw),
       "mint" => Ok(Self::Mint),
       "inscribeTransfer" => Ok(Self::InscribeTransfer),
       "transfer" => Ok(Self::Transfer),
@@ -95,6 +99,11 @@ pub struct WithdrawEvent {
   pub(crate) pid: Pid,
   pub(crate) amt: u128,
   pub(crate) initiative: bool,
+}
+
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+pub struct PassiveWithdrawEvent {
+  pub(crate) pid: Vec<(Pid,u128)>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

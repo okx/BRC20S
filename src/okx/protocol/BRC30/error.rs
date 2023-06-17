@@ -44,6 +44,9 @@ pub enum BRC30Error {
   #[error("{op} overflow: original: {org}, other: {other}")]
   Overflow { op: String, org: Num, other: Num },
 
+  #[error("in divsion the dived is zero")]
+  DivedZero,
+
   #[error("invalid number: {0}")]
   InvalidNum(String),
 

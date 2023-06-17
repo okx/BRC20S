@@ -86,3 +86,43 @@ pub fn convert_amount_with_decimal<L: BRC30DataStoreReadWrite>(amount:&str,decim
   Ok(amt)
 }
 
+
+pub fn convert_pledged_tick_without_decimal<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
+(tick: &PledgedTick, amount: u128, brc30ledger: &'a L, brc20ledger: &'a M)
+ -> Result<Num, Error<L>> {
+  match tick {
+    PledgedTick::UNKNOWN => { Err(Error::BRC30Error(BRC30Error::UnknownStakeType)) },
+    PledgedTick::NATIVE => { convert_amount_without_decimal(amount, NATIVE_TOKEN_DECIMAL) },
+    PledgedTick::BRC20Tick(tick) => {
+      let token = brc20ledger.get_token_info(tick)
+        .map_err(|e|
+          Error::Others(anyhow!("brc20_query failed:{}",e)))?
+        .ok_or(BRC30Error::TickNotFound(tick.hex()))?;
+
+      convert_amount_without_decimal(amount, token.decimal)
+    },
+    PledgedTick::BRC30Tick(tickid) => {
+      let tick = brc30ledger.get_tick_info(tickid)
+        .map_err(|e| Error::LedgerError(e))?
+        .ok_or(BRC30Error::TickNotFound(tickid.to_lowercase().hex()))?;
+
+      convert_amount_without_decimal(amount, tick.decimal)
+    },
+  }
+}
+
+pub fn convert_amount_without_decimal<L: BRC30DataStoreReadWrite>(amount:u128,decimal:u8) -> Result<Num,Error<L>> {
+  let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
+  let mut amt = Num::from(amount);
+
+  if amt.scale() > decimal as i64 {
+    return Err(Error::from(BRC30Error::InvalidNum(amt.to_string())));
+  }
+
+  amt = amt.checked_div(&base)?;
+  if amt.sign() == Sign::NoSign {
+    return Err(Error::from(BRC30Error::InvalidZeroAmount));
+  }
+  Ok(amt)
+}
+

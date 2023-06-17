@@ -38,6 +38,14 @@ impl Num {
     Ok(Self(self.0.clone() * &other.0))
   }
 
+  pub fn checked_div(&self,other: &Num) -> Result<Self,BRC30Error> {
+      if other.0.is_zero() {
+        return Err(BRC30Error::DivedZero);
+      }
+
+      Ok(Self(self.0.clone() / other.0.clone()))
+  }
+
   pub fn checked_powu(&self, exp: u64) -> Result<Self, BRC30Error> {
     match exp {
       0 => Ok(Self(BigDecimal::one())),
@@ -92,6 +100,14 @@ impl Num {
           other: Self(BigDecimal::from(BigInt::from(u128::MAX))), // TODO: change overflow error to others
         })?,
     )
+  }
+
+  pub fn max(a:&Num,b:&Num) -> Self {
+    if a.gt(b) {
+      Num::from(a.clone())
+    } else {
+      Num::from(b.clone())
+    }
   }
 }
 

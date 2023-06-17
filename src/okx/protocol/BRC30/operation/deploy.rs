@@ -5,6 +5,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::base58::from;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
+use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
 use crate::okx::protocol::BRC30::params::{FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE};
 use crate::okx::protocol::BRC30::{BRC30Error, Error, Num, Stake};
@@ -91,11 +92,12 @@ impl Deploy {
   }
 
   pub fn get_stake_id(&self) -> PledgedTick {
-    match self.stake.as_str() {
+    let stake = self.stake.as_str();
+    match stake {
       NATIVE_TOKEN => PledgedTick::NATIVE,
       _ => match self.stake.len() {
-        4 => PledgedTick::BRC30Tick(self.get_tick_id()),
-        5 => PledgedTick::BRC30Tick(self.get_tick_id()),
+        4 => PledgedTick::BRC20Tick( Tick::from_str(stake).unwrap() ),
+        5 => PledgedTick::BRC30Tick( TickId::from_str(stake).unwrap()),
         _ => PledgedTick::UNKNOWN,
       }
     }

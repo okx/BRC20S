@@ -11,7 +11,7 @@ mod util;
 pub use self::{
   error::{BRC30Error, Error},
   num::Num,
-  operation::{deserialize_brc30, Deploy, Mint, Operation, Stake, Transfer, UnStake},
+  operation::{deserialize_brc30, Deploy, Mint, Operation, Stake, Transfer, UnStake,PassiveUnStake},
   updater::{Action, InscriptionData},
 };
 

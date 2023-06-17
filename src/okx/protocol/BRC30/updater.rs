@@ -1,16 +1,12 @@
-use std::cmp::max;
-use crate::okx::datastore::BRC30::{
-  BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, EventType,
-  InscribeTransferEvent, MintEvent, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId,
-  TickInfo, TransferEvent, TransferableAsset,UserInfo, StakeInfo, DepositEvent, WithdrawEvent,
-};
+use std::cmp;
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, EventType, InscribeTransferEvent, MintEvent, Pid, PledgedTick, PoolInfo, PoolType, Receipt, TickId, TickInfo, TransferEvent, TransferableAsset, UserInfo, StakeInfo, DepositEvent, WithdrawEvent, PassiveWithdrawEvent};
 use crate::okx::datastore::BRC20::BRC20DataStoreReadWrite;
 use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
 
 use crate::okx::datastore::ScriptKey;
-use crate::okx::datastore::balance::{convert_pledged_tick_with_decimal, get_user_common_balance};
+use crate::okx::datastore::balance::{convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_user_common_balance};
 use crate::okx::datastore::BRC30::PoolType::Pool;
 use crate::okx::protocol::BRC30::hash::caculate_tick_id;
 use crate::okx::protocol::BRC30::params::{
@@ -97,6 +93,10 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
           Operation::UnStake(unstake) => {
             op = EventType::Withdraw;
             self.process_unstake(unstake, block_number, operation.to_script.clone())
+          }
+          Operation::PassiveUnStake(passive_unstake) => {
+            op = EventType::PassiveWithdraw;
+            self.process_passive_unstake(passive_unstake, block_number, operation.to_script.clone())
           }
           Operation::Transfer(transfer) => {
             op = EventType::InscribeTransfer;
@@ -370,7 +370,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
         .checked_add(&amount)?
         .checked_to_u128()?;
     } else {
-      user_stakeinfo.max_share = max(user_stakeinfo.max_share, userinfo.staked)
+      user_stakeinfo.max_share = cmp::max(user_stakeinfo.max_share, userinfo.staked)
     }
     self.ledger.set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo).map_err(|e| Error::LedgerError(e))?;
 
@@ -461,6 +461,64 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
     }));
   }
 
+  fn process_passive_unstake(
+    &mut self,
+    passive_unstake: PassiveUnStake,
+    block_number: u64,
+    script_key: Option<ScriptKey>,
+  ) -> Result<BRC30Event, Error<L>> {
+    if let Some(iserr) = passive_unstake.validate_basics().err() {
+      return Err(Error::BRC30Error(iserr));
+    }
+    let to_script_key = script_key.ok_or(BRC30Error::InscribeToCoinbase)?;
+    let stake_tick = passive_unstake.get_stake_tick();
+    let stake_info = self.ledger.get_user_stakeinfo(&to_script_key,&stake_tick)
+      .map_err(|e| Error::LedgerError(e))?
+      .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(Num::from(0_u128), Num::from(0_u128))))?;;
+
+    let mut stake_alterive = convert_pledged_tick_with_decimal(
+      &stake_tick,
+      passive_unstake.amount.as_str(),
+      self.ledger, self.brc20ledger)?;
+
+    let mut max_share = Num::from(0_u128);
+    let mut total_only = Num::from(0_u128);
+    let mut pids: Vec<(Pid,u128)> = Vec::new();
+    for (pid,only,pool_stake) in stake_info.pool_stakes.iter() {
+      let current = max_share.checked_add(&total_only)?;
+      if current.ge(&stake_alterive) {
+        break
+      }
+      let pool_stake_num = Num::from(*pool_stake);
+      if *only {
+        let remain = stake_alterive.checked_sub(&current)?;
+        if remain.gt(&pool_stake_num) {
+          total_only = total_only.checked_add(&pool_stake_num)?;
+          pids.push((pid.clone(),pool_stake_num.checked_to_u128()?));
+        } else {
+          total_only = total_only.checked_add(&remain)?;
+          pids.push((pid.clone(),remain.checked_to_u128()?));
+        }
+      } else {
+        let remain = stake_alterive.checked_sub(&total_only)?;
+        if remain.gt(&pool_stake_num) {
+          max_share = Num::max(&max_share,&pool_stake_num);
+          pids.push((pid.clone(),pool_stake_num.checked_to_u128()?));
+        } else {
+          max_share = Num::max(&max_share,&remain);
+          pids.push((pid.clone(),remain.checked_to_u128()?));
+        }
+      }
+    }
+    for (pid,stake) in pids.iter() {
+      let withdraw_stake = convert_pledged_tick_without_decimal(&stake_tick,*stake,self.ledger,self.brc20ledger)?;
+      let stakeMsg = UnStake::new(pid.to_lowercase().as_str(),withdraw_stake.to_string().as_str());
+      self.process_unstake(stakeMsg, block_number, Some(to_script_key.clone()))?;
+    }
+
+
+    Ok(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent { pid: pids }))
+  }
   fn process_mint(
     &mut self,
     mint: Mint,

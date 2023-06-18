@@ -44,13 +44,11 @@ pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error
     reward_per_token_stored = erate.checked_mul(&nums)?;
   } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
     reward_per_token_stored = erate.checked_mul(&nums)?.checked_div(&pool_stake)?;
-  } else {
-    return Err(BRC30Error::UnknownPoolType);
   }
 
   pool.acc_reward_per_share = reward_per_token_stored
     .checked_add(&acc_reward_per_share)?
-    .checked_to_u128()?;
+    .truncate_to_u128()?;
 
   //4 update latest block num
   pool.last_update_block = block_num;
@@ -122,7 +120,7 @@ pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), BRC
     println!("update_user_stake-(stake * per share / base):{}", b);
     user.reward_debt = b.truncate_to_u128()?;
     println!("update_user_stake-reward_debt:{}", user.reward_debt);
-  } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
+  } else if pool.ptype == PoolType::Pool{
     user.reward_debt = user_staked
       .checked_mul(&acc_reward_per_share)?
       .truncate_to_u128()?;
@@ -526,7 +524,172 @@ mod tests {
 
   #[test]
   fn test_pool_one_user() {
+    let base = BIGDECIMAL_TEN
+      .checked_powu(STAKED_DECIMAL as u64)
+      .unwrap()
+      .truncate_to_u128()
+      .unwrap();
+    let dmax = 10000;
+    let erate = 100;
 
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
+    let mut user = new_user(&pid);
+
+    let mut case;
+
+    // case-1-A deposit 0
+    case = Case::new(1, 0, true,
+                     0, 0,
+                     0, 0,
+                     Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+    // case-2-A deposit 1
+    case = Case::new(2, 1, true,
+                     0, 1,
+                     1, 0,
+                     Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    // case-3-A deposit 10
+    case = Case::new(3, 9, true,
+                     100, 10,
+                     10, 100,
+                     Ok((100)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-4-A same block
+    case = Case::new(3, 0, true,
+                     100, 10,
+                     10, 100,
+                     Ok((0)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-5-A  jump block
+    case = Case::new(10, 0, true,
+                     800, 10,
+                     10, 800,
+                     Ok((700)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-6-A deposit 90
+    case = Case::new(11, 90, true,
+                     900, 100,
+                     100, 900,
+                     Ok((100)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-7-A withdraw 10
+    case = Case::new(12, 10, false,
+                     1000, 90,
+                     90, 1000,
+                     Ok((100)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //TODO
+
+    // //case-8-A withdraw 10, jump block
+    // case = Case::new(20, 10, false,
+    //                  1800, 80,
+    //                  80, 1800,
+    //                  Ok((800)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-9-A withdraw 70
+    // case = Case::new(21, 70, false,
+    //                  98, 10,
+    //                  10, 98,
+    //                  Ok((8)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-10-A ,same block
+    // case = Case::new(21, 0, false,
+    //                  98, 10,
+    //                  10, 98,
+    //                  Ok((0)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-11-A withdraw 9
+    // case = Case::new(22, 9, false,
+    //                  99, 1,
+    //                  1, 99,
+    //                  Ok((1)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-12-A withdraw  1
+    // case = Case::new(23, 1, false,
+    //                  99, 0,
+    //                  0, 99,
+    //                  Ok((0)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-13-A do nothing
+    // case = Case::new(24, 0, false,
+    //                  99, 0,
+    //                  0, 99,
+    //                  Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex())),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-14-A deposit 100, jump block
+    // case = Case::new(50, 100, true,
+    //                  99, 100,
+    //                  100, 99,
+    //                  Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex())),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-15-A mint, jump block
+    // case = Case::new(100, 0, true,
+    //                  599, 100,
+    //                  100, 599,
+    //                  Ok((500)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-16-A mint, same block
+    // case = Case::new(100, 0, true,
+    //                  599, 100,
+    //                  100, 599,
+    //                  Ok((0)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-17-A mint, jump block
+    // case = Case::new(200, 0, true,
+    //                  1599, 100,
+    //                  100, 1599,
+    //                  Ok((1000)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-18-A mint
+    // case = Case::new(201, 0, true,
+    //                  1599, 100,
+    //                  100, 1599,
+    //                  Ok((0)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
+    //
+    // //case-19-A mint, jump block
+    // case = Case::new(300, 0, true,
+    //                  1599, 100,
+    //                  100, 1599,
+    //                  Ok((0)),
+    //                  Ok(()));
+    // do_one_case(&mut user, &mut pool, &case);
   }
 
   #[test]

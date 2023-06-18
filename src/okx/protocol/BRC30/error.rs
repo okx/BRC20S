@@ -59,11 +59,17 @@ pub enum BRC30Error {
   #[error("tick: {0} not found")]
   TickNotFound(String),
 
+  #[error("stake: {0} not found")]
+  StakeNotFound(String),
+
   #[error("illegal tick length '{0}'")]
   InvalidTickLen(String),
 
   #[error("illegal tick id '{0}'")]
   InvalidTickId(String),
+
+  #[error("the prefix:{0} of pool id must be hash(tick_info) which is:{1}")]
+  InvalidPoolTickId(String,String),
 
   #[error("decimals {0} too large")]
   DecimalsTooLarge(u8),

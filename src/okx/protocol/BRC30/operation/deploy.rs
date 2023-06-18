@@ -140,6 +140,9 @@ impl Deploy {
       return Err(BRC30Error::EmptyParams(self.earn.clone()));
     }
 
+    if let Some(iserr) = BRC30Tick::from_str(self.earn.as_str()).err() {
+        return Err(iserr);
+    }
 
     if let Some(iserr) = Num::from_str(self.earn_rate.as_str()).err()  {
       return Err(BRC30Error::InvalidNum(self.earn_rate.clone()+iserr.to_string().as_str()));

@@ -6,7 +6,7 @@ use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
 
 use crate::okx::datastore::ScriptKey;
-use crate::okx::datastore::balance::{convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_user_common_balance};
+use crate::okx::datastore::balance::{convert_amount_with_decimal, convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_user_common_balance, stake_is_exist};
 use crate::okx::datastore::BRC30::PoolType::Pool;
 use crate::okx::protocol::BRC30::hash::caculate_tick_id;
 use crate::okx::protocol::BRC30::params::{
@@ -169,15 +169,20 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
     let erate = deploy.get_earn_rate();
     let only = deploy.get_only();
     let name = deploy.get_earn_id();
-    let dmax = deploy.get_distribution_max();
+    let dmax_str = deploy.distribution_max.as_str();
+    let mut dmax = 0_u128;
 
+    //check stake
+    if !stake_is_exist(&stake,self.ledger, self.brc20ledger) {
+      return Err(Error::BRC30Error(BRC30Error::StakeNotFound(stake.to_string())))
+    }
     // check pool is exist, if true return error
     if let Some(_) = self
       .ledger
       .get_pid_to_poolinfo(&pid)
       .map_err(|e| Error::LedgerError(e))?
     {
-      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid.hex())));
+      return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(pid.as_str().to_string())));
     }
 
     //Get or create the tick
@@ -192,11 +197,11 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
         )));
       }
 
-      if temp_tick.deployer.eq(&to_script_key) {
+      if !temp_tick.deployer.eq(&to_script_key) {
         return Err(Error::BRC30Error(BRC30Error::DeployerNotEqual(pid.hex(), temp_tick.deployer.to_string(), to_script_key.to_string())));
       }
 
-      if to_script_key.eq(&from_script_key) {
+      if !to_script_key.eq(&from_script_key) {
         return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(from_script_key.to_string(), to_script_key.to_string())));
       }
 
@@ -211,15 +216,15 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
           tick_id.to_lowercase().hex(),
         )));
       }
-      // TODO Need to check the number of share pool < 5
+
+      dmax = convert_amount_with_decimal(dmax_str.clone(),temp_tick.decimal)?.checked_to_u128()?;
       // check dmax
       if temp_tick.supply - temp_tick.allocated < dmax {
         return Err(Error::BRC30Error(BRC30Error::InsufficientTickSupply(
           deploy.distribution_max,
         )));
       }
-      let new_allocated = temp_tick.allocated + dmax;
-      temp_tick.allocated = new_allocated;
+      temp_tick.allocated = temp_tick.allocated + dmax;
       temp_tick.pids.push(pid.clone());
       self
         .ledger
@@ -252,16 +257,17 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite> BRC30U
       );
       if !c_tick_id.to_lowercase().eq(&tick_id)
       {
-        return Err(Error::BRC30Error(BRC30Error::InvalidTickId(tick_id.hex())));
+        return Err(Error::BRC30Error(BRC30Error::InvalidPoolTickId(tick_id.hex(),c_tick_id.hex())));
       }
 
       let supply = total_supply.checked_mul(&base)?.checked_to_u128()?;
       let pids = vec![pid.clone()];
+      dmax = convert_amount_with_decimal(dmax_str.clone(),decimal)?.checked_to_u128()?;
       let tick = TickInfo::new(
         tick_id,
         &name,
         &inscription_id,
-        0_u128,
+        dmax,
         decimal,
         0_u128,
         supply,
@@ -782,7 +788,10 @@ mod tests {
   use crate::okx::datastore::BRC20::redb::BRC20DataStore;
   use crate::okx::datastore::BRC30::redb::BRC30DataStore;
   use std::borrow::Borrow;
+  use bech32::ToBase32;
   use bitcoin::Address;
+  use crate::okx::datastore::BRC20::{Tick, TokenInfo};
+  use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;
   use super::super::*;
   use super::*;
 
@@ -814,14 +823,14 @@ mod tests {
     let script = ScriptKey::from_address(addr1);
     let inscruptionId = InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
     let result = brc30update.process_deploy(
-      deploy,
+      deploy.clone(),
       0,
       inscruptionId,
       Some(script.clone()),
       Some(script.clone()),
     );
 
-    let result:Result<BRC30Event,BRC30Error> = match result {
+    let result: Result<BRC30Event,BRC30Error> = match result {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
       Err(e) => {
@@ -829,7 +838,434 @@ mod tests {
       }
     };
 
-    println!("success:{}",serde_json::to_string_pretty(&result).unwrap());
+    match result {
+      Ok(event) => {println!("success:{}",serde_json::to_string_pretty(&event).unwrap());}
+      Err(e) => {assert_eq!("error",e.to_string())}
+    }
+    let tick_id = deploy.get_tick_id();
+    let pid = deploy.get_pool_id();
+    let tickinfo =brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+
+    let expectTickINfo = r##"{"tick_id":"c8195197bc","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"minted":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["c8195197bc#1f"]}"##;
+    let expectPoolInfo = r##"{"pid":"c8195197bc#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"NATIVE","erate":10,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
+    assert_eq!(expectPoolInfo,serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expectTickINfo,serde_json::to_string(&tickinfo).unwrap());
+
+    let result = brc30update.process_deploy(
+      deploy.clone(),
+      0,
+      inscruptionId,
+      Some(script.clone()),
+      Some(script.clone()),
+    );
+
+    let result: Result<BRC30Event,BRC30Error> = match result {
+      Ok(event) => Ok(event),
+      Err(Error::BRC30Error(e)) => Err(e),
+      Err(e) => {
+        Err(BRC30Error::InternalError(e.to_string()))
+      }
+    };
+
+    assert_eq!(Err(BRC30Error::PoolAlreadyExist(pid.as_str().to_string())),result);
+
+    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token_info = TokenInfo{
+      tick: token.clone(),
+      inscription_id: inscruptionId.clone(),
+      inscription_number: 0,
+      supply: 0,
+      minted: 0,
+      limit_per_mint: 0,
+      decimal: 0,
+      deploy_by: script.clone(),
+      deployed_number: 0,
+      deployed_timestamp: 0,
+      latest_mint_number: 0,
+    };
+    brc20_data_store.insert_token_info(&token,&token_info);
+
+    let mut secondDeply = deploy.clone();
+    secondDeply.pool_id = "c8195197bc#11".to_string();
+    secondDeply.stake = "orea".to_string();
+    secondDeply.distribution_max = "9000000".to_string();
+    let result = brc30update.process_deploy(
+      secondDeply.clone(),
+      0,
+      inscruptionId,
+      Some(script.clone()),
+      Some(script.clone()),
+    );
+
+    let result: Result<BRC30Event,BRC30Error> = match result {
+      Ok(event) => Ok(event),
+      Err(Error::BRC30Error(e)) => Err(e),
+      Err(e) => {
+        Err(BRC30Error::InternalError(e.to_string()))
+      }
+    };
+
+    assert_ne!(true,result.is_err());
+    let tick_id = secondDeply.get_tick_id();
+    let pid = secondDeply.get_pool_id();
+    let tickinfo =brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+
+    let expectTickINfo = r##"{"tick_id":"c8195197bc","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"minted":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["c8195197bc#1f","c8195197bc#11"]}"##;
+    let expectPoolInfo = r##"{"pid":"c8195197bc#11","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":10,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
+    assert_eq!(expectPoolInfo,serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expectTickINfo,serde_json::to_string(&tickinfo).unwrap());
+
+  }
+
+  #[test]
+  fn test_process_error_params() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let mut inscription_id_to_inscription_entry =
+      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
+
+    let brc20_data_store = BRC20DataStore::new(&wtx);
+    let brc30_data_store = BRC30DataStore::new(&wtx);
+    let mut brc30update = BRC30Updater::new(&brc30_data_store,&brc20_data_store,&inscription_id_to_inscription_entry);
+
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "c8195197bc#1f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi1".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("18".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    let addr1 = Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
+    let script = ScriptKey::from_address(addr1);
+    let inscruptionId = InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1").unwrap();
+
+    //err pool type
+    {
+      let mut err_pool_type = deploy.clone();
+      err_pool_type.pool_type = "errtype".to_string();
+      let result = brc30update.process_deploy(
+        err_pool_type.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::UnknownPoolType),result);
+    }
+
+
+    //err pid
+    {
+      let mut err_pid = deploy.clone();
+      err_pid.pool_id = "l8195197bc#1f".to_string();
+      let result = brc30update.process_deploy(
+        err_pid.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidPoolId(err_pid.pool_id.clone(), "the prefix of pool id is not hex".to_string())), result);
+
+      let mut err_pid = deploy.clone();
+      err_pid.pool_id = "8195197bc#1f".to_string();
+      let result = brc30update.process_deploy(
+        err_pid.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidPoolId(err_pid.pool_id.clone(), "pool id length is not 13".to_string())), result);
+
+      let mut err_pid = deploy.clone();
+      err_pid.pool_id = "c8195197bc#lf".to_string();
+      let result = brc30update.process_deploy(
+        err_pid.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+
+      assert_eq!(Err(BRC30Error::InvalidPoolId(err_pid.pool_id.clone(), "the suffix of pool id is not hex".to_string())), result);
+
+
+      let mut err_pid = deploy.clone();
+      err_pid.pool_id = "c81195197bc#f".to_string();
+      let result = brc30update.process_deploy(
+        err_pid.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidPoolId(err_pid.pool_id.clone(), "the prefix of pool id is not hex".to_string())), result);
+
+      let mut err_pid = deploy.clone();
+      err_pid.pool_id = "c8195197bc$1f".to_string();
+      let result = brc30update.process_deploy(
+        err_pid.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidPoolId(err_pid.pool_id.clone(), "pool id must contains '#'".to_string())), result);
+
+      let mut err_pid = deploy.clone();
+      err_pid.pool_id = "c819519#bc#df".to_string();
+      let result = brc30update.process_deploy(
+        err_pid.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidPoolId(err_pid.pool_id.clone(), "pool id must contains only one '#'".to_string())), result);
+
+
+      let mut err_pid = deploy.clone();
+      err_pid.pool_id = "c819519#bc#1f".to_string();
+      let result = brc30update.process_deploy(
+        err_pid.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidPoolId(err_pid.pool_id.clone(), "pool id must contains only one '#'".to_string())), result);
+
+      let mut err_pid = deploy.clone();
+      err_pid.pool_id = "a8195197bc#1f".to_string();
+      let result = brc30update.process_deploy(
+        err_pid.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidPoolTickId("a8195197bc".to_string(), "c8195197bc".to_string())), result);
+    }
+
+    //err stake,earn
+    {
+      let mut err_stake = deploy.clone();
+      err_stake.stake = "he".to_string();
+      let result = brc30update.process_deploy(
+        err_stake.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::UnknownStakeType), result);
+
+      let mut err_stake = deploy.clone();
+      err_stake.stake = "hehehh".to_string();
+      let result = brc30update.process_deploy(
+        err_stake.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::UnknownStakeType), result);
+
+
+      let mut err_stake = deploy.clone();
+      err_stake.stake = "test".to_string();
+      let result = brc30update.process_deploy(
+        err_stake.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::StakeNotFound(err_stake.stake)), result);
+
+      let mut err_earn = deploy.clone();
+      err_earn.earn = "tes".to_string();
+      let result = brc30update.process_deploy(
+        err_earn.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())), result);
+
+      let mut err_earn = deploy.clone();
+      err_earn.earn = "test".to_string();
+      let result = brc30update.process_deploy(
+        err_earn.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_ne!(Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())), result);
+
+      let mut err_earn = deploy.clone();
+      err_earn.earn = "testt".to_string();
+      let result = brc30update.process_deploy(
+        err_earn.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_ne!(Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())), result);
+
+
+      let mut err_earn = deploy.clone();
+      err_earn.earn = "testttt".to_string();
+      let result = brc30update.process_deploy(
+        err_earn.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())), result);
+    }
 
   }
 }

@@ -32,6 +32,35 @@ pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M:BRC20DataStoreR
   }
 }
 
+pub fn stake_is_exist<'a, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite>
+  (token: &PledgedTick, brc30ledger: &'a L, brc20ledger: &'a M)
+  -> bool {
+  match token {
+    PledgedTick::NATIVE => {true},
+    PledgedTick::BRC30Tick(tickid) => {
+      let tickinfo = brc30ledger.get_tick_info(&tickid);
+      match tickinfo {
+        Ok(info) => match info {
+          Some(_) => {true}
+          _ => {false}
+        }
+        _ => {false}
+      }
+    },
+    PledgedTick::BRC20Tick(tick) => {
+      let tokeninfo = brc20ledger.get_token_info(&tick);
+      match tokeninfo {
+        Ok(info) => match info {
+          Some(_) => {true}
+          _ => {false}
+        }
+        _ => {false}
+      }
+    },
+    PledgedTick::UNKNOWN => {false}
+  }
+}
+
 // pub fn get_user_available_balance<'a, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite>
 //       (script: &ScriptKey, token: &PledgedTick, pid:&Pid, brc30ledger: &'a L, brc20ledger: &'a M)
 //   -> Result<u128,BRC30Error> {

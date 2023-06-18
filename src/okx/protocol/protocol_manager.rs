@@ -3,7 +3,7 @@ use crate::{
   index::BlockData,
   okx::datastore::{
     BRC20DataStoreReadWrite,
-    ORD::{operation::InscriptionOperation, OrdDataStoreReadWrite},
+    ORD::{operation::InscriptionOp, OrdDataStoreReadWrite},
   },
   Result,
 };
@@ -34,11 +34,11 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite> ProtocolManager<'
     &self,
     block_height: u64,
     block: &BlockData,
-    operation: Vec<InscriptionOperation>,
+    operation: Vec<InscriptionOp>,
   ) -> Result<()> {
     let mut operations_peeker = operation.into_iter().peekable();
     for (tx, txid) in block.txdata.iter().skip(1) {
-      let mut tx_operations: Vec<InscriptionOperation> = Vec::new();
+      let mut tx_operations: Vec<InscriptionOp> = Vec::new();
 
       // Collect the inscription operations of this transaction.
       while let Some(op) = operations_peeker.peek() {

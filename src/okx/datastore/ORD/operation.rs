@@ -2,7 +2,7 @@ use crate::{InscriptionId, SatPoint};
 use bitcoin::Txid;
 
 // collect the inscription operation.
-pub struct InscriptionOperation {
+pub struct InscriptionOp {
   pub txid: Txid,
   pub action: Action,
   pub inscription_id: InscriptionId,

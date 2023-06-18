@@ -3,7 +3,7 @@ use crate::{
   okx::{
     datastore::{
       ScriptKey,
-      ORD::{Action, InscriptionOperation, OrdDataStoreReadOnly},
+      ORD::{Action, InscriptionOp, OrdDataStoreReadOnly},
     },
     protocol::BRC20::deserialize_brc20_operation,
   },
@@ -24,7 +24,7 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
   block_height: u64,
   block_time: u32,
   tx: &Transaction,
-  inscription_op: &InscriptionOperation,
+  inscription_op: &InscriptionOp,
 ) -> Result<Option<BRC20Message>> {
   // ignore cursed and unbound
   let number = ord_store.get_number_by_inscription_id(inscription_op.inscription_id)?;

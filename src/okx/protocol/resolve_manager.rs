@@ -5,7 +5,7 @@ use crate::{
   okx::{
     datastore::{
       BRC20::BRC20DataStoreReadOnly,
-      ORD::{operation::InscriptionOperation, OrdDataStoreReadOnly},
+      ORD::{operation::InscriptionOp, OrdDataStoreReadOnly},
     },
     protocol::Message,
   },
@@ -38,7 +38,7 @@ impl<'a, O: OrdDataStoreReadOnly, P: BRC20DataStoreReadOnly> MsgResolveManager<'
     block_height: u64,
     block_time: u32,
     tx: &Transaction,
-    operation: Vec<InscriptionOperation>,
+    operation: Vec<InscriptionOp>,
   ) -> Result<Vec<Message>> {
     let mut messages = Vec::new();
     let mut operation_peeker = operation.into_iter().peekable();

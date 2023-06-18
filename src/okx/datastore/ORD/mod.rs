@@ -1,5 +1,5 @@
 pub use self::{
-  operation::{Action, InscriptionOperation},
+  operation::{Action, InscriptionOp},
   redb::{OrdDbReadWriter, OrdDbReader},
 };
 use crate::InscriptionId;

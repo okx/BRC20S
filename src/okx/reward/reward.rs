@@ -11,11 +11,11 @@ use crate::okx::protocol::BRC30::{params::BIGDECIMAL_TEN, BRC30Error, Num};
 const STAKED_DECIMAL: u8 = 3;
 const EARN_DECIMAL: u8 = 2;
 
-pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u128, BRC30Error> {
+pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64, staked_decimal: u8) -> Result<u128, BRC30Error> {
   let mut user_temp = user;
   let mut pool_temp = pool;
   update_pool(&mut pool_temp, block_num)?;
-  return withdraw_user_reward(&mut user_temp, &mut pool_temp);
+  return withdraw_user_reward(&mut user_temp, &mut pool_temp, staked_decimal);
 }
 
 // need to save pool_info, when call success
@@ -61,7 +61,7 @@ pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error
 }
 
 // need to save pool_info and user_info, when call success
-pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<u128, BRC30Error> {
+pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo, staked_decimal: u8) -> Result<u128, BRC30Error> {
   let user_staked = Into::<Num>::into(user.staked);
   let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
   let reward_debt = Into::<Num>::into(user.reward_debt);
@@ -76,7 +76,7 @@ pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<
   //2 reward = staked * accRewardPerShare - user reward_debt
   let mut reward = Num::zero();
   if pool.ptype == PoolType::Fixed {
-    let base = BIGDECIMAL_TEN.checked_powu(STAKED_DECIMAL as u64)?;
+    let base = BIGDECIMAL_TEN.checked_powu(staked_decimal as u64)?;
     println!("withdraw_user_reward-fixed-staked:{}, acc_reward_per_share:{}", user_staked, acc_reward_per_share);
     let a = user_staked.checked_mul(&acc_reward_per_share)?;
     println!("withdraw_user_reward-fixed-(stake * per_share):{}", a);
@@ -107,12 +107,12 @@ pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<
 }
 
 // need to update staked  before, and save pool_info and user_info when call success
-pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), BRC30Error> {
+pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo, staked_decimal: u8) -> Result<(), BRC30Error> {
   let user_staked = Into::<Num>::into(user.staked);
   let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
   //1 update user's reward_debt
   if pool.ptype == PoolType::Fixed {
-    let base = BIGDECIMAL_TEN.checked_powu(STAKED_DECIMAL as u64)?;
+    let base = BIGDECIMAL_TEN.checked_powu(staked_decimal as u64)?;
     println!("update_user_stake-staked:{}, acc_reward_per_share:{}", user_staked, acc_reward_per_share);
     let a = user_staked.checked_mul(&acc_reward_per_share)?;
     println!("update_user_stake-(stake * per share)):{}", a);
@@ -158,26 +158,26 @@ mod tests {
     {
       assert_eq!(update_pool(&mut pool, 1), Ok(()));
       assert_eq!(
-        withdraw_user_reward(&mut user, &mut pool).expect_err(""),
+        withdraw_user_reward(&mut user, &mut pool, STAKED_DECIMAL).expect_err(""),
         BRC30Error::NoStaked("62636131646162636131642331".to_string())
       );
       user.staked += 2 * base;
       pool.staked += 2 * base;
-      assert_eq!(update_user_stake(&mut user, &mut pool), Ok(()));
+      assert_eq!(update_user_stake(&mut user, &mut pool, STAKED_DECIMAL), Ok(()));
     }
 
     //withdraw, has reward
     {
       assert_eq!(update_pool(&mut pool, 2), Ok(()));
-      assert_eq!(withdraw_user_reward(&mut user, &mut pool).unwrap(), 20);
+      assert_eq!(withdraw_user_reward(&mut user, &mut pool, STAKED_DECIMAL).unwrap(), 20);
       user.staked -= 1 * base;
       pool.staked -= 1 * base;
-      assert_eq!(update_user_stake(&mut user, &mut pool), Ok(()));
+      assert_eq!(update_user_stake(&mut user, &mut pool, STAKED_DECIMAL), Ok(()));
     }
 
     // query reward
     {
-      assert_eq!(query_reward(user, pool, 3).unwrap(), 10);
+      assert_eq!(query_reward(user, pool, 3, STAKED_DECIMAL).unwrap(), 10);
     }
   }
 
@@ -704,7 +704,7 @@ mod tests {
   ) {
     assert_eq!(update_pool(pool, case.block_mum), Ok(()));
 
-    let result = withdraw_user_reward(user, pool);
+    let result = withdraw_user_reward(user, pool, STAKED_DECIMAL);
     match result {
       Ok(value)=>{
         assert_eq!(value, case.expect_withdraw_reward_result.clone().unwrap());
@@ -722,7 +722,7 @@ mod tests {
       user.staked -= case.stake_alter;
       pool.staked -= case.stake_alter;
     }
-    let u_result = update_user_stake(user, pool);
+    let u_result = update_user_stake(user, pool, STAKED_DECIMAL);
     match u_result {
       Ok(value)=>{
       },

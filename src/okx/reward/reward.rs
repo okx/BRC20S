@@ -390,6 +390,150 @@ mod tests {
     do_one_case(&mut user, &mut pool, &case);
   }
 
+  #[test]
+  fn test_fix_three_user() {
+    let base = BIGDECIMAL_TEN
+      .checked_powu(STAKED_DECIMAL as u64)
+      .unwrap()
+      .truncate_to_u128()
+      .unwrap();
+    let dmax = 1000;
+    let erate = 100;
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Fixed, erate, dmax);
+    let mut user_a = new_user(&pid);
+    let mut user_b = new_user(&pid);
+    let mut user_c = new_user(&pid);
+
+    let mut case;
+
+    // case-1-A deposit 100
+    case = Case::new(1, 100, true,
+                     0, 100,
+                     100, 0,
+                     Err(BRC30Error::NoStaked(user_a.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user_a, &mut pool, &case);
+
+    // case-2-B deposit 100
+    case = Case::new(2, 100, true,
+                     0, 100,
+                     200, 0,
+                     Err(BRC30Error::NoStaked(user_b.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user_b, &mut pool, &case);
+
+    // case-3-C deposit 100
+    case = Case::new(3, 100, true,
+                     0, 100,
+                     300, 0,
+                     Err(BRC30Error::NoStaked(user_c.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user_c, &mut pool, &case);
+
+    // case-4-A depoist 100
+    case = Case::new(4, 100, true,
+                     30, 200,
+                     400, 30,
+                     Ok((30)),
+                     Ok(()));
+    do_one_case(&mut user_a, &mut pool, &case);
+
+    // case-5-A withdraw 100
+    case = Case::new(4, 100, true,
+                     30, 300,
+                     500, 30,
+                     Ok((0)),
+                     Ok(()));
+    do_one_case(&mut user_a, &mut pool, &case);
+
+    // case-6-B depoist 100
+    case = Case::new(4, 100, true,
+                     20, 200,
+                     600, 50,
+                     Ok((20)),
+                     Ok(()));
+    do_one_case(&mut user_b, &mut pool, &case);
+
+    // case-7-B withdraw 100
+    case = Case::new(4, 100, false,
+                     20, 100,
+                     500, 50,
+                     Ok((0)),
+                     Ok(()));
+    do_one_case(&mut user_b, &mut pool, &case);
+
+    // case-8-B withdraw 100
+    case = Case::new(4, 100, false,
+                     20, 0,
+                     400, 50,
+                     Ok((0)),
+                     Ok(()));
+    do_one_case(&mut user_b, &mut pool, &case);
+
+    // case-9-A, dothing
+    case = Case::new(5, 0, false,
+                     60, 300,
+                     400, 80,
+                     Ok((30)),
+                     Ok(()));
+    do_one_case(&mut user_a, &mut pool, &case);
+
+    // case-10-B dothing
+    case = Case::new(5, 0, false,
+                     20, 0,
+                     400, 80,
+                     Err(BRC30Error::NoStaked(user_b.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user_b, &mut pool, &case);
+
+    // case-11-C dothing
+    case = Case::new(5, 0, false,
+                     20, 100,
+                     400, 100,
+                     Ok((20)),
+                     Ok(()));
+    do_one_case(&mut user_c, &mut pool, &case);
+
+    // case-12-A, depoist 100
+    case = Case::new(6, 100, true,
+                     90, 400,
+                     500, 130,
+                     Ok((30)),
+                     Ok(()));
+    do_one_case(&mut user_a, &mut pool, &case);
+
+    // case-13-B depoist 100
+    case = Case::new(6, 100, true,
+                     20, 100,
+                     600, 130,
+                     Err(BRC30Error::NoStaked(user_b.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user_b, &mut pool, &case);
+
+    // case-14-C depoist 100
+    case = Case::new(6, 100, true,
+                     30, 200,
+                     700, 140,
+                     Ok((10)),
+                     Ok(()));
+    do_one_case(&mut user_c, &mut pool, &case);
+
+    // todo go on
+
+  }
+
+  #[test]
+  fn test_pool_one_user() {
+
+  }
+
+  #[test]
+  fn test_pool_three_user() {
+
+  }
+
   fn do_one_case(
     user: &mut UserInfo,
     pool: &mut PoolInfo,

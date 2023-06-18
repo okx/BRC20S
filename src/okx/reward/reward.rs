@@ -1,5 +1,5 @@
 use crate::okx::datastore::BRC30::{PoolInfo, PoolType, UserInfo};
-use crate::okx::protocol::BRC30::{BRC30Error, Num};
+use crate::okx::protocol::BRC30::{params::BIGDECIMAL_TEN, BRC30Error, Num};
 
 // demo
 // | Pool type | earn rate | total stake      | user stake     | block | reward                                        |
@@ -7,8 +7,8 @@ use crate::okx::protocol::BRC30::{BRC30Error, Num};
 // | Fix       |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000/1e3 * 100 * 1 = 200  (need stake's DECIMAL)  |
 // | Pool      |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000 * 100 / 10000 =  20                          |
 
-// TODO need add dec brc20, when it's fixed type
-const BRC20_DECIMAL: u8 = 18;
+// TODO need add stake's decimal when it's fixed type
+const STAKED_DECIMAL: u8 = 18;
 
 pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u128, BRC30Error> {
   let mut user_temp = user;
@@ -75,9 +75,20 @@ pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<
   }
 
   //2 reward = staked * accRewardPerShare - user reward_debt
-  let mut reward = user_staked
-    .checked_mul(&acc_reward_per_share)?
-    .checked_sub(&reward_debt)?;
+  let mut reward = Num::zero();
+  if pool.ptype == PoolType::Fixed {
+    let base = BIGDECIMAL_TEN.checked_powu(STAKED_DECIMAL as u64)?;
+    reward = user_staked
+      .checked_div(&base)?
+      .checked_mul(&acc_reward_per_share)?
+      .checked_sub(&reward_debt)?;
+  } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
+    reward = user_staked
+      .checked_mul(&acc_reward_per_share)?
+      .checked_sub(&reward_debt)?;
+  } else {
+    return Err(BRC30Error::UnknownPoolType);
+  }
 
   if reward > Num::zero() {
     //3 update minted of user_info and pool
@@ -97,11 +108,24 @@ pub fn withdraw_user_reward(user: &mut UserInfo, pool: &mut PoolInfo) -> Result<
 pub fn update_user_stake(user: &mut UserInfo, pool: &PoolInfo) -> Result<(), BRC30Error> {
   let user_staked = Into::<Num>::into(user.staked);
   let pool_acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
-
   //1 update user's reward_debt
-  user.reward_debt = user_staked
-    .checked_mul(&pool_acc_reward_per_share)?
-    .checked_to_u128()?;
+  if pool.ptype == PoolType::Fixed {
+    let base = BIGDECIMAL_TEN.checked_powu(STAKED_DECIMAL as u64)?;
+    let a = user_staked.checked_div(&base)?;
+    println!("a:{}", a);
+    let b = a.checked_mul(&pool_acc_reward_per_share)?;
+    println!("b:{}", b);
+    let c = b.checked_to_u128()?;
+    println!("c:{}", c);
+    user.reward_debt = c;
+  } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
+    user.reward_debt = user_staked
+      .checked_mul(&pool_acc_reward_per_share)?
+      .checked_to_u128()?;
+  } else {
+    return Err(BRC30Error::UnknownPoolType);
+  }
+
   println!(
     "update_user_stake--reward_debt:{}, user staked:{}, acc_reward_per_share:{}, pool staked:{}",
     user.reward_debt, user.staked, pool.acc_reward_per_share, pool.staked
@@ -118,6 +142,12 @@ mod tests {
 
   #[test]
   fn test_hello() {
+    let base = BIGDECIMAL_TEN
+      .checked_powu(STAKED_DECIMAL as u64)
+      .unwrap()
+      .checked_to_u128()
+      .unwrap();
+
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
     let mut pool = new_pool(&pid.clone(), PoolType::Fixed, 10, 100000000000);
     let mut user = new_user(&pid);
@@ -129,8 +159,8 @@ mod tests {
         withdraw_user_reward(&mut user, &mut pool).expect_err(""),
         BRC30Error::NoStaked("62636131646162636131642331".to_string())
       );
-      user.staked += 2;
-      pool.staked += 2;
+      user.staked += 2 * base;
+      pool.staked += 2 * base;
       assert_eq!(update_user_stake(&mut user, &mut pool), Ok(()));
     }
 
@@ -138,8 +168,8 @@ mod tests {
     {
       assert_eq!(update_pool(&mut pool, 2), Ok(()));
       assert_eq!(withdraw_user_reward(&mut user, &mut pool).unwrap(), 20);
-      user.staked -= 1;
-      pool.staked -= 1;
+      user.staked -= 1 * base;
+      pool.staked -= 1 * base;
       assert_eq!(update_user_stake(&mut user, &mut pool), Ok(()));
     }
 
@@ -151,32 +181,104 @@ mod tests {
 
   #[test]
   fn test_fix_one_user() {
+    let base = BIGDECIMAL_TEN
+      .checked_powu(STAKED_DECIMAL as u64)
+      .unwrap()
+      .checked_to_u128()
+      .unwrap();
+
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
     let mut pool = new_pool(&pid.clone(), PoolType::Fixed, 10, 100000000000);
     let mut user = new_user(&pid);
 
     // stake-1
-    do_nonce(&mut user, &mut pool, 1u64, 1u128, true, 0, 0, 1, 1, 0, 1);
+    do_nonce(
+      &mut user,
+      &mut pool,
+      1u64,
+      1u128 * base,
+      true,
+      0,
+      0,
+      1 * base,
+      1 * base,
+      0,
+      1,
+    );
 
     // stake-2
-    do_nonce(&mut user, &mut pool, 2u64, 1u128, true, 10, 10, 2, 2, 10, 2);
+    do_nonce(
+      &mut user,
+      &mut pool,
+      2u64,
+      1u128 * base,
+      true,
+      10,
+      10,
+      2 * base,
+      2 * base,
+      10,
+      2,
+    );
 
     // stake-3
-    do_nonce(&mut user, &mut pool, 3u64, 1u128, true, 20, 30, 3, 3, 30, 3);
+    do_nonce(
+      &mut user,
+      &mut pool,
+      3u64,
+      1u128 * base,
+      true,
+      20,
+      30,
+      3 * base,
+      3 * base,
+      30,
+      3,
+    );
 
     // withdraw-1
     do_nonce(
-      &mut user, &mut pool, 4u64, 1u128, false, 30, 60, 2, 2, 60, 4,
+      &mut user,
+      &mut pool,
+      4u64,
+      1u128 * base,
+      false,
+      30,
+      60,
+      2 * base,
+      2 * base,
+      60,
+      4,
     );
 
     // withdraw-2
     do_nonce(
-      &mut user, &mut pool, 5u64, 1u128, false, 20, 80, 1, 1, 80, 5,
+      &mut user,
+      &mut pool,
+      5u64,
+      1u128 * base,
+      false,
+      20,
+      80,
+      1 * base,
+      1 * base,
+      80,
+      5,
     );
 
     // withdraw-3
     do_nonce(
-      &mut user, &mut pool, 6u64, 1u128, false, 10, 90, 0, 0, 90, 6,
+      &mut user,
+      &mut pool,
+      6u64,
+      1u128 * base,
+      false,
+      10,
+      90,
+      0 * base,
+      0 * base,
+      90,
+      6,
     );
   }
 

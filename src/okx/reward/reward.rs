@@ -1,12 +1,14 @@
-// use super::error::RewardError;
 use crate::okx::datastore::BRC30::{PoolInfo, PoolType, UserInfo};
 use crate::okx::protocol::BRC30::{BRC30Error, Num};
 
 // demo
-// | Pool type | earn brc30 dec | earn rate | total stake brc20  | user A stake  brc20  | block | User A reward                              |
-// |-----------|----------------|-----------|--------------------|----------------------|-------|--------------------------------------------|
-// | Fix       | 10             | 0.5       | 100                | 20(10**18)           | 1     | 20 * 0.5 *(10**10) * 1 = 10 e10            |
-// | Pool      | 10             | 0.5       | 100                | 20(10**18)           | 1     | 20 * 0.5 *(10**10)   / 100 = 0.1 * 10** 10 |
+// | Pool type | earn rate | total stake      | user stake     | block | reward                                        |
+// |-----------|-----------|------------------|----------------|-------|-----------------------------------------------|
+// | Fix       |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000/1e3 * 100 * 1 = 200  (need stake's DECIMAL)  |
+// | Pool      |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000 * 100 / 10000 =  20                          |
+
+// TODO need add dec brc20, when it's fixed type
+const BRC20_DECIMAL: u8 = 18;
 
 pub fn query_reward(user: UserInfo, pool: PoolInfo, block_num: u64) -> Result<u128, BRC30Error> {
   let mut user_temp = user;
@@ -20,7 +22,7 @@ pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error
   let pool_minted = Into::<Num>::into(pool.minted);
   let pool_dmax = Into::<Num>::into(pool.dmax);
   let nums = Into::<Num>::into(block_num - pool.last_update_block);
-  let rate = Into::<Num>::into(pool.erate);
+  let erate = Into::<Num>::into(pool.erate);
   let pool_stake = Into::<Num>::into(pool.staked);
   let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
 
@@ -38,10 +40,9 @@ pub fn update_pool(pool: &mut PoolInfo, block_num: u64) -> Result<(), BRC30Error
   //3 pool type: fixed and pool, for calculating accRewardPerShare
   let mut reward_per_token_stored = Num::zero();
   if pool.ptype == PoolType::Fixed {
-    reward_per_token_stored = rate.checked_mul(&nums)?;
+    reward_per_token_stored = erate.checked_mul(&nums)?;
   } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
-    // reward_per_token_stored = pool.erate * nums / pool.staked);
-    reward_per_token_stored = rate.checked_mul(&nums)?.checked_div(&pool_stake)?;
+    reward_per_token_stored = erate.checked_mul(&nums)?.checked_div(&pool_stake)?;
   } else {
     return Err(BRC30Error::UnknownPoolType);
   }

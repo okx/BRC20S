@@ -1,7 +1,5 @@
-use super::{
-  Num,
-  BRC20::{BRC20DataStoreReadOnly, BRC20Error},
-};
+use super::Num;
+use crate::okx::datastore::BRC20::{BRC20DataStoreReadOnly, BRC20Error};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: BRC20DataStoreReadOnly> {
@@ -13,9 +11,6 @@ pub enum Error<L: BRC20DataStoreReadOnly> {
 
   #[error("BRC20 num error: {0}")]
   NumError(NumError),
-
-  #[error("others: {0}")]
-  Others(anyhow::Error),
 }
 
 #[derive(Debug, PartialEq, thiserror::Error)]

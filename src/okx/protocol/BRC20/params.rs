@@ -8,6 +8,7 @@ pub static MAXIMUM_SUPPLY: Lazy<Num> = Lazy::new(|| Num::from(u64::MAX));
 
 pub static BIGDECIMAL_TEN: Lazy<Num> = Lazy::new(|| Num::from(10u64));
 
+#[allow(dead_code)]
 pub const fn default_decimals() -> u8 {
   MAX_DECIMAL_WIDTH
 }

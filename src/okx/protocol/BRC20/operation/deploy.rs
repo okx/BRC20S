@@ -45,7 +45,7 @@ mod tests {
         r##"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"##
       )
       .unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         tick: "abcd".to_string(),
         max_supply: "12000".to_string(),
         mint_limit: Some("12".to_string()),
@@ -69,7 +69,7 @@ mod tests {
     assert_eq!(
       deserialize_brc20(r##"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","dec":"10"}"##)
         .unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         tick: "smol".to_string(),
         max_supply: "100".to_string(),
         mint_limit: None,
@@ -81,7 +81,7 @@ mod tests {
     assert_eq!(
       deserialize_brc20(r##"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","lim":"10"}"##)
         .unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         tick: "smol".to_string(),
         max_supply: "100".to_string(),
         mint_limit: Some("10".to_string()),
@@ -92,7 +92,7 @@ mod tests {
     // loss all option
     assert_eq!(
       deserialize_brc20(r##"{"p":"brc-20","op":"deploy","tick":"smol","max":"100"}"##).unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         tick: "smol".to_string(),
         max_supply: "100".to_string(),
         mint_limit: None,
@@ -106,7 +106,7 @@ mod tests {
     let json_str = r##"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","lim":"10","dec":"17","max":"200","lim":"20","max":"300"}"##;
     assert_eq!(
       deserialize_brc20(json_str).unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         tick: "smol".to_string(),
         max_supply: "300".to_string(),
         mint_limit: Some("20".to_string()),

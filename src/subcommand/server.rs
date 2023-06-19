@@ -213,10 +213,10 @@ impl Server {
         .route(
           "/BRC20/address/:address/transferable",
           get(brc20_all_transferable),
-        )
-        .route("/BRC20/tx/:txid/events", get(brc20_tx_events))
-        .route("/BRC20/tx/:txid", get(brc20_tx))
-        .route("/BRC20/block/:block_hash/events", get(brc20_block_events));
+        );
+      // .route("/BRC20/tx/:txid/events", get(brc20_tx_events))
+      // .route("/BRC20/tx/:txid", get(brc20_tx))
+      // .route("/BRC20/block/:block_hash/events", get(brc20_block_events));
 
       let api_router = Router::new().nest("/v1", api_v1_router);
 

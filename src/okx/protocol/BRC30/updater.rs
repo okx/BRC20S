@@ -970,7 +970,6 @@ mod tests {
       assert_eq!(Err(BRC30Error::UnknownPoolType),result);
     }
 
-
     //err pid
     {
       let mut err_pid = deploy.clone();
@@ -1266,6 +1265,147 @@ mod tests {
       };
       assert_eq!(Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())), result);
     }
+    // err erate
+    {
+      let mut err_erate = deploy.clone();
+      err_erate.earn_rate = "".to_string();
+      let result = brc30update.process_deploy(
+        err_erate.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidNum("invalid number: " .to_string())), result);
 
+      let mut err_erate = deploy.clone();
+      err_erate.earn_rate = "1l".to_string();
+      let result = brc30update.process_deploy(
+        err_erate.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidNum("1linvalid number: 1l".to_string())), result);
+    }
+
+    //err dmax
+    {
+      let mut err_dmax = deploy.clone();
+      err_dmax.distribution_max = "".to_string();
+      let result = brc30update.process_deploy(
+        err_dmax.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidNum("invalid number: ".to_string())), result);
+
+      let mut err_dmax = deploy.clone();
+      err_dmax.distribution_max = "1l".to_string();
+      let result = brc30update.process_deploy(
+        err_dmax.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidNum("1linvalid number: 1l".to_string())), result);
+
+
+      let mut err_dmax = deploy.clone();
+      err_dmax.distribution_max = "21000001".to_string();
+      let result = brc30update.process_deploy(
+        err_dmax.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::ExceedDmax("21000001".to_string(),"21000000".to_string())), result);
+    }
+
+    //err total_supply
+    {
+      let mut err_total = deploy.clone();
+      err_total.total_supply = Some("".to_string());
+      let result = brc30update.process_deploy(
+        err_total.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidNum("invalid number: ".to_string())), result);
+
+      let mut err_dmax = deploy.clone();
+      err_dmax.total_supply = Some("1l".to_string());
+      let result = brc30update.process_deploy(
+        err_dmax.clone(),
+        0,
+        inscruptionId,
+        Some(script.clone()),
+        Some(script.clone()),
+      );
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => {
+          Err(BRC30Error::InternalError(e.to_string()))
+        }
+      };
+      assert_eq!(Err(BRC30Error::InvalidNum("1linvalid number: 1l".to_string())), result);
+    }
   }
 }

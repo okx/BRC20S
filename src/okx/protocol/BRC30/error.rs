@@ -92,6 +92,9 @@ pub enum BRC30Error {
   #[error("insufficient balance: {0} {1}")]
   InsufficientBalance(Num, Num),
 
+  #[error("dmax:{0} must be less than totoalsupply:{1}")]
+  ExceedDmax(String, String),
+
   #[error("amount exceed limit: {0}")]
   AmountExceedLimit(Num),
 

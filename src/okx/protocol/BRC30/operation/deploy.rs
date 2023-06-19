@@ -152,8 +152,17 @@ impl Deploy {
     }
 
     if let Some(supply) = self.total_supply.as_ref() {
-      if let Some(iserr) = Num::from_str(supply.as_str()).err()  {
-        return Err(BRC30Error::InvalidNum(supply.to_string() + iserr.to_string().as_str()));
+      let total = Num::from_str(supply.as_str());
+      match total {
+        Ok(total) => {
+          let dmax = Num::from_str(self.distribution_max.as_str()).unwrap();
+          if total.lt(&dmax) {
+            return Err(BRC30Error::ExceedDmax(self.distribution_max.clone(),supply.clone()))
+          }
+        }
+        Err(e) => {
+          return Err(BRC30Error::InvalidNum(supply.to_string() + e.to_string().as_str()));
+        }
       }
     }
 

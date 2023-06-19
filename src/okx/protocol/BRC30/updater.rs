@@ -388,9 +388,9 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
     let dec = get_stake_dec(&stake_tick, self.ledger, self.brc20ledger);
     reward::update_pool(&mut pool, block_number, dec)?;
     let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
-    reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
     // updated user balance of stakedhehe =
     userinfo.staked = has_staked.checked_add(&amount)?.checked_to_u128()?;
+    reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
     self
       .ledger
       .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
@@ -488,9 +488,9 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
     let dec = get_stake_dec(&stake_tick, self.ledger, self.brc20ledger);
     reward::update_pool(&mut pool, block_number, dec)?;
     let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
+    userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
     reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
 
-    userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
     self
       .ledger
       .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)

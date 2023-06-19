@@ -1,10 +1,13 @@
 use super::*;
 use crate::okx::datastore::balance::{
   convert_amount_with_decimal, convert_pledged_tick_with_decimal,
+  convert_pledged_tick_without_decimal,
 };
 use crate::okx::datastore::BRC30DataStoreReadWrite;
 use crate::okx::datastore::BRC20::{BRC20Event, BRC20Receipt};
-use crate::okx::protocol::BRC30::{Operation as BRC30Operation, PassiveUnStake};
+use crate::okx::datastore::BRC30::{BRC30Event, PledgedTick};
+use crate::okx::protocol::BRC20::BRC20Message;
+use crate::okx::protocol::BRC30::{BRC30Message, BRC30Operation, PassiveUnStake};
 use crate::{
   okx::datastore::{BRC20DataStoreReadWrite, OrdDataStoreReadWrite},
   Result,
@@ -47,24 +50,91 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
       Receipt::BRC20(brc20_receipt) => {
         match brc20_receipt.result {
           Ok(BRC20Event::InscripbeTransfer(brc20_transfer)) => {
-            //todo need convert amt with decimal
-            //let amt = convert_pledged_tick_with_decimal()
-            let passive_unstake = BRC30Operation::PassiveUnStake(PassiveUnStake {
+            let ptick = PledgedTick::BRC20Tick(brc20_transfer.tick.clone());
+            let amt = convert_pledged_tick_without_decimal(
+              &ptick,
+              brc20_transfer.amount,
+              self.brc30_store,
+              self.brc20_store,
+            );
+            if amt.is_err() {
+              let errmsg = amt.err().unwrap().to_string();
+              log::error!("brc30 receipt failed:{errmsg}");
+              return Ok(());
+            }
+
+            let passive_unstake = PassiveUnStake {
               stake: brc20_transfer.tick.as_str().to_string(),
-              amount: brc20_transfer.amount.to_string(),
-            });
-            // let mut msg = msg.clone();
+              amount: amt.unwrap().to_string(),
+            };
+            if let Message::BRC20(old_brc20_msg) = msg {
+              let passive_msg = convert_brc20msg_to_brc30msg(old_brc20_msg, passive_unstake);
+              //todo need to execute passive_msg
+            }
           }
-          Err(e) => {
-            // if err ,we log it
-            log::error!("error log:{}", e);
+          _ => { /*others operation ,we we do nothing */ }
+        }
+        Ok(())
+      }
+      Receipt::BRC30(brc30_recipt) => {
+        match brc30_recipt.result {
+          Ok(BRC30Event::InscribeTransfer(brc30_transfer)) => {
+            let ptick = PledgedTick::BRC30Tick(brc30_transfer.tick_id.clone());
+            let amt = convert_pledged_tick_without_decimal(
+              &ptick,
+              brc30_transfer.amt,
+              self.brc30_store,
+              self.brc20_store,
+            );
+            if amt.is_err() {
+              let errmsg = amt.err().unwrap().to_string();
+              log::error!("brc30 receipt failed:{errmsg}");
+              return Ok(());
+            }
+
+            let passive_unstake = PassiveUnStake {
+              stake: ptick.to_string(),
+              amount: amt.unwrap().to_string(),
+            };
+            if let Message::BRC30(old_brc30_msg) = msg {
+              let passive_msg = convert_brc30msg_to_brc30msg(old_brc20_msg, passive_unstake);
+              //todo need to execute passive_msg
+            }
           }
-          _ => {
-            //others operation ,we we do nothing
-          }
+          _ => { /*others operation ,we we do nothing */ }
         }
         Ok(())
       }
     }
+  }
+}
+
+fn convert_brc20msg_to_brc30msg(msg: &BRC20Message, op: PassiveUnStake) -> BRC30Message {
+  BRC30Message {
+    txid: msg.txid.clone(),
+    block_height: msg.block_height,
+    block_time: msg.block_time,
+    inscription_id: msg.inscription_id.clone(),
+    inscription_number: msg.inscription_number,
+    from: msg.from.clone(),
+    to: msg.to.clone(),
+    old_satpoint: msg.old_satpoint.clone(),
+    new_satpoint: msg.new_satpoint.clone(),
+    op: BRC30Operation::PassiveUnStake(op),
+  }
+}
+
+fn convert_brc30msg_to_brc30msg(msg: &BRC30Message, op: PassiveUnStake) -> BRC30Message {
+  BRC30Message {
+    txid: msg.txid.clone(),
+    block_height: msg.block_height,
+    block_time: msg.block_time,
+    inscription_id: msg.inscription_id.clone(),
+    inscription_number: msg.inscription_number,
+    from: msg.from.clone(),
+    to: msg.to.clone(),
+    old_satpoint: msg.old_satpoint.clone(),
+    new_satpoint: msg.new_satpoint.clone(),
+    op: BRC30Operation::PassiveUnStake(op),
   }
 }

@@ -1,8 +1,8 @@
 use super::error::RewardError;
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::BRC30::{
-  BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, Balance, InscriptionOperation, Pid, PledgedTick,
-  PoolInfo, PoolType, Receipt, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
+  BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Receipt, Balance, InscriptionOperation,
+  Pid, PledgedTick, PoolInfo, PoolType, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
 };
 
 use crate::okx::datastore::{

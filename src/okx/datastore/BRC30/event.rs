@@ -8,13 +8,20 @@ pub enum BRC30OperationType {
   Mint,
   Stake,
   UnStake,
+  PassiveUnStake,
   InscribeTransfer,
   Transfer,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct Receipt {
+pub struct BRC30Receipt {
   pub inscription_id: InscriptionId,
+  // pub inscription_number: i64,
+  // pub old_satpoint: SatPoint,
+  // pub new_satpoint: SatPoint,
+  // pub op: BRC20OperationType,
+  // pub from: ScriptKey,
+  // pub to: ScriptKey,
   pub result: Result<BRC30Event, BRC30Error>,
 }
 
@@ -140,7 +147,7 @@ mod tests {
 
   #[test]
   fn action_receipt_serialize() {
-    let action_receipt = Receipt {
+    let action_receipt = BRC30Receipt {
       inscription_id: InscriptionId::from_str(
         "9991111111111111111111111111111111111111111111111111111111111111i1",
       )

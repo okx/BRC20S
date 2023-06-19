@@ -665,8 +665,6 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
       return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
     }
 
-    // todo reward::update_pool
-
     // claim rewards
     let mut remain_amt = amt.clone();
     for (pid, reward) in staked_pools {
@@ -693,8 +691,8 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
         .map_err(|e| Error::LedgerError(e))?
         .ok_or(BRC30Error::InternalError(String::from("pool not found")))?;
 
-      // TODO let dec = get_stake_dec(&stake_tick, self.ledger, self.brc20ledger);
-      let dec = 8;
+      let dec = get_stake_dec(&pool_info.stake.clone(), self.ledger, self.brc20ledger);
+      reward::update_pool(&mut pool_info, block_number, dec)?;
       let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
       if withdraw_reward > reward.checked_to_u128()? {
         user_info.reward = user_info.reward - withdraw_reward + reward.checked_to_u128()?;
@@ -703,7 +701,7 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
         reward = Num::from(withdraw_reward)
       }
 
-      // todo update user stake
+      reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
 
       remain_amt = remain_amt.checked_sub(&reward)?;
     }

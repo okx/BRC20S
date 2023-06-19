@@ -7,8 +7,6 @@ use crate::okx::protocol::BRC30::{params::BIGDECIMAL_TEN, BRC30Error, Num};
 // | Fix       |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000/1e3 * 100 * 1 = 200  (need stake's DECIMAL)  |
 // | Pool      |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000 * 100 / 10000 =  20                          |
 
-// TODO need add stake's decimal when it's fixed type
-const STAKED_DECIMAL: u8 = 3;
 const REWARD_PER_DECIMAL: u64 = 10000;
 
 pub fn query_reward(
@@ -160,6 +158,7 @@ mod tests {
   use crate::okx::datastore::BRC30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
   use crate::InscriptionId;
   use std::str::FromStr;
+  const STAKED_DECIMAL: u8 = 3;
 
   #[test]
   fn test_hello() {

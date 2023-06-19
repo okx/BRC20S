@@ -694,6 +694,15 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
         reward = Num::from(withdraw_reward)
       }
 
+      self
+        .ledger
+        .set_pid_to_use_info(&to_script_key, &pid, &user_info)
+        .map_err(|e| Error::LedgerError(e))?;
+      self
+        .ledger
+        .set_pid_to_poolinfo(&pid, &pool_info)
+        .map_err(|e| Error::LedgerError(e))?;
+
       remain_amt = remain_amt.checked_sub(&reward)?;
     }
 

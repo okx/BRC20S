@@ -1,9 +1,13 @@
 use super::{error::NumError, params::MAX_DECIMAL_WIDTH};
-use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
-use bigdecimal::{BigDecimal, One, ToPrimitive};
+use bigdecimal::{
+  num_bigint::{BigInt, Sign, ToBigInt},
+  BigDecimal, One, ToPrimitive,
+};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
+use std::{
+  fmt::{Display, Formatter},
+  str::FromStr,
+};
 
 #[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub struct Num(BigDecimal);

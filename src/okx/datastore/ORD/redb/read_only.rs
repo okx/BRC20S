@@ -1,20 +1,21 @@
-use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
-use crate::InscriptionId;
-use crate::Result;
-use bitcoin::Script;
 use redb::{
   AccessGuard, Error, RangeIter, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
   Table, TableDefinition, WriteTransaction,
 };
-use std::borrow::Borrow;
-use std::ops::RangeBounds;
+use std::{borrow::Borrow, io, ops::RangeBounds};
 
 use anyhow::anyhow;
-use bitcoin::hashes::Hash;
+use bitcoin::{
+  consensus::{Decodable, Encodable},
+  hashes::Hash,
+  OutPoint, TxOut,
+};
 
-use crate::okx::datastore::ORD::OrdDataStoreReadOnly;
-
-const OUTPOINT_TO_SCRIPT: TableDefinition<&str, &[u8]> = TableDefinition::new("OUTPOINT_TO_SCRIPT");
+use crate::{
+  index::{INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, OUTPOINT_TO_ENTRY},
+  okx::datastore::ORD::OrdDataStoreReadOnly,
+  InscriptionId, Result,
+};
 
 pub struct OrdDbReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
@@ -83,8 +84,6 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
 }
 
 impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
-  type Error = redb::Error;
-
   fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
@@ -106,13 +105,17 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
     )
   }
 
-  fn get_outpoint_to_script(&self, outpoint: &str) -> Result<Option<Script>, Self::Error> {
+  fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>> {
+    let mut value = [0; 36];
+    outpoint
+      .consensus_encode(&mut value.as_mut_slice())
+      .unwrap();
     Ok(
       self
         .wrapper
-        .open_table(OUTPOINT_TO_SCRIPT)?
-        .get(outpoint)?
-        .map(|v| bincode::deserialize::<Script>(v.value()).unwrap()),
+        .open_table(OUTPOINT_TO_ENTRY)?
+        .get(&value)?
+        .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap()),
     )
   }
 }

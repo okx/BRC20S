@@ -1,15 +1,13 @@
 mod read_only;
 mod read_write;
 
-pub use self::{read_only::BRC20DataStoreReader, read_write::BRC20DataStore};
+use super::{ScriptKey, Tick};
+use crate::{okx::datastore::BRC20::storage_balance::StoreBalance, InscriptionId, Result};
 
-use crate::okx::datastore::BRC20::storage_balance::StoreBalance;
-
-use crate::InscriptionId;
 use bitcoin::Txid;
 use redb::TableDefinition;
 
-use super::{ScriptKey, Tick};
+pub use self::{read_only::BRC20DataStoreReader, read_write::BRC20DataStore};
 
 const BRC20_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_BALANCES");
 const BRC20_TOKEN: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_TOKEN");

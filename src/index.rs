@@ -21,7 +21,10 @@ use {
   std::sync::atomic::{self, AtomicBool},
 };
 
-pub(super) use self::entry::{InscriptionEntryValue, InscriptionIdValue};
+pub(super) use self::{
+  entry::{InscriptionEntryValue, InscriptionIdValue},
+  updater::BlockData,
+};
 
 mod entry;
 mod fetcher;
@@ -1120,7 +1123,7 @@ impl Index {
   pub(crate) fn brc20_get_tx_events_by_txid(
     &self,
     txid: &bitcoin::Txid,
-  ) -> Result<Option<Vec<BRC20::ActionReceipt>>> {
+  ) -> Result<Option<Vec<BRC20::BRC20Receipt>>> {
     let wtx = self.database.begin_read().unwrap();
     let brc20_db = BRC20DataStoreReader::new(&wtx);
     let res = brc20_db.get_transaction_receipts(txid)?;
@@ -1144,7 +1147,7 @@ impl Index {
   pub(crate) fn brc20_get_block_events_by_blockhash(
     &self,
     blockhash: bitcoin::BlockHash,
-  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<BRC20::ActionReceipt>)>>> {
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<BRC20::BRC20Receipt>)>>> {
     let parsed_height = self.height()?;
     if parsed_height.is_none() {
       return Ok(None);

@@ -3,13 +3,14 @@ mod mint;
 mod stake;
 mod transfer;
 mod unstake;
+mod passiveunstake;
 
 use super::error::JSONError;
 use super::params::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-pub use self::{deploy::Deploy, mint::Mint, stake::Stake, transfer::Transfer, unstake::UnStake};
+pub use self::{deploy::Deploy, mint::Mint, stake::Stake, transfer::Transfer, unstake::UnStake,passiveunstake::PassiveUnStake};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(tag = "op")]
@@ -25,6 +26,9 @@ pub enum Operation {
 
   #[serde(rename = "unstake")]
   UnStake(UnStake),
+
+  #[serde(rename = "passive_unstake")]
+  PassiveUnStake(PassiveUnStake),
 
   #[serde(rename = "transfer")]
   Transfer(Transfer),

@@ -1,4 +1,4 @@
-use super::brc20_operations::get_operations_by_txid;
+// use super::brc20_operations::get_operations_by_txid;
 use super::error::ApiError;
 use super::*;
 use crate::okx::datastore::{ScriptKey, BRC20};
@@ -92,95 +92,95 @@ pub struct TxEvents {
   pub txid: String,
 }
 
-impl From<&BRC20::ActionReceipt> for TxEvent {
-  fn from(event: &BRC20::ActionReceipt) -> Self {
-    match &event.result {
-      Ok(result) => match result {
-        BRC20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
-          tick: std::str::from_utf8(deploy_event.tick.as_bytes())
-            .unwrap()
-            .to_string(),
-          inscription_id: event.inscription_id.to_string(),
-          inscription_number: event.inscription_number,
-          old_satpoint: event.old_satpoint,
-          new_satpoint: event.new_satpoint,
-          supply: deploy_event.supply.to_string(),
-          limit_per_mint: deploy_event.limit_per_mint.to_string(),
-          decimal: deploy_event.decimal as u64,
-          from: event.from.clone().into(),
-          to: event.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-          event: String::from("deploy"),
-        }),
-        BRC20::BRC20Event::Mint(mint_event) => Self::Mint(MintEvent {
-          tick: std::str::from_utf8(mint_event.tick.as_bytes())
-            .unwrap()
-            .to_string(),
-          inscription_id: event.inscription_id.to_string(),
-          inscription_number: event.inscription_number,
-          old_satpoint: event.old_satpoint,
-          new_satpoint: event.new_satpoint,
-          amount: mint_event.amount.to_string(),
-          from: event.from.clone().into(),
-          to: event.to.clone().into(),
-          valid: true,
-          msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
-          event: String::from("mint"),
-        }),
-        BRC20::BRC20Event::TransferPhase1(trans1) => {
-          Self::InscribeTransfer(InscribeTransferEvent {
-            tick: std::str::from_utf8(trans1.tick.as_bytes())
-              .unwrap()
-              .to_string(),
-            inscription_id: event.inscription_id.to_string(),
-            inscription_number: event.inscription_number,
-            old_satpoint: event.old_satpoint,
-            new_satpoint: event.new_satpoint,
-            amount: trans1.amount.to_string(),
-            from: event.from.clone().into(),
-            to: event.to.clone().into(),
-            valid: true,
-            msg: "ok".to_string(),
-            event: String::from("inscribeTransfer"),
-          })
-        }
-        BRC20::BRC20Event::TransferPhase2(trans2) => Self::Transfer(TransferEvent {
-          tick: std::str::from_utf8(trans2.tick.as_bytes())
-            .unwrap()
-            .to_string(),
-          inscription_id: event.inscription_id.to_string(),
-          inscription_number: event.inscription_number,
-          old_satpoint: event.old_satpoint,
-          new_satpoint: event.new_satpoint,
-          amount: trans2.amount.to_string(),
-          from: event.from.clone().into(),
-          to: event.to.clone().into(),
-          valid: true,
-          msg: trans2.msg.clone().unwrap_or("ok".to_string()),
-          event: String::from("transfer"),
-        }),
-      },
-      Err(err) => Self::Error(ErrorEvent {
-        inscription_id: event.inscription_id.to_string(),
-        inscription_number: event.inscription_number,
-        old_satpoint: event.old_satpoint,
-        new_satpoint: event.new_satpoint,
-        valid: false,
-        from: event.from.clone().into(),
-        to: event.to.clone().into(),
-        msg: err.to_string(),
-        event: match event.op {
-          BRC20::EventType::Deploy => "deploy",
-          BRC20::EventType::Mint => "mint",
-          BRC20::EventType::TransferPhase1 => "inscribeTransfer",
-          BRC20::EventType::TransferPhase2 => "transfer",
-        }
-        .to_string(),
-      }),
-    }
-  }
-}
+// impl From<&BRC20::ActionReceipt> for TxEvent {
+//   fn from(event: &BRC20::ActionReceipt) -> Self {
+//     match &event.result {
+//       Ok(result) => match result {
+//         BRC20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
+//           tick: std::str::from_utf8(deploy_event.tick.as_bytes())
+//             .unwrap()
+//             .to_string(),
+//           inscription_id: event.inscription_id.to_string(),
+//           inscription_number: event.inscription_number,
+//           old_satpoint: event.old_satpoint,
+//           new_satpoint: event.new_satpoint,
+//           supply: deploy_event.supply.to_string(),
+//           limit_per_mint: deploy_event.limit_per_mint.to_string(),
+//           decimal: deploy_event.decimal as u64,
+//           from: event.from.clone().into(),
+//           to: event.to.clone().into(),
+//           valid: true,
+//           msg: "ok".to_string(),
+//           event: String::from("deploy"),
+//         }),
+//         BRC20::BRC20Event::Mint(mint_event) => Self::Mint(MintEvent {
+//           tick: std::str::from_utf8(mint_event.tick.as_bytes())
+//             .unwrap()
+//             .to_string(),
+//           inscription_id: event.inscription_id.to_string(),
+//           inscription_number: event.inscription_number,
+//           old_satpoint: event.old_satpoint,
+//           new_satpoint: event.new_satpoint,
+//           amount: mint_event.amount.to_string(),
+//           from: event.from.clone().into(),
+//           to: event.to.clone().into(),
+//           valid: true,
+//           msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
+//           event: String::from("mint"),
+//         }),
+//         BRC20::BRC20Event::InscripbeTransfer(trans1) => {
+//           Self::InscribeTransfer(InscribeTransferEvent {
+//             tick: std::str::from_utf8(trans1.tick.as_bytes())
+//               .unwrap()
+//               .to_string(),
+//             inscription_id: event.inscription_id.to_string(),
+//             inscription_number: event.inscription_number,
+//             old_satpoint: event.old_satpoint,
+//             new_satpoint: event.new_satpoint,
+//             amount: trans1.amount.to_string(),
+//             from: event.from.clone().into(),
+//             to: event.to.clone().into(),
+//             valid: true,
+//             msg: "ok".to_string(),
+//             event: String::from("inscribeTransfer"),
+//           })
+//         }
+//         BRC20::BRC20Event::Transfer(trans2) => Self::Transfer(TransferEvent {
+//           tick: std::str::from_utf8(trans2.tick.as_bytes())
+//             .unwrap()
+//             .to_string(),
+//           inscription_id: event.inscription_id.to_string(),
+//           inscription_number: event.inscription_number,
+//           old_satpoint: event.old_satpoint,
+//           new_satpoint: event.new_satpoint,
+//           amount: trans2.amount.to_string(),
+//           from: event.from.clone().into(),
+//           to: event.to.clone().into(),
+//           valid: true,
+//           msg: trans2.msg.clone().unwrap_or("ok".to_string()),
+//           event: String::from("transfer"),
+//         }),
+//       },
+//       Err(err) => Self::Error(ErrorEvent {
+//         inscription_id: event.inscription_id.to_string(),
+//         inscription_number: event.inscription_number,
+//         old_satpoint: event.old_satpoint,
+//         new_satpoint: event.new_satpoint,
+//         valid: false,
+//         from: event.from.clone().into(),
+//         to: event.to.clone().into(),
+//         msg: err.to_string(),
+//         event: match event.op {
+//           BRC20::EventType::Deploy => "deploy",
+//           BRC20::EventType::Mint => "mint",
+//           BRC20::EventType::InscripbeTransfer => "inscribeTransfer",
+//           BRC20::EventType::Transfer => "transfer",
+//         }
+//         .to_string(),
+//       }),
+//     }
+//   }
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -453,70 +453,70 @@ pub(crate) async fn brc20_all_balance(
   })))
 }
 
-pub(crate) async fn brc20_tx(
-  Extension(index): Extension<Arc<Index>>,
-  Path(txid): Path<String>,
-) -> ApiResult<TxInscriptionInfo> {
-  log::debug!("rpc: get brc20_tx: {}", txid);
-  let txid = bitcoin::Txid::from_str(&txid).map_err(|e| ApiError::bad_request(e.to_string()))?;
+// pub(crate) async fn brc20_tx(
+//   Extension(index): Extension<Arc<Index>>,
+//   Path(txid): Path<String>,
+// ) -> ApiResult<TxInscriptionInfo> {
+//   log::debug!("rpc: get brc20_tx: {}", txid);
+//   let txid = bitcoin::Txid::from_str(&txid).map_err(|e| ApiError::bad_request(e.to_string()))?;
 
-  let tx_info = get_operations_by_txid(Extension(index), &txid)?;
+//   let tx_info = get_operations_by_txid(Extension(index), &txid)?;
 
-  if tx_info.inscriptions.is_empty() {
-    return Err(ApiError::not_found("BRC20 operation not found"));
-  }
+//   if tx_info.inscriptions.is_empty() {
+//     return Err(ApiError::not_found("BRC20 operation not found"));
+//   }
 
-  log::debug!("rpc: get brc20_tx: {} {:?}", txid, tx_info);
-  Ok(Json(ApiResponse::ok(tx_info)))
-}
+//   log::debug!("rpc: get brc20_tx: {} {:?}", txid, tx_info);
+//   Ok(Json(ApiResponse::ok(tx_info)))
+// }
 
-pub(crate) async fn brc20_tx_events(
-  Extension(index): Extension<Arc<Index>>,
-  Path(txid): Path<String>,
-) -> ApiResult<TxEvents> {
-  log::debug!("rpc: get brc20_tx_events: {}", txid);
-  let txid = bitcoin::Txid::from_str(&txid).map_err(|e| ApiError::bad_request(e.to_string()))?;
-  let tx_events = index
-    .brc20_get_tx_events_by_txid(&txid)?
-    .ok_or_api_not_found("tx events not found")?;
+// pub(crate) async fn brc20_tx_events(
+//   Extension(index): Extension<Arc<Index>>,
+//   Path(txid): Path<String>,
+// ) -> ApiResult<TxEvents> {
+//   log::debug!("rpc: get brc20_tx_events: {}", txid);
+//   let txid = bitcoin::Txid::from_str(&txid).map_err(|e| ApiError::bad_request(e.to_string()))?;
+//   let tx_events = index
+//     .brc20_get_tx_events_by_txid(&txid)?
+//     .ok_or_api_not_found("tx events not found")?;
 
-  log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
+//   log::debug!("rpc: get brc20_tx_events: {} {:?}", txid, tx_events);
 
-  Ok(Json(ApiResponse::ok(TxEvents {
-    txid: txid.to_string(),
-    events: tx_events.iter().map(|e| e.into()).collect(),
-  })))
-}
+//   Ok(Json(ApiResponse::ok(TxEvents {
+//     txid: txid.to_string(),
+//     events: tx_events.iter().map(|e| e.into()).collect(),
+//   })))
+// }
 
-pub(crate) async fn brc20_block_events(
-  Extension(index): Extension<Arc<Index>>,
-  Path(block_hash): Path<String>,
-) -> ApiResult<BlockEvents> {
-  log::debug!("rpc: get brc20_block_events: {}", block_hash);
+// pub(crate) async fn brc20_block_events(
+//   Extension(index): Extension<Arc<Index>>,
+//   Path(block_hash): Path<String>,
+// ) -> ApiResult<BlockEvents> {
+//   log::debug!("rpc: get brc20_block_events: {}", block_hash);
 
-  let blockhash =
-    bitcoin::BlockHash::from_str(&block_hash).map_err(|e| ApiError::bad_request(e.to_string()))?;
+//   let blockhash =
+//     bitcoin::BlockHash::from_str(&block_hash).map_err(|e| ApiError::bad_request(e.to_string()))?;
 
-  let block_events = index
-    .brc20_get_block_events_by_blockhash(blockhash)?
-    .ok_or_api_not_found("block not found")?;
+//   let block_events = index
+//     .brc20_get_block_events_by_blockhash(blockhash)?
+//     .ok_or_api_not_found("block not found")?;
 
-  log::debug!(
-    "rpc: get brc20_block_events: {} {:?}",
-    block_hash,
-    block_events
-  );
+//   log::debug!(
+//     "rpc: get brc20_block_events: {} {:?}",
+//     block_hash,
+//     block_events
+//   );
 
-  Ok(Json(ApiResponse::ok(BlockEvents {
-    block: block_events
-      .iter()
-      .map(|(txid, events)| TxEvents {
-        txid: txid.to_string(),
-        events: events.iter().map(|e| e.into()).collect(),
-      })
-      .collect(),
-  })))
-}
+//   Ok(Json(ApiResponse::ok(BlockEvents {
+//     block: block_events
+//       .iter()
+//       .map(|(txid, events)| TxEvents {
+//         txid: txid.to_string(),
+//         events: events.iter().map(|e| e.into()).collect(),
+//       })
+//       .collect(),
+//   })))
+// }
 
 pub(crate) async fn brc20_transferable(
   Extension(index): Extension<Arc<Index>>,

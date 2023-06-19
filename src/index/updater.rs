@@ -1,29 +1,21 @@
 use crate::okx::datastore::{
-  BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore, ORD::OrdDbReader,
+  BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore, ORD::OrdDbReadWriter,
 };
-use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
 
-use {
-  self::inscription_updater::InscriptionUpdater,
-  super::{fetcher::Fetcher, *},
-  futures::future::try_join_all,
-  std::sync::mpsc,
-  tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
-};
+use {self::inscription_updater::InscriptionUpdater, super::*, std::sync::mpsc};
 
 #[cfg(feature = "rollback")]
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
-use crate::okx::protocol::manager::ProtocolManager;
-use crate::okx::protocol::protocol::Protocol;
+use crate::okx::protocol::protocol_manager::ProtocolManager;
 
 #[cfg(feature = "rollback")]
 const FAST_QUERY_HEIGHT: u64 = 10;
 
 mod inscription_updater;
 
-struct BlockData {
-  header: BlockHeader,
-  txdata: Vec<(Transaction, Txid)>,
+pub struct BlockData {
+  pub header: BlockHeader,
+  pub txdata: Vec<(Transaction, Txid)>,
 }
 
 impl From<Block> for BlockData {
@@ -471,20 +463,14 @@ impl Updater {
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
-    let brc20_data_store = BRC20DataStore::new(wtx);
-    let brc30_data_store = BRC30DataStore::new(wtx);
-    let ord_db_reader = OrdDbReader::new(&wtx);
-    let mut protocol_manager = ProtocolManager::new(
-      &brc20_data_store,
-      &brc30_data_store,
-      &ord_db_reader,
-      &inscription_id_to_inscription_entry,
-    );
-    // todo: convert operations to Protocol
-    // if let Some(protocol) = Protocol::inner_conversion() {
-    //   protocol_manager.register(protocol);
-    // }
-    protocol_manager.execute_protocols(self.height, block.header.time)?;
+    // Create a protocol manager to index the block of BRC20, BRC30 data.
+    ProtocolManager::new(
+      &index.client,
+      index.get_chain_network(),
+      &OrdDbReadWriter::new(wtx),
+      &BRC20DataStore::new(wtx),
+    )
+    .index_block(self.height, &block, inscription_updater.operations)?;
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 

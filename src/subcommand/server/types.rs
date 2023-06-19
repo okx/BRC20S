@@ -1,9 +1,7 @@
 use super::*;
 use crate::okx::{
   datastore::ScriptKey,
-  protocol::BRC20::{
-    Action, Deploy as InsDeploy, Mint as InsMint, Operation, Transfer as InsTransfer,
-  },
+  protocol::BRC20::{BRC20Deploy as InsDeploy, BRC20Mint as InsMint, BRC20Transfer as InsTransfer},
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -88,19 +86,19 @@ pub enum Brc20RawOperation {
   Transfer(Transfer),
 }
 
-// action to raw operation
-impl From<Action> for Brc20RawOperation {
-  fn from(action: Action) -> Self {
-    match action {
-      Action::Inscribe(op) => match op {
-        Operation::Deploy(deploy) => Brc20RawOperation::Deploy(deploy.into()),
-        Operation::Mint(mint) => Brc20RawOperation::Mint(mint.into()),
-        Operation::Transfer(transfer) => Brc20RawOperation::InscribeTransfer(transfer.into()),
-      },
-      Action::Transfer(transfer) => Brc20RawOperation::Transfer(transfer.into()),
-    }
-  }
-}
+// // action to raw operation
+// impl From<Action> for Brc20RawOperation {
+//   fn from(action: Action) -> Self {
+//     match action {
+//       Action::Inscribe(op) => match op {
+//         Operation::Deploy(deploy) => Brc20RawOperation::Deploy(deploy.into()),
+//         Operation::Mint(mint) => Brc20RawOperation::Mint(mint.into()),
+//         Operation::Transfer(transfer) => Brc20RawOperation::InscribeTransfer(transfer.into()),
+//       },
+//       Action::Transfer(transfer) => Brc20RawOperation::Transfer(transfer.into()),
+//     }
+//   }
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

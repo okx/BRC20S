@@ -4,7 +4,6 @@ use protocol::BRC30::num::Num;
 use serde::{Deserialize, Serialize};
 
 use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, Pid};
-use crate::okx::reward::error::RewardError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: BRC30DataStoreReadOnly> {
@@ -13,9 +12,6 @@ pub enum Error<L: BRC30DataStoreReadOnly> {
 
   #[error("ledger error: {0}")]
   LedgerError(<L as BRC30DataStoreReadOnly>::Error),
-
-  #[error("reward error: {0}")]
-  RewardError(RewardError),
 
   #[error("others: {0}")]
   Others(anyhow::Error),
@@ -69,7 +65,7 @@ pub enum BRC30Error {
   InvalidTickId(String),
 
   #[error("the prefix:{0} of pool id must be hash(tick_info) which is:{1}")]
-  InvalidPoolTickId(String,String),
+  InvalidPoolTickId(String, String),
 
   #[error("decimals {0} too large")]
   DecimalsTooLarge(u8),
@@ -105,10 +101,10 @@ pub enum BRC30Error {
   InscribeToCoinbase,
 
   #[error("from {0} must equal to to {1}")]
-  FromToNotEqual(String,String),
+  FromToNotEqual(String, String),
 
   #[error("pool {0}  only be deployed by {0},but got {2}")]
-  DeployerNotEqual(String,String,String),
+  DeployerNotEqual(String, String, String),
 
   #[error("transferable owner not match {0}")]
   TransferableOwnerNotMatch(InscriptionId),
@@ -137,7 +133,7 @@ pub enum BRC30Error {
   UnknownPoolType,
 
   #[error("illegal pool id '{0}' error: {1}")]
-  InvalidPoolId(String,String),
+  InvalidPoolId(String, String),
 
   #[error("illegal hex str error: {0}")]
   InvalidHexStr(String),
@@ -150,6 +146,9 @@ pub enum BRC30Error {
 
   #[error("unknown stake type")]
   UnknownStakeType,
+
+  #[error("no stake: pid:{0}")]
+  NoStaked(String),
 
   #[error("user has staked:{0} > user can staked:{1}")]
   InValidStakeInfo(u128, u128),

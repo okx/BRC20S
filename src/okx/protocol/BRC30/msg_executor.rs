@@ -1,7 +1,7 @@
 use crate::inscription_id::InscriptionId;
 use crate::okx::datastore::balance::{
   convert_amount_with_decimal, convert_pledged_tick_with_decimal,
-  convert_pledged_tick_without_decimal, get_user_common_balance, stake_is_exist,
+  convert_pledged_tick_without_decimal, get_stake_dec, get_user_common_balance, stake_is_exist,
 };
 use crate::okx::datastore::BRC30::{
   BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DepositEvent,
@@ -290,9 +290,10 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       stake_balance.checked_sub(&has_staked)?,
     )));
   }
-  reward::update_pool(&mut pool, msg.block_height)?;
-  let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool)?;
-  reward::update_user_stake(&mut userinfo, &mut pool)?;
+  let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
+  reward::update_pool(&mut pool, msg.block_height, dec)?;
+  let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
+  reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
   // updated user balance of stakedhehe =
   userinfo.staked = has_staked.checked_add(&amount)?.checked_to_u128()?;
   brc30_store
@@ -383,9 +384,10 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     )));
   }
 
-  reward::update_pool(&mut pool, msg.block_height)?;
-  let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool)?;
-  reward::update_user_stake(&mut userinfo, &mut pool)?;
+  let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
+  reward::update_pool(&mut pool, msg.block_height, dec)?;
+  let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
+  reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
 
   userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
   brc30_store
@@ -541,8 +543,8 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     } else {
       continue;
     };
-
-    let reward = if let Ok(r) = reward::query_reward(user_info, pool_info, msg.block_height) {
+    let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
+    let reward = if let Ok(r) = reward::query_reward(user_info, pool_info, msg.block_height, dec) {
       r
     } else {
       continue;
@@ -580,9 +582,10 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       .map_err(|e| Error::LedgerError(e))?
       .ok_or(BRC30Error::InternalError(String::from("pool not found")))?;
 
-    reward::update_pool(&mut pool_info, msg.block_height)?;
-    let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info)?;
-    reward::update_user_stake(&mut user_info, &mut pool_info)?;
+    let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
+    reward::update_pool(&mut pool_info, msg.block_height, dec)?;
+    let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
+    reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
 
     if withdraw_reward > reward.checked_to_u128()? {
       user_info.reward = user_info.reward - withdraw_reward + reward.checked_to_u128()?;

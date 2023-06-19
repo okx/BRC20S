@@ -129,10 +129,10 @@ pub fn update_user_stake(
   let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
   //1 update user's reward_debt
   if pool.ptype == PoolType::Fixed {
-    let b = user_staked
+    user.reward_debt = user_staked
       .checked_mul(&acc_reward_per_share)?
-      .checked_div(&get_staked_decimal_base(staked_decimal)?)?;
-    user.reward_debt = b.truncate_to_u128()?;
+      .checked_div(&get_staked_decimal_base(staked_decimal)?)?
+      .truncate_to_u128()?;
   } else if pool.ptype == PoolType::Pool {
     user.reward_debt = user_staked
       .checked_mul(&acc_reward_per_share)?

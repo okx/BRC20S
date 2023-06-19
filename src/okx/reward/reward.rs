@@ -593,80 +593,78 @@ mod tests {
                      Ok(()));
     do_one_case(&mut user, &mut pool, &case);
 
-    //TODO
+    //case-8-A withdraw 10, jump block
+    case = Case::new(20, 10, false,
+                     1720, 80,
+                     80, 1720,
+                     Ok((720)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
 
-    // //case-8-A withdraw 10, jump block
-    // case = Case::new(20, 10, false,
-    //                  1800, 80,
-    //                  80, 1800,
-    //                  Ok((800)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-9-A withdraw 70
-    // case = Case::new(21, 70, false,
-    //                  98, 10,
-    //                  10, 98,
-    //                  Ok((8)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-10-A ,same block
-    // case = Case::new(21, 0, false,
-    //                  98, 10,
-    //                  10, 98,
-    //                  Ok((0)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-11-A withdraw 9
-    // case = Case::new(22, 9, false,
-    //                  99, 1,
-    //                  1, 99,
-    //                  Ok((1)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-12-A withdraw  1
-    // case = Case::new(23, 1, false,
-    //                  99, 0,
-    //                  0, 99,
-    //                  Ok((0)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-13-A do nothing
-    // case = Case::new(24, 0, false,
-    //                  99, 0,
-    //                  0, 99,
-    //                  Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex())),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-14-A deposit 100, jump block
-    // case = Case::new(50, 100, true,
-    //                  99, 100,
-    //                  100, 99,
-    //                  Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex())),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-15-A mint, jump block
-    // case = Case::new(100, 0, true,
-    //                  599, 100,
-    //                  100, 599,
-    //                  Ok((500)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-16-A mint, same block
-    // case = Case::new(100, 0, true,
-    //                  599, 100,
-    //                  100, 599,
-    //                  Ok((0)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
+    //case-9-A withdraw 70
+    case = Case::new(21, 70, false,
+                     1800, 10,
+                     10, 1800,
+                     Ok((80)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-10-A ,same block
+    case = Case::new(21, 0, false,
+                     1800, 10,
+                     10, 1800,
+                     Ok((0)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-11-A withdraw 9
+    case = Case::new(22, 9, false,
+                     1900, 1,
+                     1, 1900,
+                     Ok((100)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-12-A withdraw  1
+    case = Case::new(23, 1, false,
+                     2000, 0,
+                     0, 2000,
+                     Ok((100)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-13-A do nothing
+    case = Case::new(24, 0, false,
+                     2000, 0,
+                     0, 2000,
+                     Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-14-A deposit 100, jump block
+    case = Case::new(50, 100, true,
+                     2000, 100,
+                     100, 2000,
+                     Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex())),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-15-A mint, jump block
+    case = Case::new(100, 0, true,
+                     7000, 100,
+                     100, 7000,
+                     Ok((5000)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-16-A mint, same block
+    case = Case::new(100, 0, true,
+                     7000, 100,
+                     100, 7000,
+                     Ok((0)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
     // //case-17-A mint, jump block
     // case = Case::new(200, 0, true,
     //                  1599, 100,
@@ -766,7 +764,7 @@ mod tests {
     //                  Ok((0)),
     //                  Ok(()));
     // do_one_case(&mut user_b, &mut pool, &case);
-    //
+
     // // case-8-B withdraw 100
     // case = Case::new(4, 100, false,
     //                  20, 0,

@@ -22,6 +22,7 @@ pub enum BRC30Operation {
   Mint(Mint),
   Stake(Stake),
   UnStake(UnStake),
+  PassiveUnStake(PassiveUnStake),
   InscribeTransfer(Transfer),
   Transfer,
 }
@@ -33,6 +34,7 @@ impl BRC30Operation {
       BRC30Operation::Mint(_) => BRC30OperationType::Mint,
       BRC30Operation::Stake(_) => BRC30OperationType::Stake,
       BRC30Operation::UnStake(_) => BRC30OperationType::UnStake,
+      BRC30Operation::PassiveUnStake(_) => BRC30OperationType::PassiveUnStake,
       BRC30Operation::InscribeTransfer(_) => BRC30OperationType::InscribeTransfer,
       BRC30Operation::Transfer => BRC30OperationType::Transfer,
     }

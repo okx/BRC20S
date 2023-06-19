@@ -11,7 +11,6 @@ pub mod msg_executor;
 pub mod num;
 mod operation;
 pub mod params;
-pub mod updater;
 mod util;
 
 pub use self::{
@@ -20,7 +19,6 @@ pub use self::{
   operation::{
     deserialize_brc30, Deploy, Mint, Operation, PassiveUnStake, Stake, Transfer, UnStake,
   },
-  updater::{Action, InscriptionData},
 };
 
 pub struct BRC30Message {

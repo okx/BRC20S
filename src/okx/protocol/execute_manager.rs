@@ -41,6 +41,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite> CallManager<'a, O
         // }
         Ok(())
       }
+      Receipt::BRC30(_receipt) => Ok(()),
     }
   }
 }

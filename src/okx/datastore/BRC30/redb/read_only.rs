@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;
+use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30Receipt};
 use crate::okx::datastore::BRC30::{
   Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo, Receipt, StakeInfo, TickId, TickInfo,
   TransferableAsset, UserInfo,
@@ -284,6 +284,18 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .get(txid.to_string().as_str())?
         .map_or(Vec::new(), |v| {
           bincode::deserialize::<Vec<Receipt>>(v.value()).unwrap()
+        }),
+    )
+  }
+
+  fn get_transaction_receipts(&self, tx_id: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_TXID_TO_RECEIPTS)?
+        .get(tx_id.to_string().as_str())?
+        .map_or(Vec::new(), |v| {
+          bincode::deserialize::<Vec<BRC30Receipt>>(v.value()).unwrap()
         }),
     )
   }

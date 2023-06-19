@@ -3,6 +3,15 @@ use crate::okx::protocol::BRC30::BRC30Error;
 use crate::InscriptionId;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
+pub enum BRC30OperationType {
+  Deploy,
+  Mint,
+  Stake,
+  UnStake,
+  InscribeTransfer,
+  Transfer,
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Receipt {
   pub inscription_id: InscriptionId,
@@ -103,7 +112,7 @@ pub struct WithdrawEvent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct PassiveWithdrawEvent {
-  pub(crate) pid: Vec<(Pid,u128)>,
+  pub(crate) pid: Vec<(Pid, u128)>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

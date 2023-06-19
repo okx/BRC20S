@@ -1,8 +1,10 @@
 use super::*;
+use crate::okx::datastore::BRC20::BRC20Receipt;
 use crate::{
   okx::datastore::{BRC20DataStoreReadWrite, OrdDataStoreReadWrite},
   Result,
 };
+
 pub struct CallManager<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite> {
   ord_store: &'a O,
   brc20_store: &'a N,
@@ -20,6 +22,10 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite> CallManager<'a, O
     let receipt = match msg {
       Message::BRC20(msg) => {
         BRC20::execute(self.ord_store, self.brc20_store, &msg).map(|v| Receipt::BRC20(v))?
+      }
+
+      Message::BRC30(msg) => {
+        todo!("add later");
       }
     };
 

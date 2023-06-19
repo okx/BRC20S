@@ -31,8 +31,8 @@ pub trait BRC30DataStoreReadOnly {
   // 3.3.5 BRC30_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,
-    script_key: ScriptKey,
-    pledged_tick: PledgedTick,
+    script_key: &ScriptKey,
+    pledged_tick: &PledgedTick,
   ) -> Result<Option<StakeInfo>, Self::Error>;
 
   // 3.3.6 BRC30_PID_TO_USERINFO
@@ -101,8 +101,8 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
   // 3.3.5 BRC30_USER_STAKEINFO
   fn set_user_stakeinfo(
     &self,
-    script_key: ScriptKey,
-    pledged_tick: PledgedTick,
+    script_key: &ScriptKey,
+    pledged_tick: &PledgedTick,
     stake_info: &StakeInfo,
   ) -> Result<(), Self::Error>;
 

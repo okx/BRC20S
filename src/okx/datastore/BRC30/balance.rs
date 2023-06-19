@@ -28,3 +28,13 @@ pub struct TransferableAsset {
   pub tick_id: TickId,
   pub owner: ScriptKey,
 }
+
+impl Balance {
+  pub fn default(tick_id:&TickId) -> Balance {
+    Balance{
+      tick_id: tick_id.clone(),
+      overall_balance: 0,
+      transferable_balance: 0,
+    }
+  }
+}

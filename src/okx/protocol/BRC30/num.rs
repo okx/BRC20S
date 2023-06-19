@@ -1,4 +1,4 @@
-use crate::okx::protocol::BRC30::params::MAX_DECIMAL_WIDTH;
+use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH};
 use crate::okx::protocol::BRC30::BRC30Error;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
 use bigdecimal::{BigDecimal, One, ToPrimitive, Zero};
@@ -36,6 +36,14 @@ impl Num {
 
   pub fn checked_mul(&self, other: &Num) -> Result<Self, BRC30Error> {
     Ok(Self(self.0.clone() * &other.0))
+  }
+
+  pub fn checked_div(&self,other: &Num) -> Result<Self,BRC30Error> {
+      if other.0.is_zero() {
+        return Err(BRC30Error::DivedZero);
+      }
+
+      Ok(Self(self.0.clone() / other.0.clone()))
   }
 
   pub fn checked_powu(&self, exp: u64) -> Result<Self, BRC30Error> {
@@ -92,6 +100,14 @@ impl Num {
           other: Self(BigDecimal::from(BigInt::from(u128::MAX))), // TODO: change overflow error to others
         })?,
     )
+  }
+
+  pub fn max(a:&Num,b:&Num) -> Self {
+    if a.gt(b) {
+      Num::from(a.clone())
+    } else {
+      Num::from(b.clone())
+    }
   }
 }
 

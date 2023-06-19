@@ -5,8 +5,9 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::base58::from;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
+use crate::okx::datastore::BRC20::Tick;
 use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
-use crate::okx::protocol::BRC30::params::{FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE};
+use crate::okx::protocol::BRC30::params::{FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE,TICK_BYTE_COUNT,TICK_ID_STR_COUNT};
 use crate::okx::protocol::BRC30::{BRC30Error, Error, Num, Stake};
 use crate::okx::protocol::BRC30::util::validate_pool_str;
 
@@ -91,11 +92,12 @@ impl Deploy {
   }
 
   pub fn get_stake_id(&self) -> PledgedTick {
-    match self.stake.as_str() {
+    let stake = self.stake.as_str();
+    match stake {
       NATIVE_TOKEN => PledgedTick::NATIVE,
       _ => match self.stake.len() {
-        4 => PledgedTick::BRC30Tick(self.get_tick_id()),
-        5 => PledgedTick::BRC30Tick(self.get_tick_id()),
+        TICK_BYTE_COUNT => PledgedTick::BRC20Tick( Tick::from_str(stake).unwrap() ),
+        TICK_ID_STR_COUNT => PledgedTick::BRC30Tick( TickId::from_str(stake).unwrap()),
         _ => PledgedTick::UNKNOWN,
       }
     }
@@ -138,6 +140,9 @@ impl Deploy {
       return Err(BRC30Error::EmptyParams(self.earn.clone()));
     }
 
+    if let Some(iserr) = BRC30Tick::from_str(self.earn.as_str()).err() {
+        return Err(iserr);
+    }
 
     if let Some(iserr) = Num::from_str(self.earn_rate.as_str()).err()  {
       return Err(BRC30Error::InvalidNum(self.earn_rate.clone()+iserr.to_string().as_str()));
@@ -147,8 +152,17 @@ impl Deploy {
     }
 
     if let Some(supply) = self.total_supply.as_ref() {
-      if let Some(iserr) = Num::from_str(supply.as_str()).err()  {
-        return Err(BRC30Error::InvalidNum(supply.to_string() + iserr.to_string().as_str()));
+      let total = Num::from_str(supply.as_str());
+      match total {
+        Ok(total) => {
+          let dmax = Num::from_str(self.distribution_max.as_str()).unwrap();
+          if total.lt(&dmax) {
+            return Err(BRC30Error::ExceedDmax(self.distribution_max.clone(),supply.clone()))
+          }
+        }
+        Err(e) => {
+          return Err(BRC30Error::InvalidNum(supply.to_string() + e.to_string().as_str()));
+        }
       }
     }
 

@@ -4,6 +4,7 @@ use protocol::BRC30::num::Num;
 use serde::{Deserialize, Serialize};
 
 use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, Pid};
+use crate::okx::reward::error::RewardError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: BRC30DataStoreReadOnly> {
@@ -12,6 +13,9 @@ pub enum Error<L: BRC30DataStoreReadOnly> {
 
   #[error("ledger error: {0}")]
   LedgerError(<L as BRC30DataStoreReadOnly>::Error),
+
+  #[error("reward error: {0}")]
+  RewardError(RewardError),
 
   #[error("others: {0}")]
   Others(anyhow::Error),
@@ -40,6 +44,9 @@ pub enum BRC30Error {
   #[error("{op} overflow: original: {org}, other: {other}")]
   Overflow { op: String, org: Num, other: Num },
 
+  #[error("in divsion the dived is zero")]
+  DivedZero,
+
   #[error("invalid number: {0}")]
   InvalidNum(String),
 
@@ -52,11 +59,17 @@ pub enum BRC30Error {
   #[error("tick: {0} not found")]
   TickNotFound(String),
 
+  #[error("stake: {0} not found")]
+  StakeNotFound(String),
+
   #[error("illegal tick length '{0}'")]
   InvalidTickLen(String),
 
   #[error("illegal tick id '{0}'")]
   InvalidTickId(String),
+
+  #[error("the prefix:{0} of pool id must be hash(tick_info) which is:{1}")]
+  InvalidPoolTickId(String,String),
 
   #[error("decimals {0} too large")]
   DecimalsTooLarge(u8),
@@ -79,6 +92,9 @@ pub enum BRC30Error {
   #[error("insufficient balance: {0} {1}")]
   InsufficientBalance(Num, Num),
 
+  #[error("dmax:{0} must be less than totoalsupply:{1}")]
+  ExceedDmax(String, String),
+
   #[error("amount exceed limit: {0}")]
   AmountExceedLimit(Num),
 
@@ -87,6 +103,12 @@ pub enum BRC30Error {
 
   #[error("invalid inscribe to coinbase")]
   InscribeToCoinbase,
+
+  #[error("from {0} must equal to to {1}")]
+  FromToNotEqual(String,String),
+
+  #[error("pool {0}  only be deployed by {0},but got {2}")]
+  DeployerNotEqual(String,String,String),
 
   #[error("transferable owner not match {0}")]
   TransferableOwnerNotMatch(InscriptionId),
@@ -108,6 +130,9 @@ pub enum BRC30Error {
   #[error("pool {0} is already exist")]
   PoolAlreadyExist(String),
 
+  #[error("pool {0} is not exist")]
+  PoolNotExist(String),
+
   #[error("unknown pool type")]
   UnknownPoolType,
 
@@ -125,6 +150,9 @@ pub enum BRC30Error {
 
   #[error("unknown stake type")]
   UnknownStakeType,
+
+  #[error("user has staked:{0} > user can staked:{1}")]
+  InValidStakeInfo(u128, u128),
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

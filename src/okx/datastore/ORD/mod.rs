@@ -1,20 +1,20 @@
+pub use self::{
+  operation::{Action, InscriptionOp},
+  redb::{OrdDbReadWriter, OrdDbReader},
+};
 use crate::InscriptionId;
 use crate::Result;
-use bitcoin::Script;
-use std::fmt::{Debug, Display};
-
-pub use self::redb::{OrdDbReadWriter, OrdDbReader};
+use bitcoin::OutPoint;
+use bitcoin::TxOut;
 pub mod operation;
 pub mod redb;
 
 pub trait OrdDataStoreReadOnly {
-  type Error: Debug + Display;
-
   fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64>;
 
-  fn get_outpoint_to_script(&self, outpoint: &str) -> Result<Option<Script>, Self::Error>;
+  fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>>;
 }
 
 pub trait OrdDataStoreReadWrite: OrdDataStoreReadOnly {
-  fn set_outpoint_to_script(&self, outpoint: &str, script: &Script) -> Result<(), Self::Error>;
+  fn set_outpoint_to_txout(&self, outpoint: OutPoint, txout: &TxOut) -> Result;
 }

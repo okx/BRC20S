@@ -57,7 +57,8 @@ impl<
 
   pub fn execute_protocols(&mut self, height: u64, block_time: u32) -> Result<(), anyhow::Error> {
     let mut brc20_updater = BRC20Updater::new(self.brc20_data_store, self.id_to_entry);
-    let mut brc30_updater = BRC30Updater::new(self.brc30_data_store, self.id_to_entry);
+
+    let mut brc30_updater = BRC30Updater::new(self.brc30_data_store,self.brc20_data_store, self.id_to_entry);
     loop {
       if let Some(p) = self.protocols.pop_front() {
         match p {

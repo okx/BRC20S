@@ -9,6 +9,7 @@ use redb::{
   Table, TableDefinition, WriteTransaction,
 };
 use std::borrow::Borrow;
+use std::cmp::min;
 use std::ops::RangeBounds;
 
 pub struct BRC30DataStoreReader<'db, 'a> {
@@ -123,14 +124,14 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
   // 3.3.5 BRC30_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,
-    script_key: ScriptKey,
-    pledged_tick: PledgedTick,
+    script_key: &ScriptKey,
+    pledged_tick: &PledgedTick,
   ) -> Result<Option<StakeInfo>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_USER_STAKEINFO)?
-        .get(script_pledged_key(&script_key, &pledged_tick).as_str())?
+        .get(script_pledged_key(script_key, pledged_tick).as_str())?
         .map(|v| bincode::deserialize::<StakeInfo>(v.value()).unwrap()),
     )
   }

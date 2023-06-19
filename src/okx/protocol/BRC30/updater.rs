@@ -1,9 +1,9 @@
 // use crate::okx::datastore::BRC20::BRC20DataStoreReadWrite;
 // use crate::okx::datastore::BRC30::{
-//   BRC30DataStoreReadWrite, BRC30Event, BRC30Tick, Balance, DeployPoolEvent, DepositEvent,
-//   EventType, InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PledgedTick, PoolInfo,
-//   PoolType, Receipt, StakeInfo, TickId, TickInfo, TransferEvent, TransferableAsset, UserInfo,
-//   WithdrawEvent,
+//   BRC30DataStoreReadWrite, BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent,
+//   DepositEvent, EventType, InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid,
+//   PledgedTick, PoolInfo, PoolType, StakeInfo, TickId, TickInfo, TransferEvent, TransferableAsset,
+//   UserInfo, WithdrawEvent,
 // };
 // use crate::okx::protocol::BRC30::{operation::*, BRC30Error, Error, Num};
 // use bigdecimal::num_bigint::Sign;
@@ -137,7 +137,7 @@
 //         }
 //       };
 //
-//       receipts.push(Receipt {
+//       receipts.push(BRC30Receipt {
 //         inscription_id: operation.inscription_id,
 //         result,
 //       });

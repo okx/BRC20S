@@ -1,4 +1,5 @@
 use super::*;
+use crate::okx::datastore::BRC30DataStoreReadWrite;
 use crate::{
   index::BlockData,
   okx::datastore::{
@@ -16,17 +17,30 @@ pub enum ProtocolKind {
   BRC30,
 }
 
-pub struct ProtocolManager<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite> {
-  call_man: CallManager<'a, O, P>,
+pub struct ProtocolManager<
+  'a,
+  O: OrdDataStoreReadWrite,
+  P: BRC20DataStoreReadWrite,
+  M: BRC30DataStoreReadWrite,
+> {
+  call_man: CallManager<'a, O, P, M>,
   resolve_man: MsgResolveManager<'a, O, P>,
 }
 
-impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite> ProtocolManager<'a, O, P> {
+impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStoreReadWrite>
+  ProtocolManager<'a, O, P, M>
+{
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(client: &'a Client, network: Network, ord_store: &'a O, brc20_store: &'a P) -> Self {
+  pub fn new(
+    client: &'a Client,
+    network: Network,
+    ord_store: &'a O,
+    brc20_store: &'a P,
+    brc30_store: &'a M,
+  ) -> Self {
     Self {
       resolve_man: MsgResolveManager::new(client, network, ord_store, brc20_store),
-      call_man: CallManager::new(ord_store, brc20_store),
+      call_man: CallManager::new(ord_store, brc20_store, brc30_store),
     }
   }
 

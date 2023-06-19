@@ -9,7 +9,7 @@ pub mod error;
 mod hash;
 pub mod msg_executor;
 pub mod num;
-mod operation;
+pub mod operation;
 pub mod params;
 mod util;
 

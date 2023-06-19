@@ -81,8 +81,8 @@ pub trait BRC30DataStoreReadOnly {
   ) -> Result<Option<TransferableAsset>, Self::Error>;
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error>;
   fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error>;
+  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error>;
 }
 
 pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {

@@ -27,12 +27,6 @@ pub struct BRC30Receipt {
   pub result: Result<BRC30Event, BRC30Error>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct Receipt {
-  pub inscription_id: InscriptionId,
-  pub result: Result<BRC30Event, BRC30Error>,
-}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum BRC30Event {
   DeployTick(DeployTickEvent),
@@ -155,7 +149,7 @@ mod tests {
 
   #[test]
   fn action_receipt_serialize() {
-    let action_receipt = Receipt {
+    let action_receipt = BRC30Receipt {
       inscription_id: InscriptionId::from_str(
         "9991111111111111111111111111111111111111111111111111111111111111i1",
       )

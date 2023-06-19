@@ -1,9 +1,9 @@
-mod deploy;
-mod mint;
-mod passiveunstake;
-mod stake;
-mod transfer;
-mod unstake;
+pub mod deploy;
+pub mod mint;
+pub mod passiveunstake;
+pub mod stake;
+pub mod transfer;
+pub mod unstake;
 
 use super::error::JSONError;
 use super::params::*;

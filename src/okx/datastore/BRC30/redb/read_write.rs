@@ -1,8 +1,7 @@
 use super::*;
-use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Receipt};
 use crate::okx::datastore::BRC30::{
-  Balance, InscriptionOperation, Pid, PoolInfo, PoolType, Receipt, StakeInfo, TickId, TickInfo,
-  TransferableAsset, UserInfo,
+  BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Receipt, Balance, InscriptionOperation,
+  Pid, PoolInfo, PoolType, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
 };
 
 use crate::okx::datastore::BRC20::Tick;
@@ -115,7 +114,7 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn get_txid_to_receipts(&self, tx_id: &Txid) -> Result<Vec<Receipt>, Self::Error> {
+  fn get_txid_to_receipts(&self, tx_id: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_txid_to_receipts(tx_id)
   }
 
@@ -607,15 +606,15 @@ mod tests {
         .unwrap();
 
     let op_vec = vec![
-      Receipt {
+      BRC30Receipt {
         inscription_id: inscription_id.clone(),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
-      Receipt {
+      BRC30Receipt {
         inscription_id: inscription_id.clone(),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
-      Receipt {
+      BRC30Receipt {
         inscription_id: inscription_id.clone(),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },

@@ -45,7 +45,7 @@ pub fn get_stake_dec<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
   brc20ledger: &'a M,
 ) -> u8 {
   match token {
-    PledgedTick::NATIVE => 0_u8,
+    PledgedTick::NATIVE => NATIVE_TOKEN_DECIMAL,
     PledgedTick::BRC30Tick(tickid) => brc30ledger.get_tick_info(&tickid).unwrap().unwrap().decimal,
     PledgedTick::BRC20Tick(tick) => brc20ledger.get_token_info(tick).unwrap().unwrap().decimal,
     PledgedTick::UNKNOWN => 0_u8,

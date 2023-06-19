@@ -665,29 +665,29 @@ mod tests {
                      Ok(()));
     do_one_case(&mut user, &mut pool, &case);
 
-    // //case-17-A mint, jump block
-    // case = Case::new(200, 0, true,
-    //                  1599, 100,
-    //                  100, 1599,
-    //                  Ok((1000)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-18-A mint
-    // case = Case::new(201, 0, true,
-    //                  1599, 100,
-    //                  100, 1599,
-    //                  Ok((0)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-19-A mint, jump block
-    // case = Case::new(300, 0, true,
-    //                  1599, 100,
-    //                  100, 1599,
-    //                  Ok((0)),
-    //                  Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
+    //case-17-A mint, jump block
+    case = Case::new(200, 0, true,
+                     17000, 100,
+                     100, 17000,
+                     Ok((10000)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-18-A mint
+    case = Case::new(201, 0, true,
+                     17000, 100,
+                     100, 17000,
+                     Ok((0)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
+
+    //case-19-A mint, jump block
+    case = Case::new(300, 0, true,
+                     17000, 100,
+                     100, 17000,
+                     Ok((0)),
+                     Ok(()));
+    do_one_case(&mut user, &mut pool, &case);
   }
 
   #[test]

@@ -14,6 +14,7 @@ use crate::okx::protocol::BRC30::hash::caculate_tick_id;
 use crate::okx::protocol::BRC30::params::{
   BIGDECIMAL_TEN, MAXIMUM_SUPPLY, MAX_DECIMAL_WIDTH, MAX_SUPPLY_WIDTH,
 };
+use crate::okx::reward::reward;
 use crate::{
   index::{InscriptionEntryValue, InscriptionIdValue},
   Index, InscriptionId, SatPoint, Txid,
@@ -340,33 +341,69 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite> BRC30Updater<'a, 'db, 'tx, L> {
       return Err(Error::BRC30Error(BRC30Error::InvalidZeroAmount));
     }
     // get all staked pools and calculate total reward
-    let staked_pools: Vec<(Pid, Num)> = Vec::new();
-    let total_reward = Num::zero();
+    let mut staked_pools: Vec<(Pid, u128)> = Vec::new();
+    let mut total_reward = 0;
     for pid in tick_info.pids.clone() {
-      // TODO: query reward
-      // let reward = queryReward(pid, to_script_key);
-      // if reward > 0 {
-      //   total_reward += reward;
-      //   staked_pools.push(pid)
-      // }
+      let user_info = if let Ok(Some(u)) = self.ledger.get_pid_to_use_info(&to_script_key, &pid) {
+        u
+      } else {
+        continue;
+      };
+      let pool_info = if let Ok(Some(p)) = self.ledger.get_pid_to_poolinfo(&pid) {
+        p
+      } else {
+        continue;
+      };
+
+      let reward = if let Ok(r) = reward::query_reward(user_info, pool_info, block_number) {
+        r
+      } else {
+        continue;
+      };
+      if reward > 0 {
+        total_reward += reward;
+        staked_pools.push((pid, reward))
+      }
     }
-    if amt > total_reward {
+    if amt > total_reward.into() {
       return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
     }
 
     // claim rewards
     let mut remain_amt = amt.clone();
     for (pid, reward) in staked_pools {
+      let reward = Num::from(reward);
       if remain_amt <= Num::zero() {
         break;
       }
-      let reward = if reward < remain_amt {
+      let mut reward = if reward < remain_amt {
         reward
       } else {
         remain_amt.clone()
       };
-      // TODO: claim reward
-      // updateReward(pid, to_script_key);
+
+      let mut user_info = self
+        .ledger
+        .get_pid_to_use_info(&to_script_key, &pid)
+        .map_err(|e| Error::LedgerError(e))?
+        .ok_or(BRC30Error::InternalError(String::from(
+          "user info not found",
+        )))?;
+      let mut pool_info = self
+        .ledger
+        .get_pid_to_poolinfo(&pid)
+        .map_err(|e| Error::LedgerError(e))?
+        .ok_or(BRC30Error::InternalError(String::from("pool not found")))?;
+
+      let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info)
+        .map_err(|e| Error::LedgerError(e))?;
+      if withdraw_reward > reward.checked_to_u128()? {
+        user_info.reward = user_info.reward - withdraw_reward + reward.checked_to_u128()?;
+        pool_info.minted = pool_info.minted - withdraw_reward + reward.checked_to_u128()?;
+      } else {
+        reward = Num::from(withdraw_reward)
+      }
+
       remain_amt = remain_amt.checked_sub(&reward)?;
     }
 

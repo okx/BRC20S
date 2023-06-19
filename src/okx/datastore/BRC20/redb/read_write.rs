@@ -1,5 +1,5 @@
 use crate::okx::datastore::BRC20::{
-  ActionReceipt, BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, Balance, Tick, TokenInfo,
+  BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Receipt, Balance, Tick, TokenInfo,
   TransferableLog,
 };
 
@@ -41,7 +41,7 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_tokens_info()
   }
 
-  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<ActionReceipt>, Self::Error> {
+  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC20Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transaction_receipts(txid)
   }
 
@@ -115,13 +115,23 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
   fn save_transaction_receipts(
     &self,
     txid: &Txid,
-    receipts: &[ActionReceipt],
+    receipts: &[BRC20Receipt],
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC20_EVENTS)?.insert(
       txid.to_string().as_str(),
       bincode::serialize(receipts).unwrap().as_slice(),
     )?;
     Ok(())
+  }
+
+  fn add_transaction_receipt(
+    &self,
+    txid: &Txid,
+    receipt: &BRC20Receipt,
+  ) -> Result<(), Self::Error> {
+    let mut receipts = self.get_transaction_receipts(txid)?;
+    receipts.push(receipt.clone());
+    self.save_transaction_receipts(txid, &receipts)
   }
 
   fn insert_transferable(
@@ -172,8 +182,8 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::BRC20::{
-    ActionReceipt, BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event,
-    Balance, EventType, MintEvent, Tick, TokenInfo, TransferPhase2Event, TransferableLog,
+    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, BRC20OperationType,
+    BRC20Receipt, Balance, MintEvent, Tick, TokenInfo, TransferEvent, TransferableLog,
   };
 
   use super::*;
@@ -434,13 +444,13 @@ mod tests {
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
     let receipts = vec![
-      ActionReceipt {
+      BRC20Receipt {
         inscription_id: InscriptionId::from_str(
           "1111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
         inscription_number: 1,
-        op: EventType::Deploy,
+        op: BRC20OperationType::Deploy,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),
@@ -451,21 +461,19 @@ mod tests {
           "1111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        new_satpoint: Some(
-          SatPoint::from_str(
-            "2111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
-        ),
+        new_satpoint: SatPoint::from_str(
+          "2111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
         result: Err(BRC20Error::InvalidTickLen("abcde".to_string())),
       },
-      ActionReceipt {
+      BRC20Receipt {
         inscription_id: InscriptionId::from_str(
           "2111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
         inscription_number: 1,
-        op: EventType::Mint,
+        op: BRC20OperationType::Mint,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),
@@ -476,25 +484,23 @@ mod tests {
           "2111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        new_satpoint: Some(
-          SatPoint::from_str(
-            "3111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
-        ),
+        new_satpoint: SatPoint::from_str(
+          "3111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
         result: Ok(BRC20Event::Mint(MintEvent {
           tick: Tick::from_str("maEd").unwrap(),
           amount: 30,
           msg: None,
         })),
       },
-      ActionReceipt {
+      BRC20Receipt {
         inscription_id: InscriptionId::from_str(
           "3111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
         inscription_number: 1,
-        op: EventType::Mint,
+        op: BRC20OperationType::Mint,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),
@@ -505,13 +511,11 @@ mod tests {
           "4111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        new_satpoint: Some(
-          SatPoint::from_str(
-            "4111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
-        ),
-        result: Ok(BRC20Event::TransferPhase2(TransferPhase2Event {
+        new_satpoint: SatPoint::from_str(
+          "4111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
+        result: Ok(BRC20Event::Transfer(TransferEvent {
           tick: Tick::from_str("mmmm").unwrap(),
           amount: 11,
           msg: Some("a msg".to_string()),

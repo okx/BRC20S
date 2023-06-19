@@ -1,5 +1,5 @@
 use super::*;
-use okx::datastore::ORD::operation::{Action, Operation};
+use okx::datastore::ORD::operation::{Action, InscriptionOp};
 
 #[derive(Debug, Clone)]
 pub(super) struct Flotsam {
@@ -22,7 +22,7 @@ enum Origin {
 
 pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   flotsam: Vec<Flotsam>,
-  pub(super) operations: Vec<Operation>,
+  pub(super) operations: Vec<InscriptionOp>,
   height: u64,
   id_to_satpoint: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, &'static SatPointValue>,
   id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
@@ -350,7 +350,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       new_satpoint.store()
     };
 
-    self.operations.push(Operation {
+    self.operations.push(InscriptionOp {
       txid: flotsam.txid,
       inscription_id: flotsam.inscription_id,
       action: match flotsam.origin {

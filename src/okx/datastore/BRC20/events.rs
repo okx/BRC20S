@@ -1,66 +1,35 @@
 use super::*;
 use crate::{InscriptionId, SatPoint};
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct ActionReceipt {
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub enum BRC20OperationType {
+  Deploy,
+  Mint,
+  InscribeTransfer,
+  Transfer,
+}
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct BRC20Receipt {
   pub inscription_id: InscriptionId,
   pub inscription_number: i64,
   pub old_satpoint: SatPoint,
-  pub new_satpoint: Option<SatPoint>,
-  pub op: EventType,
+  pub new_satpoint: SatPoint,
+  pub op: BRC20OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
   pub result: Result<BRC20Event, BRC20Error>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum BRC20Event {
   Deploy(DeployEvent),
   Mint(MintEvent),
-  TransferPhase1(TransferPhase1Event),
-  TransferPhase2(TransferPhase2Event),
+  InscripbeTransfer(InscripbeTransferEvent),
+  Transfer(TransferEvent),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum EventType {
-  Deploy,
-  Mint,
-  TransferPhase1,
-  TransferPhase2,
-}
-
-impl Serialize for EventType {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    match self {
-      Self::Deploy => "deploy".serialize(serializer),
-      Self::Mint => "mint".serialize(serializer),
-      Self::TransferPhase1 => "inscribeTransfer".serialize(serializer),
-      Self::TransferPhase2 => "transfer".serialize(serializer),
-    }
-  }
-}
-
-impl<'de> Deserialize<'de> for EventType {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    match String::deserialize(deserializer)?.as_str() {
-      "deploy" => Ok(Self::Deploy),
-      "mint" => Ok(Self::Mint),
-      "inscribeTransfer" => Ok(Self::TransferPhase1),
-      "transfer" => Ok(Self::TransferPhase2),
-      _ => Err("no such event type"),
-    }
-    .map_err(|e| de::Error::custom(format!("deserialize event type error: {}", e)))
-  }
-}
-
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct DeployEvent {
   pub supply: u128,
   pub limit_per_mint: u128,
@@ -68,21 +37,21 @@ pub struct DeployEvent {
   pub tick: Tick,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct MintEvent {
   pub tick: Tick,
   pub amount: u128,
   pub msg: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct TransferPhase1Event {
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct InscripbeTransferEvent {
   pub tick: Tick,
   pub amount: u128,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct TransferPhase2Event {
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct TransferEvent {
   pub tick: Tick,
   pub amount: u128,
   pub msg: Option<String>,
@@ -96,7 +65,7 @@ mod tests {
 
   #[test]
   fn action_receipt_serialize() {
-    let action_receipt = ActionReceipt {
+    let action_receipt = BRC20Receipt {
       inscription_id: InscriptionId::from_str(
         "9991111111111111111111111111111111111111111111111111111111111111i1",
       )
@@ -106,11 +75,11 @@ mod tests {
         "1111111111111111111111111111111111111111111111111111111111111111:1:1",
       )
       .unwrap(),
-      new_satpoint: Some(
-        SatPoint::from_str("2111111111111111111111111111111111111111111111111111111111111111:1:1")
-          .unwrap(),
-      ),
-      op: EventType::Deploy,
+      new_satpoint: SatPoint::from_str(
+        "2111111111111111111111111111111111111111111111111111111111111111:1:1",
+      )
+      .unwrap(),
+      op: BRC20OperationType::Deploy,
       from: ScriptKey::from_address(
         Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
       ),

@@ -106,7 +106,6 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         }
         Ok(())
       }
-      Receipt::BRC30(_receipt) => Ok(()),
     }
   }
 }

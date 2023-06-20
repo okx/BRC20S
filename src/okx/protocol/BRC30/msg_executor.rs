@@ -257,12 +257,12 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   brc20_store: &'a M,
   brc30_store: &'a N,
   msg: &BRC30Message,
-  stakeMsg: Stake,
+  stake_msg: Stake,
 ) -> Result<BRC30Event, Error<N>> {
-  if let Some(iserr) = stakeMsg.validate_basics().err() {
+  if let Some(iserr) = stake_msg.validate_basics().err() {
     return Err(Error::BRC30Error(iserr));
   }
-  let pool_id = stakeMsg.get_pool_id();
+  let pool_id = stake_msg.get_pool_id();
   let to_script_key = msg.to.clone();
 
   let mut pool = brc30_store
@@ -275,7 +275,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   let stake_tick = pool.stake.clone();
   let amount = convert_pledged_tick_with_decimal(
     &stake_tick,
-    stakeMsg.amount.as_str(),
+    stake_msg.amount.as_str(),
     brc30_store,
     brc20_store,
   )?;
@@ -521,11 +521,11 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
   for (pid, stake) in pids.iter() {
     let withdraw_stake =
       convert_pledged_tick_without_decimal(&stake_tick, *stake, brc30_store, brc20_store)?;
-    let stakeMsg = UnStake::new(
+    let stake_msg = UnStake::new(
       pid.to_lowercase().as_str(),
       withdraw_stake.to_string().as_str(),
     );
-    process_unstake(brc20_store, brc30_store, &msg, stakeMsg)?;
+    process_unstake(brc20_store, brc30_store, &msg, stake_msg)?;
   }
 
   Ok(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {

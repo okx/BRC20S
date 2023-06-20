@@ -3,32 +3,27 @@ use std::collections::HashSet;
 
 use crate::{
   okx::{
-    datastore::{
-      BRC20::BRC20DataStoreReadOnly,
-      ORD::{operation::InscriptionOp, OrdDataStoreReadOnly},
-    },
+    datastore::ORD::{operation::InscriptionOp, OrdDataStoreReadOnly},
     protocol::Message,
   },
   Result,
 };
 use bitcoin::{Network, Transaction, Txid};
 use bitcoincore_rpc::Client;
-pub struct MsgResolveManager<'a, O: OrdDataStoreReadOnly, P: BRC20DataStoreReadOnly> {
+pub struct MsgResolveManager<'a, O: OrdDataStoreReadOnly> {
   protocols: HashSet<ProtocolKind>,
   client: &'a Client,
   network: Network,
   ord_store: &'a O,
-  brc20_store: &'a P,
 }
 
-impl<'a, O: OrdDataStoreReadOnly, P: BRC20DataStoreReadOnly> MsgResolveManager<'a, O, P> {
-  pub fn new(client: &'a Client, network: Network, ord_store: &'a O, brc20_store: &'a P) -> Self {
+impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
+  pub fn new(client: &'a Client, network: Network, ord_store: &'a O) -> Self {
     Self {
       protocols: HashSet::new(),
       client,
       network,
       ord_store,
-      brc20_store,
     }
   }
 
@@ -71,22 +66,23 @@ impl<'a, O: OrdDataStoreReadOnly, P: BRC20DataStoreReadOnly> MsgResolveManager<'
           }
         }
 
-        // TODO: Resolve BRC30 message.
-        // if self.protocols.contains(&ProtocolKind::BRC30) {
-        //   if let Some(msg) = BRC20::resolve_message(
-        //     self.client,
-        //     self.ord_store,
-        //     txid,
-        //     block_height,
-        //     block_time,
-        //     tx,
-        //     &op,
-        //   )?
-        //   .map(|v| Message::BRC30(v))
-        //   {
-        //     messages.push(msg);
-        //   }
-        // }
+        // Resolve BRC30 message.
+        if self.protocols.contains(&ProtocolKind::BRC30) {
+          if let Some(msg) = BRC30::resolve_message(
+            self.client,
+            self.network,
+            self.ord_store,
+            txid,
+            block_height,
+            block_time,
+            tx,
+            &op,
+          )?
+          .map(|v| Message::BRC30(v))
+          {
+            messages.push(msg);
+          }
+        }
       }
     }
     Ok(messages)

@@ -1,7 +1,7 @@
 use crate::okx::datastore::{
   ScriptKey,
   BRC20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
-  BRC30::redb::BRC30DataStore,
+  BRC30::{self, redb::BRC30DataStoreReader, BRC30DataStoreReadOnly},
   ORD::OrdDataStoreReadOnly,
 };
 
@@ -1198,6 +1198,21 @@ impl Index {
     let res = brc20_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
 
     Ok(res)
+  }
+
+  pub(crate) fn brc30_all_tick_info(&self) -> Result<Vec<BRC30::TickInfo>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    // let info = brc30_db.get_tick_info(&BRC20::Tick::from_str(name)?)?;
+    //TODO get tick info vec
+    Ok((vec![]))
+  }
+
+  pub(crate) fn brc30_tick_info(&self, tickId: &String) -> Result<Option<BRC30::TickInfo>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let info = brc30_db.get_tick_info(&BRC30::TickId::from_str(tickId)?)?;
+    Ok(info)
   }
 }
 

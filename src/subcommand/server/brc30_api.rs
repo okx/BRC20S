@@ -10,12 +10,12 @@ pub(crate) async fn brc30_all_tick_info(
 ) -> ApiResult<AllBRC30TickInfo> {
   log::debug!("rpc: get brc30_all_tick_info");
 
-  // TODO
-  // Ok(Json(ApiResponse::ok(AllTickInfo {
-  //   tokens: all_tick_info.iter().map(|t| t.into()).collect(),
-  // })))
+  let all_tick_info = index.brc30_all_tick_info()?;
+  log::debug!("rpc: get brc30_all_tick_info: {:?}", all_tick_info);
 
-  return Err(ApiError::bad_request("".to_string()));
+  Ok(Json(ApiResponse::ok(AllBRC30TickInfo {
+    tokens: all_tick_info.iter().map(|t| t.into()).collect(),
+  })))
 }
 
 // 3.4.2 /brc30/tick/:tickId
@@ -23,13 +23,23 @@ pub(crate) async fn brc30_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tickId): Path<String>,
 ) -> ApiResult<BRC30TickInfo> {
-  log::debug!("rpc: get brc30_tick_info: {}", tickId);
+  log::debug!("rpc: get brc30_tick_info: {}", tickId.to_string());
+  if tickId.as_bytes().len() != 5 {
+    return Err(ApiError::bad_request("tick id length must 5."));
+  }
+  let tickId = tickId.to_lowercase();
 
-  // TODO
-  // Ok(Json(ApiResponse::ok(tick_info.into())))
+  let tick_info = &index
+    .brc30_tick_info(&tickId)?
+    .ok_or_api_not_found("tick not found")?;
 
-  log::debug!("rpc: get brc30_tick_info: {}", tickId);
-  return Err(ApiError::bad_request("".to_string()));
+  log::debug!("rpc: get brc30_tick_info: {:?} {:?}", tickId, tick_info);
+
+  if tick_info.tick_id != BRC30::TickId::from_str(&tickId).unwrap() {
+    return Err(ApiError::internal("db: not match"));
+  }
+
+  Ok(Json(ApiResponse::ok(tick_info.into())))
 }
 
 // brc30/pool

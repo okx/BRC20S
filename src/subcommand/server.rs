@@ -3,6 +3,7 @@ use {
     deserialize_from_str::DeserializeFromStr,
     error::{OptionExt, ServerError, ServerResult},
   },
+  super::server::brc30_api::*,
   super::*,
   crate::page_config::PageConfig,
   crate::templates::{
@@ -216,35 +217,29 @@ impl Server {
           "/brc20/address/:address/transferable",
           get(brc20_all_transferable),
         )
-        .route("/brc30/tick", get(brc30_api::brc30_all_tick_info))
-        .route("/brc30/tick/:tickId", get(brc30_api::brc30_tick_info))
-        .route("/brc30/pool", get(brc30_api::brc30_all_pool_info))
-        .route("/brc30/pool/:pid", get(brc30_api::brc30_pool_info))
+        .route("/brc30/tick", get(brc30_all_tick_info))
+        .route("/brc30/tick/:tickId", get(brc30_tick_info))
+        .route("/brc30/pool", get(brc30_all_pool_info))
+        .route("/brc30/pool/:pid", get(brc30_pool_info))
         .route(
           "/brc30/pool/:pid/address/:address/userinfo",
-          get(brc30_api::brc30_userinfo),
+          get(brc30_userinfo),
         )
         .route(
           "/brc30/tick/:tickId/address/:address/balance",
-          get(brc30_api::brc30_balance),
+          get(brc30_balance),
         )
-        .route(
-          "/brc30/address/:address/balance",
-          get(brc30_api::brc30_all_balance),
-        )
+        .route("/brc30/address/:address/balance", get(brc30_all_balance))
         .route(
           "/brc30/tick/:tickId/address/:address/transferable",
-          get(brc30_api::brc30_transferable),
+          get(brc30_transferable),
         )
         .route(
           "/brc30/address/:address/transferable",
-          get(brc30_api::brc30_all_transferable),
+          get(brc30_all_transferable),
         )
-        .route("brc30/tx/:txid/events", get(brc30_api::brc30_txid_events))
-        .route(
-          "/brc30/block/:blockhash/events",
-          get(brc30_api::brc30_block_events),
-        );
+        .route("brc30/tx/:txid/events", get(brc30_txid_events))
+        .route("/brc30/block/:blockhash/events", get(brc30_block_events));
 
       // .route("/brc20/tx/:txid/events", get(brc20_tx_events))
       // .route("/brc20/tx/:txid", get(brc20_tx))

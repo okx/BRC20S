@@ -1,8 +1,7 @@
 use super::*;
-use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite};
 use crate::okx::datastore::BRC30::{
-  Balance, InscriptionOperation, Pid, PoolInfo, PoolType, Receipt, StakeInfo, TickId, TickInfo,
-  TransferableAsset, UserInfo,
+  BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Receipt, Balance, InscriptionOperation,
+  Pid, PoolInfo, PoolType, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
 };
 
 use crate::okx::datastore::BRC20::Tick;
@@ -50,7 +49,6 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   ) -> Result<Option<StakeInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_user_stakeinfo(script_key, pledged_tick)
   }
-
 
   // 3.3.6 BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(
@@ -116,8 +114,12 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_txid_to_receipts(txid)
+  fn get_txid_to_receipts(&self, tx_id: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_txid_to_receipts(tx_id)
+  }
+
+  fn get_transaction_receipts(&self, tx_id: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_transaction_receipts(tx_id)
   }
 }
 
@@ -232,9 +234,19 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn set_txid_to_receipts(&self, txid: &Txid, receipts: &Vec<Receipt>) -> Result<(), Self::Error> {
+  fn set_txid_to_receipts(&self, tx_id: &Txid, receipt: &BRC30Receipt) -> Result<(), Self::Error> {
+    let mut receipts = self.get_transaction_receipts(tx_id)?;
+    receipts.push(receipt.clone());
+    self.save_transaction_receipts(tx_id, &receipts)
+  }
+
+  fn save_transaction_receipts(
+    &self,
+    tx_id: &Txid,
+    receipts: &[BRC30Receipt],
+  ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TXID_TO_RECEIPTS)?.insert(
-      txid.to_string().as_str(),
+      tx_id.to_string().as_str(),
       bincode::serialize(receipts).unwrap().as_slice(),
     )?;
     Ok(())
@@ -418,7 +430,7 @@ mod tests {
       stake: pledged_tick_20.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_20.clone(),true,123)],
+      pool_stakes: vec![(pid_20.clone(), true, 123)],
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("tck30").unwrap());
@@ -427,7 +439,7 @@ mod tests {
       stake: pledged_tick_30.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_30.clone(),true,123)],
+      pool_stakes: vec![(pid_30.clone(), true, 123)],
     };
 
     let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("btc00").unwrap());
@@ -436,7 +448,7 @@ mod tests {
       stake: pledged_tick_btc.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_btc.clone(),true,123)],
+      pool_stakes: vec![(pid_btc.clone(), true, 123)],
     };
 
     brc30db
@@ -594,21 +606,21 @@ mod tests {
         .unwrap();
 
     let op_vec = vec![
-      Receipt {
+      BRC30Receipt {
         inscription_id: inscription_id.clone(),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
-      Receipt {
+      BRC30Receipt {
         inscription_id: inscription_id.clone(),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
-      Receipt {
+      BRC30Receipt {
         inscription_id: inscription_id.clone(),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
     ];
 
-    brc30db.set_txid_to_receipts(&txid, &op_vec).unwrap();
+    brc30db.save_transaction_receipts(&txid, &op_vec).unwrap();
 
     assert_eq!(brc30db.get_txid_to_receipts(&txid).unwrap(), op_vec);
   }
@@ -626,7 +638,7 @@ mod tests {
       stake: pledged_tick_20.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_20.clone(),true,123)],
+      pool_stakes: vec![(pid_20.clone(), true, 123)],
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("tck30").unwrap());
@@ -635,7 +647,7 @@ mod tests {
       stake: pledged_tick_30.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_30.clone(),true,123)],
+      pool_stakes: vec![(pid_30.clone(), true, 123)],
     };
 
     let tick1 = TickId::from_str("abcdd").unwrap();
@@ -648,7 +660,7 @@ mod tests {
       stake: pledged_tick_btc.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_btc.clone(),true,123)],
+      pool_stakes: vec![(pid_btc.clone(), true, 123)],
     };
 
     brc30db
@@ -697,7 +709,7 @@ mod tests {
       stake: pledged_tick_20.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_20.clone(),true,123)],
+      pool_stakes: vec![(pid_20.clone(), true, 123)],
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("tck30").unwrap());
@@ -706,7 +718,7 @@ mod tests {
       stake: pledged_tick_30.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_30.clone(),true,123)],
+      pool_stakes: vec![(pid_30.clone(), true, 123)],
     };
 
     let tick1 = TickId::from_str("abcdd").unwrap();
@@ -719,7 +731,7 @@ mod tests {
       stake: pledged_tick_btc.clone(),
       max_share: 123,
       total_only: 123,
-      pool_stakes: vec![(pid_btc.clone(),true,123)],
+      pool_stakes: vec![(pid_btc.clone(), true, 123)],
     };
 
     brc30db

@@ -469,6 +469,7 @@ impl Updater {
       index.get_chain_network(),
       &OrdDbReadWriter::new(wtx),
       &BRC20DataStore::new(wtx),
+      &BRC30DataStore::new(wtx),
     )
     .index_block(self.height, &block, inscription_updater.operations)?;
 

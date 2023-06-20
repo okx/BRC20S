@@ -1,16 +1,45 @@
-mod deploy;
-mod mint;
-mod stake;
-mod transfer;
-mod unstake;
-mod passiveunstake;
+pub mod deploy;
+pub mod mint;
+pub mod passiveunstake;
+pub mod stake;
+pub mod transfer;
+pub mod unstake;
 
 use super::error::JSONError;
 use super::params::*;
+use crate::okx::datastore::BRC30::BRC30OperationType;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-pub use self::{deploy::Deploy, mint::Mint, stake::Stake, transfer::Transfer, unstake::UnStake,passiveunstake::PassiveUnStake};
+pub use self::{
+  deploy::Deploy, mint::Mint, passiveunstake::PassiveUnStake, stake::Stake, transfer::Transfer,
+  unstake::UnStake,
+};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BRC30Operation {
+  Deploy(Deploy),
+  Mint(Mint),
+  Stake(Stake),
+  UnStake(UnStake),
+  PassiveUnStake(PassiveUnStake),
+  InscribeTransfer(Transfer),
+  Transfer,
+}
+
+impl BRC30Operation {
+  pub fn op_type(&self) -> BRC30OperationType {
+    match self {
+      BRC30Operation::Deploy(_) => BRC30OperationType::Deploy,
+      BRC30Operation::Mint(_) => BRC30OperationType::Mint,
+      BRC30Operation::Stake(_) => BRC30OperationType::Stake,
+      BRC30Operation::UnStake(_) => BRC30OperationType::UnStake,
+      BRC30Operation::PassiveUnStake(_) => BRC30OperationType::PassiveUnStake,
+      BRC30Operation::InscribeTransfer(_) => BRC30OperationType::InscribeTransfer,
+      BRC30Operation::Transfer => BRC30OperationType::Transfer,
+    }
+  }
+}
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(tag = "op")]

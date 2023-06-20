@@ -1,10 +1,7 @@
 use super::*;
-use crate::okx::datastore::balance::{
-  convert_amount_with_decimal, convert_pledged_tick_with_decimal,
-  convert_pledged_tick_without_decimal,
-};
+use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::BRC30DataStoreReadWrite;
-use crate::okx::datastore::BRC20::{BRC20Event, BRC20Receipt};
+use crate::okx::datastore::BRC20::BRC20Event;
 use crate::okx::datastore::BRC30::{BRC30Event, PledgedTick};
 use crate::okx::protocol::BRC20::BRC20Message;
 use crate::okx::protocol::BRC30::operation::BRC30Operation;
@@ -43,7 +40,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
       }
 
       Message::BRC30(msg) => {
-        todo!("add later");
+        BRC30::execute(self.brc20_store, self.brc30_store, &msg).map(|v| Receipt::BRC30(v))?
       }
     };
 
@@ -65,7 +62,8 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                 };
                 if let Message::BRC20(old_brc20_msg) = msg {
                   let passive_msg = convert_brc20msg_to_brc30msg(old_brc20_msg, passive_unstake);
-                  //todo need to execute passive_msg
+                  BRC30::execute(self.brc20_store, self.brc30_store, &passive_msg)
+                    .map(|v| Receipt::BRC30(v))?;
                 }
               }
               Err(e) => {
@@ -94,7 +92,8 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                 };
                 if let Message::BRC30(old_brc30_msg) = msg {
                   let passive_msg = convert_brc30msg_to_brc30msg(old_brc30_msg, passive_unstake);
-                  //todo need to execute passive_msg
+                  BRC30::execute(self.brc20_store, self.brc30_store, &passive_msg)
+                    .map(|v| Receipt::BRC30(v))?;
                 }
               }
               Err(e) => {

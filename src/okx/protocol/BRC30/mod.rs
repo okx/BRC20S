@@ -15,6 +15,7 @@ mod util;
 
 pub use self::{
   error::{BRC30Error, Error},
+  msg_executor::execute,
   num::Num,
   operation::{
     deserialize_brc30, Deploy, Mint, Operation, PassiveUnStake, Stake, Transfer, UnStake,

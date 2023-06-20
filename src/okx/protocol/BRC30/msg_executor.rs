@@ -778,3 +778,50 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     amt: amt.checked_to_u128()?,
   }))
 }
+
+#[cfg(test)]
+mod tests {
+  use super::super::*;
+  use super::*;
+  use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
+  use crate::okx::datastore::BRC20::redb::BRC20DataStore;
+  use crate::okx::datastore::BRC20::{Tick, TokenInfo};
+  use crate::okx::datastore::BRC30::redb::BRC30DataStore;
+  use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;
+  use crate::test::Hash;
+  use bech32::ToBase32;
+  use bitcoin::Address;
+  use redb::{Database, WriteTransaction};
+  use std::borrow::Borrow;
+  use tempfile::NamedTempFile;
+
+  fn create_brc30_message(
+    inscription_id: InscriptionId,
+    from: ScriptKey,
+    to: ScriptKey,
+    op: BRC30Operation,
+  ) -> BRC30Message {
+    BRC30Message {
+      txid: Txid::all_zeros(),
+      block_height: 0,
+      block_time: 1687245485,
+      inscription_id,
+      inscription_number: 0,
+      from: ScriptKey,
+      to: ScriptKey,
+      old_satpoint: SatPoint {
+        outpoint: "1111111111111111111111111111111111111111111111111111111111111111:1"
+          .parse()
+          .unwrap(),
+        offset: 1,
+      },
+      new_satpoint: SatPoint {
+        outpoint: "1111111111111111111111111111111111111111111111111111111111111111:2"
+          .parse()
+          .unwrap(),
+        offset: 1,
+      },
+      op,
+    }
+  }
+}

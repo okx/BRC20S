@@ -26,14 +26,14 @@ pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStore
         .get_balance(&script, &tickid)
         .map_or(Some(BRC30Balance::default(tickid)), |v| v)
         .unwrap();
-      Num::from(balance.overall_balance)
+      Num::from(balance.overall_balance - balance.transferable_balance)
     }
     PledgedTick::BRC20Tick(tick) => {
       let balance = brc20ledger
         .get_balance(&script, tick)
         .map_or(Some(BRC20Balance::new()), |v| v)
         .unwrap();
-      Num::from(balance.overall_balance)
+      Num::from(balance.overall_balance - balance.transferable_balance)
     }
     PledgedTick::UNKNOWN => Num::from(0_u128),
   }
@@ -45,7 +45,7 @@ pub fn get_stake_dec<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
   brc20ledger: &'a M,
 ) -> u8 {
   match token {
-    PledgedTick::NATIVE => 0_u8,
+    PledgedTick::NATIVE => NATIVE_TOKEN_DECIMAL,
     PledgedTick::BRC30Tick(tickid) => brc30ledger.get_tick_info(&tickid).unwrap().unwrap().decimal,
     PledgedTick::BRC20Tick(tick) => brc20ledger.get_token_info(tick).unwrap().unwrap().decimal,
     PledgedTick::UNKNOWN => 0_u8,

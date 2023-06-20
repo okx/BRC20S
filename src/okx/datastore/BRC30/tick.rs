@@ -1,14 +1,17 @@
 use crate::okx::datastore::ScriptKey;
 use crate::okx::datastore::BRC20::Tick;
-use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, NATIVE_TOKEN, TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT};
+use crate::okx::protocol::BRC30::params::{
+  BIGDECIMAL_TEN, NATIVE_TOKEN, TICK_BYTE_COUNT, TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT,
+  TICK_ID_BYTE_COUNT, TICK_ID_STR_COUNT,
+};
 use crate::okx::protocol::BRC30::{BRC30Error, Deploy, Num};
 use crate::InscriptionId;
 use std::mem;
 
 use crate::okx::datastore::BRC30::Pid;
+use bigdecimal::num_bigint::Sign;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
-use bigdecimal::num_bigint::Sign;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TickId([u8; TICK_ID_BYTE_COUNT]);
@@ -19,7 +22,7 @@ impl FromStr for TickId {
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let bytes = hex::decode(s);
     if bytes.is_err() {
-      return Err(BRC30Error::InternalError(bytes.err().unwrap().to_string()))
+      return Err(BRC30Error::InternalError(bytes.err().unwrap().to_string()));
     }
     let bytes = bytes.unwrap();
     if bytes.len() != TICK_ID_BYTE_COUNT {
@@ -48,7 +51,6 @@ impl PartialEq for TickId {
 }
 
 impl TickId {
-
   pub fn to_lowercase(&self) -> TickId {
     let binding = self.hex().to_lowercase();
     let lowercase = binding.as_str();
@@ -197,6 +199,16 @@ impl PledgedTick {
       PledgedTick::NATIVE => NATIVE_TOKEN.to_string(),
       PledgedTick::BRC20Tick(tick) => tick.as_str().to_string(),
       PledgedTick::BRC30Tick(tickid) => tickid.to_lowercase().hex(),
+    }
+  }
+  pub fn from_str(str: &str) -> Self {
+    match str {
+      NATIVE_TOKEN => PledgedTick::NATIVE,
+      _ => match str.len() {
+        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(Tick::from_str(str).unwrap()),
+        TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(str).unwrap()),
+        _ => PledgedTick::UNKNOWN,
+      },
     }
   }
 }

@@ -26,14 +26,14 @@ pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStore
         .get_balance(&script, &tickid)
         .map_or(Some(BRC30Balance::default(tickid)), |v| v)
         .unwrap();
-      Num::from(balance.overall_balance)
+      Num::from(balance.overall_balance - balance.transferable_balance)
     }
     PledgedTick::BRC20Tick(tick) => {
       let balance = brc20ledger
         .get_balance(&script, tick)
         .map_or(Some(BRC20Balance::new()), |v| v)
         .unwrap();
-      Num::from(balance.overall_balance)
+      Num::from(balance.overall_balance - balance.transferable_balance)
     }
     PledgedTick::UNKNOWN => Num::from(0_u128),
   }

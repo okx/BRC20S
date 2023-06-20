@@ -1,19 +1,38 @@
-use crate::{Inscription, Result};
+use crate::inscription_id::InscriptionId;
+use crate::okx::datastore::ScriptKey;
+use crate::okx::protocol::BRC30::operation::BRC30Operation;
+use crate::{Inscription, Result, SatPoint};
+use bitcoin::Txid;
 use error::JSONError;
+
 pub mod error;
 mod hash;
+pub mod msg_executor;
 pub mod num;
-mod operation;
+pub mod operation;
 pub mod params;
-pub mod updater;
 mod util;
 
 pub use self::{
   error::{BRC30Error, Error},
   num::Num,
-  operation::{deserialize_brc30, Deploy, Mint, Operation, Stake, Transfer, UnStake,PassiveUnStake},
-  updater::{Action, InscriptionData},
+  operation::{
+    deserialize_brc30, Deploy, Mint, Operation, PassiveUnStake, Stake, Transfer, UnStake,
+  },
 };
+
+pub struct BRC30Message {
+  pub txid: Txid,
+  pub block_height: u64,
+  pub block_time: u32,
+  pub inscription_id: InscriptionId,
+  pub inscription_number: i64,
+  pub from: ScriptKey,
+  pub to: ScriptKey,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub op: BRC30Operation,
+}
 
 pub fn deserialize_brc30_operation(
   inscription: Inscription,

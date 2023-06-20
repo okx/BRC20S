@@ -1,6 +1,6 @@
 use crate::inscription_id::InscriptionId;
 use crate::okx::datastore::balance::{
-  convert_amount_with_decimal, convert_pledged_tick_with_decimal,
+  convert_amount_with_decimal, convert_amount_without_decimal, convert_pledged_tick_with_decimal,
   convert_pledged_tick_without_decimal, get_stake_dec, get_user_common_balance, stake_is_exist,
 };
 use crate::okx::datastore::BRC30::{
@@ -84,14 +84,8 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   let tick_id = deploy.get_tick_id();
   let pid = deploy.get_pool_id();
   let ptype = deploy.get_pool_type();
-  if PoolType::Unknown == ptype {
-    return Err(Error::BRC30Error(BRC30Error::UnknownPoolType));
-  }
 
   let stake = deploy.get_stake_id();
-  if PledgedTick::UNKNOWN == stake {
-    return Err(Error::BRC30Error(BRC30Error::UnknownStakeType));
-  };
 
   let mut erate = Num::from(0_u128);
   let only = deploy.get_only();
@@ -165,32 +159,23 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
       .set_tick_info(&tick_id, &temp_tick)
       .map_err(|e| Error::LedgerError(e))?;
 
-    let base = BIGDECIMAL_TEN.checked_powu(temp_tick.decimal as u64)?;
-    //todo erate need check
-    erate = Num::from_str(deploy.earn_rate.as_str())?.checked_mul(&base)?;
+    erate = convert_amount_with_decimal(deploy.earn_rate.as_str(), temp_tick.decimal)?;
   } else {
     let decimal = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
       .checked_to_u8()?;
     if decimal > MAX_DECIMAL_WIDTH {
       return Err(Error::BRC30Error(BRC30Error::DecimalsTooLarge(decimal)));
     }
-    let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
 
-    let total_supply = Num::from_str(&deploy.total_supply.ok_or(Error::BRC30Error(
-      BRC30Error::InvalidSupply(Num::from(0_u128)),
-    ))?)?;
+    let supply_str = deploy.total_supply.ok_or(BRC30Error::InternalError(
+      "the first deploy must be set total supply".to_string(),
+    ))?;
+    let total_supply = convert_amount_with_decimal(supply_str.as_str(), decimal)?;
+    erate = convert_amount_with_decimal(&deploy.earn_rate.as_str(), decimal)?;
 
-    if total_supply.sign() == Sign::NoSign
-      || total_supply > Into::<Num>::into(u64::MAX)
-      || total_supply.scale() > decimal as i64
-    {
-      return Err(Error::BRC30Error(BRC30Error::InvalidSupply(total_supply)));
-    }
-
-    //todo erate need check
-    erate = Num::from_str(&deploy.earn_rate.as_str())?.checked_mul(&base)?;
+    let supply = total_supply.checked_to_u128()?;
     let c_tick_id = caculate_tick_id(
-      total_supply.checked_to_u128()?,
+      convert_amount_without_decimal(supply, decimal)?.checked_to_u128()?,
       decimal,
       &from_script_key,
       &to_script_key,
@@ -202,7 +187,6 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
       )));
     }
 
-    let supply = total_supply.checked_mul(&base)?.checked_to_u128()?;
     let pids = vec![pid.clone()];
     dmax = convert_amount_with_decimal(dmax_str.clone(), decimal)?.checked_to_u128()?;
     let tick = TickInfo::new(
@@ -233,7 +217,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     0,
     0,
     dmax,
-    0, //TODO need change
+    0,
     msg.block_height,
     only,
   );
@@ -1392,6 +1376,31 @@ mod tests {
       };
       assert_eq!(
         Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())),
+        result
+      );
+
+      let mut err_earn = deploy.clone();
+      err_earn.earn = "test".to_string();
+      err_earn.stake = "test".to_string();
+      let msg = create_brc30_message(
+        inscruptionId,
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Deploy(err_earn.clone()),
+      );
+      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_earn.clone());
+
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+      assert_eq!(
+        Err(BRC30Error::StakeEqualEarn(
+          err_earn.stake.to_string(),
+          err_earn.earn.to_string()
+        )),
         result
       );
     }

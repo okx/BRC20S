@@ -7,7 +7,9 @@ use crate::okx::datastore::BRC30::{
   BRC30DataStoreReadOnly, Balance as BRC30Balance, Pid, UserInfo,
 };
 use crate::okx::datastore::BRC30::{BRC30DataStoreReadWrite, PledgedTick};
-use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, NATIVE_TOKEN_DECIMAL};
+use crate::okx::protocol::BRC30::params::{
+  BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, NATIVE_TOKEN_DECIMAL,
+};
 use crate::okx::protocol::BRC30::{BRC30Error, Error, Num};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
@@ -132,16 +134,26 @@ pub fn convert_amount_with_decimal<L: BRC30DataStoreReadWrite>(
   amount: &str,
   decimal: u8,
 ) -> Result<Num, Error<L>> {
+  if decimal > MAX_DECIMAL_WIDTH {
+    return Err(Error::BRC30Error(BRC30Error::DecimalsTooLarge(decimal)));
+  }
   let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
   let mut amt = Num::from_str(amount)?;
 
   if amt.scale() > decimal as i64 {
-    return Err(Error::from(BRC30Error::InvalidNum(amt.to_string())));
+    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
+  }
+
+  if !amt.is_less_than_max_u64() || !amt.is_positive_integer() {
+    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
   }
 
   amt = amt.checked_mul(&base)?;
   if amt.sign() == Sign::NoSign {
     return Err(Error::from(BRC30Error::InvalidZeroAmount));
+  }
+  if !amt.is_positive_integer() {
+    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
   }
 
   Ok(amt)
@@ -183,16 +195,26 @@ pub fn convert_amount_without_decimal<L: BRC30DataStoreReadWrite>(
   amount: u128,
   decimal: u8,
 ) -> Result<Num, Error<L>> {
+  if decimal > MAX_DECIMAL_WIDTH {
+    return Err(Error::BRC30Error(BRC30Error::DecimalsTooLarge(decimal)));
+  }
+
   let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
   let mut amt = Num::from(amount);
 
-  if amt.scale() > decimal as i64 {
-    return Err(Error::from(BRC30Error::InvalidNum(amt.to_string())));
+  //amount must be integer
+  if amt.scale() != 0_i64 {
+    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
   }
 
   amt = amt.checked_div(&base)?;
   if amt.sign() == Sign::NoSign {
     return Err(Error::from(BRC30Error::InvalidZeroAmount));
   }
+
+  if !amt.is_less_than_max_u64() || !amt.is_positive_integer() {
+    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
+  }
+
   Ok(amt)
 }

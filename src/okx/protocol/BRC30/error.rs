@@ -155,6 +155,9 @@ pub enum BRC30Error {
 
   #[error("user has staked:{0} > user can staked:{1}")]
   InValidStakeInfo(u128, u128),
+
+  #[error("staked:{0} can not equal to earn:{1}")]
+  StakeEqualEarn(String, String),
 }
 
 impl<L: BRC30DataStoreReadOnly> From<BRC30Error> for Error<L> {

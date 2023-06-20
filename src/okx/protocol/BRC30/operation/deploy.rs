@@ -129,12 +129,15 @@ impl Deploy {
       return Err(iserr.unwrap());
     }
 
-    if self.stake.is_empty() {
-      return Err(BRC30Error::EmptyParams(self.stake.clone()));
+    if self.get_stake_id() == PledgedTick::UNKNOWN {
+      return Err(BRC30Error::UnknownStakeType);
     }
 
-    if self.earn.is_empty() {
-      return Err(BRC30Error::EmptyParams(self.earn.clone()));
+    if self.stake.eq(&self.earn) {
+      return Err(BRC30Error::StakeEqualEarn(
+        self.stake.clone(),
+        self.earn.clone(),
+      ));
     }
 
     if let Some(iserr) = BRC30Tick::from_str(self.earn.as_str()).err() {

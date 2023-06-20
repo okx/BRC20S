@@ -312,8 +312,6 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       StakeInfo::new(
         &vec![(pool_id.clone(), pool.only, userinfo.staked)],
         &stake_tick,
-        0,
-        0,
       ),
       |v| v,
     );
@@ -325,13 +323,6 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     }
   }
 
-  if pool.only {
-    user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)
-      .checked_add(&amount)?
-      .checked_to_u128()?;
-  } else {
-    user_stakeinfo.max_share = cmp::max(user_stakeinfo.max_share, userinfo.staked)
-  }
   brc30_store
     .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
     .map_err(|e| Error::LedgerError(e))?;
@@ -418,19 +409,6 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       pool_stake.2 = userinfo.staked;
       break;
     }
-  }
-  if pool.only {
-    user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)
-      .checked_sub(&amount)?
-      .checked_to_u128()?;
-  } else {
-    //search max stake within share pools
-    let max_pool_stakes = user_stakeinfo
-            .pool_stakes.iter()
-            .filter(|(pid, only, staked)| *only)//filter only pool
-            .max_by_key(|(pid, only, stake)| stake.clone())//search max stake
-            .ok_or(Error::BRC30Error(BRC30Error::InternalError("stakes info can not got max_share".to_string())))?;
-    user_stakeinfo.max_share = max_pool_stakes.2
   }
 
   brc30_store
@@ -1701,7 +1679,8 @@ mod tests {
 
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":1000000000,"pool_stakes":[["c7f75082ae#1f",true,1000000000]]}"##;
+    let expect_stakeinfo =
+      r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["c7f75082ae#1f",true,1000000000]]}"##;
     let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":1000000000,"reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
 
@@ -1744,7 +1723,8 @@ mod tests {
 
       let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
       let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
-      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":2000000000,"pool_stakes":[["c7f75082ae#1f",true,2000000000]]}"##;
+      let expect_stakeinfo =
+        r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["c7f75082ae#1f",true,2000000000]]}"##;
       let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":2000000000,"reward":100000,"reward_debt":2000000000,"latest_updated_block":0}"##;
       let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":100000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":1,"last_update_block":1,"only":true}"##;
       println!(
@@ -1888,7 +1868,8 @@ mod tests {
 
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":1000000000,"pool_stakes":[["c7f75082ae#1f",true,1000000000]]}"##;
+    let expect_stakeinfo =
+      r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["c7f75082ae#1f",true,1000000000]]}"##;
     let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":1000000000,"reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
 
@@ -1936,7 +1917,8 @@ mod tests {
 
       let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
       let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
-      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":0,"pool_stakes":[["c7f75082ae#1f",true,0]]}"##;
+      let expect_stakeinfo =
+        r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["c7f75082ae#1f",true,0]]}"##;
       let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":0,"reward":100000,"reward_debt":0,"latest_updated_block":0}"##;
       let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":100000,"staked":0,"dmax":1200000000,"acc_reward_per_share":1,"last_update_block":1,"only":true}"##;
       println!(
@@ -2080,7 +2062,8 @@ mod tests {
 
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":1000000000,"pool_stakes":[["c7f75082ae#1f",true,1000000000]]}"##;
+    let expect_stakeinfo =
+      r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["c7f75082ae#1f",true,1000000000]]}"##;
     let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":1000000000,"reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
 
@@ -2127,7 +2110,8 @@ mod tests {
 
       let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
       let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
-      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":0,"pool_stakes":[["c7f75082ae#1f",true,0]]}"##;
+      let expect_stakeinfo =
+        r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["c7f75082ae#1f",true,0]]}"##;
       let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":0,"reward":100000,"reward_debt":0,"latest_updated_block":0}"##;
       let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":100000,"staked":0,"dmax":1200000000,"acc_reward_per_share":1,"last_update_block":1,"only":true}"##;
       println!(

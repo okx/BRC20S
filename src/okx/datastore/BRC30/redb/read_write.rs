@@ -432,8 +432,6 @@ mod tests {
     let pid_20 = Pid::from_str("0000000000#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_20.clone(), true, 123)],
     };
 
@@ -441,8 +439,6 @@ mod tests {
     let pid_30 = Pid::from_str("0000000000#02").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_30.clone(), true, 123)],
     };
 
@@ -450,8 +446,6 @@ mod tests {
     let pid_btc = Pid::from_str("0000000000#03").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_btc.clone(), true, 123)],
     };
 
@@ -678,8 +672,6 @@ mod tests {
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_20.clone(), true, 123)],
     };
 
@@ -687,8 +679,6 @@ mod tests {
     let pid_30 = Pid::from_str("1234567891#01").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_30.clone(), true, 123)],
     };
 
@@ -700,8 +690,6 @@ mod tests {
     let pid_btc = Pid::from_str("1234567890#01").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_btc.clone(), true, 123)],
     };
 
@@ -749,8 +737,6 @@ mod tests {
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_20.clone(), true, 123)],
     };
 
@@ -758,8 +744,6 @@ mod tests {
     let pid_30 = Pid::from_str("1234567891#01").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_30.clone(), true, 123)],
     };
 
@@ -771,8 +755,6 @@ mod tests {
     let pid_btc = Pid::from_str("1234567892#01").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
-      max_share: 123,
-      total_only: 123,
       pool_stakes: vec![(pid_btc.clone(), true, 123)],
     };
 

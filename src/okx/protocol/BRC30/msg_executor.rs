@@ -84,9 +84,6 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   let tick_id = deploy.get_tick_id();
   let pid = deploy.get_pool_id();
   let ptype = deploy.get_pool_type();
-  if PoolType::Unknown == ptype {
-    return Err(Error::BRC30Error(BRC30Error::UnknownPoolType));
-  }
 
   let stake = deploy.get_stake_id();
   if PledgedTick::UNKNOWN == stake {
@@ -1392,6 +1389,31 @@ mod tests {
       };
       assert_eq!(
         Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())),
+        result
+      );
+
+      let mut err_earn = deploy.clone();
+      err_earn.earn = "test".to_string();
+      err_earn.stake = "test".to_string();
+      let msg = create_brc30_message(
+        inscruptionId,
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Deploy(err_earn.clone()),
+      );
+      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_earn.clone());
+
+      let pid = deploy.get_pool_id();
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+      assert_eq!(
+        Err(BRC30Error::StakeEqualEarn(
+          err_earn.stake.to_string(),
+          err_earn.earn.to_string()
+        )),
         result
       );
     }

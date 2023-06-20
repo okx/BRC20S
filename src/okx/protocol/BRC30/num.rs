@@ -1,7 +1,7 @@
 use crate::okx::protocol::BRC30::params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH};
 use crate::okx::protocol::BRC30::BRC30Error;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
-use bigdecimal::{BigDecimal, One, ToPrimitive, Zero};
+use bigdecimal::{BigDecimal, One, Signed, ToPrimitive, Zero};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -128,6 +128,14 @@ impl Num {
     } else {
       Num::from(b.clone())
     }
+  }
+
+  pub fn is_positive_integer(&self) -> bool {
+    self.0.is_positive() && self.scale() == 0
+  }
+
+  pub fn is_less_than_max_u64(&self) -> bool {
+    self.0 <= Into::<BigDecimal>::into(u64::MAX)
   }
 }
 

@@ -92,6 +92,7 @@ pub struct DeployPoolEvent {
 pub struct DepositEvent {
   pub(crate) pid: Pid,
   pub(crate) amt: u128,
+  pub(crate) reward: u128,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -103,7 +104,7 @@ pub struct WithdrawEvent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct PassiveWithdrawEvent {
-  pub(crate) pid: Vec<(Pid,u128)>,
+  pub(crate) pid: Vec<(Pid, u128)>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]

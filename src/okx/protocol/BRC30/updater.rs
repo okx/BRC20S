@@ -514,6 +514,9 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
     let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
 
     userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
+    pool.staked = Num::from(pool.staked)
+      .checked_sub(&amount)?
+      .checked_to_u128()?;
     reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
 
     self
@@ -530,18 +533,18 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
         Num::from(0_u128),
       )))?;
 
+    //update pool_stakes
+    for pool_stake in user_stakeinfo.pool_stakes.iter_mut() {
+      if pool_stake.0 == pool_id {
+        pool_stake.2 = userinfo.staked;
+        break;
+      }
+    }
     if pool.only {
       user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)
         .checked_sub(&amount)?
         .checked_to_u128()?;
     } else {
-      //update pool_stakes
-      for pool_stake in user_stakeinfo.pool_stakes.iter_mut() {
-        if pool_stake.0 == pool_id {
-          pool_stake.2 = userinfo.staked;
-          break;
-        }
-      }
       //search max stake within share pools
       let max_pool_stakes = user_stakeinfo
         .pool_stakes.iter()
@@ -550,6 +553,15 @@ impl<'a, 'db, 'tx, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
         .ok_or(Error::BRC30Error(BRC30Error::InternalError("stakes info can not got max_share".to_string())))?;
       user_stakeinfo.max_share = max_pool_stakes.2
     }
+    self
+      .ledger
+      .set_pid_to_poolinfo(&pool_id, &pool)
+      .map_err(|e| Error::LedgerError(e))?;
+
+    self
+      .ledger
+      .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
+      .map_err(|e| Error::LedgerError(e))?;
     return Ok(BRC30Event::Withdraw(WithdrawEvent {
       pid: pool_id,
       amt: amount.checked_to_u128()?,
@@ -1757,6 +1769,185 @@ mod tests {
       let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":2000000000,"pool_stakes":[["c7f75082ae#1f",true,2000000000]]}"##;
       let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":2000000000,"reward":100000,"reward_debt":2000000000,"latest_updated_block":0}"##;
       let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":100000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":1,"last_update_block":1,"only":true}"##;
+      println!(
+        "expect_poolinfo:{}",
+        serde_json::to_string(&poolinfo).unwrap()
+      );
+      println!(
+        "expect_stakeinfo:{}",
+        serde_json::to_string(&stakeinfo).unwrap()
+      );
+      println!(
+        "expect_userinfo:{}",
+        serde_json::to_string(&userinfo).unwrap()
+      );
+
+      assert_eq!(expect_poolinfo, serde_json::to_string(&poolinfo).unwrap());
+      assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
+      assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
+    }
+  }
+
+  #[test]
+  fn test_process_unstake() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let mut inscription_id_to_inscription_entry =
+      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
+
+    let brc20_data_store = BRC20DataStore::new(&wtx);
+    let brc30_data_store = BRC30DataStore::new(&wtx);
+    let mut brc30update = BRC30Updater::new(
+      &brc30_data_store,
+      &brc20_data_store,
+      &inscription_id_to_inscription_entry,
+    );
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "c7f75082ae#1f".to_string(),
+      stake: "orea".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "1000".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("2".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    let addr1 =
+      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
+    let script = ScriptKey::from_address(addr1);
+    let inscruptionId =
+      InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
+
+    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token_info = TokenInfo {
+      tick: token.clone(),
+      inscription_id: inscruptionId.clone(),
+      inscription_number: 0,
+      supply: 21000000000_u128,
+      minted: 2000000000_u128,
+      limit_per_mint: 0,
+      decimal: 3,
+      deploy_by: script.clone(),
+      deployed_number: 0,
+      deployed_timestamp: 0,
+      latest_mint_number: 0,
+    };
+    brc20_data_store.insert_token_info(&token, &token_info);
+    let balance = BRC20Banalce {
+      overall_balance: 2000000000_u128,
+      transferable_balance: 1000000000_u128,
+    };
+    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    match result {
+      Err(error) => {
+        panic!("update_token_balance err: {}", error)
+      }
+      _ => {}
+    }
+
+    let result = brc30update.process_deploy(
+      deploy.clone(),
+      0,
+      inscruptionId,
+      Some(script.clone()),
+      Some(script.clone()),
+    );
+
+    let result: Result<BRC30Event, BRC30Error> = match result {
+      Ok(event) => Ok(event),
+      Err(Error::BRC30Error(e)) => Err(e),
+      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+    };
+
+    match result {
+      Ok(event) => {
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+      }
+      Err(e) => {
+        assert_eq!("error", e.to_string())
+      }
+    }
+    let tick_id = deploy.get_tick_id();
+    let pid = deploy.get_pool_id();
+    let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+
+    let expectTickINfo = r##"{"tick_id":"c7f75082ae","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"minted":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["c7f75082ae#1f"]}"##;
+    let expectPoolInfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
+    assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
+
+    let stakeTick = PledgedTick::BRC20Tick(token.clone());
+    let stakeMsg = Stake {
+      pool_id: pid.as_str().to_string(),
+      amount: "1000000".to_string(),
+    };
+
+    let result = brc30update.process_stake(stakeMsg.clone(), 0, Some(script.clone()));
+
+    let result: Result<BRC30Event, BRC30Error> = match result {
+      Ok(event) => Ok(event),
+      Err(Error::BRC30Error(e)) => Err(e),
+      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+    };
+
+    match result {
+      Ok(event) => {
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+      }
+      Err(e) => {
+        assert_eq!("error", e.to_string())
+      }
+    }
+    let stakeinfo = brc30_data_store
+      .get_user_stakeinfo(&script, &stakeTick)
+      .unwrap();
+
+    let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
+    let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":1000000000,"pool_stakes":[["c7f75082ae#1f",true,1000000000]]}"##;
+    let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":1000000000,"reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
+
+    assert_eq!(expect_poolinfo, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
+    assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
+    {
+      let stakeTick = PledgedTick::BRC20Tick(token.clone());
+      let unstakeMsg = UnStake {
+        pool_id: pid.as_str().to_string(),
+        amount: "1000000".to_string(),
+      };
+
+      let result = brc30update.process_unstake(unstakeMsg.clone(), 1, Some(script.clone()));
+
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      match result {
+        Ok(event) => {
+          println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+        }
+        Err(e) => {
+          assert_eq!("error", e.to_string())
+        }
+      }
+      let stakeinfo = brc30_data_store
+        .get_user_stakeinfo(&script, &stakeTick)
+        .unwrap();
+
+      let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
+      let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":0,"pool_stakes":[["c7f75082ae#1f",true,0]]}"##;
+      let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":0,"reward":100000,"reward_debt":0,"latest_updated_block":0}"##;
+      let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":100000,"staked":0,"dmax":1200000000,"acc_reward_per_share":1,"last_update_block":1,"only":true}"##;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&poolinfo).unwrap()

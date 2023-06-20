@@ -1718,13 +1718,13 @@ mod tests {
 
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":1000000000000000000000000,"pool_stakes":[["c7f75082ae#1f",true,1000000000000000000000000]]}"##;
-    let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","staked":1000000000000000000000000,"reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_userinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":10000000000000000000,"minted":0,"staked":1000000000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"max_share":0,"total_only":1000000000,"pool_stakes":[["c7f75082ae#1f",true,1000000000]]}"##;
+    let expect_userinfo = r##"{"pid":"c7f75082ae#1f","staked":1000000000,"reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_poolinfo = r##"{"pid":"c7f75082ae#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":0,"last_update_block":0,"only":true}"##;
 
-    // assert_eq!(expect_poolinfo, serde_json::to_string(&poolinfo).unwrap());
-    // assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
-    // assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
+    assert_eq!(expect_poolinfo, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
+    assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
     {
       let stakeTick = PledgedTick::BRC20Tick(token.clone());
       let stakeMsg = Stake {

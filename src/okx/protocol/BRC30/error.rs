@@ -46,6 +46,9 @@ pub enum BRC30Error {
   #[error("invalid number: {0}")]
   InvalidNum(String),
 
+  #[error("invalid erate: {0}")]
+  InvalidErate(String),
+
   #[error("tick invalid supply {0}")]
   InvalidSupply(Num),
 

@@ -93,7 +93,9 @@ pub fn withdraw_user_reward(
 
   //1 check user's staked gt 0
   if user_staked <= Num::zero() {
-    return Err(BRC30Error::NoStaked(user.pid.to_lowercase().hex()));
+    return Err(BRC30Error::NoStaked(
+      user.pid.to_lowercase().as_str().to_string(),
+    ));
   }
 
   //2 reward = staked * accRewardPerShare - user reward_debt

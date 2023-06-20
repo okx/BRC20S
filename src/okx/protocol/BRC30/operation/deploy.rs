@@ -1,15 +1,18 @@
-use std::fmt::format;
-use std::str::FromStr;
-use bitcoin::hashes::{Hash, sha256};
+use crate::okx::datastore::BRC20::Tick;
+use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
+use crate::okx::protocol::BRC30::params::{
+  FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE, TICK_BYTE_COUNT,
+  TICK_ID_STR_COUNT,
+};
+use crate::okx::protocol::BRC30::util::validate_pool_str;
+use crate::okx::protocol::BRC30::{BRC30Error, Error, Num, Stake};
 use bitcoin::hashes::hex::ToHex;
+use bitcoin::hashes::{sha256, Hash};
 use bitcoin::util::base58::from;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
-use crate::okx::datastore::BRC20::Tick;
-use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
-use crate::okx::protocol::BRC30::params::{FIXED_TYPE, MAX_DECIMAL_WIDTH, NATIVE_TOKEN, PID_BYTE_COUNT, POOL_TYPE,TICK_BYTE_COUNT,TICK_ID_STR_COUNT};
-use crate::okx::protocol::BRC30::{BRC30Error, Error, Num, Stake};
-use crate::okx::protocol::BRC30::util::validate_pool_str;
+use std::fmt::format;
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Deploy {
@@ -50,8 +53,6 @@ pub struct Deploy {
   // Assets only deposit this pool，must be yes
   #[serde(rename = "only")]
   pub only: Option<String>,
-
-
 }
 
 impl Deploy {
@@ -96,19 +97,15 @@ impl Deploy {
     match stake {
       NATIVE_TOKEN => PledgedTick::NATIVE,
       _ => match self.stake.len() {
-        TICK_BYTE_COUNT => PledgedTick::BRC20Tick( Tick::from_str(stake).unwrap() ),
-        TICK_ID_STR_COUNT => PledgedTick::BRC30Tick( TickId::from_str(stake).unwrap()),
+        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(Tick::from_str(stake).unwrap()),
+        TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(stake).unwrap()),
         _ => PledgedTick::UNKNOWN,
-      }
+      },
     }
   }
 
   pub fn get_earn_id(&self) -> BRC30Tick {
-    return BRC30Tick::from_str(self.earn.as_str()).unwrap()
-  }
-
-  pub fn get_earn_rate(&self) -> u128 {
-    from_str(self.earn_rate.as_str()).unwrap()
+    return BRC30Tick::from_str(self.earn.as_str()).unwrap();
   }
 
   pub fn get_distribution_max(&self) -> u128 {
@@ -127,8 +124,8 @@ impl Deploy {
     if self.get_pool_type() == PoolType::Unknown {
       return Err(BRC30Error::UnknownPoolType);
     }
-    let iserr= validate_pool_str(self.pool_id.as_str()).err();
-    if None != iserr  {
+    let iserr = validate_pool_str(self.pool_id.as_str()).err();
+    if None != iserr {
       return Err(iserr.unwrap());
     }
 
@@ -141,14 +138,18 @@ impl Deploy {
     }
 
     if let Some(iserr) = BRC30Tick::from_str(self.earn.as_str()).err() {
-        return Err(iserr);
+      return Err(iserr);
     }
 
-    if let Some(iserr) = Num::from_str(self.earn_rate.as_str()).err()  {
-      return Err(BRC30Error::InvalidNum(self.earn_rate.clone()+iserr.to_string().as_str()));
+    if let Some(iserr) = Num::from_str(self.earn_rate.as_str()).err() {
+      return Err(BRC30Error::InvalidNum(
+        self.earn_rate.clone() + iserr.to_string().as_str(),
+      ));
     }
-    if let Some(iserr) = Num::from_str(self.distribution_max.as_str()).err()  {
-      return Err(BRC30Error::InvalidNum(self.distribution_max.clone()+iserr.to_string().as_str()));
+    if let Some(iserr) = Num::from_str(self.distribution_max.as_str()).err() {
+      return Err(BRC30Error::InvalidNum(
+        self.distribution_max.clone() + iserr.to_string().as_str(),
+      ));
     }
 
     if let Some(supply) = self.total_supply.as_ref() {
@@ -157,27 +158,31 @@ impl Deploy {
         Ok(total) => {
           let dmax = Num::from_str(self.distribution_max.as_str()).unwrap();
           if total.lt(&dmax) {
-            return Err(BRC30Error::ExceedDmax(self.distribution_max.clone(),supply.clone()))
+            return Err(BRC30Error::ExceedDmax(
+              self.distribution_max.clone(),
+              supply.clone(),
+            ));
           }
         }
         Err(e) => {
-          return Err(BRC30Error::InvalidNum(supply.to_string() + e.to_string().as_str()));
+          return Err(BRC30Error::InvalidNum(
+            supply.to_string() + e.to_string().as_str(),
+          ));
         }
       }
     }
 
     if let Some(dec) = self.decimals.as_ref() {
-      if let Some(iserr) = Num::from_str(dec.as_str()).err()  {
-        return Err(BRC30Error::InvalidNum(dec.to_string() + iserr.to_string().as_str()));
+      if let Some(iserr) = Num::from_str(dec.as_str()).err() {
+        return Err(BRC30Error::InvalidNum(
+          dec.to_string() + iserr.to_string().as_str(),
+        ));
       }
     }
-
 
     Ok(())
   }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -330,8 +335,16 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!((),deploy.validate_basic().map_err(|e| { println!("{}", e);e }).unwrap());
-
+    assert_eq!(
+      (),
+      deploy
+        .validate_basic()
+        .map_err(|e| {
+          println!("{}", e);
+          e
+        })
+        .unwrap()
+    );
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -344,8 +357,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true,deploy.validate_basic().is_err());
-
+    assert_eq!(true, deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -358,7 +370,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true,deploy.validate_basic().is_err());
+    assert_eq!(true, deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -371,7 +383,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true,deploy.validate_basic().is_err());
+    assert_eq!(true, deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -384,7 +396,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true,deploy.validate_basic().is_err());
+    assert_eq!(true, deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -397,7 +409,6 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true,deploy.validate_basic().is_err());
+    assert_eq!(true, deploy.validate_basic().is_err());
   }
-
 }

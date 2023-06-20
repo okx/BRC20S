@@ -269,9 +269,13 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::BRC30::{BRC30DataStoreReadOnly, BRC30DataStoreReadWrite};
+  use crate::okx::datastore::BRC30::{
+    BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30OperationType,
+  };
   use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
+  use crate::okx::protocol::BRC30::operation::BRC30Operation;
   use crate::okx::protocol::BRC30::BRC30Error;
+  use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;
   use std::str::FromStr;
@@ -593,6 +597,8 @@ mod tests {
 
   #[test]
   fn test_txid_to_receipts() {
+    let addr =
+      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
@@ -608,14 +614,50 @@ mod tests {
     let op_vec = vec![
       BRC30Receipt {
         inscription_id: inscription_id.clone(),
+        inscription_number: 0,
+        old_satpoint: SatPoint {
+          outpoint: Default::default(),
+          offset: 0,
+        },
+        new_satpoint: SatPoint {
+          outpoint: Default::default(),
+          offset: 0,
+        },
+        op: BRC30OperationType::Transfer,
+        from: ScriptKey::Address(addr.clone()),
+        to: ScriptKey::Address(addr.clone()),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
       BRC30Receipt {
         inscription_id: inscription_id.clone(),
+        inscription_number: 0,
+        old_satpoint: SatPoint {
+          outpoint: Default::default(),
+          offset: 0,
+        },
+        new_satpoint: SatPoint {
+          outpoint: Default::default(),
+          offset: 0,
+        },
+        op: BRC30OperationType::Transfer,
+        from: ScriptKey::Address(addr.clone()),
+        to: ScriptKey::Address(addr.clone()),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
       BRC30Receipt {
         inscription_id: inscription_id.clone(),
+        inscription_number: 0,
+        old_satpoint: SatPoint {
+          outpoint: Default::default(),
+          offset: 0,
+        },
+        new_satpoint: SatPoint {
+          outpoint: Default::default(),
+          offset: 0,
+        },
+        op: BRC30OperationType::Transfer,
+        from: ScriptKey::Address(addr.clone()),
+        to: ScriptKey::Address(addr.clone()),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
     ];

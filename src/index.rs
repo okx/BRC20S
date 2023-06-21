@@ -1266,22 +1266,19 @@ impl Index {
     Ok(all_balance)
   }
 
-  pub(crate) fn brc30_transferable(
+  pub(crate) fn brc30_tickid_transferable(
     &self,
     tickId: &String,
     address: &bitcoin::Address,
-  ) -> Result<Option<BRC30::TransferableAsset>> {
+  ) -> Result<Vec<BRC30::TransferableAsset>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
 
-    //TODO
-    let inscription_id =
-      InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
-        .unwrap();
-
-    let info = brc30_db
-      .get_transferable_by_id(&ScriptKey::from_address(address.clone()), &inscription_id)?;
-    Ok(info)
+    let result = brc30_db.get_transferable_by_tickid(
+      &ScriptKey::from_address(address.clone()),
+      &BRC30::TickId::from_str(tickId)?,
+    )?;
+    Ok(result)
   }
 
   pub(crate) fn brc30_all_transferable(

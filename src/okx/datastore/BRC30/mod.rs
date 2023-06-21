@@ -78,6 +78,12 @@ pub trait BRC30DataStoreReadOnly {
 
   fn get_transferable(&self, script: &ScriptKey) -> Result<Vec<TransferableAsset>, Self::Error>;
 
+  fn get_transferable_by_tickid(
+    &self,
+    script: &ScriptKey,
+    tick_id: &TickId,
+  ) -> Result<Vec<TransferableAsset>, Self::Error>;
+
   fn get_transferable_by_id(
     &self,
     script: &ScriptKey,

@@ -113,6 +113,14 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_transferable(script)
   }
 
+  fn get_transferable_by_tickid(
+    &self,
+    script: &ScriptKey,
+    tick_id: &TickId,
+  ) -> Result<Vec<TransferableAsset>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_transferable_by_tickid(script, tick_id)
+  }
+
   fn get_transferable_by_id(
     &self,
     script: &ScriptKey,

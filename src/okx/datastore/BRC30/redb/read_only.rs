@@ -288,6 +288,21 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
+  fn get_transferable_by_tickid(
+    &self,
+    script: &ScriptKey,
+    tick_id: &TickId,
+  ) -> Result<Vec<TransferableAsset>, Self::Error> {
+    Ok(
+      self
+        .get_transferable(script)?
+        .iter()
+        .filter(|log| log.tick_id == *tick_id)
+        .map(|log| log.clone())
+        .collect(),
+    )
+  }
+
   fn get_transferable_by_id(
     &self,
     script: &ScriptKey,

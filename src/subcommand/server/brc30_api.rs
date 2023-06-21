@@ -168,32 +168,31 @@ pub(crate) async fn brc30_all_balance(
 // 3.4.8 /brc30/tick/:tickId/address/:address/transferable
 pub(crate) async fn brc30_transferable(
   Extension(index): Extension<Arc<Index>>,
-  Path((tickId, address)): Path<(String, String)>,
+  Path((tick_id, address)): Path<(String, String)>,
 ) -> ApiResult<Transferable> {
-  log::debug!("rpc: get brc30_transferable: {},{}", tickId, address);
+  log::debug!("rpc: get brc30_transferable: {},{}", tick_id, address);
 
-  if tickId.as_bytes().len() != 5 {
+  if tick_id.as_bytes().len() != 5 {
     return Err(ApiError::bad_request("tick id length must 5."));
   }
-  let tickId = tickId.to_lowercase();
+  let tick_id = tick_id.to_lowercase();
   let address: bitcoin::Address = address
     .parse()
     .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
-  let transfer = &index
-    .brc30_transferable(&tickId, &address)?
-    .ok_or_api_not_found("pid not found")?;
+  let all_transfer = &index.brc30_tickid_transferable(&tick_id, &address)?;
 
   log::debug!(
     "rpc: get brc30_transferable: {:?} {:?}",
-    tickId.as_str(),
-    transfer
+    tick_id.as_str(),
+    all_transfer
   );
 
-  let a = Transferable {
-    inscriptions: vec![transfer.into()],
-  };
-
-  Ok(Json(ApiResponse::ok(a)))
+  Ok(Json(ApiResponse::ok(Transferable {
+    inscriptions: all_transfer
+      .iter()
+      .map(|(transfer)| transfer.into())
+      .collect(),
+  })))
 }
 
 // 3.4.9 /brc30/address/:address/transferable

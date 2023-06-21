@@ -7,7 +7,10 @@ pub mod unstake;
 
 use super::error::JSONError;
 use super::params::*;
-use crate::okx::datastore::BRC30::BRC30OperationType;
+use crate::{
+  okx::datastore::{BRC30::BRC30OperationType, ORD::Action},
+  Inscription, Result,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -61,6 +64,46 @@ pub enum Operation {
 
   #[serde(rename = "transfer")]
   Transfer(Transfer),
+}
+
+pub fn deserialize_brc30_operation(
+  inscription: &Inscription,
+  action: &Action,
+) -> Result<BRC30Operation> {
+  let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
+  if content_body.len() < 40 {
+    return Err(JSONError::NotBRC30Json.into());
+  }
+
+  let content_type = inscription
+    .content_type()
+    .ok_or(JSONError::InvalidContentType)?;
+
+  if content_type != "text/plain"
+    && content_type != "text/plain;charset=utf-8"
+    && content_type != "text/plain;charset=UTF-8"
+    && content_type != "application/json"
+  {
+    if !content_type.starts_with("text/plain;") {
+      return Err(JSONError::UnSupportContentType.into());
+    }
+  }
+  let raw_operation = deserialize_brc30(content_body)?;
+
+  match action {
+    Action::New => match raw_operation {
+      Operation::Deploy(deploy) => Ok(BRC30Operation::Deploy(deploy)),
+      Operation::Stake(stake) => Ok(BRC30Operation::Stake(stake)),
+      Operation::UnStake(unstake) => Ok(BRC30Operation::UnStake(unstake)),
+      Operation::Mint(mint) => Ok(BRC30Operation::Mint(mint)),
+      Operation::Transfer(transfer) => Ok(BRC30Operation::InscribeTransfer(transfer)),
+      Operation::PassiveUnStake(_) => Err(JSONError::NotBRC30Json.into()),
+    },
+    Action::Transfer => match raw_operation {
+      Operation::Transfer(_) => Ok(BRC30Operation::Transfer),
+      _ => Err(JSONError::NotBRC30Json.into()),
+    },
+  }
 }
 
 pub fn deserialize_brc30(s: &str) -> Result<Operation, JSONError> {
@@ -277,6 +320,136 @@ mod tests {
       Err(JSONError::ParseOperationJsonError(
         "missing field `op`".to_string()
       ))
+    );
+  }
+
+  #[test]
+  fn test_ignore_non_transfer_brc20() {
+    let content_type = "text/plain;charset=utf-8".as_bytes().to_vec();
+    assert_eq!(
+      deserialize_brc30_operation(
+        &Inscription::new(
+          Some(content_type.clone()),
+          Some(
+            r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##
+              .as_bytes()
+              .to_vec(),
+          ),
+        ),
+        &Action::New,
+      )
+      .unwrap(),
+      BRC30Operation::Deploy(Deploy {
+        pool_type: "pool".to_string(),
+        pool_id: "a3668daeaa#1f".to_string(),
+        stake: "btc".to_string(),
+        earn: "ordi".to_string(),
+        earn_rate: "10".to_string(),
+        distribution_max: "12000000".to_string(),
+        decimals: Some("18".to_string()),
+        total_supply: Some("21000000".to_string()),
+        only: Some("1".to_string()),
+      }),
+    );
+
+    assert_eq!(
+      deserialize_brc30_operation(
+        &Inscription::new(
+          Some(content_type.clone()),
+          Some(
+            r##"{"p":"brc-30","op":"stake","pid":"pool_id","amt":"12000"}"##
+              .as_bytes()
+              .to_vec(),
+          ),
+        ),
+        &Action::New,
+      )
+      .unwrap(),
+      BRC30Operation::Stake(Stake {
+        pool_id: "pool_id".to_string(),
+        amount: "12000".to_string()
+      })
+    );
+
+    assert_eq!(
+      deserialize_brc30_operation(
+        &Inscription::new(
+          Some(content_type.clone()),
+          Some(
+            r##"{"p":"brc-30","op":"mint","tick":"tick","tid":"tick_id","amt":"12000"}"##
+              .as_bytes()
+              .to_vec(),
+          ),
+        ),
+        &Action::New,
+      )
+      .unwrap(),
+      BRC30Operation::Mint(Mint {
+        tick: "tick".to_string(),
+        tick_id: "tick_id".to_string(),
+        amount: "12000".to_string()
+      })
+    );
+
+    assert_eq!(
+      deserialize_brc30_operation(
+        &Inscription::new(
+          Some(content_type.clone()),
+          Some(
+            r##"{"p":"brc-30","op":"unstake","pid":"pool_id","amt":"12000"}"##
+              .as_bytes()
+              .to_vec(),
+          ),
+        ),
+        &Action::New,
+      )
+      .unwrap(),
+      BRC30Operation::UnStake(UnStake {
+        pool_id: "pool_id".to_string(),
+        amount: "12000".to_string()
+      })
+    );
+
+    assert!(deserialize_brc30_operation(
+      &Inscription::new(
+        Some(content_type.clone()),
+        Some(
+          r##"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"##
+            .as_bytes()
+            .to_vec(),
+        ),
+      ),
+      &Action::Transfer,
+    )
+    .is_err());
+
+    assert!(deserialize_brc30_operation(
+      &Inscription::new(
+        Some(content_type.clone()),
+        Some(
+          r##"{"p":"brc-30","op":"mint","tick":"abcd","amt":"12000"}"##
+            .as_bytes()
+            .to_vec(),
+        ),
+      ),
+      &Action::Transfer,
+    )
+    .is_err());
+
+    assert_eq!(
+      deserialize_brc30_operation(
+        &Inscription::new(
+          Some(content_type.clone()),
+          Some(
+            r##"{"p":"brc-30","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"##
+              .as_bytes()
+              .to_vec(),
+          ),
+        ),
+        &Action::Transfer,
+      )
+      .unwrap(),
+      BRC30Operation::Transfer
     );
   }
 }

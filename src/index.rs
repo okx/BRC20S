@@ -1219,7 +1219,7 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn brc30_all_pool_info(&self) -> Result<Vec<(brc30::PoolInfo)>> {
+  pub(crate) fn brc30_all_pool_info(&self) -> Result<Vec<brc30::PoolInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
     let all_pool = brc30_db.get_all_poolinfo()?;
@@ -1266,7 +1266,7 @@ impl Index {
 
   pub(crate) fn brc30_tickid_transferable(
     &self,
-    _tick_id: &String,
+    tick_id: &String,
     address: &bitcoin::Address,
   ) -> Result<Vec<brc30::TransferableAsset>> {
     let wtx = self.database.begin_read().unwrap();

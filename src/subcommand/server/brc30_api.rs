@@ -44,13 +44,13 @@ pub(crate) async fn brc30_tick_info(
 
 // brc30/pool
 pub(crate) async fn brc30_all_pool_info(
-  Extension(_index): Extension<Arc<Index>>,
+  Extension(index): Extension<Arc<Index>>,
 ) -> ApiResult<AllBRC30PoolInfo> {
   log::debug!("rpc: get brc30_all_pool_info");
   let all_pool_info = index.brc30_all_pool_info()?;
   log::debug!("rpc: get brc30_all_pool_info: {:?}", all_pool_info);
   Ok(Json(ApiResponse::ok(AllBRC30PoolInfo {
-    tokens: all_pool_info.iter().map(|(pool)| pool.into()).collect(),
+    tokens: all_pool_info.iter().map(|pool| pool.into()).collect(),
   })))
 }
 
@@ -193,7 +193,7 @@ pub(crate) async fn brc30_transferable(
   Ok(Json(ApiResponse::ok(Transferable {
     inscriptions: all_transfer
       .iter()
-      .map(|(transfer)| transfer.into())
+      .map(|transfer| transfer.into())
       .collect(),
   })))
 }

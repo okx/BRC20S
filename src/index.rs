@@ -1312,14 +1312,13 @@ impl Index {
       return Ok(None);
     }
 
-    let wtx = self.database.begin_read().unwrap();
     let mut result = Vec::new();
-    for txid in &block.tx {
-      let tx_events = self.brc30_txid_events(txid)?;
+    for tx_id in &block.tx {
+      let tx_events = self.brc30_txid_events(tx_id)?;
       if tx_events.len() == 0 {
         continue;
       }
-      result.push((txid.clone(), tx_events));
+      result.push((tx_id.clone(), tx_events));
     }
 
     Ok(Some(result))

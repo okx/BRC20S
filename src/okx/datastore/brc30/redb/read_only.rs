@@ -108,6 +108,20 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
+  fn get_all_tick_info(&self) -> Result<Vec<TickInfo>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_TICKINFO)?
+        .range(TickId::min_hex().as_str()..TickId::max_hex().as_str())?
+        .map(|(_, data)| {
+          let pool = bincode::deserialize::<TickInfo>(data.value()).unwrap();
+          pool
+        })
+        .collect(),
+    )
+  }
+
   // 3.3.4 BRC30_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     Ok(
@@ -116,6 +130,20 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .open_table(BRC30_PID_TO_POOLINFO)?
         .get(pid.to_lowercase().hex().as_str())?
         .map(|v| bincode::deserialize::<PoolInfo>(v.value()).unwrap()),
+    )
+  }
+
+  fn get_all_poolinfo(&self) -> Result<Vec<PoolInfo>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_PID_TO_POOLINFO)?
+        .range(Pid::min_hex().as_str()..Pid::max_hex().as_str())?
+        .map(|(_, data)| {
+          let pool = bincode::deserialize::<PoolInfo>(data.value()).unwrap();
+          pool
+        })
+        .collect(),
     )
   }
 
@@ -255,6 +283,21 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .range(min_script_tick_id_key(script).as_str()..max_script_tick_id_key(script).as_str())?
         .map(|(_, v)| bincode::deserialize::<Vec<TransferableAsset>>(v.value()).unwrap())
         .flatten()
+        .collect(),
+    )
+  }
+
+  fn get_transferable_by_tickid(
+    &self,
+    script: &ScriptKey,
+    tick_id: &TickId,
+  ) -> Result<Vec<TransferableAsset>, Self::Error> {
+    Ok(
+      self
+        .get_transferable(script)?
+        .iter()
+        .filter(|log| log.tick_id == *tick_id)
+        .map(|log| log.clone())
         .collect(),
     )
   }

@@ -1201,9 +1201,8 @@ impl Index {
   pub(crate) fn brc30_all_tick_info(&self) -> Result<Vec<brc30::TickInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
-    // let info = brc30_db.get_tick_info(&brc20::Tick::from_str(name)?)?;
-    //TODO get tick info vec
-    Ok(vec![])
+    let all_tick = brc30_db.get_all_tick_info()?;
+    Ok(all_tick)
   }
 
   pub(crate) fn brc30_tick_info(&self, tick_id: &String) -> Result<Option<brc30::TickInfo>> {
@@ -1218,6 +1217,13 @@ impl Index {
     let brc30_db = BRC30DataStoreReader::new(&wtx);
     let info = brc30_db.get_pid_to_poolinfo(&brc30::Pid::from_str(pid)?)?;
     Ok(info)
+  }
+
+  pub(crate) fn brc30_all_pool_info(&self) -> Result<Vec<(brc30::PoolInfo)>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let all_pool = brc30_db.get_all_poolinfo()?;
+    Ok(all_pool)
   }
 
   pub(crate) fn brc30_user_info(
@@ -1258,22 +1264,19 @@ impl Index {
     Ok(all_balance)
   }
 
-  pub(crate) fn brc30_transferable(
+  pub(crate) fn brc30_tickid_transferable(
     &self,
     _tick_id: &String,
     address: &bitcoin::Address,
-  ) -> Result<Option<brc30::TransferableAsset>> {
+  ) -> Result<Vec<brc30::TransferableAsset>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
 
-    //TODO
-    let inscription_id =
-      InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
-        .unwrap();
-
-    let info = brc30_db
-      .get_transferable_by_id(&ScriptKey::from_address(address.clone()), &inscription_id)?;
-    Ok(info)
+    let result = brc30_db.get_transferable_by_tickid(
+      &ScriptKey::from_address(address.clone()),
+      &brc30::TickId::from_str(tick_id)?,
+    )?;
+    Ok(result)
   }
 
   pub(crate) fn brc30_all_transferable(
@@ -1293,14 +1296,30 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn brc30_block_events(&self) -> Result<Vec<brc30::BRC30Receipt>> {
-    let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+  pub(crate) fn brc30_block_events(
+    &self,
+    hash: &BlockHash,
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc30::BRC30Receipt>)>>> {
+    let parsed_height = self.height()?;
+    if parsed_height.is_none() {
+      return Ok(None);
+    }
+    let parsed_height = parsed_height.unwrap().0;
+    let block = self.client.get_block_info(&hash)?;
+    if block.height as u64 > parsed_height {
+      return Ok(None);
+    }
 
-    // TODO
-    let txid = Txid::from_str("123123").unwrap();
-    let info = brc30_db.get_transaction_receipts(&txid)?;
-    Ok(info)
+    let mut result = Vec::new();
+    for tx_id in &block.tx {
+      let tx_events = self.brc30_txid_events(tx_id)?;
+      if tx_events.len() == 0 {
+        continue;
+      }
+      result.push((tx_id.clone(), tx_events));
+    }
+
+    Ok(Some(result))
   }
 }
 

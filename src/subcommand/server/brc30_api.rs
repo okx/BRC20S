@@ -47,13 +47,11 @@ pub(crate) async fn brc30_all_pool_info(
   Extension(_index): Extension<Arc<Index>>,
 ) -> ApiResult<AllBRC30PoolInfo> {
   log::debug!("rpc: get brc30_all_pool_info");
-
-  // TODO
-  // Ok(Json(ApiResponse::ok(AllTickInfo {
-  //   tokens: all_tick_info.iter().map(|t| t.into()).collect(),
-  // })))
-
-  return Err(ApiError::bad_request("".to_string()));
+  let all_pool_info = index.brc30_all_pool_info()?;
+  log::debug!("rpc: get brc30_all_pool_info: {:?}", all_pool_info);
+  Ok(Json(ApiResponse::ok(AllBRC30PoolInfo {
+    tokens: all_pool_info.iter().map(|(pool)| pool.into()).collect(),
+  })))
 }
 
 // 3.4.4 /brc30/pool/:pid
@@ -184,21 +182,20 @@ pub(crate) async fn brc30_transferable(
   let address: bitcoin::Address = address
     .parse()
     .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
-  let transfer = &index
-    .brc30_transferable(&tick_id, &address)?
-    .ok_or_api_not_found("pid not found")?;
+  let all_transfer = &index.brc30_tickid_transferable(&tick_id, &address)?;
 
   log::debug!(
     "rpc: get brc30_transferable: {:?} {:?}",
     tick_id.as_str(),
-    transfer
+    all_transfer
   );
 
-  let a = Transferable {
-    inscriptions: vec![transfer.into()],
-  };
-
-  Ok(Json(ApiResponse::ok(a)))
+  Ok(Json(ApiResponse::ok(Transferable {
+    inscriptions: all_transfer
+      .iter()
+      .map(|(transfer)| transfer.into())
+      .collect(),
+  })))
 }
 
 // 3.4.9 /brc30/address/:address/transferable
@@ -242,15 +239,24 @@ pub(crate) async fn brc30_txid_events(
 // 3.4.11 /brc30/block/:blockhash/events
 pub(crate) async fn brc30_block_events(
   Extension(index): Extension<Arc<Index>>,
-  Path(blockhash): Path<String>,
+  Path(block_hash): Path<String>,
 ) -> ApiResult<BRC30BlockEvents> {
-  log::debug!("rpc: get brc30_block_events: {}", blockhash);
+  log::debug!("rpc: get brc30_block_events: {}", block_hash);
 
-  let all_receipt = index.brc30_block_events()?;
+  let hash =
+    bitcoin::BlockHash::from_str(&block_hash).map_err(|e| ApiError::bad_request(e.to_string()))?;
+  let block_event = index
+    .brc30_block_events(&hash)?
+    .ok_or_api_not_found("block not found")?;
 
-  log::debug!("rpc: get brc30_block_events: {:?}", all_receipt);
-
+  log::debug!("rpc: get brc30_block_events: {:?}", block_event);
   Ok(Json(ApiResponse::ok(BRC30BlockEvents {
-    block: all_receipt.iter().map(|receipt| receipt.into()).collect(),
+    block: block_event
+      .iter()
+      .map(|(tx_id, receipt)| Events {
+        events: receipt.iter().map(|e| e.into()).collect(),
+        txid: tx_id.to_string(),
+      })
+      .collect(),
   })))
 }

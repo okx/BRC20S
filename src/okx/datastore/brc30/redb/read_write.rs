@@ -33,9 +33,17 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_tick_info(tick_id)
   }
 
+  fn get_all_tick_info(&self) -> Result<Vec<TickInfo>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_all_tick_info()
+  }
+
   // 3.3.4 BRC30_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_pid_to_poolinfo(pid)
+  }
+
+  fn get_all_poolinfo(&self) -> Result<Vec<PoolInfo>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_all_poolinfo()
   }
 
   // 3.3.5 BRC30_USER_STAKEINFO
@@ -100,6 +108,14 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
 
   fn get_transferable(&self, script: &ScriptKey) -> Result<Vec<TransferableAsset>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transferable(script)
+  }
+
+  fn get_transferable_by_tickid(
+    &self,
+    script: &ScriptKey,
+    tick_id: &TickId,
+  ) -> Result<Vec<TransferableAsset>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_transferable_by_tickid(script, tick_id)
   }
 
   fn get_transferable_by_id(

@@ -294,5 +294,5 @@ impl From<&brc30::BRC30Receipt> for Event {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BRC30BlockEvents {
-  pub block: Vec<Event>,
+  pub block: Vec<Events>,
 }

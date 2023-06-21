@@ -19,8 +19,11 @@ pub struct MsgResolveManager<'a, O: OrdDataStoreReadOnly> {
 
 impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
   pub fn new(client: &'a Client, network: Network, ord_store: &'a O) -> Self {
+    let mut protocols: HashSet<ProtocolKind> = HashSet::new();
+    protocols.insert(ProtocolKind::BRC20);
+    protocols.insert(ProtocolKind::BRC30);
     Self {
-      protocols: HashSet::new(),
+      protocols,
       client,
       network,
       ord_store,

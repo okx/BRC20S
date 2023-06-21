@@ -3,6 +3,7 @@ use crate::okx::datastore::{
   brc30::{self, redb::BRC30DataStoreReader, BRC30DataStoreReadOnly},
   ScriptKey,
 };
+use std::cell::OnceCell;
 
 use {
   self::{

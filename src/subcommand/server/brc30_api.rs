@@ -47,13 +47,11 @@ pub(crate) async fn brc30_all_pool_info(
   Extension(index): Extension<Arc<Index>>,
 ) -> ApiResult<AllBRC30PoolInfo> {
   log::debug!("rpc: get brc30_all_pool_info");
-
-  // TODO
-  // Ok(Json(ApiResponse::ok(AllTickInfo {
-  //   tokens: all_tick_info.iter().map(|t| t.into()).collect(),
-  // })))
-
-  return Err(ApiError::bad_request("".to_string()));
+  let all_pool_info = index.brc30_all_pool_info()?;
+  log::debug!("rpc: get brc30_all_pool_info: {:?}", all_pool_info);
+  Ok(Json(ApiResponse::ok(AllBRC30PoolInfo {
+    tokens: all_pool_info.iter().map(|(pool)| pool.into()).collect(),
+  })))
 }
 
 // 3.4.4 /brc30/pool/:pid

@@ -41,6 +41,10 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_pid_to_poolinfo(pid)
   }
 
+  fn get_all_poolinfo(&self) -> Result<Vec<PoolInfo>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_all_poolinfo()
+  }
+
   // 3.3.5 BRC30_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,

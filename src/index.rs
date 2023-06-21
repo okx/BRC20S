@@ -1222,6 +1222,13 @@ impl Index {
     Ok(info)
   }
 
+  pub(crate) fn brc30_all_pool_info(&self) -> Result<Vec<(BRC30::PoolInfo)>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let all_pool = brc30_db.get_all_poolinfo()?;
+    Ok(all_pool)
+  }
+
   pub(crate) fn brc30_user_info(
     &self,
     pid: &String,

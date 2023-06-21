@@ -28,6 +28,8 @@ pub trait BRC30DataStoreReadOnly {
   // 3.3.4 BRC30_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error>;
 
+  fn get_all_poolinfo(&self) -> Result<Vec<PoolInfo>, Self::Error>;
+
   // 3.3.5 BRC30_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,

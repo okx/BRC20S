@@ -1203,9 +1203,8 @@ impl Index {
   pub(crate) fn brc30_all_tick_info(&self) -> Result<Vec<BRC30::TickInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
-    // let info = brc30_db.get_tick_info(&BRC20::Tick::from_str(name)?)?;
-    //TODO get tick info vec
-    Ok((vec![]))
+    let all_tick = brc30_db.get_all_tick_info()?;
+    Ok(all_tick)
   }
 
   pub(crate) fn brc30_tick_info(&self, tickId: &String) -> Result<Option<BRC30::TickInfo>> {

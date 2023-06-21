@@ -109,6 +109,20 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
+  fn get_all_tick_info(&self) -> Result<Vec<TickInfo>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_TICKINFO)?
+        .range(TickId::min_hex().as_str()..TickId::max_hex().as_str())?
+        .map(|(_, data)| {
+          let pool = bincode::deserialize::<TickInfo>(data.value()).unwrap();
+          pool
+        })
+        .collect(),
+    )
+  }
+
   // 3.3.4 BRC30_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     Ok(

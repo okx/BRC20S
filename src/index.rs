@@ -1260,7 +1260,7 @@ impl Index {
 
   pub(crate) fn brc30_transferable(
     &self,
-    tickId: &String,
+    _tick_id: &String,
     address: &bitcoin::Address,
   ) -> Result<Option<brc30::TransferableAsset>> {
     let wtx = self.database.begin_read().unwrap();

@@ -1,4 +1,4 @@
-use crate::okx::datastore::brc30::{Pid, PledgedTick, TickId};
+use crate::okx::datastore::brc30::Pid;
 use crate::okx::protocol::brc30::util::validate_pool_str;
 use crate::okx::protocol::brc30::{BRC30Error, Num};
 use serde::{Deserialize, Serialize};

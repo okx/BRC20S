@@ -3,8 +3,8 @@ use crate::okx::datastore::BRC30DataStoreReadWrite;
 use crate::{
   index::BlockData,
   okx::datastore::{
+    ord::{operation::InscriptionOp, OrdDataStoreReadWrite},
     BRC20DataStoreReadWrite,
-    ORD::{operation::InscriptionOp, OrdDataStoreReadWrite},
   },
   Result,
 };
@@ -24,7 +24,7 @@ pub struct ProtocolManager<
   M: BRC30DataStoreReadWrite,
 > {
   call_man: CallManager<'a, O, P, M>,
-  resolve_man: MsgResolveManager<'a, O, P>,
+  resolve_man: MsgResolveManager<'a, O>,
 }
 
 impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStoreReadWrite>
@@ -39,7 +39,7 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     brc30_store: &'a M,
   ) -> Self {
     Self {
-      resolve_man: MsgResolveManager::new(client, network, ord_store, brc20_store),
+      resolve_man: MsgResolveManager::new(client, network, ord_store),
       call_man: CallManager::new(ord_store, brc20_store, brc30_store),
     }
   }

@@ -1,5 +1,5 @@
-use crate::okx::datastore::BRC30::{PoolInfo, PoolType, UserInfo};
-use crate::okx::protocol::BRC30::{params::BIGDECIMAL_TEN, BRC30Error, Num};
+use crate::okx::datastore::brc30::{PoolInfo, PoolType, UserInfo};
+use crate::okx::protocol::brc30::{params::BIGDECIMAL_TEN, BRC30Error, Num};
 
 // demo
 // | Pool type | earn rate | total stake      | user stake     | block | reward                                        |
@@ -49,7 +49,7 @@ pub fn update_pool(
 
   //3 pool type: fixed and pool, for calculating accRewardPerShare
   let mut reward_per_token_stored = Num::zero();
-  let mut muliplier_pending = erate.checked_mul(&nums)?.checked_mul(&get_muliplier())?;
+  let muliplier_pending = erate.checked_mul(&nums)?.checked_mul(&get_muliplier())?;
   let mut muliplier_mint = Num::zero();
   if pool.ptype == PoolType::Fixed {
     reward_per_token_stored = muliplier_pending;
@@ -99,7 +99,7 @@ pub fn withdraw_user_reward(
   }
 
   //2 reward = staked * accRewardPerShare - user reward_debt
-  let mut reward = Num::zero();
+  let mut reward;
   if pool.ptype == PoolType::Fixed {
     reward = user_staked
       .checked_mul(&acc_reward_per_share)?
@@ -159,7 +159,7 @@ fn get_staked_decimal_base(staked_decimal: u8) -> Result<Num, BRC30Error> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::BRC30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
+  use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
   use crate::InscriptionId;
   use std::str::FromStr;
 

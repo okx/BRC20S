@@ -1,7 +1,7 @@
 // use super::brc20_operations::get_operations_by_txid;
 use super::error::ApiError;
 use super::*;
-use crate::okx::datastore::{ScriptKey, BRC20};
+use crate::okx::datastore::{brc20, ScriptKey};
 use axum::Json;
 
 pub(crate) type ApiResult<T> = Result<axum::Json<ApiResponse<T>>, ApiError>;
@@ -50,8 +50,8 @@ pub struct AllTickInfo {
   pub tokens: Vec<TickInfo>,
 }
 
-impl From<&BRC20::TokenInfo> for TickInfo {
-  fn from(tick_info: &BRC20::TokenInfo) -> Self {
+impl From<&brc20::TokenInfo> for TickInfo {
+  fn from(tick_info: &brc20::TokenInfo) -> Self {
     Self {
       tick: std::str::from_utf8(tick_info.tick.as_bytes())
         .unwrap()
@@ -92,11 +92,11 @@ pub struct TxEvents {
   pub txid: String,
 }
 
-// impl From<&BRC20::ActionReceipt> for TxEvent {
-//   fn from(event: &BRC20::ActionReceipt) -> Self {
+// impl From<&brc20::ActionReceipt> for TxEvent {
+//   fn from(event: &brc20::ActionReceipt) -> Self {
 //     match &event.result {
 //       Ok(result) => match result {
-//         BRC20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
+//         brc20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
 //           tick: std::str::from_utf8(deploy_event.tick.as_bytes())
 //             .unwrap()
 //             .to_string(),
@@ -113,7 +113,7 @@ pub struct TxEvents {
 //           msg: "ok".to_string(),
 //           event: String::from("deploy"),
 //         }),
-//         BRC20::BRC20Event::Mint(mint_event) => Self::Mint(MintEvent {
+//         brc20::BRC20Event::Mint(mint_event) => Self::Mint(MintEvent {
 //           tick: std::str::from_utf8(mint_event.tick.as_bytes())
 //             .unwrap()
 //             .to_string(),
@@ -128,7 +128,7 @@ pub struct TxEvents {
 //           msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
 //           event: String::from("mint"),
 //         }),
-//         BRC20::BRC20Event::InscripbeTransfer(trans1) => {
+//         brc20::BRC20Event::InscripbeTransfer(trans1) => {
 //           Self::InscribeTransfer(InscribeTransferEvent {
 //             tick: std::str::from_utf8(trans1.tick.as_bytes())
 //               .unwrap()
@@ -145,7 +145,7 @@ pub struct TxEvents {
 //             event: String::from("inscribeTransfer"),
 //           })
 //         }
-//         BRC20::BRC20Event::Transfer(trans2) => Self::Transfer(TransferEvent {
+//         brc20::BRC20Event::Transfer(trans2) => Self::Transfer(TransferEvent {
 //           tick: std::str::from_utf8(trans2.tick.as_bytes())
 //             .unwrap()
 //             .to_string(),
@@ -171,10 +171,10 @@ pub struct TxEvents {
 //         to: event.to.clone().into(),
 //         msg: err.to_string(),
 //         event: match event.op {
-//           BRC20::EventType::Deploy => "deploy",
-//           BRC20::EventType::Mint => "mint",
-//           BRC20::EventType::InscripbeTransfer => "inscribeTransfer",
-//           BRC20::EventType::Transfer => "transfer",
+//           brc20::EventType::Deploy => "deploy",
+//           brc20::EventType::Mint => "mint",
+//           brc20::EventType::InscripbeTransfer => "inscribeTransfer",
+//           brc20::EventType::Transfer => "transfer",
 //         }
 //         .to_string(),
 //       }),
@@ -305,8 +305,8 @@ pub struct TransferableInscription {
   pub owner: String,
 }
 
-impl From<&BRC20::TransferableLog> for TransferableInscription {
-  fn from(trans: &BRC20::TransferableLog) -> Self {
+impl From<&brc20::TransferableLog> for TransferableInscription {
+  fn from(trans: &brc20::TransferableLog) -> Self {
     Self {
       inscription_id: trans.inscription_id.to_string(),
       inscription_number: trans.inscription_number,
@@ -374,7 +374,7 @@ pub(crate) async fn brc20_tick_info(
 
   log::debug!("rpc: get brc20_tick_info: {:?} {:?}", tick, tick_info);
 
-  if tick_info.tick != BRC20::Tick::from_str(&tick).unwrap() {
+  if tick_info.tick != brc20::Tick::from_str(&tick).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -463,7 +463,7 @@ pub(crate) async fn brc20_all_balance(
 //   let tx_info = get_operations_by_txid(Extension(index), &txid)?;
 
 //   if tx_info.inscriptions.is_empty() {
-//     return Err(ApiError::not_found("BRC20 operation not found"));
+//     return Err(ApiError::not_found("brc20 operation not found"));
 //   }
 
 //   log::debug!("rpc: get brc20_tx: {} {:?}", txid, tx_info);

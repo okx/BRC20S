@@ -1,5 +1,5 @@
 use super::*;
-use okx::datastore::ORD::operation::{Action, InscriptionOp};
+use okx::datastore::ord::operation::{Action, InscriptionOp};
 
 #[derive(Debug, Clone)]
 pub(super) struct Flotsam {

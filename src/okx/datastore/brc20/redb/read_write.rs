@@ -181,7 +181,7 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 
 #[cfg(test)]
 mod tests {
-  use crate::okx::datastore::BRC20::{
+  use crate::okx::datastore::brc20::{
     BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, BRC20OperationType,
     BRC20Receipt, Balance, MintEvent, Tick, TokenInfo, TransferEvent, TransferableLog,
   };

@@ -778,10 +778,11 @@ mod tests {
   use super::super::*;
   use super::*;
   use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
-  use crate::okx::datastore::BRC20::redb::BRC20DataStore;
-  use crate::okx::datastore::BRC20::{Balance as BRC20Banalce, Tick, TokenInfo};
-  use crate::okx::datastore::BRC30::redb::BRC30DataStore;
-  use crate::okx::datastore::BRC30::BRC30DataStoreReadOnly;
+  use crate::okx::datastore::brc20::redb::BRC20DataStore;
+  use crate::okx::datastore::brc20::{Balance as BRC20Banalce, Tick, TokenInfo};
+  use crate::okx::datastore::brc30::redb::BRC30DataStore;
+  use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
+  use crate::okx::datastore::brc30::PledgedTick;
   use crate::test::Hash;
   use bech32::ToBase32;
   use bitcoin::Address;
@@ -801,6 +802,7 @@ mod tests {
       block_time: 1687245485,
       inscription_id,
       inscription_number: 0,
+      commit_from: None,
       from: from.clone(),
       to: to.clone(),
       old_satpoint: SatPoint {

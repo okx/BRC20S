@@ -282,12 +282,13 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::BRC30::{
+  use crate::okx::datastore::brc20::Tick;
+  use crate::okx::datastore::brc30::{
     BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30OperationType,
   };
-  use crate::okx::datastore::BRC30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
-  use crate::okx::protocol::BRC30::operation::BRC30Operation;
-  use crate::okx::protocol::BRC30::BRC30Error;
+  use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
+  use crate::okx::protocol::brc30::operation::BRC30Operation;
+  use crate::okx::protocol::brc30::BRC30Error;
   use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;

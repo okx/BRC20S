@@ -27,6 +27,7 @@ mod tests {
   use bitcoin::util::address::Payload;
   use bitcoin::Address;
   use bitcoin::Network::Bitcoin;
+  use std::str::FromStr;
 
   #[test]
   fn test_serialize() {

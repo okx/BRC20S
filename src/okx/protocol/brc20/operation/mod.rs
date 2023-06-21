@@ -88,7 +88,7 @@ fn deserialize_brc20(s: &str) -> Result<RawOperation, JSONError> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::ORD::Action;
+  use crate::okx::datastore::ord::Action;
 
   #[test]
   fn test_deploy_deserialize() {

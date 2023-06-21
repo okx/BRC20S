@@ -187,17 +187,9 @@ fn max_stake_tickid_key(pledged: &PledgedTick) -> String {
 }
 
 fn min_script_key(script: &ScriptKey) -> String {
-  format!(
-    "{}_{}",
-    script.to_string(),
-    PledgedTick::min_hex()
-  )
+  format!("{}_{}", script.to_string(), PledgedTick::min_hex())
 }
 
 fn max_script_key(script: &ScriptKey) -> String {
-  format!(
-    "{}_{}",
-    script.to_string(),
-    PledgedTick::max_hex()
-  )
+  format!("{}_{}", script.to_string(), PledgedTick::max_hex())
 }

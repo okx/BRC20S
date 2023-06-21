@@ -13,7 +13,7 @@ use bitcoin::{
 
 use crate::{
   index::{INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, OUTPOINT_TO_ENTRY},
-  okx::datastore::ORD::OrdDataStoreReadOnly,
+  okx::datastore::ord::OrdDataStoreReadOnly,
   InscriptionId, Result,
 };
 

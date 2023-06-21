@@ -3,8 +3,8 @@ use crate::okx::datastore::BRC30DataStoreReadWrite;
 use crate::{
   index::BlockData,
   okx::datastore::{
+    ord::{operation::InscriptionOp, OrdDataStoreReadWrite},
     BRC20DataStoreReadWrite,
-    ORD::{operation::InscriptionOp, OrdDataStoreReadWrite},
   },
   Result,
 };

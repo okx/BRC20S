@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
   index::OUTPOINT_TO_ENTRY,
-  okx::datastore::ORD::{OrdDataStoreReadOnly, OrdDataStoreReadWrite},
+  okx::datastore::ord::{OrdDataStoreReadOnly, OrdDataStoreReadWrite},
   InscriptionId, Result,
 };
 use bitcoin::{consensus::Encodable, OutPoint, TxOut};

@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::BRC30;
+use crate::okx::datastore::brc30;
 use std::convert::From;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -17,8 +17,8 @@ pub struct BRC30TickInfo {
   pub deploy_blocktime: u64,
 }
 
-impl From<&BRC30::TickInfo> for BRC30TickInfo {
-  fn from(tick_info: &BRC30::TickInfo) -> Self {
+impl From<&brc30::TickInfo> for BRC30TickInfo {
+  fn from(tick_info: &brc30::TickInfo) -> Self {
     let tick = Tick {
       id: tick_info.tick_id.to_lowercase().hex(),
       name: tick_info.name.as_str().to_string(),
@@ -74,8 +74,8 @@ pub struct BRC30Pool {
   pub txid: String,
 }
 
-impl From<&BRC30::PoolInfo> for BRC30Pool {
-  fn from(pool_info: &BRC30::PoolInfo) -> Self {
+impl From<&brc30::PoolInfo> for BRC30Pool {
+  fn from(pool_info: &brc30::PoolInfo) -> Self {
     // TODO
     let stake = Stake {
       type_field: "".to_string(),
@@ -97,7 +97,7 @@ impl From<&BRC30::PoolInfo> for BRC30Pool {
       erate: pool_info.erate.to_string(),
       minted: pool_info.minted.to_string(),
       dmax: pool_info.dmax.to_string(),
-      only: if (pool_info.only) { 0 } else { 1 },
+      only: if pool_info.only { 0 } else { 1 },
       acc_per_share: pool_info.acc_reward_per_share.to_string(),
       latest_update_block: pool_info.last_update_block,
       inscription_id: pool_info.inscription_id.to_string(),
@@ -140,8 +140,8 @@ pub struct UserInfo {
   pub latest_update_block: u64,
 }
 
-impl From<&BRC30::UserInfo> for UserInfo {
-  fn from(user_info: &BRC30::UserInfo) -> Self {
+impl From<&brc30::UserInfo> for UserInfo {
+  fn from(user_info: &brc30::UserInfo) -> Self {
     Self {
       pid: user_info.pid.as_str().to_string(),
       staked: user_info.staked.to_string(),
@@ -160,8 +160,8 @@ pub struct BRC30Balance {
   pub claimable: String,
 }
 
-impl From<&BRC30::Balance> for BRC30Balance {
-  fn from(balance: &BRC30::Balance) -> Self {
+impl From<&brc30::Balance> for BRC30Balance {
+  fn from(balance: &brc30::Balance) -> Self {
     let tick = Tick {
       id: balance.tick_id.to_lowercase().hex(),
       name: "".to_string(), //TODO
@@ -198,8 +198,8 @@ pub struct Inscription {
   pub owner: String,
 }
 
-impl From<&BRC30::TransferableAsset> for Inscription {
-  fn from(asset: &BRC30::TransferableAsset) -> Self {
+impl From<&brc30::TransferableAsset> for Inscription {
+  fn from(asset: &brc30::TransferableAsset) -> Self {
     let tick = Tick {
       id: asset.tick_id.to_lowercase().hex(),
       name: "".to_string(), //TODO
@@ -248,8 +248,8 @@ pub struct Event {
   pub amount: String,
 }
 
-impl From<&BRC30::BRC30Receipt> for Event {
-  fn from(receipt: &BRC30::BRC30Receipt) -> Self {
+impl From<&brc30::BRC30Receipt> for Event {
+  fn from(_receipt: &brc30::BRC30Receipt) -> Self {
     // TODO
     let earn = Earn {
       id: "".to_string(),

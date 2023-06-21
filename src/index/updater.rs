@@ -1,5 +1,5 @@
 use crate::okx::datastore::{
-  BRC20::redb::BRC20DataStore, BRC30::redb::BRC30DataStore, ORD::OrdDbReadWriter,
+  brc20::redb::BRC20DataStore, brc30::redb::BRC30DataStore, ord::OrdDbReadWriter,
 };
 
 use {self::inscription_updater::InscriptionUpdater, super::*, std::sync::mpsc};
@@ -463,7 +463,7 @@ impl Updater {
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
-    // Create a protocol manager to index the block of BRC20, BRC30 data.
+    // Create a protocol manager to index the block of brc20, brc30 data.
     ProtocolManager::new(
       &index.client,
       index.get_chain_network(),

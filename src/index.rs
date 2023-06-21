@@ -1297,16 +1297,6 @@ impl Index {
     let info = brc30_db.get_txid_to_receipts(&txid)?;
     Ok(info)
   }
-
-  pub(crate) fn brc30_block_events(&self) -> Result<Vec<BRC30::BRC30Receipt>> {
-    let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
-
-    // TODO
-    let txid = Txid::from_str("123123").unwrap();
-    let info = brc30_db.get_transaction_receipts(&txid)?;
-    Ok(info)
-  }
 }
 
 #[cfg(test)]

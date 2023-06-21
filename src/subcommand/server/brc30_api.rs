@@ -236,14 +236,24 @@ pub(crate) async fn brc30_txid_events(
 // 3.4.11 /brc30/block/:blockhash/events
 pub(crate) async fn brc30_block_events(
   Extension(index): Extension<Arc<Index>>,
-  Path(blockhash): Path<String>,
+  Path(block_hash): Path<String>,
 ) -> ApiResult<BRC30BlockEvents> {
-  log::debug!("rpc: get brc30_block_events: {}", blockhash);
+  log::debug!("rpc: get brc30_block_events: {}", block_hash);
 
-  let all_receipt = index.brc30_block_events()?;
+  let hash =
+    BlockHash::from_str(&block_hash).map_err(|e| anyhow!("Invalid block hash {block_hash}:{e}"))?;
+
+  let mut all_receipt = vec![];
+
+  let block = index.get_block_by_hash(hash.clone())?.unwrap();
+  for i in &block.txdata {
+    let receipts = index.brc30_txid_events(&i.txid())?;
+    for j in receipts {
+      all_receipt.push(j);
+    }
+  }
 
   log::debug!("rpc: get brc30_block_events: {:?}", all_receipt);
-
   Ok(Json(ApiResponse::ok(BRC30BlockEvents {
     block: all_receipt.iter().map(|(receipt)| receipt.into()).collect(),
   })))

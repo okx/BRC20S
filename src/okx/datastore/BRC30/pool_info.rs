@@ -85,6 +85,16 @@ pub enum PoolType {
   Unknown,
 }
 
+impl PoolType {
+  pub fn to_string(&self) -> String {
+    match self {
+      PoolType::Pool => String::from("Pool"),
+      PoolType::Fixed => String::from("Fixed"),
+      PoolType::Unknown => String::from("Unknown"),
+    }
+  }
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct PoolInfo {
   pub pid: Pid,

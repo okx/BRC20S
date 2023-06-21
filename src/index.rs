@@ -1214,6 +1214,96 @@ impl Index {
     let info = brc30_db.get_tick_info(&BRC30::TickId::from_str(tickId)?)?;
     Ok(info)
   }
+
+  pub(crate) fn brc30_pool_info(&self, pid: &String) -> Result<Option<BRC30::PoolInfo>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let info = brc30_db.get_pid_to_poolinfo(&BRC30::Pid::from_str(pid)?)?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc30_user_info(
+    &self,
+    pid: &String,
+    address: &bitcoin::Address,
+  ) -> Result<Option<BRC30::UserInfo>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let info = brc30_db.get_pid_to_use_info(
+      &ScriptKey::from_address(address.clone()),
+      &BRC30::Pid::from_str(pid)?,
+    )?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc30_balance(
+    &self,
+    tickId: &String,
+    address: &bitcoin::Address,
+  ) -> Result<Option<BRC30::Balance>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let info = brc30_db.get_balance(
+      &ScriptKey::from_address(address.clone()),
+      &BRC30::TickId::from_str(tickId)?,
+    )?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc30_all_balance(
+    &self,
+    address: &bitcoin::Address,
+  ) -> Result<Vec<(BRC30::TickId, BRC30::Balance)>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let all_balance = brc30_db.get_balances(&ScriptKey::from_address(address.clone()))?;
+    Ok(all_balance)
+  }
+
+  pub(crate) fn brc30_transferable(
+    &self,
+    tickId: &String,
+    address: &bitcoin::Address,
+  ) -> Result<Option<BRC30::TransferableAsset>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+
+    //TODO
+    let inscription_id =
+      InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
+
+    let info = brc30_db
+      .get_transferable_by_id(&ScriptKey::from_address(address.clone()), &inscription_id)?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc30_all_transferable(
+    &self,
+    address: &bitcoin::Address,
+  ) -> Result<Vec<BRC30::TransferableAsset>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let info = brc30_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc30_txid_events(&self, txid: &Txid) -> Result<Vec<BRC30::BRC30Receipt>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let info = brc30_db.get_txid_to_receipts(&txid)?;
+    Ok(info)
+  }
+
+  pub(crate) fn brc30_block_events(&self) -> Result<Vec<BRC30::BRC30Receipt>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+
+    // TODO
+    let txid = Txid::from_str("123123").unwrap();
+    let info = brc30_db.get_transaction_receipts(&txid)?;
+    Ok(info)
+  }
 }
 
 #[cfg(test)]

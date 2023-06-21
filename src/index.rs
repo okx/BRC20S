@@ -1297,6 +1297,33 @@ impl Index {
     let info = brc30_db.get_txid_to_receipts(&txid)?;
     Ok(info)
   }
+
+  pub(crate) fn brc30_block_events(
+    &self,
+    hash: &BlockHash,
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<BRC30::BRC30Receipt>)>>> {
+    let parsed_height = self.height()?;
+    if parsed_height.is_none() {
+      return Ok(None);
+    }
+    let parsed_height = parsed_height.unwrap().0;
+    let block = self.client.get_block_info(&hash)?;
+    if block.height as u64 > parsed_height {
+      return Ok(None);
+    }
+
+    let wtx = self.database.begin_read().unwrap();
+    let mut result = Vec::new();
+    for txid in &block.tx {
+      let tx_events = self.brc30_txid_events(txid)?;
+      if tx_events.len() == 0 {
+        continue;
+      }
+      result.push((txid.clone(), tx_events));
+    }
+
+    Ok(Some(result))
+  }
 }
 
 #[cfg(test)]

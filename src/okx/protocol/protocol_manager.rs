@@ -49,7 +49,7 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     block_height: u64,
     block: &BlockData,
     operation: Vec<InscriptionOp>,
-  ) -> Result<()> {
+  ) -> Result {
     let mut operations_peeker = operation.into_iter().peekable();
     for (tx, txid) in block.txdata.iter().skip(1) {
       let mut tx_operations: Vec<InscriptionOp> = Vec::new();
@@ -63,13 +63,11 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
       }
 
       // Resolve and execute messages.
-      for msg in self.resolve_man.resolve_message(
-        txid,
-        block_height,
-        block.header.time,
-        tx,
-        tx_operations,
-      )? {
+      for msg in
+        self
+          .resolve_man
+          .resolve_message(block_height, block.header.time, tx, tx_operations)?
+      {
         self.call_man.execute_message(&msg)?;
       }
     }

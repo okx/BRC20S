@@ -8,92 +8,76 @@ use crate::{
     },
     protocol::brc30::deserialize_brc30_operation,
   },
-  unbound_outpoint, Result,
+  unbound_outpoint, Index, Result,
 };
 use anyhow::anyhow;
-use bitcoin::{Network, Transaction, Txid};
-use bitcoincore_rpc::{Client, RpcApi};
-use std::{thread, time::Duration};
+use bitcoin::Network;
+use bitcoincore_rpc::Client;
 
 pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
   client: &Client,
   network: Network,
   ord_store: &'a O,
-  txid: &Txid,
   block_height: u64,
   block_time: u32,
-  tx: &Transaction,
-  inscription_op: &InscriptionOp,
+  new_inscriptions: &Vec<Inscription>,
+  op: &InscriptionOp,
 ) -> Result<Option<BRC30Message>> {
-  // ignore cursed and unbound
-  let number = ord_store.get_number_by_inscription_id(inscription_op.inscription_id)?;
-  if number < 0 || inscription_op.new_satpoint.outpoint == unbound_outpoint() {
+  let inscription_number = ord_store.get_number_by_inscription_id(op.inscription_id)?;
+
+  // Ignore cursed and unbound inscription.
+  // There is a bug in ordinals that may cause unbound inscriptions to occupy normal inscription numbers. The code needs to be reviewed after this bug is fixed.
+  // https://github.com/ordinals/ord/issues/2202
+  if inscription_number < 0 || op.new_satpoint.outpoint == unbound_outpoint() {
     return Ok(None);
   }
 
-  let inscription = match inscription_op.action {
-    Action::New => Inscription::from_transaction(tx)
-      .get(usize::try_from(inscription_op.inscription_id.index).unwrap())
+  let inscription = match op.action {
+    Action::New => new_inscriptions
+      .get(usize::try_from(op.inscription_id.index).unwrap())
       .unwrap()
-      .inscription
       .clone(),
     Action::Transfer => {
-      // ignored if the inscription is not the first transfer.
-      if inscription_op.inscription_id.txid != inscription_op.old_satpoint.outpoint.txid {
+      // Ignored if the inscription is not the first transfer.
+      if op.inscription_id.txid != op.old_satpoint.outpoint.txid {
         return Ok(None);
       }
-      Inscription::from_transaction(&get_transaction_with_retries(
-        client,
-        inscription_op.inscription_id.txid,
-      )?)
-      .get(usize::try_from(inscription_op.inscription_id.index).unwrap())
+      Inscription::from_transaction(
+        &Index::get_transaction_with_retries(client, op.inscription_id.txid)?
+          .ok_or(anyhow!("transaction not found {}", op.inscription_id.txid))?,
+      )
+      .get(usize::try_from(op.inscription_id.index).unwrap())
       .unwrap()
       .inscription
       .clone()
     }
   };
 
-  if let Ok(brc20_operation) = deserialize_brc30_operation(&inscription, &inscription_op.action) {
-    let from = ScriptKey::from_script(
-      &ord_store
-        .get_outpoint_to_txout(inscription_op.old_satpoint.outpoint)?
-        .ok_or(anyhow!(format!(
-          "outpoint {} not found",
-          inscription_op.old_satpoint.outpoint
-        )))?
-        .script_pubkey,
-      network,
-    );
+  if let Ok(brc20_operation) = deserialize_brc30_operation(&inscription, &op.action) {
+    let from = Index::get_outpoint_script_key(ord_store, op.old_satpoint.outpoint, network)?
+      .ok_or(anyhow!("outpoint {} not found", op.old_satpoint.outpoint))?;
 
-    let to = ScriptKey::from_script(
-      &ord_store
-        .get_outpoint_to_txout(inscription_op.new_satpoint.outpoint)?
-        .ok_or(anyhow!(format!(
-          "outpoint {} not found",
-          inscription_op.new_satpoint.outpoint
-        )))?
-        .script_pubkey,
-      network,
-    );
+    let to = Index::get_outpoint_script_key(ord_store, op.new_satpoint.outpoint, network)?
+      .ok_or(anyhow!("outpoint {} not found", op.new_satpoint.outpoint))?;
 
-    let commit_from = match inscription_op.action {
+    let commit_from = match op.action {
       Action::New => Some(get_origin_scriptkey(
         client,
         network,
         ord_store,
-        inscription_op.old_satpoint,
+        op.old_satpoint,
       )?),
       Action::Transfer => None,
     };
 
     Ok(Some(BRC30Message {
-      txid: txid.clone(),
+      txid: op.txid,
       block_height,
       block_time,
-      inscription_id: inscription_op.inscription_id,
-      inscription_number: number,
-      old_satpoint: inscription_op.old_satpoint,
-      new_satpoint: inscription_op.new_satpoint,
+      inscription_id: op.inscription_id,
+      inscription_number,
+      old_satpoint: op.old_satpoint,
+      new_satpoint: op.new_satpoint,
       commit_from,
       from,
       to,
@@ -110,7 +94,8 @@ fn get_origin_scriptkey<'a, O: OrdDataStoreReadOnly>(
   ord_store: &'a O,
   satpoint: SatPoint,
 ) -> Result<ScriptKey> {
-  let transaction = get_transaction_with_retries(client, satpoint.outpoint.txid)?;
+  let transaction = &Index::get_transaction_with_retries(client, satpoint.outpoint.txid)?
+    .ok_or(anyhow!("transaction not found {}", satpoint.outpoint.txid))?;
   let mut offset = 0;
   for (vout, output) in transaction.output.iter().enumerate() {
     if vout < usize::try_from(satpoint.outpoint.vout).unwrap() {
@@ -125,10 +110,7 @@ fn get_origin_scriptkey<'a, O: OrdDataStoreReadOnly>(
   for (_, input) in transaction.input.iter().enumerate() {
     let prev_outpoint = ord_store
       .get_outpoint_to_txout(input.previous_output)?
-      .ok_or(anyhow!(format!(
-        "outpoint {} not found",
-        input.previous_output
-      )))?;
+      .ok_or(anyhow!("outpoint {} not found", input.previous_output))?;
     input_value += prev_outpoint.value;
     if input_value >= offset {
       return Ok(ScriptKey::from_script(
@@ -138,25 +120,4 @@ fn get_origin_scriptkey<'a, O: OrdDataStoreReadOnly>(
     }
   }
   return Err(anyhow!("origin satpoint not found"));
-}
-
-fn get_transaction_with_retries(client: &Client, txid: Txid) -> Result<Transaction> {
-  let mut errors = 0;
-  loop {
-    match client.get_raw_transaction(&txid, None) {
-      Err(err) => {
-        errors += 1;
-        let seconds = 1 << errors;
-        log::warn!("failed to fetch transaction {txid}, retrying in {seconds}s: {err}");
-
-        if seconds > 120 {
-          log::error!("would sleep for more than 120s, giving up");
-          return Err(anyhow!("failed to fetch transaction {txid}"));
-        }
-
-        thread::sleep(Duration::from_secs(seconds));
-      }
-      Ok(result) => return Ok(result),
-    }
-  }
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Mint {
-  // Ticker: 4-6 letter identifier of the brc-30
+  // Ticker: 4-6 letter identifier of the brc20-s
   #[serde(rename = "tick")]
   pub tick: String,
 
@@ -10,7 +10,7 @@ pub struct Mint {
   #[serde(rename = "tid")]
   pub tick_id: String,
 
-  // Amount to mint: States the amount of the brc-30 to mint. Has to be less than "lim" above if stated
+  // Amount to mint: States the amount of the brc20-s to mint. Has to be less than "lim" above if stated
   #[serde(rename = "amt")]
   pub amount: String,
 }
@@ -41,7 +41,7 @@ mod tests {
   fn test_deserialize() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "mint",
         "tid": "tid",
         "tick": "tick",
@@ -67,7 +67,7 @@ mod tests {
   fn test_loss_require_key() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "mint",
         "tick": "tick",
         "amt": "amt"
@@ -86,7 +86,7 @@ mod tests {
   fn test_duplicate_key() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "mint",
         "tid": "pid-1",
         "tid": "pid-2",

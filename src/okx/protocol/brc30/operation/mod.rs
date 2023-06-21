@@ -122,7 +122,7 @@ mod tests {
   #[test]
   fn test_deploy_deserialize() {
     let json_str = format!(
-      r##"{{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}}"##
+      r##"{{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}}"##
     );
 
     let reuslt = deserialize_brc30(&json_str);
@@ -149,7 +149,7 @@ mod tests {
   fn test_stake_deserialize() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "stake",
         "pid": "pid",
         "amt": "amt"
@@ -173,7 +173,7 @@ mod tests {
   fn test_mint_deserialize() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "mint",
         "tid": "tid",
         "tick": "tick",
@@ -199,7 +199,7 @@ mod tests {
   fn test_unstake_deserialize() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "unstake",
         "pid": "pid",
         "amt": "amt"
@@ -223,7 +223,7 @@ mod tests {
   fn test_transfer_deserialize() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick",
@@ -249,7 +249,7 @@ mod tests {
   fn test_json_duplicate_field() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "stake",
         "pid": "pid-1",
         "pid": "pid-2",
@@ -282,7 +282,7 @@ mod tests {
   fn test_json_non_string() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "stake",
         "pid": "pid",
         "amt": "amt",
@@ -295,7 +295,7 @@ mod tests {
   fn test_deserialize_case_insensitive() {
     let json_str = format!(
       r##"{{
-        "P": "brc-30",
+        "P": "brc20-s",
         "OP": "transfer",
         "Pid": "pid",
         "ticK": "tick",
@@ -307,7 +307,7 @@ mod tests {
 
     let json_str1 = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "OP": "transfer",
         "Pid": "pid",
         "ticK": "tick",
@@ -324,14 +324,14 @@ mod tests {
   }
 
   #[test]
-  fn test_ignore_non_transfer_brc20() {
+  fn test_ignore_non_transfer_brc30() {
     let content_type = "text/plain;charset=utf-8".as_bytes().to_vec();
     assert_eq!(
       deserialize_brc30_operation(
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##
+            r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -357,7 +357,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-30","op":"stake","pid":"pool_id","amt":"12000"}"##
+            r##"{"p":"brc20-s","op":"stake","pid":"pool_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -376,7 +376,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-30","op":"mint","tick":"tick","tid":"tick_id","amt":"12000"}"##
+            r##"{"p":"brc20-s","op":"mint","tick":"tick","tid":"tick_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -396,7 +396,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-30","op":"unstake","pid":"pool_id","amt":"12000"}"##
+            r##"{"p":"brc20-s","op":"unstake","pid":"pool_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -427,7 +427,7 @@ mod tests {
       &Inscription::new(
         Some(content_type.clone()),
         Some(
-          r##"{"p":"brc-30","op":"mint","tick":"abcd","amt":"12000"}"##
+          r##"{"p":"brc20-s","op":"mint","tick":"abcd","amt":"12000"}"##
             .as_bytes()
             .to_vec(),
         ),
@@ -441,7 +441,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-30","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"##
+            r##"{"p":"brc20-s","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),

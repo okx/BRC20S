@@ -1,7 +1,7 @@
 use crate::okx::protocol::brc30::num::Num;
 use once_cell::sync::Lazy;
 
-pub const PROTOCOL_LITERAL: &str = "brc-30";
+pub const PROTOCOL_LITERAL: &str = "brc20-s";
 pub const NATIVE_TOKEN: &str = "btc";
 pub const NATIVE_TOKEN_DECIMAL: u8 = 8_u8;
 pub const MAX_DECIMAL_WIDTH: u8 = 18;

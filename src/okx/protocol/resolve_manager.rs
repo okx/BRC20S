@@ -6,9 +6,9 @@ use crate::{
     datastore::ord::{operation::InscriptionOp, OrdDataStoreReadOnly},
     protocol::Message,
   },
-  Result,
+  Inscription, Result,
 };
-use bitcoin::{Network, Transaction, Txid};
+use bitcoin::{Network, Transaction};
 use bitcoincore_rpc::Client;
 pub struct MsgResolveManager<'a, O: OrdDataStoreReadOnly> {
   protocols: HashSet<ProtocolKind>,
@@ -32,56 +32,61 @@ impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
 
   pub fn resolve_message(
     &self,
-    txid: &Txid,
     block_height: u64,
     block_time: u32,
     tx: &Transaction,
-    operation: Vec<InscriptionOp>,
+    operations: Vec<InscriptionOp>,
   ) -> Result<Vec<Message>> {
     let mut messages = Vec::new();
-    let mut operation_peeker = operation.into_iter().peekable();
+    let mut operation_iter = operations.into_iter().peekable();
+    let new_inscriptions = Inscription::from_transaction(tx)
+      .into_iter()
+      .map(|v| v.inscription)
+      .collect();
     for input in &tx.input {
-      // TODO: BTC transfer to brc30 passive withdrawal.
-      // if self.protocols.contains(&ProtocolKind::brc30) {
+      // TODO: BTC transfer to BRC30 passive withdrawal.
+
+      // if self.protocols.contains(&ProtocolKind::BRC30) {
       //   messages.push(BTC::resolve_message(txid, block_height, block_time, tx));
       // }
-      while let Some(op) = operation_peeker.peek() {
-        if op.old_satpoint.outpoint != input.previous_output {
+
+      // "operations" is a list of all the operations in the current block, and they are ordered.
+      // We just need to find the operation corresponding to the current transaction here.
+      while let Some(operation) = operation_iter.peek() {
+        if operation.old_satpoint.outpoint != input.previous_output {
           break;
         }
-        let op = operation_peeker.next().unwrap();
+        let operation = operation_iter.next().unwrap();
 
-        // Resolve brc20 message.
+        // Parse BRC20 message through inscription operation.
         if self.protocols.contains(&ProtocolKind::BRC20) {
           if let Some(msg) = brc20::resolve_message(
             self.client,
             self.network,
             self.ord_store,
-            txid,
             block_height,
             block_time,
-            tx,
-            &op,
+            &new_inscriptions,
+            &operation,
           )?
-          .map(|v| Message::BRC20(v))
+          .map(Message::BRC20)
           {
             messages.push(msg);
           }
         }
 
-        // Resolve brc30 message.
+        // Parse BRC30 message through inscription operation.
         if self.protocols.contains(&ProtocolKind::BRC30) {
           if let Some(msg) = brc30::resolve_message(
             self.client,
             self.network,
             self.ord_store,
-            txid,
             block_height,
             block_time,
-            tx,
-            &op,
+            &new_inscriptions,
+            &operation,
           )?
-          .map(|v| Message::BRC30(v))
+          .map(Message::BRC30)
           {
             messages.push(msg);
           }

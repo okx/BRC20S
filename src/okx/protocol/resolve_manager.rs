@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::{
   okx::{
-    datastore::ORD::{operation::InscriptionOp, OrdDataStoreReadOnly},
+    datastore::ord::{operation::InscriptionOp, OrdDataStoreReadOnly},
     protocol::Message,
   },
   Result,
@@ -38,8 +38,8 @@ impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
     let mut messages = Vec::new();
     let mut operation_peeker = operation.into_iter().peekable();
     for input in &tx.input {
-      // TODO: BTC transfer to BRC30 passive withdrawal.
-      // if self.protocols.contains(&ProtocolKind::BRC30) {
+      // TODO: BTC transfer to brc30 passive withdrawal.
+      // if self.protocols.contains(&ProtocolKind::brc30) {
       //   messages.push(BTC::resolve_message(txid, block_height, block_time, tx));
       // }
       while let Some(op) = operation_peeker.peek() {
@@ -48,9 +48,9 @@ impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
         }
         let op = operation_peeker.next().unwrap();
 
-        // Resolve BRC20 message.
+        // Resolve brc20 message.
         if self.protocols.contains(&ProtocolKind::BRC20) {
-          if let Some(msg) = BRC20::resolve_message(
+          if let Some(msg) = brc20::resolve_message(
             self.client,
             self.network,
             self.ord_store,
@@ -66,9 +66,9 @@ impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
           }
         }
 
-        // Resolve BRC30 message.
+        // Resolve brc30 message.
         if self.protocols.contains(&ProtocolKind::BRC30) {
-          if let Some(msg) = BRC30::resolve_message(
+          if let Some(msg) = brc30::resolve_message(
             self.client,
             self.network,
             self.ord_store,

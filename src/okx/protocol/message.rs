@@ -1,6 +1,6 @@
-use crate::okx::datastore::BRC30::BRC30Receipt;
-use crate::okx::protocol::BRC30::BRC30Message;
-use crate::okx::{datastore::BRC20::BRC20Receipt, protocol::BRC20::BRC20Message};
+use crate::okx::datastore::brc30::BRC30Receipt;
+use crate::okx::protocol::brc30::BRC30Message;
+use crate::okx::{datastore::brc20::BRC20Receipt, protocol::brc20::BRC20Message};
 
 pub enum Message {
   BRC20(BRC20Message),

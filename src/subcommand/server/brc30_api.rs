@@ -1,7 +1,7 @@
 use super::brc30_types::*;
 use super::error::ApiError;
 use super::*;
-use crate::okx::datastore::{ScriptKey, BRC30};
+use crate::okx::datastore::brc30;
 use axum::Json;
 
 // 3.4.1 /brc30/tick
@@ -21,21 +21,21 @@ pub(crate) async fn brc30_all_tick_info(
 // 3.4.2 /brc30/tick/:tickId
 pub(crate) async fn brc30_tick_info(
   Extension(index): Extension<Arc<Index>>,
-  Path(tickId): Path<String>,
+  Path(tick_id): Path<String>,
 ) -> ApiResult<BRC30TickInfo> {
-  log::debug!("rpc: get brc30_tick_info: {}", tickId.to_string());
-  if tickId.as_bytes().len() != 5 {
+  log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
+  if tick_id.as_bytes().len() != 5 {
     return Err(ApiError::bad_request("tick id length must 5."));
   }
-  let tickId = tickId.to_lowercase();
+  let tick_id = tick_id.to_lowercase();
 
   let tick_info = &index
-    .brc30_tick_info(&tickId)?
+    .brc30_tick_info(&tick_id)?
     .ok_or_api_not_found("tick not found")?;
 
-  log::debug!("rpc: get brc30_tick_info: {:?} {:?}", tickId, tick_info);
+  log::debug!("rpc: get brc30_tick_info: {:?} {:?}", tick_id, tick_info);
 
-  if tick_info.tick_id != BRC30::TickId::from_str(&tickId).unwrap() {
+  if tick_info.tick_id != brc30::TickId::from_str(&tick_id).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -50,7 +50,7 @@ pub(crate) async fn brc30_all_pool_info(
   let all_pool_info = index.brc30_all_pool_info()?;
   log::debug!("rpc: get brc30_all_pool_info: {:?}", all_pool_info);
   Ok(Json(ApiResponse::ok(AllBRC30PoolInfo {
-    tokens: all_pool_info.iter().map(|(pool)| pool.into()).collect(),
+    tokens: all_pool_info.iter().map(|pool| pool.into()).collect(),
   })))
 }
 
@@ -76,7 +76,7 @@ pub(crate) async fn brc30_pool_info(
     pool_info
   );
 
-  if pool_info.pid != BRC30::Pid::from_str(&pid).unwrap() {
+  if pool_info.pid != brc30::Pid::from_str(&pid).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -107,7 +107,7 @@ pub(crate) async fn brc30_userinfo(
     user_info
   );
 
-  if user_info.pid != BRC30::Pid::from_str(&pid).unwrap() {
+  if user_info.pid != brc30::Pid::from_str(&pid).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -117,28 +117,28 @@ pub(crate) async fn brc30_userinfo(
 // 3.4.6 /brc30/tick/:tickId/address/:address/balance
 pub(crate) async fn brc30_balance(
   Extension(index): Extension<Arc<Index>>,
-  Path((tickId, address)): Path<(String, String)>,
+  Path((tick_id, address)): Path<(String, String)>,
 ) -> ApiResult<BRC30Balance> {
   log::debug!(
     "rpc: get brc30_balance: tickId:{}, address:{}",
-    tickId,
+    tick_id,
     address
   );
 
-  if tickId.as_bytes().len() != 5 {
+  if tick_id.as_bytes().len() != 5 {
     return Err(ApiError::bad_request("tick id length must 5."));
   }
-  let tickId = tickId.to_lowercase();
+  let tick_id = tick_id.to_lowercase();
   let address: bitcoin::Address = address
     .parse()
     .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
   let balance = &index
-    .brc30_balance(&tickId, &address)?
+    .brc30_balance(&tick_id, &address)?
     .ok_or_api_not_found("pid not found")?;
 
   log::debug!(
     "rpc: get brc30_userinfo: {:?} {:?}",
-    tickId.as_str(),
+    tick_id.as_str(),
     balance
   );
 
@@ -161,7 +161,10 @@ pub(crate) async fn brc30_all_balance(
   log::debug!("rpc: get brc30_all_balance: {} {:?}", address, all_balance);
 
   Ok(Json(ApiResponse::ok(AllBRC30Balance {
-    balance: all_balance.iter().map(|(tickid, bal)| bal.into()).collect(),
+    balance: all_balance
+      .iter()
+      .map(|(_tick_id, bal)| bal.into())
+      .collect(),
   })))
 }
 
@@ -190,7 +193,7 @@ pub(crate) async fn brc30_transferable(
   Ok(Json(ApiResponse::ok(Transferable {
     inscriptions: all_transfer
       .iter()
-      .map(|(transfer)| transfer.into())
+      .map(|transfer| transfer.into())
       .collect(),
   })))
 }
@@ -211,7 +214,7 @@ pub(crate) async fn brc30_all_transferable(
   log::debug!("rpc: get brc30_all_transferable: {} {:?}", address, all);
 
   Ok(Json(ApiResponse::ok(Transferable {
-    inscriptions: all.iter().map(|(transer)| transer.into()).collect(),
+    inscriptions: all.iter().map(|transer| transer.into()).collect(),
   })))
 }
 
@@ -228,7 +231,7 @@ pub(crate) async fn brc30_txid_events(
   log::debug!("rpc: get brc30_txid_events: {:?}", all_receipt);
 
   Ok(Json(ApiResponse::ok(Events {
-    events: all_receipt.iter().map(|(receipt)| receipt.into()).collect(),
+    events: all_receipt.iter().map(|receipt| receipt.into()).collect(),
     txid: txid.to_string(),
   })))
 }

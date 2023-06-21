@@ -1,12 +1,12 @@
 use crate::index::{InscriptionEntryValue, InscriptionIdValue};
-use crate::okx::datastore::BRC20::redb::BRC20DataStore;
-use crate::okx::datastore::BRC20::BRC20DataStoreReadWrite;
-use crate::okx::datastore::BRC30::redb::BRC30DataStore;
-use crate::okx::datastore::BRC30::BRC30DataStoreReadWrite;
-use crate::okx::datastore::ORD::{OrdDataStoreReadOnly, OrdDbReader};
+use crate::okx::datastore::brc20::redb::BRC20DataStore;
+use crate::okx::datastore::brc20::BRC20DataStoreReadWrite;
+use crate::okx::datastore::brc30::redb::BRC30DataStore;
+use crate::okx::datastore::brc30::BRC30DataStoreReadWrite;
+use crate::okx::datastore::ord::{OrdDataStoreReadOnly, OrdDbReader};
+use crate::okx::protocol::brc20::{BRC20Updater, InscriptionData};
+use crate::okx::protocol::brc30::updater::BRC30Updater;
 use crate::okx::protocol::protocol::Protocol;
-use crate::okx::protocol::BRC20::{BRC20Updater, InscriptionData};
-use crate::okx::protocol::BRC30::updater::BRC30Updater;
 use anyhow::anyhow;
 use bitcoin::{Transaction, Txid};
 use redb::Table;
@@ -58,7 +58,11 @@ impl<
   pub fn execute_protocols(&mut self, height: u64, block_time: u32) -> Result<(), anyhow::Error> {
     let mut brc20_updater = BRC20Updater::new(self.brc20_data_store, self.id_to_entry);
 
-    let mut brc30_updater = BRC30Updater::new(self.brc30_data_store,self.brc20_data_store, self.id_to_entry);
+    let mut brc30_updater = BRC30Updater::new(
+      self.brc30_data_store,
+      self.brc20_data_store,
+      self.id_to_entry,
+    );
     loop {
       if let Some(p) = self.protocols.pop_front() {
         match p {

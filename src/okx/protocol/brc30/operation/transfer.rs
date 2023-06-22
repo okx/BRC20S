@@ -6,11 +6,11 @@ pub struct Transfer {
   #[serde(rename = "tid")]
   pub tick_id: String,
 
-  // Ticker: 4-6 letter identifier of the brc-30
+  // Ticker: 4-6 letter identifier of the brc20-s
   #[serde(rename = "tick")]
   pub tick: String,
 
-  // Amount to transfer: States the amount of the brc-30 to transfer.
+  // Amount to transfer: States the amount of the brc20-s to transfer.
   #[serde(rename = "amt")]
   pub amount: String,
 }
@@ -41,7 +41,7 @@ mod tests {
   fn test_deserialize() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick",
@@ -67,7 +67,7 @@ mod tests {
   fn test_loss_require_key() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "transfer",
         "tick": "tick",
         "amt": "amt"
@@ -86,7 +86,7 @@ mod tests {
   fn test_duplicate_key() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick-1",

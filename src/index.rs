@@ -1,6 +1,7 @@
 use crate::okx::datastore::{
   brc20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
   brc30::{self, redb::BRC30DataStoreReader, BRC30DataStoreReadOnly},
+  ord::OrdDataStoreReadOnly,
   ScriptKey,
 };
 #[cfg(feature = "rollback")]
@@ -685,10 +686,13 @@ impl Index {
     }
   }
 
-  pub(crate) fn get_transaction_with_retries(&self, txid: Txid) -> Result<Option<Transaction>> {
+  pub(crate) fn get_transaction_with_retries(
+    client: &Client,
+    txid: Txid,
+  ) -> Result<Option<Transaction>> {
     let mut errors = 0;
     loop {
-      match self.client.get_raw_transaction(&txid, None).into_option() {
+      match client.get_raw_transaction(&txid, None).into_option() {
         Err(err) => {
           if cfg!(test) {
             return Err(err);
@@ -934,6 +938,17 @@ impl Index {
         .get(&inscription_id.store())?
         .map(|value| InscriptionEntry::load(value.value())),
     )
+  }
+
+  pub(crate) fn get_outpoint_script_key(
+    ord_store: &dyn OrdDataStoreReadOnly,
+    outpoint: OutPoint,
+    network: Network,
+  ) -> Result<Option<ScriptKey>> {
+    match ord_store.get_outpoint_to_txout(outpoint)? {
+      Some(txout) => Ok(Some(ScriptKey::from_script(&txout.script_pubkey, network))),
+      None => Ok(None),
+    }
   }
 
   #[cfg(test)]

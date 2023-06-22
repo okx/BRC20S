@@ -63,7 +63,7 @@ mod tests {
   fn test_deserialize() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "unstake",
         "pid": "pid",
         "amt": "amt"
@@ -87,7 +87,7 @@ mod tests {
   fn test_loss_require_key() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "unstake",
         "amt": "amt"
       }}"##
@@ -105,7 +105,7 @@ mod tests {
   fn test_duplicate_key() {
     let json_str = format!(
       r##"{{
-        "p": "brc-30",
+        "p": "brc20-s",
         "op": "unstake",
         "pid": "pid-1",
         "pid": "pid-2",

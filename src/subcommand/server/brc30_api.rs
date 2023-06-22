@@ -24,9 +24,6 @@ pub(crate) async fn brc30_tick_info(
   Path(tick_id): Path<String>,
 ) -> ApiResult<BRC30TickInfo> {
   log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
-  if tick_id.as_bytes().len() != 5 {
-    return Err(ApiError::bad_request("tick id length must 5."));
-  }
   let tick_id = tick_id.to_lowercase();
 
   let tick_info = &index

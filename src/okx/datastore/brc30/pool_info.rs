@@ -146,16 +146,25 @@ mod tests {
 
   #[test]
   fn test_pid_compare_ignore_case() {
-    assert_eq!(Pid::from_str("aBca1D"), Pid::from_str("ABCA1D"));
-    assert_ne!(Pid::from_str("aBca1D"), Pid::from_str("aBca2d"));
-    assert_ne!(Pid::from_str("aBc11D"), Pid::from_str("aBc21d"));
+    assert_eq!(
+      Pid::from_str("A012345679#01"),
+      Pid::from_str("a012345679#01")
+    );
+    assert_ne!(
+      Pid::from_str("A012345679#01"),
+      Pid::from_str("A012345679#02")
+    );
+    assert_ne!(
+      Pid::from_str("A112345679#01"),
+      Pid::from_str("A012345679#01")
+    );
   }
 
   #[test]
   fn test_pid_length_case() {
     assert_eq!(
-      Pid::from_str("aD"),
-      Err(BRC30Error::InvalidTickLen("aD".to_string()))
+      Pid::from_str("a012345679#"),
+      Err(BRC30Error::InvalidTickLen("a012345679#".to_string()))
     );
     assert_eq!(
       Pid::from_str(""),
@@ -175,15 +184,15 @@ mod tests {
 
   #[test]
   fn test_pid_serialize() {
-    let obj = Pid::from_str("Ab1Dd;").unwrap();
-    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""Ab1Dd;""##);
+    let obj = Pid::from_str("a012345679#01").unwrap();
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""a012345679#01""##);
   }
 
   #[test]
   fn test_pid_deserialize() {
     assert_eq!(
-      serde_json::from_str::<Pid>(r##""Ab1D1;""##).unwrap(),
-      Pid::from_str("Ab1D1;").unwrap()
+      serde_json::from_str::<Pid>(r##""a012345679#01""##).unwrap(),
+      Pid::from_str("a012345679#01").unwrap()
     );
   }
 }

@@ -263,22 +263,28 @@ mod tests {
 
   #[test]
   fn test_tickid_compare_ignore_case() {
-    assert_eq!(TickId::from_str("aBc1a"), TickId::from_str("AbC1A"));
+    assert_eq!(
+      TickId::from_str("f7c515d6b7"),
+      TickId::from_str("F7c515D6b7")
+    );
 
-    assert_ne!(TickId::from_str("aBc1F"), TickId::from_str("aBc2f"));
+    assert_ne!(
+      TickId::from_str("f7c515d6b7"),
+      TickId::from_str("f6c515d6b7")
+    );
   }
 
   #[test]
   fn test_tickid_serialize() {
-    let obj = TickId::from_str("Ab1D;").unwrap();
-    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""Ab1D;""##);
+    let obj = TickId::from_str("f7c515d6b7").unwrap();
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""f7c515d6b7""##);
   }
 
   #[test]
   fn test_tickid_deserialize() {
     assert_eq!(
-      serde_json::from_str::<TickId>(r##""Ab1D;""##).unwrap(),
-      TickId::from_str("Ab1D;").unwrap()
+      serde_json::from_str::<TickId>(r##""f7c515d6b7""##).unwrap(),
+      TickId::from_str("f7c515d6b7").unwrap()
     );
   }
 
@@ -322,15 +328,15 @@ mod tests {
 
   #[test]
   fn test_tick_serialize() {
-    let obj = TickId::from_str("Ab1D;").unwrap();
-    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""Ab1D;""##);
+    let obj = TickId::from_str("f7c515d6b7").unwrap();
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""f7c515d6b7""##);
   }
 
   #[test]
   fn test_tick_deserialize() {
     assert_eq!(
-      serde_json::from_str::<TickId>(r##""Ab1D;""##).unwrap(),
-      TickId::from_str("Ab1D;").unwrap()
+      serde_json::from_str::<TickId>(r##""f7c515d6b7""##).unwrap(),
+      TickId::from_str("f7c515d6b7").unwrap()
     );
   }
 

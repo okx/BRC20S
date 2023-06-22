@@ -150,8 +150,14 @@ mod tests {
       Pid::from_str("A012345679#01"),
       Pid::from_str("a012345679#01")
     );
-    // assert_ne!(Pid::from_str("aBca1D"), Pid::from_str("aBca2d"));
-    // assert_ne!(Pid::from_str("aBc11D"), Pid::from_str("aBc21d"));
+    assert_ne!(
+      Pid::from_str("A012345679#01"),
+      Pid::from_str("A012345679#02")
+    );
+    assert_ne!(
+      Pid::from_str("A112345679#01"),
+      Pid::from_str("A012345679#01")
+    );
   }
 
   #[test]

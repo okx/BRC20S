@@ -122,6 +122,13 @@ impl Num {
     )
   }
 
+  pub fn truncate_to_str(&self) -> Result<String, BRC30Error> {
+    let big_str = self.0.clone().to_string();
+    let parts: Vec<&str> = big_str.split(".").collect();
+    let result = parts[0].to_string();
+    Ok(result)
+  }
+
   pub fn max(a: &Num, b: &Num) -> Self {
     if a.gt(b) {
       Num::from(a.clone())
@@ -393,6 +400,10 @@ mod tests {
     let max = format!("{}.999999999999999999", u64::MAX);
 
     BigDecimal::from_str(&max).unwrap();
+
+    let a = Num::from_str(format!("{}.999999999999999999", u128::MAX).as_str()).unwrap();
+    let b = a.checked_mul(&a).unwrap();
+    panic!("{},{}", a.to_string(), b.to_string())
   }
 
   #[test]
@@ -470,6 +481,79 @@ mod tests {
     assert_eq!(
       Num::from_str("100E2").unwrap_err(),
       BRC30Error::InvalidNum("100E2".to_string())
+    );
+
+    return;
+  }
+
+  #[test]
+  fn test_truncate_to_str() {
+    let n = Num::from_str(&format!("{}", u128::MAX)).unwrap();
+    assert_eq!(n.truncate_to_str().unwrap(), u128::MAX.to_string());
+
+    let n = Num::from_str(&format!("0")).unwrap();
+    assert_eq!(n.truncate_to_str().unwrap(), "0".to_string());
+
+    let n = Num::from_str(&format!("{}{}", u128::MAX, 1)).unwrap();
+    assert_eq!(
+      n.truncate_to_str().unwrap(),
+      "3402823669209384634633746074317682114551"
+    );
+
+    let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
+    assert_eq!(n.truncate_to_str().unwrap(), (u128::MAX - 1).to_string());
+
+    let n = Num::from_str(&format!("{}.{}", 0, "33333")).unwrap();
+    assert_eq!(n.truncate_to_str().unwrap(), "0".to_string());
+    let a = BigDecimal::from_str(&format!("0.333"))
+      .unwrap()
+      .to_bigint()
+      .unwrap();
+
+    let n = Num::from_str("3140000000000000000.1230").unwrap();
+    assert_eq!(
+      n.truncate_to_str().unwrap(),
+      "3140000000000000000".to_string()
+    );
+
+    let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
+    assert_eq!(
+      Num::from_str("1e2").unwrap_err(),
+      BRC30Error::InvalidNum("1e2".to_string())
+    );
+    assert_eq!(
+      Num::from_str("0e2").unwrap_err(),
+      BRC30Error::InvalidNum("0e2".to_string())
+    );
+
+    assert_eq!(
+      Num::from_str("100E2").unwrap_err(),
+      BRC30Error::InvalidNum("100E2".to_string())
+    );
+
+    assert_eq!(
+      Num::from_str("0.00.0").unwrap_err(),
+      BRC30Error::InvalidNum("0.00.0".to_string())
+    );
+
+    assert_eq!(
+      Num::from_str("").unwrap_err(),
+      BRC30Error::InvalidNum("".to_string())
+    );
+
+    assert_eq!(
+      Num::from_str("0.123").unwrap().truncate_to_str().unwrap(),
+      "0".to_string()
+    );
+
+    assert_eq!(
+      Num::from_str(
+        "115792089237316195423570985008687907852589419931798687112530834793049593217025.999999999999999999"
+      )
+      .unwrap()
+      .truncate_to_str()
+      .unwrap(),
+      "115792089237316195423570985008687907852589419931798687112530834793049593217025".to_string()
     );
 
     return;

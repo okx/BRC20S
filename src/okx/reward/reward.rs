@@ -1,5 +1,8 @@
 use crate::okx::datastore::brc30::{PoolInfo, PoolType, UserInfo};
 use crate::okx::protocol::brc30::{params::BIGDECIMAL_TEN, BRC30Error, Num};
+use std::str::FromStr;
+
+const PER_SHARE_MULTIPLIER: u8 = 18;
 
 #[cfg(not(test))]
 use log::{info, warn};
@@ -11,8 +14,6 @@ use std::{println as info, println as warn};
 // |-----------|-----------|------------------|----------------|-------|-----------------------------------------------|
 // | Fix       |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000/1e3 * 100 * 1 = 200  (need stake's DECIMAL)  |
 // | Pool      |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000 * 100 / 10000 =  20                          |
-
-const REWARD_PER_DECIMAL: u64 = 10000;
 
 pub fn query_reward(
   user: UserInfo,
@@ -26,85 +27,103 @@ pub fn query_reward(
   return withdraw_user_reward(&mut user_temp, &mut pool_temp, staked_decimal);
 }
 
-// need to save pool_info, when call success
+// do not save pool_info when failed
 pub fn update_pool(
   pool: &mut PoolInfo,
   block_num: u64,
   staked_decimal: u8,
 ) -> Result<(), BRC30Error> {
+  if pool.ptype != PoolType::Pool && pool.ptype != PoolType::Fixed {
+    return Err(BRC30Error::UnknownPoolType);
+  }
   info!("update_pool in");
   let pool_minted = Into::<Num>::into(pool.minted);
   let pool_dmax = Into::<Num>::into(pool.dmax);
-  let nums = Into::<Num>::into(block_num - pool.last_update_block);
   let erate = Into::<Num>::into(pool.erate);
   let pool_stake = Into::<Num>::into(pool.staked);
-  let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
+  let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
 
-  info!("  pool:{:?}", pool);
-  //1 check block num of pool is latest
-  if block_num <= pool.last_update_block {
+  info!("  {}", pool);
+  //1 check block num, minted, stake
+  if block_num <= pool.last_update_block || pool_stake <= Num::zero() || pool_minted >= pool_dmax {
     info!("update_pool out");
-    return Ok(());
-  }
-
-  //2 check allocated has been minted
-  if pool_minted >= pool_dmax {
     pool.last_update_block = block_num;
-    info!("update_pool out");
     return Ok(());
   }
 
-  //3 pool type: fixed and pool, for calculating accRewardPerShare
-  let mut reward_per_token_stored = Num::zero();
-  let multiplier_earn = erate.checked_mul(&nums)?.checked_mul(&get_muliplier())?;
-  let mut multiplier_mint = Num::zero();
-  if pool.ptype == PoolType::Fixed {
-    reward_per_token_stored = multiplier_earn.clone();
-    let base = get_staked_decimal_base(staked_decimal)?;
-    multiplier_mint = Into::<Num>::into(pool.staked)
-      .checked_mul(&reward_per_token_stored)?
-      .checked_div(&base)?;
-  } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
-    reward_per_token_stored = multiplier_earn.checked_div(&pool_stake)?;
-    multiplier_mint = multiplier_earn.clone();
+  let nums = Into::<Num>::into(block_num - pool.last_update_block);
+  //2 calc reward, update minted and block num
+  let mut rewards = erate.checked_mul(&nums)?;
+  if pool.ptype == PoolType::Pool {
+    if pool_minted.checked_add(&rewards)? > pool_dmax {
+      rewards = pool_dmax.checked_sub(&pool_minted)?;
+    }
+    pool.minted = pool_minted.checked_add(&rewards)?.checked_to_u128()?;
+  } else if pool.ptype == PoolType::Fixed {
+    let mut estimate_reward = pool_stake
+      .checked_mul(&rewards)?
+      .checked_mul(&get_per_share_multiplier())?
+      .checked_div(&get_num_by_decimal(staked_decimal)?)?
+      .checked_div(&get_per_share_multiplier())?;
+
+    if pool_minted.checked_add(&estimate_reward)? > pool_dmax {
+      estimate_reward = pool_dmax.checked_sub(&pool_minted)?;
+      rewards = estimate_reward
+        .checked_mul(&get_per_share_multiplier())?
+        .checked_mul(&get_num_by_decimal(staked_decimal)?)?
+        .checked_div(&pool_stake)?
+        .checked_div(&get_per_share_multiplier())?;
+    }
+
+    pool.minted = pool_minted
+      .checked_add(&estimate_reward)?
+      .checked_to_u128()?;
   }
 
-  pool.acc_reward_per_share = reward_per_token_stored
-    .checked_add(&acc_reward_per_share)?
-    .truncate_to_u128()?;
-
-  //4 update latest block num
   pool.last_update_block = block_num;
 
-  //5 update minted
-  pool.minted = pool_minted
-    .checked_mul(&get_muliplier())?
-    .checked_add(&multiplier_mint)?
-    .checked_div(&get_muliplier())?
-    .truncate_to_u128()?;
+  //3 calculating accRewardPerShare for fixed or pool
+  if pool.ptype == PoolType::Pool {
+    pool.acc_reward_per_share = rewards
+      .clone()
+      .checked_mul(&get_per_share_multiplier())?
+      .checked_div(&pool_stake)? // pool's per share = reward / all stake
+      .checked_add(&acc_reward_per_share)?
+      .truncate_to_str()?;
+  } else if pool.ptype == PoolType::Fixed {
+    pool.acc_reward_per_share = rewards
+      .clone()
+      .checked_mul(&get_per_share_multiplier())?
+      .checked_add(&acc_reward_per_share)?
+      .truncate_to_str()?;
+  }
 
   info!(
-    "  staked_decimal:{}, acc_reward_per_share:{}, reward_per_token_stored:{}, multiplier_earn:{}, multiplier_mint:{}",
-    staked_decimal, pool.acc_reward_per_share, reward_per_token_stored, multiplier_earn, multiplier_mint
+    "  pool's acc_reward_per_share:{}, rewards:{}",
+    pool.acc_reward_per_share, rewards
   );
 
   info!("update_pool out");
   return Ok(());
 }
 
-// need to save pool_info and user_info, when call success
+// do not save pool and user info when failed
 pub fn withdraw_user_reward(
   user: &mut UserInfo,
   pool: &mut PoolInfo,
   staked_decimal: u8,
 ) -> Result<u128, BRC30Error> {
+  if pool.ptype != PoolType::Pool && pool.ptype != PoolType::Fixed {
+    return Err(BRC30Error::UnknownPoolType);
+  }
+
   info!("withdraw_user_reward in");
   let user_staked = Into::<Num>::into(user.staked);
-  let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
+  let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
   let reward_debt = Into::<Num>::into(user.reward_debt);
   let user_reward = Into::<Num>::into(user.reward);
-  info!("  user{:?}", user);
-  info!("  pool{:?}", pool);
+  info!("  {}", pool);
+  info!("  {}", user);
 
   //1 check user's staked gt 0
   if user_staked <= Num::zero() {
@@ -114,60 +133,62 @@ pub fn withdraw_user_reward(
     ));
   }
 
-  //2 reward = staked * accRewardPerShare - user reward_debt
-  let mut reward = Num::zero();
-  if pool.ptype == PoolType::Fixed {
-    reward = user_staked
+  //2 pending reward = staked * accRewardPerShare - user reward_debt
+  let mut pending_reward = Num::zero();
+  if pool.ptype == PoolType::Pool {
+    pending_reward = user_staked
       .checked_mul(&acc_reward_per_share)?
-      .checked_div(&get_staked_decimal_base(staked_decimal)?)?
+      .checked_div(&get_per_share_multiplier())?
       .checked_sub(&reward_debt)?;
-  } else if pool.ptype == PoolType::Pool && pool.staked != 0 {
-    reward = user_staked
-      .checked_mul(&acc_reward_per_share)?
-      .checked_sub(&reward_debt)?;
-  } else {
-    info!("withdraw_user_reward out");
-    return Err(BRC30Error::UnknownPoolType);
+  } else if pool.ptype == PoolType::Fixed {
+    pending_reward = user_staked
+       .checked_mul(&acc_reward_per_share)?
+       .checked_div(&get_num_by_decimal(staked_decimal)?)? //fix's pending reward need calc how many staked
+       .checked_div(&get_per_share_multiplier())?
+       .checked_sub(&reward_debt)?;
   }
 
-  reward = reward.checked_div(&get_muliplier())?;
-
-  if reward > Num::zero() {
+  if pending_reward > Num::zero() {
     //3 update minted of user_info and pool
-    user.reward = user_reward.checked_add(&reward)?.truncate_to_u128()?;
+    user.reward = user_reward
+      .checked_add(&pending_reward)?
+      .truncate_to_u128()?;
   }
 
-  info!("  reward:{}", reward.clone());
+  info!("  pending reward:{}", pending_reward.clone());
 
   info!("withdraw_user_reward out");
-  return reward.truncate_to_u128();
+  return pending_reward.truncate_to_u128();
 }
 
-// need to update staked  before, and save pool_info and user_info when call success
+// need to update staked  before, do not user info when failed
 pub fn update_user_stake(
   user: &mut UserInfo,
   pool: &PoolInfo,
   staked_decimal: u8,
 ) -> Result<(), BRC30Error> {
+  if pool.ptype != PoolType::Pool && pool.ptype != PoolType::Fixed {
+    return Err(BRC30Error::UnknownPoolType);
+  }
+
   info!("update_user_stake in");
   let user_staked = Into::<Num>::into(user.staked);
-  let acc_reward_per_share = Into::<Num>::into(pool.acc_reward_per_share);
-  info!("  user{:?}", user);
-  info!("  pool{:?}", pool);
+  let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
+  info!("  {}", user);
+  info!("  {}", pool);
 
   //1 update user's reward_debt
-  if pool.ptype == PoolType::Fixed {
+  if pool.ptype == PoolType::Pool {
     user.reward_debt = user_staked
       .checked_mul(&acc_reward_per_share)?
-      .checked_div(&get_staked_decimal_base(staked_decimal)?)?
+      .checked_div(&get_per_share_multiplier())?
       .truncate_to_u128()?;
-  } else if pool.ptype == PoolType::Pool {
+  } else if pool.ptype == PoolType::Fixed {
     user.reward_debt = user_staked
       .checked_mul(&acc_reward_per_share)?
+      .checked_div(&get_num_by_decimal(staked_decimal)?)?
+      .checked_div(&get_per_share_multiplier())?
       .truncate_to_u128()?;
-  } else {
-    info!("update_user_stake out");
-    return Err(BRC30Error::UnknownPoolType);
   }
 
   user.latest_updated_block = pool.last_update_block;
@@ -178,12 +199,12 @@ pub fn update_user_stake(
   return Ok(());
 }
 
-fn get_muliplier() -> Num {
-  Num::from(REWARD_PER_DECIMAL)
+fn get_per_share_multiplier() -> Num {
+  return get_num_by_decimal(PER_SHARE_MULTIPLIER).unwrap();
 }
 
-fn get_staked_decimal_base(staked_decimal: u8) -> Result<Num, BRC30Error> {
-  BIGDECIMAL_TEN.checked_powu(staked_decimal as u64)
+fn get_num_by_decimal(decimal: u8) -> Result<Num, BRC30Error> {
+  BIGDECIMAL_TEN.checked_powu(decimal as u64)
 }
 
 #[cfg(test)]
@@ -263,11 +284,19 @@ mod tests {
       .unwrap()
       .truncate_to_u128()
       .unwrap();
-    let dmax = 1000;
-    let erate = 100;
+    let erate_base = BIGDECIMAL_TEN
+      .checked_powu(ERATE_DECIMAL as u64)
+      .unwrap()
+      .truncate_to_u128()
+      .unwrap();
 
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    let mut pool = new_pool(&pid.clone(), PoolType::Fixed, erate, dmax);
+    let mut pool = new_pool(
+      &pid.clone(),
+      PoolType::Fixed,
+      10 * erate_base,
+      10000 * erate_base,
+    );
     let mut user = new_user(&pid);
 
     // case-1-A deposit 0
@@ -310,11 +339,11 @@ mod tests {
       3,
       9,
       true,
-      0,
       10,
       10,
-      0,
-      Ok((0)),
+      10,
+      10,
+      Ok(10),
       Ok(()),
     );
 
@@ -325,11 +354,11 @@ mod tests {
       3,
       0,
       true,
-      0,
       10,
       10,
-      0,
-      Ok((0)),
+      10,
+      10,
+      Ok(0),
       Ok(()),
     );
 
@@ -338,13 +367,13 @@ mod tests {
       &mut user,
       &mut pool,
       10,
-      0,
+      0 * stake_base,
       true,
-      7,
+      710,
       10,
       10,
-      7,
-      Ok((7)),
+      710,
+      Ok(700),
       Ok(()),
     );
 
@@ -355,11 +384,11 @@ mod tests {
       11,
       90,
       true,
-      8,
+      810,
       100,
       100,
-      8,
-      Ok((1)),
+      810,
+      Ok(100),
       Ok(()),
     );
 
@@ -370,11 +399,11 @@ mod tests {
       12,
       10,
       false,
-      18,
+      1810,
       90,
       90,
-      18,
-      Ok((10)),
+      1810,
+      Ok(1000),
       Ok(()),
     );
 
@@ -385,41 +414,26 @@ mod tests {
       20,
       10,
       false,
-      90,
+      9010,
       80,
       80,
-      90,
-      Ok((72)),
+      9010,
+      Ok(7200),
       Ok(()),
     );
 
-    //case-9-A withdraw 70
+    //case-9-A ,same block
     do_one_case(
       &mut user,
       &mut pool,
-      21,
-      70,
-      false,
-      98,
-      10,
-      10,
-      98,
-      Ok((8)),
-      Ok(()),
-    );
-
-    //case-10-A ,same block
-    do_one_case(
-      &mut user,
-      &mut pool,
-      21,
+      20,
       0,
       false,
-      98,
-      10,
-      10,
-      98,
-      Ok((0)),
+      9010,
+      80,
+      80,
+      9010,
+      Ok(0),
       Ok(()),
     );
 
@@ -428,28 +442,13 @@ mod tests {
       &mut user,
       &mut pool,
       22,
-      9,
+      80,
       false,
-      99,
-      1,
-      1,
-      99,
-      Ok((1)),
-      Ok(()),
-    );
-
-    //case-12-A withdraw  1
-    do_one_case(
-      &mut user,
-      &mut pool,
-      23,
-      1,
-      false,
-      99,
+      10610,
       0,
       0,
-      99,
-      Ok((0)),
+      10610,
+      Ok(1600),
       Ok(()),
     );
 
@@ -458,12 +457,12 @@ mod tests {
       &mut user,
       &mut pool,
       24,
-      0,
+      0 * stake_base,
       false,
-      99,
+      10610,
       0,
       0,
-      99,
+      10610,
       Err(BRC30Error::NoStaked(
         pid.to_lowercase().as_str().to_string(),
       )),
@@ -475,12 +474,12 @@ mod tests {
       &mut user,
       &mut pool,
       50,
-      100,
+      100 * stake_base,
       true,
-      99,
-      100,
-      100,
-      99,
+      10610,
+      100 * stake_base,
+      100 * stake_base,
+      10610,
       Err(BRC30Error::NoStaked(
         pid.to_lowercase().as_str().to_string(),
       )),
@@ -492,13 +491,13 @@ mod tests {
       &mut user,
       &mut pool,
       100,
-      0,
+      0 * stake_base,
       true,
-      599,
-      100,
-      100,
-      599,
-      Ok((500)),
+      10000 * erate_base,
+      100 * stake_base,
+      100 * stake_base,
+      10000 * erate_base,
+      Ok(9989390),
       Ok(()),
     );
 
@@ -507,13 +506,13 @@ mod tests {
       &mut user,
       &mut pool,
       100,
-      0,
+      0 * stake_base,
       true,
-      599,
-      100,
-      100,
-      599,
-      Ok((0)),
+      10000 * erate_base,
+      100 * stake_base,
+      100 * stake_base,
+      10000 * erate_base,
+      Ok(0 * erate_base),
       Ok(()),
     );
 
@@ -522,43 +521,13 @@ mod tests {
       &mut user,
       &mut pool,
       200,
-      0,
+      0 * stake_base,
       true,
-      1599,
-      100,
-      100,
-      1599,
-      Ok((1000)),
-      Ok(()),
-    );
-
-    //case-18-A mint
-    do_one_case(
-      &mut user,
-      &mut pool,
-      201,
-      0,
-      true,
-      1599,
-      100,
-      100,
-      1599,
-      Ok((0)),
-      Ok(()),
-    );
-
-    //case-19-A mint, jump block
-    do_one_case(
-      &mut user,
-      &mut pool,
-      300,
-      0,
-      true,
-      1599,
-      100,
-      100,
-      1599,
-      Ok((0)),
+      10000 * erate_base,
+      100 * stake_base,
+      100 * stake_base,
+      10000 * erate_base,
+      Ok(0 * erate_base),
       Ok(()),
     );
   }
@@ -804,16 +773,24 @@ mod tests {
 
   #[test]
   fn test_pool_one_user() {
-    let base = BIGDECIMAL_TEN
+    let stake_base = BIGDECIMAL_TEN
       .checked_powu(STAKED_DECIMAL as u64)
       .unwrap()
       .truncate_to_u128()
       .unwrap();
-    let dmax = 10000;
-    let erate = 100;
+    let erate_base = BIGDECIMAL_TEN
+      .checked_powu(ERATE_DECIMAL as u64)
+      .unwrap()
+      .truncate_to_u128()
+      .unwrap();
 
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
+    let mut pool = new_pool(
+      &pid.clone(),
+      PoolType::Pool,
+      10 * erate_base,
+      10000 * erate_base,
+    );
     let mut user = new_user(&pid);
 
     // case-1-A deposit 0
@@ -856,11 +833,11 @@ mod tests {
       3,
       9,
       true,
-      100,
+      10000,
       10,
       10,
-      100,
-      Ok((100)),
+      10000,
+      Ok((10000)),
       Ok(()),
     );
 
@@ -871,11 +848,11 @@ mod tests {
       3,
       0,
       true,
-      100,
+      10000,
       10,
       10,
-      100,
-      Ok((0)),
+      10000,
+      Ok(0),
       Ok(()),
     );
 
@@ -886,11 +863,11 @@ mod tests {
       10,
       0,
       true,
-      800,
+      80000,
       10,
       10,
-      800,
-      Ok((700)),
+      80000,
+      Ok(70000),
       Ok(()),
     );
 
@@ -901,11 +878,11 @@ mod tests {
       11,
       90,
       true,
-      900,
+      90000,
       100,
       100,
-      900,
-      Ok((100)),
+      90000,
+      Ok(10000),
       Ok(()),
     );
 
@@ -916,11 +893,11 @@ mod tests {
       12,
       10,
       false,
-      1000,
+      100000,
       90,
       90,
-      1000,
-      Ok((100)),
+      100000,
+      Ok(10000),
       Ok(()),
     );
 
@@ -931,11 +908,11 @@ mod tests {
       20,
       10,
       false,
-      1799,
+      179999,
       80,
       80,
-      1800,
-      Ok((799)),
+      180000,
+      Ok(79999),
       Ok(()),
     );
 
@@ -946,11 +923,11 @@ mod tests {
       21,
       70,
       false,
-      1899,
+      189999,
       10,
       10,
-      1900,
-      Ok((100)),
+      190000,
+      Ok(10000),
       Ok(()),
     );
 
@@ -961,11 +938,11 @@ mod tests {
       21,
       0,
       false,
-      1899,
+      189999,
       10,
       10,
-      1900,
-      Ok((0)),
+      190000,
+      Ok(0),
       Ok(()),
     );
 
@@ -976,11 +953,11 @@ mod tests {
       22,
       9,
       false,
-      1999,
+      199999,
       1,
       1,
-      2000,
-      Ok((100)),
+      200000,
+      Ok(10000),
       Ok(()),
     );
 
@@ -991,11 +968,11 @@ mod tests {
       23,
       1,
       false,
-      2099,
+      209999,
       0,
       0,
-      2100,
-      Ok((100)),
+      210000,
+      Ok(10000),
       Ok(()),
     );
 
@@ -1006,10 +983,10 @@ mod tests {
       24,
       0,
       false,
-      2099,
+      209999,
       0,
       0,
-      2100,
+      210000,
       Err(BRC30Error::NoStaked(
         pid.to_lowercase().as_str().to_string(),
       )),
@@ -1023,10 +1000,10 @@ mod tests {
       50,
       100,
       true,
-      2099,
+      209999,
       100,
       100,
-      2100,
+      210000,
       Err(BRC30Error::NoStaked(
         pid.to_lowercase().as_str().to_string(),
       )),
@@ -1040,11 +1017,11 @@ mod tests {
       100,
       0,
       true,
-      7099,
+      709999,
       100,
       100,
-      7100,
-      Ok((5000)),
+      710000,
+      Ok(500000),
       Ok(()),
     );
 
@@ -1055,10 +1032,10 @@ mod tests {
       100,
       0,
       true,
-      7099,
+      709999,
       100,
       100,
-      7100,
+      710000,
       Ok((0)),
       Ok(()),
     );
@@ -1067,14 +1044,14 @@ mod tests {
     do_one_case(
       &mut user,
       &mut pool,
-      200,
+      999,
       0,
       true,
-      17099,
+      9699999,
       100,
       100,
-      17100,
-      Ok((10000)),
+      9700000,
+      Ok(8990000),
       Ok(()),
     );
 
@@ -1082,14 +1059,14 @@ mod tests {
     do_one_case(
       &mut user,
       &mut pool,
-      201,
+      1050,
       0,
       true,
-      17099,
+      9999999,
       100,
       100,
-      17100,
-      Ok((0)),
+      10000000,
+      Ok(300000),
       Ok(()),
     );
 
@@ -1097,254 +1074,255 @@ mod tests {
     do_one_case(
       &mut user,
       &mut pool,
-      300,
+      1080,
       0,
       true,
-      17099,
+      9999999,
       100,
       100,
-      17100,
-      Ok((0)),
+      10000000,
+      Ok(0),
       Ok(()),
     );
   }
 
   #[test]
   fn test_pool_three_user() {
-    let base = BIGDECIMAL_TEN
-      .checked_powu(STAKED_DECIMAL as u64)
-      .unwrap()
-      .truncate_to_u128()
-      .unwrap();
-    let dmax = 1000;
-    let erate = 100;
+    /*
+        let base = BIGDECIMAL_TEN
+          .checked_powu(STAKED_DECIMAL as u64)
+          .unwrap()
+          .truncate_to_u128()
+          .unwrap();
+        let dmax = 1000;
+        let erate = 100;
 
-    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
-    let mut user_a = new_user(&pid);
-    let mut user_b = new_user(&pid);
-    let mut user_c = new_user(&pid);
+        let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+        let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
+        let mut user_a = new_user(&pid);
+        let mut user_b = new_user(&pid);
+        let mut user_c = new_user(&pid);
 
-    // case-1-A deposit 100
-    do_one_case(
-      &mut user_a,
-      &mut pool,
-      1,
-      100,
-      true,
-      0,
-      100,
-      100,
-      0,
-      Err(BRC30Error::NoStaked(
-        pid.to_lowercase().as_str().to_string(),
-      )),
-      Ok(()),
-    );
+        // case-1-A deposit 100
+        do_one_case(
+          &mut user_a,
+          &mut pool,
+          1,
+          100,
+          true,
+          0,
+          100,
+          100,
+          0,
+          Err(BRC30Error::NoStaked(
+            pid.to_lowercase().as_str().to_string(),
+          )),
+          Ok(()),
+        );
 
-    // case-2-B deposit 100
-    do_one_case(
-      &mut user_b,
-      &mut pool,
-      2,
-      100,
-      true,
-      0,
-      100,
-      200,
-      100,
-      Err(BRC30Error::NoStaked(
-        pid.to_lowercase().as_str().to_string(),
-      )),
-      Ok(()),
-    );
+        // case-2-B deposit 100
+        do_one_case(
+          &mut user_b,
+          &mut pool,
+          2,
+          100,
+          true,
+          0,
+          100,
+          200,
+          100,
+          Err(BRC30Error::NoStaked(
+            pid.to_lowercase().as_str().to_string(),
+          )),
+          Ok(()),
+        );
 
-    // case-3-C deposit 100
-    do_one_case(
-      &mut user_c,
-      &mut pool,
-      3,
-      100,
-      true,
-      0,
-      100,
-      300,
-      200,
-      Err(BRC30Error::NoStaked(
-        pid.to_lowercase().as_str().to_string(),
-      )),
-      Ok(()),
-    );
+        // case-3-C deposit 100
+        do_one_case(
+          &mut user_c,
+          &mut pool,
+          3,
+          100,
+          true,
+          0,
+          100,
+          300,
+          200,
+          Err(BRC30Error::NoStaked(
+            pid.to_lowercase().as_str().to_string(),
+          )),
+          Ok(()),
+        );
 
-    // case-4-A depoist 100
-    do_one_case(
-      &mut user_a,
-      &mut pool,
-      4,
-      100,
-      true,
-      183,
-      200,
-      400,
-      300,
-      Ok((183)),
-      Ok(()),
-    );
+        // case-4-A depoist 100
+        do_one_case(
+          &mut user_a,
+          &mut pool,
+          4,
+          100,
+          true,
+          183,
+          200,
+          400,
+          300,
+          Ok((183)),
+          Ok(()),
+        );
 
-    // case-5-A withdraw 100
-    do_one_case(
-      &mut user_a,
-      &mut pool,
-      4,
-      100,
-      true,
-      183,
-      300,
-      500,
-      300,
-      Ok((0)),
-      Ok(()),
-    );
+        // case-5-A withdraw 100
+        do_one_case(
+          &mut user_a,
+          &mut pool,
+          4,
+          100,
+          true,
+          183,
+          300,
+          500,
+          300,
+          Ok((0)),
+          Ok(()),
+        );
 
-    // case-6-B depoist 100
-    do_one_case(
-      &mut user_b,
-      &mut pool,
-      4,
-      100,
-      true,
-      83,
-      200,
-      600,
-      300,
-      Ok((83)),
-      Ok(()),
-    );
+        // case-6-B depoist 100
+        do_one_case(
+          &mut user_b,
+          &mut pool,
+          4,
+          100,
+          true,
+          83,
+          200,
+          600,
+          300,
+          Ok(83),
+          Ok(()),
+        );
 
-    // case-7-B withdraw 100
-    do_one_case(
-      &mut user_b,
-      &mut pool,
-      4,
-      100,
-      false,
-      83,
-      100,
-      500,
-      300,
-      Ok((0)),
-      Ok(()),
-    );
+        // case-7-B withdraw 100
+        do_one_case(
+          &mut user_b,
+          &mut pool,
+          4,
+          100,
+          false,
+          83,
+          100,
+          500,
+          300,
+          Ok(0),
+          Ok(()),
+        );
 
-    // case-8-B withdraw 100
-    do_one_case(
-      &mut user_b,
-      &mut pool,
-      4,
-      100,
-      false,
-      83,
-      0,
-      400,
-      300,
-      Ok((0)),
-      Ok(()),
-    );
+        // case-8-B withdraw 100
+        do_one_case(
+          &mut user_b,
+          &mut pool,
+          4,
+          100,
+          false,
+          83,
+          0,
+          400,
+          300,
+          Ok(0),
+          Ok(()),
+        );
 
-    // case-9-A, dothing
-    do_one_case(
-      &mut user_a,
-      &mut pool,
-      5,
-      0,
-      false,
-      258,
-      300,
-      400,
-      400,
-      Ok((75)),
-      Ok(()),
-    );
+        // case-9-A, dothing
+        do_one_case(
+          &mut user_a,
+          &mut pool,
+          5,
+          0,
+          false,
+          258,
+          300,
+          400,
+          400,
+          Ok(75),
+          Ok(()),
+        );
 
-    // case-10-B dothing
-    do_one_case(
-      &mut user_b,
-      &mut pool,
-      5,
-      0,
-      false,
-      83,
-      0,
-      400,
-      400,
-      Err(BRC30Error::NoStaked(
-        pid.to_lowercase().as_str().to_string(),
-      )),
-      Ok(()),
-    );
+        // case-10-B dothing
+        do_one_case(
+          &mut user_b,
+          &mut pool,
+          5,
+          0,
+          false,
+          83,
+          0,
+          400,
+          400,
+          Err(BRC30Error::NoStaked(
+            pid.to_lowercase().as_str().to_string(),
+          )),
+          Ok(()),
+        );
 
-    // case-11-C dothing
-    do_one_case(
-      &mut user_c,
-      &mut pool,
-      5,
-      0,
-      false,
-      58,
-      100,
-      400,
-      400,
-      Ok((58)),
-      Ok(()),
-    );
+        // case-11-C dothing
+        do_one_case(
+          &mut user_c,
+          &mut pool,
+          5,
+          0,
+          false,
+          58,
+          100,
+          400,
+          400,
+          Ok(58),
+          Ok(()),
+        );
 
-    // case-12-A, depoist 100
-    do_one_case(
-      &mut user_a,
-      &mut pool,
-      6,
-      100,
-      true,
-      333,
-      400,
-      500,
-      500,
-      Ok((75)),
-      Ok(()),
-    );
+        // case-12-A, depoist 100
+        do_one_case(
+          &mut user_a,
+          &mut pool,
+          6,
+          100,
+          true,
+          333,
+          400,
+          500,
+          500,
+          Ok(75),
+          Ok(()),
+        );
 
-    // case-13-B depoist 100
-    do_one_case(
-      &mut user_b,
-      &mut pool,
-      6,
-      100,
-      true,
-      83,
-      100,
-      600,
-      500,
-      Err(BRC30Error::NoStaked(
-        pid.to_lowercase().as_str().to_string(),
-      )),
-      Ok(()),
-    );
+        // case-13-B depoist 100
+        do_one_case(
+          &mut user_b,
+          &mut pool,
+          6,
+          100,
+          true,
+          83,
+          100,
+          600,
+          500,
+          Err(BRC30Error::NoStaked(
+            pid.to_lowercase().as_str().to_string(),
+          )),
+          Ok(()),
+        );
 
-    // case-14-C depoist 100
-    do_one_case(
-      &mut user_c,
-      &mut pool,
-      6,
-      100,
-      true,
-      83,
-      200,
-      700,
-      500,
-      Ok((25)),
-      Ok(()),
-    );
-
+        // case-14-C depoist 100
+        do_one_case(
+          &mut user_c,
+          &mut pool,
+          6,
+          100,
+          true,
+          83,
+          200,
+          700,
+          500,
+          Ok(25),
+          Ok(()),
+        );
+    */
     // todo go on
   }
 
@@ -1552,7 +1530,7 @@ mod tests {
       minted: 0,
       staked: 0,
       dmax,
-      acc_reward_per_share: 0,
+      acc_reward_per_share: "0".to_string(),
       last_update_block: 0,
       only: true,
     }

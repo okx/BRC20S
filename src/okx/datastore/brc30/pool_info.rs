@@ -3,6 +3,7 @@ use crate::okx::datastore::brc30::PledgedTick;
 use crate::okx::protocol::brc30::{params::PID_BYTE_COUNT, BRC30Error};
 use crate::InscriptionId;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt::Formatter;
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -105,7 +106,7 @@ pub struct PoolInfo {
   pub minted: u128,
   pub staked: u128,
   pub dmax: u128,
-  pub acc_reward_per_share: u128,
+  pub acc_reward_per_share: String,
   pub last_update_block: u64,
   pub only: bool,
 }
@@ -120,7 +121,7 @@ impl PoolInfo {
     minted: u128,
     staked: u128,
     dmax: u128,
-    acc_reward_per_share: u128,
+    acc_reward_per_share: String,
     last_update_block: u64,
     only: bool,
   ) -> Self {
@@ -137,6 +138,25 @@ impl PoolInfo {
       last_update_block,
       only,
     }
+  }
+}
+
+impl std::fmt::Display for PoolInfo {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "PoolInfo {{ pid: {}, ptype: {}, stake: {},erate: {},minted: {},staked: {}, \
+      dmax: {}, acc_reward_per_share: {}, last_update_block:{}}}",
+      self.pid.as_str(),
+      self.ptype.to_string(),
+      self.stake.to_string(),
+      self.erate,
+      self.minted,
+      self.staked,
+      self.dmax,
+      self.acc_reward_per_share,
+      self.last_update_block
+    )
   }
 }
 

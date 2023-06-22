@@ -462,7 +462,9 @@ impl Updater {
     }
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
-
+    let operations = inscription_updater.operations.clone();
+    std::mem::drop(inscription_id_to_inscription_entry);
+    std::mem::drop(outpoint_to_entry);
     // Create a protocol manager to index the block of brc20, brc30 data.
     ProtocolManager::new(
       &index.client,
@@ -471,7 +473,7 @@ impl Updater {
       &BRC20DataStore::new(wtx),
       &BRC30DataStore::new(wtx),
     )
-    .index_block(self.height, &block, inscription_updater.operations)?;
+    .index_block(self.height, &block, operations)?;
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 

@@ -215,7 +215,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     0,
     0,
     dmax,
-    0,
+    "0".to_string(),
     msg.block_height,
     only,
   );

@@ -418,7 +418,7 @@ mod tests {
       minted: 0,
       staked: 0,
       dmax: 0,
-      acc_reward_per_share: 0,
+      acc_reward_per_share: "0".to_string(),
       last_update_block: 0,
       only: true,
     };

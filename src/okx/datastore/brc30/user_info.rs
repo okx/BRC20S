@@ -22,3 +22,17 @@ impl UserInfo {
     }
   }
 }
+
+impl std::fmt::Display for UserInfo {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "UserInfo {{ pid: {}, staked: {}, reward: {},reward_debt: {},latest_updated_block: {}}}",
+      self.pid.as_str(),
+      self.staked,
+      self.reward,
+      self.reward_debt,
+      self.latest_updated_block,
+    )
+  }
+}

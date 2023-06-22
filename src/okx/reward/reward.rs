@@ -12,7 +12,7 @@ use std::{println as info, println as warn};
 // | Fix       |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000/1e3 * 100 * 1 = 200  (need stake's DECIMAL)  |
 // | Pool      |  100(1e2) | 10000(1e3)       | 2000(1e3)      | 1     | 2000 * 100 / 10000 =  20                          |
 
-const REWARD_PER_DECIMAL: u64 = 10000000000;
+const REWARD_PER_DECIMAL: u64 = 10000;
 
 pub fn query_reward(
   user: UserInfo,
@@ -192,8 +192,8 @@ mod tests {
   use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
   use crate::InscriptionId;
   use std::str::FromStr;
-  const STAKED_DECIMAL: u8 = 18;
-  const ERATE_DECIMAL: u8 = 18;
+  const STAKED_DECIMAL: u8 = 3;
+  const ERATE_DECIMAL: u8 = 3;
 
   #[test]
   fn test_hello() {
@@ -258,7 +258,7 @@ mod tests {
 
   #[test]
   fn test_fix_one_user() {
-    let base = BIGDECIMAL_TEN
+    let stake_base = BIGDECIMAL_TEN
       .checked_powu(STAKED_DECIMAL as u64)
       .unwrap()
       .truncate_to_u128()

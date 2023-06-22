@@ -1,7 +1,7 @@
 use crate::okx::datastore::{
   brc20::redb::BRC20DataStore, brc30::redb::BRC30DataStore, ord::OrdDbReadWriter,
 };
-
+use okx::datastore::ord::operation::{Action, InscriptionOp};
 use {self::inscription_updater::InscriptionUpdater, super::*, std::sync::mpsc};
 
 #[cfg(feature = "rollback")]
@@ -110,7 +110,7 @@ impl Updater {
         Err(mpsc::RecvError) => break,
       };
 
-      self.index_block(index, &mut wtx, block)?;
+      self.index_block(index, &mut wtx, &block)?;
 
       if let Some(progress_bar) = &mut progress_bar {
         progress_bar.inc(1);
@@ -291,8 +291,76 @@ impl Updater {
     &mut self,
     index: &Index,
     wtx: &mut WriteTransaction,
-    block: BlockData,
+    block: &BlockData,
   ) -> Result<()> {
+    let hash = block.header.block_hash().clone();
+
+    let (
+      lost_sats,
+      unbound_inscriptions,
+      sat_ranges_written,
+      outputs_in_block,
+      start,
+      inscriptions,
+    ) = self.before_index_block(index, wtx, block.clone())?;
+    // Create a protocol manager to index the block of brc20, brc30 data.
+    ProtocolManager::new(
+      &index.client,
+      index.get_chain_network(),
+      &OrdDbReadWriter::new(wtx),
+      &BRC20DataStore::new(wtx),
+      &BRC30DataStore::new(wtx),
+    )
+    .index_block(self.height, &block, inscriptions)?;
+
+    self.after_index_block(
+      wtx,
+      lost_sats,
+      unbound_inscriptions,
+      sat_ranges_written,
+      outputs_in_block,
+      start,
+      hash,
+    )?;
+
+    Ok(())
+  }
+
+  fn after_index_block(
+    &mut self,
+    wtx: &mut WriteTransaction,
+    lost_sats: u64,
+    unbound_inscriptions: u64,
+    sat_ranges_written: u64,
+    outputs_in_block: u64,
+    start: Instant,
+    hash: BlockHash,
+  ) -> Result<()> {
+    let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
+    let mut height_to_block_hash = wtx.open_table(HEIGHT_TO_BLOCK_HASH)?;
+    statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
+
+    statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
+
+    height_to_block_hash.insert(&self.height, &hash.store())?;
+
+    self.height += 1;
+    self.outputs_traversed += outputs_in_block;
+
+    log::info!(
+      "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms",
+      (Instant::now() - start).as_millis(),
+    );
+
+    Ok(())
+  }
+
+  fn before_index_block(
+    &mut self,
+    index: &Index,
+    wtx: &mut WriteTransaction,
+    block: &BlockData,
+  ) -> Result<(u64, u64, u64, u64, Instant, Vec<InscriptionOp>)> {
     let mut outpoint_to_entry = wtx.open_table(OUTPOINT_TO_ENTRY)?;
 
     let index_inscriptions = self.height >= index.first_inscription_height;
@@ -463,31 +531,14 @@ impl Updater {
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
-    // Create a protocol manager to index the block of brc20, brc30 data.
-    ProtocolManager::new(
-      &index.client,
-      index.get_chain_network(),
-      &OrdDbReadWriter::new(wtx),
-      &BRC20DataStore::new(wtx),
-      &BRC30DataStore::new(wtx),
-    )
-    .index_block(self.height, &block, inscription_updater.operations)?;
-
-    statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
-
-    statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
-
-    height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
-
-    self.height += 1;
-    self.outputs_traversed += outputs_in_block;
-
-    log::info!(
-      "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms",
-      (Instant::now() - start).as_millis(),
-    );
-
-    Ok(())
+    Ok((
+      lost_sats,
+      unbound_inscriptions,
+      sat_ranges_written,
+      outputs_in_block,
+      start,
+      inscription_updater.operations,
+    ))
   }
 
   fn index_transaction_sats(

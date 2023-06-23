@@ -1750,9 +1750,6 @@ mod tests {
   }
 
   #[test]
-  fn test_precision() {}
-
-  #[test]
   fn test_user_staked() {
     const STAKED_DECIMAL: u8 = 3;
     const ERATE_DECIMAL: u8 = 3;
@@ -2143,6 +2140,88 @@ mod tests {
 
   #[test]
   fn test_pool_one_user_18() {}
+
+  #[test]
+  fn test_precision() {
+    do_one_precision(
+      PoolType::Fixed,
+      10.0,
+      20.0,
+      18,
+      18,
+      10.0,
+      10000.0,
+      "1000000000000000000000".to_string(),
+      "2000000000000000000000".to_string(),
+    );
+    do_one_precision(
+      PoolType::Pool,
+      10.0,
+      20.0,
+      18,
+      18,
+      10.0,
+      10000.0,
+      "33333333333333333330".to_string(),
+      "66666666666666666660".to_string(),
+    );
+  }
+
+  fn do_one_precision(
+    ptype: PoolType,
+    stake1: f64,
+    stake2: f64,
+    staked_decimal: u8,
+    earte_decimal: u8,
+    erate: f64,
+    dmax: f64,
+    expect1: String,
+    expect2: String,
+  ) {
+    let stake_base = get_base_decimal(staked_decimal);
+    let erate_base = get_base_decimal(earte_decimal);
+    let erate = (erate_base as f64 * erate) as u128;
+    let dmax = (erate_base as f64 * dmax) as u128;
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), ptype, erate, dmax);
+    let mut user1 = new_user(&pid);
+    let mut user2 = new_user(&pid);
+
+    //first
+    update_pool(&mut pool, 1, staked_decimal);
+    withdraw_user_reward(&mut user1, &mut pool, staked_decimal);
+    user1.staked += (stake_base as f64 * stake1) as u128;
+    pool.staked += (stake_base as f64 * stake1) as u128;
+    withdraw_user_reward(&mut user1, &mut pool, staked_decimal);
+    update_user_stake(&mut user1, &mut pool, staked_decimal);
+
+    update_pool(&mut pool, 1, staked_decimal);
+    withdraw_user_reward(&mut user2, &mut pool, staked_decimal);
+    user2.staked += (stake_base as f64 * stake2) as u128;
+    pool.staked += (stake_base as f64 * stake2) as u128;
+    withdraw_user_reward(&mut user2, &mut pool, staked_decimal);
+    update_user_stake(&mut user2, &mut pool, staked_decimal);
+
+    //second
+    update_pool(&mut pool, 11, staked_decimal);
+    let reward1 = withdraw_user_reward(&mut user1, &mut pool, staked_decimal).unwrap();
+    let reward2 = withdraw_user_reward(&mut user2, &mut pool, staked_decimal).unwrap();
+    assert_eq!(
+      reward1,
+      Num::from_str(expect1.as_str())
+        .unwrap()
+        .checked_to_u128()
+        .unwrap()
+    );
+    assert_eq!(
+      reward2,
+      Num::from_str(expect2.as_str())
+        .unwrap()
+        .checked_to_u128()
+        .unwrap()
+    );
+  }
 
   fn do_one_case(
     user: &mut UserInfo,

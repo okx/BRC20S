@@ -96,7 +96,7 @@ impl PoolType {
   }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct PoolInfo {
   pub pid: Pid,
   pub ptype: PoolType,

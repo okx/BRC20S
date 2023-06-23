@@ -62,13 +62,14 @@ pub fn update_pool(
     if pool_minted.checked_add(&rewards)? > pool_dmax {
       rewards = pool_dmax.checked_sub(&pool_minted)?;
     }
-    pool.minted = pool_minted.checked_add(&rewards)?.checked_to_u128()?;
+    pool.minted = pool_minted.checked_add(&rewards)?.truncate_to_u128()?;
   } else if pool.ptype == PoolType::Fixed {
     let mut estimate_reward = pool_stake
       .checked_mul(&rewards)?
       .checked_mul(&get_per_share_multiplier())?
       .checked_div(&get_num_by_decimal(staked_decimal)?)?
       .checked_div(&get_per_share_multiplier())?;
+    info!("  estimate_reward:{}, rewards:{}", estimate_reward, rewards);
 
     if pool_minted.checked_add(&estimate_reward)? > pool_dmax {
       estimate_reward = pool_dmax.checked_sub(&pool_minted)?;
@@ -81,7 +82,7 @@ pub fn update_pool(
 
     pool.minted = pool_minted
       .checked_add(&estimate_reward)?
-      .checked_to_u128()?;
+      .truncate_to_u128()?;
   }
 
   pool.last_update_block = block_num;
@@ -2142,7 +2143,8 @@ mod tests {
   fn test_pool_one_user_18() {}
 
   #[test]
-  fn test_precision() {
+  fn test_precision_block10() {
+    //Fix
     do_one_precision(
       PoolType::Fixed,
       10.0,
@@ -2154,6 +2156,52 @@ mod tests {
       "1000000000000000000000".to_string(),
       "2000000000000000000000".to_string(),
     );
+    do_one_precision(
+      PoolType::Fixed,
+      0.000000000000000001,
+      20.0,
+      18,
+      18,
+      10.0,
+      10000.0,
+      "100".to_string(),
+      "2000000000000000000000".to_string(),
+    );
+    do_one_precision(
+      PoolType::Fixed,
+      0.000000000000000001,
+      20.0,
+      18,
+      18,
+      1.0,
+      10000.0,
+      "10".to_string(),
+      "200000000000000000000".to_string(),
+    );
+    do_one_precision(
+      PoolType::Fixed,
+      0.000000000000000001,
+      20.0,
+      18,
+      18,
+      0.1,
+      10000.0,
+      "1".to_string(),
+      "20000000000000000000".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      0.000000000000000001,
+      20.0,
+      18,
+      18,
+      0.01,
+      10000.0,
+      "0".to_string(),
+      "2000000000000000000".to_string(),
+    );
+
     do_one_precision(
       PoolType::Pool,
       10.0,
@@ -2178,6 +2226,7 @@ mod tests {
     expect1: String,
     expect2: String,
   ) {
+    println!("--------------");
     let stake_base = get_base_decimal(staked_decimal);
     let erate_base = get_base_decimal(earte_decimal);
     let erate = (erate_base as f64 * erate) as u128;
@@ -2211,14 +2260,14 @@ mod tests {
       reward1,
       Num::from_str(expect1.as_str())
         .unwrap()
-        .checked_to_u128()
+        .truncate_to_u128()
         .unwrap()
     );
     assert_eq!(
       reward2,
       Num::from_str(expect2.as_str())
         .unwrap()
-        .checked_to_u128()
+        .truncate_to_u128()
         .unwrap()
     );
   }

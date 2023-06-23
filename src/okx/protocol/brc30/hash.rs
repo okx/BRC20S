@@ -5,12 +5,14 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::hashes::{sha256, Hash, HashEngine};
 
 pub fn caculate_tick_id(
+  tick: &str,
   total_supply: u128,
   decimals: u8,
   from: &ScriptKey,
   to: &ScriptKey,
 ) -> TickId {
   let mut enc = sha256::Hash::engine();
+  enc.input(tick.as_bytes());
   enc.input(total_supply.to_string().as_bytes());
   enc.input(decimals.to_string().as_bytes());
   enc.input(from.to_string().as_bytes());
@@ -35,7 +37,8 @@ mod tests {
 
     let addr2 = Address::from_str("bcrt1qvd26a8c26d4mu5fzyh74pvcp9ykgutxt9fktqf").unwrap();
     let tick_id = caculate_tick_id(
-      20000000,
+      "ordi",
+      40000000,
       2,
       &ScriptKey::from_address(addr1),
       &ScriptKey::from_address(addr2),
@@ -48,6 +51,7 @@ mod tests {
     let addr2 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
     let tick_id = caculate_tick_id(
+      "ordi",
       10,
       18,
       &ScriptKey::from_address(addr1),
@@ -61,6 +65,7 @@ mod tests {
     let addr2 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
     let tick_id = caculate_tick_id(
+      "ordi",
       100,
       1,
       &ScriptKey::from_address(addr1),

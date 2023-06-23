@@ -1,4 +1,4 @@
-use crate::okx::datastore::brc30::Pid;
+use crate::okx::datastore::brc30::{Pid, TickId};
 use crate::okx::protocol::brc30::util::validate_pool_str;
 use crate::okx::protocol::brc30::{BRC30Error, Num};
 use serde::{Deserialize, Serialize};
@@ -38,6 +38,11 @@ impl UnStake {
     }
 
     Ok(())
+  }
+
+  pub fn get_tick_id(&self) -> TickId {
+    let tick_str = self.pool_id.as_str().split("#").next().unwrap();
+    TickId::from_str(tick_str).unwrap()
   }
 }
 

@@ -180,6 +180,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
 
     let supply = total_supply.checked_to_u128()?;
     let c_tick_id = caculate_tick_id(
+      name.as_str(),
       convert_amount_without_decimal(supply, decimal)?.checked_to_u128()?,
       decimal,
       &from_script_key,
@@ -252,6 +253,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     return Err(Error::BRC30Error(iserr));
   }
   let pool_id = stake_msg.get_pool_id();
+
   let to_script_key = msg.to.clone();
 
   let mut pool = brc30_store
@@ -302,7 +304,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
   let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
   reward::update_pool(&mut pool, msg.block_height, dec)?;
-  let mut reward = 0_128;
+  let mut reward = 0_u128;
   if !is_first_stake {
     reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
   }
@@ -345,6 +347,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?;
 
   // update user balance
+  let tick_id = stake_msg.get_tick_id();
   let mut user_balance = brc30_store
     .get_balance(&to_script_key, &tick_id)
     .map_err(|e| Error::LedgerError(e))?
@@ -443,6 +446,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?;
 
   // update user balance
+  let tick_id = unstake.get_tick_id();
   let mut user_balance = brc30_store
     .get_balance(&to_script_key, &tick_id)
     .map_err(|e| Error::LedgerError(e))?

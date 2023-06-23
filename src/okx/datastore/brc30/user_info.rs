@@ -2,7 +2,7 @@ use super::*;
 use crate::okx::datastore::brc30::pool_info::Pid;
 
 use serde::{Deserialize, Serialize};
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct UserInfo {
   pub pid: Pid,
   pub staked: u128,

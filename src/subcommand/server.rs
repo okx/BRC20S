@@ -234,6 +234,14 @@ impl Server {
           "/brc30/tick/:tick_id/address/:address/balance",
           get(brc30_balance),
         )
+        .route(
+          "/brc30/debug/pool/:pid/address/:address/userinfo",
+          get(brc30_debug_userinfo),
+        )
+        .route(
+          "/brc30/debug/tick/:tick_id/address/:address/balance",
+          get(brc30_debug_balance),
+        )
         .route("/brc30/address/:address/balance", get(brc30_all_balance))
         .route(
           "/brc30/tick/:tick_id/address/:address/transferable",

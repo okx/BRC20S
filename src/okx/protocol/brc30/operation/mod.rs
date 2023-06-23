@@ -88,7 +88,13 @@ pub fn deserialize_brc30_operation(
       return Err(JSONError::UnSupportContentType.into());
     }
   }
-  let raw_operation = deserialize_brc30(content_body)?;
+
+  let raw_operation = match deserialize_brc30(content_body) {
+    Ok(op) => op,
+    Err(e) => {
+      return Err(e.into());
+    }
+  };
 
   match action {
     Action::New => match raw_operation {

@@ -78,7 +78,14 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   }
   //Prepare the data
   let to_script_key = msg.to.clone();
-  let from_script_key = msg.from.clone();
+
+  let from_script_key = match msg.commit_from.clone() {
+    Some(script) => script,
+    None => {
+      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    }
+  };
+
   let tick_id = deploy.get_tick_id();
   let pid = deploy.get_pool_id();
   let ptype = deploy.get_pool_type();

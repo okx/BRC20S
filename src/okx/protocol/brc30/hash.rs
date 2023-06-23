@@ -31,14 +31,12 @@ mod tests {
 
   #[test]
   fn test_serialize() {
-    let addr1 =
-      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
+    let addr1 = Address::from_str("bcrt1qvd26a8c26d4mu5fzyh74pvcp9ykgutxt9fktqf").unwrap();
 
-    let addr2 =
-      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
+    let addr2 = Address::from_str("bcrt1qvd26a8c26d4mu5fzyh74pvcp9ykgutxt9fktqf").unwrap();
     let tick_id = caculate_tick_id(
-      100,
-      18,
+      20000000,
+      2,
       &ScriptKey::from_address(addr1),
       &ScriptKey::from_address(addr2),
     );

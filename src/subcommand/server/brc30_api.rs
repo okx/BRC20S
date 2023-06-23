@@ -2,6 +2,7 @@ use super::brc30_types::*;
 use super::error::ApiError;
 use super::*;
 use crate::okx::datastore::brc30;
+use crate::okx::datastore::brc30::PledgedTick;
 use axum::Json;
 
 // 3.4.1 /brc30/tick
@@ -37,6 +38,27 @@ pub(crate) async fn brc30_tick_info(
   }
 
   Ok(Json(ApiResponse::ok(tick_info.into())))
+}
+
+// 3.4.2 /brc30/tick/:tickId
+pub(crate) async fn brc30_debug_tick_info(
+  Extension(index): Extension<Arc<Index>>,
+  Path(tick_id): Path<String>,
+) -> ApiResult<brc30::TickInfo> {
+  log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
+  let tick_id = tick_id.to_lowercase();
+
+  let tick_info = index
+    .brc30_tick_info(&tick_id)?
+    .ok_or_api_not_found("tick not found")?;
+
+  log::debug!("rpc: get brc30_tick_info: {:?} {:?}", tick_id, tick_info);
+
+  if tick_info.tick_id != brc30::TickId::from_str(&tick_id).unwrap() {
+    return Err(ApiError::internal("db: not match"));
+  }
+
+  Ok(Json(ApiResponse::ok(tick_info)))
 }
 
 // brc30/pool
@@ -80,6 +102,49 @@ pub(crate) async fn brc30_pool_info(
   Ok(Json(ApiResponse::ok(pool_info.into())))
 }
 
+pub(crate) async fn brc30_debug_pool_info(
+  Extension(index): Extension<Arc<Index>>,
+  Path(pid): Path<String>,
+) -> ApiResult<brc30::PoolInfo> {
+  log::debug!("rpc: get brc30_pool_info: {}", pid);
+
+  if pid.as_bytes().len() != 13 {
+    return Err(ApiError::bad_request("pid length must 13."));
+  }
+  let pid = pid.to_lowercase();
+
+  let pool_info = index
+    .brc30_pool_info(&pid)?
+    .ok_or_api_not_found("pid not found")?;
+
+  log::debug!(
+    "rpc: get brc30_pool_info: {:?} {:?}",
+    pid.as_str(),
+    pool_info
+  );
+
+  Ok(Json(ApiResponse::ok(pool_info)))
+}
+
+pub(crate) async fn brc30_debug_stake_info(
+  Extension(index): Extension<Arc<Index>>,
+  Path((address, tick)): Path<(String, String)>,
+) -> ApiResult<brc30::StakeInfo> {
+  log::debug!("rpc: get brc30_pool_info: {},{}", address, tick);
+
+  let address: bitcoin::Address = address
+    .parse()
+    .map_err(|err: bitcoin::util::address::Error| ApiError::bad_request(err.to_string()))?;
+
+  let pool_info = index
+    .brc30_stake_info(&address, &PledgedTick::from_str(tick.as_str()))?
+    .ok_or_api_not_found("pid not found")?;
+
+  log::debug!("rpc: get brc30_pool_info: {:?}", pool_info);
+
+  Ok(Json(ApiResponse::ok(pool_info)))
+}
+
 // 3.4.5 /brc30/pool/:pid/address/:address/userinfo
 pub(crate) async fn brc30_userinfo(
   Extension(index): Extension<Arc<Index>>,
@@ -109,6 +174,68 @@ pub(crate) async fn brc30_userinfo(
   }
 
   Ok(Json(ApiResponse::ok(user_info.into())))
+}
+
+// 3.4.5 /brc30/debug/pool/:pid/address/:address/userinfo
+pub(crate) async fn brc30_debug_userinfo(
+  Extension(index): Extension<Arc<Index>>,
+  Path((pid, address)): Path<(String, String)>,
+) -> ApiResult<brc30::UserInfo> {
+  log::debug!("rpc: get brc30_userinfo: {}, {}", pid, address);
+
+  if pid.as_bytes().len() != 13 {
+    return Err(ApiError::bad_request("pid length must 13."));
+  }
+  let pid = pid.to_lowercase();
+  let address: bitcoin::Address = address
+    .parse()
+    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let user_info = index
+    .brc30_user_info(&pid, &address)?
+    .ok_or_api_not_found("pid not found")?;
+
+  log::debug!(
+    "rpc: get brc30_userinfo: {:?} {:?}",
+    pid.as_str(),
+    user_info
+  );
+
+  if user_info.pid != brc30::Pid::from_str(&pid).unwrap() {
+    return Err(ApiError::internal("db: not match"));
+  }
+
+  Ok(Json(ApiResponse::ok(user_info)))
+}
+
+// 3.4.6 /brc30/debug/tick/:tickId/address/:address/balance
+pub(crate) async fn brc30_debug_balance(
+  Extension(index): Extension<Arc<Index>>,
+  Path((tick_id, address)): Path<(String, String)>,
+) -> ApiResult<brc30::Balance> {
+  log::debug!(
+    "rpc: get brc30_balance: tickId:{}, address:{}",
+    tick_id,
+    address
+  );
+
+  if tick_id.as_bytes().len() != 5 {
+    return Err(ApiError::bad_request("tick id length must 5."));
+  }
+  let tick_id = tick_id.to_lowercase();
+  let address: bitcoin::Address = address
+    .parse()
+    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let balance = index
+    .brc30_balance(&tick_id, &address)?
+    .ok_or_api_not_found("pid not found")?;
+
+  log::debug!(
+    "rpc: get brc30_userinfo: {:?} {:?}",
+    tick_id.as_str(),
+    balance
+  );
+
+  Ok(Json(ApiResponse::ok(balance)))
 }
 
 // 3.4.6 /brc30/tick/:tickId/address/:address/balance

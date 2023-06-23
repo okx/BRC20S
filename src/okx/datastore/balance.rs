@@ -20,17 +20,17 @@ pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStore
   match token {
     PledgedTick::NATIVE => Num::from(0_u128),
     PledgedTick::BRC30Tick(tickid) => {
-      let balance = brc30ledger
-        .get_balance(&script, &tickid)
-        .map_or(Some(BRC30Balance::default(tickid)), |v| v)
-        .unwrap();
+      let balance = match brc30ledger.get_balance(&script, tickid) {
+        Ok(Some(brc30_balance)) => brc30_balance,
+        _ => BRC30Balance::default(tickid),
+      };
       Num::from(balance.overall_balance - balance.transferable_balance)
     }
     PledgedTick::BRC20Tick(tick) => {
-      let balance = brc20ledger
-        .get_balance(&script, tick)
-        .map_or(Some(BRC20Balance::new()), |v| v)
-        .unwrap();
+      let balance = match brc20ledger.get_balance(&script, tick) {
+        Ok(Some(brc20_balance)) => brc20_balance,
+        _ => BRC20Balance::new(),
+      };
       Num::from(balance.overall_balance - balance.transferable_balance)
     }
     PledgedTick::UNKNOWN => Num::from(0_u128),

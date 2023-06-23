@@ -33,6 +33,7 @@ mod fetcher;
 mod rtx;
 mod updater;
 
+use crate::okx::datastore::brc30::PledgedTick;
 use redb::Savepoint;
 
 const SCHEMA_VERSION: u64 = 4;
@@ -1233,6 +1234,18 @@ impl Index {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
     let info = brc30_db.get_pid_to_poolinfo(&brc30::Pid::from_str(pid)?)?;
+    Ok(info)
+  }
+  pub(crate) fn brc30_stake_info(
+    &self,
+    address: &bitcoin::Address,
+    pledged_tick: &PledgedTick,
+  ) -> Result<Option<brc30::StakeInfo>> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+
+    let info =
+      brc30_db.get_user_stakeinfo(&ScriptKey::from_address(address.clone()), pledged_tick)?;
     Ok(info)
   }
 

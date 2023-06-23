@@ -180,6 +180,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
 
     let supply = total_supply.checked_to_u128()?;
     let c_tick_id = caculate_tick_id(
+      name.as_str(),
       convert_amount_without_decimal(supply, decimal)?.checked_to_u128()?,
       decimal,
       &from_script_key,
@@ -252,6 +253,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     return Err(Error::BRC30Error(iserr));
   }
   let pool_id = stake_msg.get_pool_id();
+
   let to_script_key = msg.to.clone();
 
   let mut pool = brc30_store
@@ -275,7 +277,11 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   let mut is_first_stake = false;
   let mut userinfo = match brc30_store.get_pid_to_use_info(&to_script_key, &pool_id) {
     Ok(Some(info)) => {
-      is_first_stake = false;
+      if info.staked == 0_u128 {
+        is_first_stake = true;
+      } else {
+        is_first_stake = false;
+      }
       info
     }
     _ => {
@@ -298,7 +304,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
   let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
   reward::update_pool(&mut pool, msg.block_height, dec)?;
-  let mut reward = 0_128;
+  let mut reward = 0_u128;
   if !is_first_stake {
     reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
   }
@@ -338,6 +344,21 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .checked_to_u128()?;
   brc30_store
     .set_pid_to_poolinfo(&pool_id, &pool)
+    .map_err(|e| Error::LedgerError(e))?;
+
+  // update user balance
+  let tick_id = stake_msg.get_tick_id();
+  let mut user_balance = brc30_store
+    .get_balance(&to_script_key, &tick_id)
+    .map_err(|e| Error::LedgerError(e))?
+    .map_or(Balance::new(tick_id.clone()), |v| v);
+
+  user_balance.overall_balance = Into::<Num>::into(user_balance.overall_balance)
+    .checked_add(&Num::from(reward))?
+    .checked_to_u128()?;
+
+  brc30_store
+    .set_token_balance(&to_script_key, &tick_id, user_balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   return Ok(BRC30Event::Deposit(DepositEvent {
@@ -423,6 +444,22 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   brc30_store
     .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
     .map_err(|e| Error::LedgerError(e))?;
+
+  // update user balance
+  let tick_id = unstake.get_tick_id();
+  let mut user_balance = brc30_store
+    .get_balance(&to_script_key, &tick_id)
+    .map_err(|e| Error::LedgerError(e))?
+    .map_or(Balance::new(tick_id.clone()), |v| v);
+
+  user_balance.overall_balance = Into::<Num>::into(user_balance.overall_balance)
+    .checked_add(&Num::from(reward))?
+    .checked_to_u128()?;
+
+  brc30_store
+    .set_token_balance(&to_script_key, &tick_id, user_balance)
+    .map_err(|e| Error::LedgerError(e))?;
+
   return Ok(BRC30Event::Withdraw(WithdrawEvent {
     pid: pool_id,
     amt: amount.checked_to_u128()?,

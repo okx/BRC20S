@@ -2,7 +2,7 @@ use super::brc30_types::*;
 use super::error::ApiError;
 use super::*;
 use crate::okx::datastore::brc30;
-use crate::okx::datastore::brc30::PledgedTick;
+use crate::okx::datastore::brc30::{PledgedTick, TickId};
 use axum::Json;
 
 // 3.4.1 /brc30/tick
@@ -218,8 +218,11 @@ pub(crate) async fn brc30_debug_balance(
     address
   );
 
-  if tick_id.as_bytes().len() != 5 {
-    return Err(ApiError::bad_request("tick id length must 5."));
+  match TickId::from_str(tick_id.as_str()) {
+    Ok(_) => {}
+    Err(error) => {
+      return Err(ApiError::Internal(error.to_string()));
+    }
   }
   let tick_id = tick_id.to_lowercase();
   let address: bitcoin::Address = address

@@ -111,6 +111,68 @@ pub(crate) async fn brc30_userinfo(
   Ok(Json(ApiResponse::ok(user_info.into())))
 }
 
+// 3.4.5 /brc30/debug/pool/:pid/address/:address/userinfo
+pub(crate) async fn brc30_debug_userinfo(
+  Extension(index): Extension<Arc<Index>>,
+  Path((pid, address)): Path<(String, String)>,
+) -> ApiResult<brc30::UserInfo> {
+  log::debug!("rpc: get brc30_userinfo: {}, {}", pid, address);
+
+  if pid.as_bytes().len() != 13 {
+    return Err(ApiError::bad_request("pid length must 13."));
+  }
+  let pid = pid.to_lowercase();
+  let address: bitcoin::Address = address
+    .parse()
+    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let user_info = index
+    .brc30_user_info(&pid, &address)?
+    .ok_or_api_not_found("pid not found")?;
+
+  log::debug!(
+    "rpc: get brc30_userinfo: {:?} {:?}",
+    pid.as_str(),
+    user_info
+  );
+
+  if user_info.pid != brc30::Pid::from_str(&pid).unwrap() {
+    return Err(ApiError::internal("db: not match"));
+  }
+
+  Ok(Json(ApiResponse::ok(user_info)))
+}
+
+// 3.4.6 /brc30/debug/tick/:tickId/address/:address/balance
+pub(crate) async fn brc30_debug_balance(
+  Extension(index): Extension<Arc<Index>>,
+  Path((tick_id, address)): Path<(String, String)>,
+) -> ApiResult<brc30::Balance> {
+  log::debug!(
+    "rpc: get brc30_balance: tickId:{}, address:{}",
+    tick_id,
+    address
+  );
+
+  if tick_id.as_bytes().len() != 5 {
+    return Err(ApiError::bad_request("tick id length must 5."));
+  }
+  let tick_id = tick_id.to_lowercase();
+  let address: bitcoin::Address = address
+    .parse()
+    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let balance = index
+    .brc30_balance(&tick_id, &address)?
+    .ok_or_api_not_found("pid not found")?;
+
+  log::debug!(
+    "rpc: get brc30_userinfo: {:?} {:?}",
+    tick_id.as_str(),
+    balance
+  );
+
+  Ok(Json(ApiResponse::ok(balance)))
+}
+
 // 3.4.6 /brc30/tick/:tickId/address/:address/balance
 pub(crate) async fn brc30_balance(
   Extension(index): Extension<Arc<Index>>,

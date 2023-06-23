@@ -346,20 +346,20 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .set_pid_to_poolinfo(&pool_id, &pool)
     .map_err(|e| Error::LedgerError(e))?;
 
-  // update user balance
-  let tick_id = stake_msg.get_tick_id();
-  let mut user_balance = brc30_store
-    .get_balance(&to_script_key, &tick_id)
-    .map_err(|e| Error::LedgerError(e))?
-    .map_or(Balance::new(tick_id.clone()), |v| v);
-
-  user_balance.overall_balance = Into::<Num>::into(user_balance.overall_balance)
-    .checked_add(&Num::from(reward))?
-    .checked_to_u128()?;
-
-  brc30_store
-    .set_token_balance(&to_script_key, &tick_id, user_balance)
-    .map_err(|e| Error::LedgerError(e))?;
+  // // update user balance
+  // let tick_id = stake_msg.get_tick_id();
+  // let mut user_balance = brc30_store
+  //   .get_balance(&to_script_key, &tick_id)
+  //   .map_err(|e| Error::LedgerError(e))?
+  //   .map_or(Balance::new(tick_id.clone()), |v| v);
+  //
+  // user_balance.overall_balance = Into::<Num>::into(user_balance.overall_balance)
+  //   .checked_add(&Num::from(reward))?
+  //   .checked_to_u128()?;
+  //
+  // brc30_store
+  //   .set_token_balance(&to_script_key, &tick_id, user_balance)
+  //   .map_err(|e| Error::LedgerError(e))?;
 
   return Ok(BRC30Event::Deposit(DepositEvent {
     pid: pool_id,
@@ -445,20 +445,20 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
     .map_err(|e| Error::LedgerError(e))?;
 
-  // update user balance
-  let tick_id = unstake.get_tick_id();
-  let mut user_balance = brc30_store
-    .get_balance(&to_script_key, &tick_id)
-    .map_err(|e| Error::LedgerError(e))?
-    .map_or(Balance::new(tick_id.clone()), |v| v);
-
-  user_balance.overall_balance = Into::<Num>::into(user_balance.overall_balance)
-    .checked_add(&Num::from(reward))?
-    .checked_to_u128()?;
-
-  brc30_store
-    .set_token_balance(&to_script_key, &tick_id, user_balance)
-    .map_err(|e| Error::LedgerError(e))?;
+  // // update user balance
+  // let tick_id = unstake.get_tick_id();
+  // let mut user_balance = brc30_store
+  //   .get_balance(&to_script_key, &tick_id)
+  //   .map_err(|e| Error::LedgerError(e))?
+  //   .map_or(Balance::new(tick_id.clone()), |v| v);
+  //
+  // user_balance.overall_balance = Into::<Num>::into(user_balance.overall_balance)
+  //   .checked_add(&Num::from(reward))?
+  //   .checked_to_u128()?;
+  //
+  // brc30_store
+  //   .set_token_balance(&to_script_key, &tick_id, user_balance)
+  //   .map_err(|e| Error::LedgerError(e))?;
 
   return Ok(BRC30Event::Withdraw(WithdrawEvent {
     pid: pool_id,
@@ -486,12 +486,38 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
       Num::from(0_u128),
     )))?;
 
-  let stake_alterive = convert_pledged_tick_with_decimal(
+  let passive_unstake_amt = convert_pledged_tick_with_decimal(
     &stake_tick,
     passive_unstake.amount.as_str(),
     brc30_store,
     brc20_store,
   )?;
+
+  let balance = get_user_common_balance(&to_script_key, &stake_tick, brc30_store, brc20_store);
+  //search max stake within share pools and total only of only's pools
+  let mut staked_max_share = Num::from(0_u128);
+  let mut staked_total_only = Num::from(0_u128);
+  for (_, only, pool_stake) in stake_info.pool_stakes.clone() {
+    let current_pool_stake = Num::from(pool_stake);
+    if only {
+      staked_total_only = staked_total_only.checked_add(&current_pool_stake)?;
+    } else {
+      if current_pool_stake.gt(&staked_max_share) {
+        staked_max_share = current_pool_stake;
+      }
+    }
+  }
+  let staked_total = staked_total_only.checked_add(&staked_max_share)?;
+
+  // the balance which is minused by passive_amt, so if it >= staked_total, it can staked. others we need passive_withdraw
+  if balance.ge(&staked_total) {
+    // user remain can make user to stake. so nothing to do
+    return Ok(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {
+      pid: vec![],
+    }));
+  };
+
+  let stake_alterive = staked_total.checked_sub(&balance)?;
 
   let mut max_share = Num::from(0_u128);
   let mut total_only = Num::from(0_u128);

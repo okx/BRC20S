@@ -45,7 +45,11 @@ pub fn update_pool(
 
   info!("  {}", pool);
   //1 check block num, minted, stake
-  if block_num <= pool.last_update_block || pool_stake <= Num::zero() || pool_minted >= pool_dmax {
+  if block_num <= pool.last_update_block {
+    info!("update_pool out");
+    return Ok(());
+  }
+  if pool_stake <= Num::zero() || pool_minted >= pool_dmax {
     info!("update_pool out");
     pool.last_update_block = block_num;
     return Ok(());
@@ -213,29 +217,18 @@ mod tests {
   use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
   use crate::InscriptionId;
   use std::str::FromStr;
-  const STAKED_DECIMAL: u8 = 3;
-  const ERATE_DECIMAL: u8 = 3;
 
   #[test]
   fn test_hello() {
-    let stake_base = BIGDECIMAL_TEN
-      .checked_powu(STAKED_DECIMAL as u64)
-      .unwrap()
-      .truncate_to_u128()
-      .unwrap();
-    let erate_base = BIGDECIMAL_TEN
-      .checked_powu(ERATE_DECIMAL as u64)
-      .unwrap()
-      .truncate_to_u128()
-      .unwrap();
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let erate = 1 * erate_base;
+    let dmax = 100 * erate_base;
 
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    let mut pool = new_pool(
-      &pid.clone(),
-      PoolType::Fixed,
-      1 * erate_base,
-      100 * erate_base,
-    );
+    let mut pool = new_pool(&pid.clone(), PoolType::Fixed, erate, dmax);
     let mut user = new_user(&pid);
 
     //stake, no reward
@@ -278,25 +271,16 @@ mod tests {
   }
 
   #[test]
-  fn test_fix_one_user() {
-    let stake_base = BIGDECIMAL_TEN
-      .checked_powu(STAKED_DECIMAL as u64)
-      .unwrap()
-      .truncate_to_u128()
-      .unwrap();
-    let erate_base = BIGDECIMAL_TEN
-      .checked_powu(ERATE_DECIMAL as u64)
-      .unwrap()
-      .truncate_to_u128()
-      .unwrap();
+  fn test_complex_fix_one_user() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let erate = 10 * erate_base;
+    let dmax = 10000 * erate_base;
 
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    let mut pool = new_pool(
-      &pid.clone(),
-      PoolType::Fixed,
-      10 * erate_base,
-      10000 * erate_base,
-    );
+    let mut pool = new_pool(&pid.clone(), PoolType::Fixed, erate, dmax);
     let mut user = new_user(&pid);
 
     // case-1-A deposit 0
@@ -314,6 +298,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
     // case-2-A deposit 1
     do_one_case(
@@ -330,6 +315,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-3-A deposit 10
@@ -345,6 +331,7 @@ mod tests {
       10,
       Ok(10),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-4-A same block
@@ -360,6 +347,7 @@ mod tests {
       10,
       Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-5-A  jump block
@@ -375,6 +363,7 @@ mod tests {
       710,
       Ok(700),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-6-A deposit 90
@@ -390,6 +379,7 @@ mod tests {
       810,
       Ok(100),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-7-A withdraw 10
@@ -405,6 +395,7 @@ mod tests {
       1810,
       Ok(1000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-8-A withdraw 10, jump block
@@ -420,6 +411,7 @@ mod tests {
       9010,
       Ok(7200),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-9-A ,same block
@@ -435,6 +427,7 @@ mod tests {
       9010,
       Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-11-A withdraw 9
@@ -450,6 +443,7 @@ mod tests {
       10610,
       Ok(1600),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-13-A do nothing
@@ -467,6 +461,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-14-A deposit 100, jump block
@@ -484,6 +479,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-15-A mint, jump block
@@ -499,6 +495,7 @@ mod tests {
       10000 * erate_base,
       Ok(9989390),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-16-A mint, same block
@@ -514,6 +511,7 @@ mod tests {
       10000 * erate_base,
       Ok(0 * erate_base),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-17-A mint, jump block
@@ -529,16 +527,16 @@ mod tests {
       10000 * erate_base,
       Ok(0 * erate_base),
       Ok(()),
+      STAKED_DECIMAL,
     );
   }
 
   #[test]
-  fn test_fix_three_user() {
-    let base = BIGDECIMAL_TEN
-      .checked_powu(STAKED_DECIMAL as u64)
-      .unwrap()
-      .truncate_to_u128()
-      .unwrap();
+  fn test_complex_fix_three_user() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
     let dmax = 1000;
     let erate = 100;
 
@@ -563,6 +561,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-2-B deposit 100
@@ -580,6 +579,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-3-C deposit 100
@@ -597,6 +597,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-4-A depoist 100
@@ -610,8 +611,9 @@ mod tests {
       200,
       400,
       60,
-      Ok((30)),
+      Ok(30),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-5-A withdraw 100
@@ -625,8 +627,9 @@ mod tests {
       300,
       500,
       60,
-      Ok((0)),
+      Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-6-B depoist 100
@@ -640,8 +643,9 @@ mod tests {
       200,
       600,
       60,
-      Ok((20)),
+      Ok(20),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-7-B withdraw 100
@@ -655,8 +659,9 @@ mod tests {
       100,
       500,
       60,
-      Ok((0)),
+      Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-8-B withdraw 100
@@ -670,8 +675,9 @@ mod tests {
       0,
       400,
       60,
-      Ok((0)),
+      Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-9-A, dothing
@@ -685,8 +691,9 @@ mod tests {
       300,
       400,
       100,
-      Ok((30)),
+      Ok(30),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-10-B dothing
@@ -704,6 +711,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-11-C dothing
@@ -717,8 +725,9 @@ mod tests {
       100,
       400,
       100,
-      Ok((20)),
+      Ok(20),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-12-A, depoist 100
@@ -732,8 +741,9 @@ mod tests {
       400,
       500,
       140,
-      Ok((30)),
+      Ok(30),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-13-B depoist 100
@@ -751,6 +761,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-14-C depoist 100
@@ -764,33 +775,25 @@ mod tests {
       200,
       700,
       140,
-      Ok((10)),
+      Ok(10),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // todo go on
   }
 
   #[test]
-  fn test_pool_one_user() {
-    let stake_base = BIGDECIMAL_TEN
-      .checked_powu(STAKED_DECIMAL as u64)
-      .unwrap()
-      .truncate_to_u128()
-      .unwrap();
-    let erate_base = BIGDECIMAL_TEN
-      .checked_powu(ERATE_DECIMAL as u64)
-      .unwrap()
-      .truncate_to_u128()
-      .unwrap();
+  fn test_complex_pool_one_user() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let erate = 10 * erate_base;
+    let dmax = 10000 * erate_base;
 
     let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    let mut pool = new_pool(
-      &pid.clone(),
-      PoolType::Pool,
-      10 * erate_base,
-      10000 * erate_base,
-    );
+    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
     let mut user = new_user(&pid);
 
     // case-1-A deposit 0
@@ -808,6 +811,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
     // case-2-A deposit 1
     do_one_case(
@@ -824,6 +828,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     // case-3-A deposit 10
@@ -837,8 +842,9 @@ mod tests {
       10,
       10,
       10000,
-      Ok((10000)),
+      Ok(10000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-4-A same block
@@ -854,6 +860,7 @@ mod tests {
       10000,
       Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-5-A  jump block
@@ -869,6 +876,7 @@ mod tests {
       80000,
       Ok(70000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-6-A deposit 90
@@ -884,6 +892,7 @@ mod tests {
       90000,
       Ok(10000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-7-A withdraw 10
@@ -899,6 +908,7 @@ mod tests {
       100000,
       Ok(10000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-8-A withdraw 10, jump block
@@ -914,6 +924,7 @@ mod tests {
       180000,
       Ok(79999),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-9-A withdraw 70
@@ -929,6 +940,7 @@ mod tests {
       190000,
       Ok(10000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-10-A ,same block
@@ -944,6 +956,7 @@ mod tests {
       190000,
       Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-11-A withdraw 9
@@ -959,6 +972,7 @@ mod tests {
       200000,
       Ok(10000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-12-A withdraw  1
@@ -974,6 +988,7 @@ mod tests {
       210000,
       Ok(10000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-13-A do nothing
@@ -991,6 +1006,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-14-A deposit 100, jump block
@@ -1008,6 +1024,7 @@ mod tests {
         pid.to_lowercase().as_str().to_string(),
       )),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-15-A mint, jump block
@@ -1023,6 +1040,7 @@ mod tests {
       710000,
       Ok(500000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-16-A mint, same block
@@ -1036,8 +1054,9 @@ mod tests {
       100,
       100,
       710000,
-      Ok((0)),
+      Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-17-A mint, jump block
@@ -1053,6 +1072,7 @@ mod tests {
       9700000,
       Ok(8990000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-18-A mint
@@ -1068,6 +1088,7 @@ mod tests {
       10000000,
       Ok(300000),
       Ok(()),
+      STAKED_DECIMAL,
     );
 
     //case-19-A mint, jump block
@@ -1083,390 +1104,333 @@ mod tests {
       10000000,
       Ok(0),
       Ok(()),
+      STAKED_DECIMAL,
     );
   }
 
   #[test]
-  fn test_pool_three_user() {
-    /*
-        let base = BIGDECIMAL_TEN
-          .checked_powu(STAKED_DECIMAL as u64)
-          .unwrap()
-          .truncate_to_u128()
-          .unwrap();
-        let dmax = 1000;
-        let erate = 100;
+  fn test_complex_pool_three_user() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let erate = 100;
+    let dmax = 1000;
 
-        let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-        let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
-        let mut user_a = new_user(&pid);
-        let mut user_b = new_user(&pid);
-        let mut user_c = new_user(&pid);
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
+    let mut user_a = new_user(&pid);
+    let mut user_b = new_user(&pid);
+    let mut user_c = new_user(&pid);
 
-        // case-1-A deposit 100
-        do_one_case(
-          &mut user_a,
-          &mut pool,
-          1,
-          100,
-          true,
-          0,
-          100,
-          100,
-          0,
-          Err(BRC30Error::NoStaked(
-            pid.to_lowercase().as_str().to_string(),
-          )),
-          Ok(()),
-        );
+    // case-1-A deposit 100
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      1,
+      100,
+      true,
+      0,
+      100,
+      100,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-2-B deposit 100
-        do_one_case(
-          &mut user_b,
-          &mut pool,
-          2,
-          100,
-          true,
-          0,
-          100,
-          200,
-          100,
-          Err(BRC30Error::NoStaked(
-            pid.to_lowercase().as_str().to_string(),
-          )),
-          Ok(()),
-        );
+    // case-2-B deposit 100
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      2,
+      100,
+      true,
+      0,
+      100,
+      200,
+      100,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-3-C deposit 100
-        do_one_case(
-          &mut user_c,
-          &mut pool,
-          3,
-          100,
-          true,
-          0,
-          100,
-          300,
-          200,
-          Err(BRC30Error::NoStaked(
-            pid.to_lowercase().as_str().to_string(),
-          )),
-          Ok(()),
-        );
+    // case-3-C deposit 100
+    do_one_case(
+      &mut user_c,
+      &mut pool,
+      3,
+      100,
+      true,
+      0,
+      100,
+      300,
+      200,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-4-A depoist 100
-        do_one_case(
-          &mut user_a,
-          &mut pool,
-          4,
-          100,
-          true,
-          183,
-          200,
-          400,
-          300,
-          Ok((183)),
-          Ok(()),
-        );
+    // case-4-A depoist 100
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      4,
+      100,
+      true,
+      183,
+      200,
+      400,
+      300,
+      Ok(183),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-5-A withdraw 100
-        do_one_case(
-          &mut user_a,
-          &mut pool,
-          4,
-          100,
-          true,
-          183,
-          300,
-          500,
-          300,
-          Ok((0)),
-          Ok(()),
-        );
+    // case-5-A withdraw 100
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      4,
+      100,
+      true,
+      183,
+      300,
+      500,
+      300,
+      Ok(0),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-6-B depoist 100
-        do_one_case(
-          &mut user_b,
-          &mut pool,
-          4,
-          100,
-          true,
-          83,
-          200,
-          600,
-          300,
-          Ok(83),
-          Ok(()),
-        );
+    // case-6-B depoist 100
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      4,
+      100,
+      true,
+      83,
+      200,
+      600,
+      300,
+      Ok(83),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-7-B withdraw 100
-        do_one_case(
-          &mut user_b,
-          &mut pool,
-          4,
-          100,
-          false,
-          83,
-          100,
-          500,
-          300,
-          Ok(0),
-          Ok(()),
-        );
+    // case-7-B withdraw 100
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      4,
+      100,
+      false,
+      83,
+      100,
+      500,
+      300,
+      Ok(0),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-8-B withdraw 100
-        do_one_case(
-          &mut user_b,
-          &mut pool,
-          4,
-          100,
-          false,
-          83,
-          0,
-          400,
-          300,
-          Ok(0),
-          Ok(()),
-        );
+    // case-8-B withdraw 100
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      4,
+      100,
+      false,
+      83,
+      0,
+      400,
+      300,
+      Ok(0),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-9-A, dothing
-        do_one_case(
-          &mut user_a,
-          &mut pool,
-          5,
-          0,
-          false,
-          258,
-          300,
-          400,
-          400,
-          Ok(75),
-          Ok(()),
-        );
+    // case-9-A, dothing
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      5,
+      0,
+      false,
+      258,
+      300,
+      400,
+      400,
+      Ok(75),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-10-B dothing
-        do_one_case(
-          &mut user_b,
-          &mut pool,
-          5,
-          0,
-          false,
-          83,
-          0,
-          400,
-          400,
-          Err(BRC30Error::NoStaked(
-            pid.to_lowercase().as_str().to_string(),
-          )),
-          Ok(()),
-        );
+    // case-10-B dothing
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      5,
+      0,
+      false,
+      83,
+      0,
+      400,
+      400,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-11-C dothing
-        do_one_case(
-          &mut user_c,
-          &mut pool,
-          5,
-          0,
-          false,
-          58,
-          100,
-          400,
-          400,
-          Ok(58),
-          Ok(()),
-        );
+    // case-11-C dothing
+    do_one_case(
+      &mut user_c,
+      &mut pool,
+      5,
+      0,
+      false,
+      58,
+      100,
+      400,
+      400,
+      Ok(58),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-12-A, depoist 100
-        do_one_case(
-          &mut user_a,
-          &mut pool,
-          6,
-          100,
-          true,
-          333,
-          400,
-          500,
-          500,
-          Ok(75),
-          Ok(()),
-        );
+    // case-12-A, depoist 100
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      6,
+      100,
+      true,
+      333,
+      400,
+      500,
+      500,
+      Ok(75),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-13-B depoist 100
-        do_one_case(
-          &mut user_b,
-          &mut pool,
-          6,
-          100,
-          true,
-          83,
-          100,
-          600,
-          500,
-          Err(BRC30Error::NoStaked(
-            pid.to_lowercase().as_str().to_string(),
-          )),
-          Ok(()),
-        );
+    // case-13-B depoist 100
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      6,
+      100,
+      true,
+      83,
+      100,
+      600,
+      500,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
 
-        // case-14-C depoist 100
-        do_one_case(
-          &mut user_c,
-          &mut pool,
-          6,
-          100,
-          true,
-          83,
-          200,
-          700,
-          500,
-          Ok(25),
-          Ok(()),
-        );
-    */
+    // case-14-C depoist 100
+    do_one_case(
+      &mut user_c,
+      &mut pool,
+      6,
+      100,
+      true,
+      83,
+      200,
+      700,
+      500,
+      Ok(25),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
     // todo go on
   }
 
   #[test]
-  fn test_pool_one_user_18() {
-    // let base = BIGDECIMAL_TEN
-    //   .checked_powu(18 as u64)
-    //   .unwrap()
-    //   .truncate_to_u128()
-    //   .unwrap();
-    // let dmax = 10000;
-    // let erate = 100;
-    //
-    // let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
-    // let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
-    // let mut user = new_user(&pid);
-    //
-    // let mut case;
-    //
-    // // case-1-A deposit 0
-    // case = Case::new(
-    //   1,
-    //   0,
-    //   true,
-    //   0,
-    //   0,
-    //   0,
-    //   0,
-    //   Err(BRC30Error::NoStaked(user.pid.to_lowercase().as_str().to_string())),
-    //   Ok(()),
-    // );
-    // do_one_case(&mut user, &mut pool, &case);
-    // // case-2-A deposit 1
-    // case = Case::new(
-    //   2,
-    //   100000,
-    //   true,
-    //   0,
-    //   100000,
-    //   100000,
-    //   0,
-    //   Err(BRC30Error::NoStaked(user.pid.to_lowercase().as_str().to_string())),
-    //   Ok(()),
-    // );
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // // case-3-A deposit 10
-    // case = Case::new(
-    //   3,
-    //   900000,
-    //   true,
-    //   100,
-    //   1000000,
-    //   1000000,
-    //   100,
-    //   Ok((100)),
-    //   Ok(()),
-    // );
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-4-A same block
-    // case = Case::new(3, 0, true, 100, 10000000, 10000000, 100, Ok((0)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
+  fn test_unknown_pool() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let erate = 10 * erate_base;
+    let dmax = 10000 * erate_base;
 
-    // //case-5-A  jump block
-    // case = Case::new(10, 0, true, 800, 10, 10, 800, Ok((700)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-6-A deposit 90
-    // case = Case::new(11, 90, true, 900, 100, 100, 900, Ok((100)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-7-A withdraw 10
-    // case = Case::new(12, 10, false, 1000, 90, 90, 1000, Ok((100)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-8-A withdraw 10, jump block
-    // case = Case::new(20, 10, false, 1799, 80, 80, 1800, Ok((799)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-9-A withdraw 70
-    // case = Case::new(21, 70, false, 1899, 10, 10, 1900, Ok((100)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-10-A ,same block
-    // case = Case::new(21, 0, false, 1899, 10, 10, 1900, Ok((0)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-11-A withdraw 9
-    // case = Case::new(22, 9, false, 1999, 1, 1, 2000, Ok((100)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-12-A withdraw  1
-    // case = Case::new(23, 1, false, 2099, 0, 0, 2100, Ok((100)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-13-A do nothing
-    // case = Case::new(
-    //   24,
-    //   0,
-    //   false,
-    //   2099,
-    //   0,
-    //   0,
-    //   2100,
-    //   Err(BRC30Error::NoStaked(user.pid.to_lowercase().as_str().to_string())),
-    //   Ok(()),
-    // );
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-14-A deposit 100, jump block
-    // case = Case::new(
-    //   50,
-    //   100,
-    //   true,
-    //   2099,
-    //   100,
-    //   100,
-    //   2100,
-    //   Err(BRC30Error::NoStaked(user.pid.to_lowercase().as_str().to_string())),
-    //   Ok(()),
-    // );
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-15-A mint, jump block
-    // case = Case::new(100, 0, true, 7099, 100, 100, 7100, Ok((5000)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-16-A mint, same block
-    // case = Case::new(100, 0, true, 7099, 100, 100, 7100, Ok((0)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-17-A mint, jump block
-    // case = Case::new(200, 0, true, 17099, 100, 100, 17100, Ok((10000)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-18-A mint
-    // case = Case::new(201, 0, true, 17099, 100, 100, 17100, Ok((0)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
-    //
-    // //case-19-A mint, jump block
-    // case = Case::new(300, 0, true, 17099, 100, 100, 17100, Ok((0)), Ok(()));
-    // do_one_case(&mut user, &mut pool, &case);
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Unknown, erate, dmax);
+    let mut user = new_user(&pid);
+
+    assert_eq!(
+      update_pool(&mut pool, 1, STAKED_DECIMAL),
+      Err(BRC30Error::UnknownPoolType)
+    );
+
+    assert_eq!(
+      withdraw_user_reward(&mut user, &mut pool, STAKED_DECIMAL),
+      Err(BRC30Error::UnknownPoolType)
+    );
+
+    assert_eq!(
+      update_user_stake(&mut user, &mut pool, STAKED_DECIMAL),
+      Err(BRC30Error::UnknownPoolType)
+    );
   }
+
+  #[test]
+  fn test_pool_stake() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let erate = 10 * erate_base;
+    let dmax = 10000 * erate_base;
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
+    let mut user = new_user(&pid);
+    pool.acc_reward_per_share = "123".to_string();
+    pool.last_update_block = 123;
+    pool.last_update_block = 123;
+
+    assert_eq!(update_pool(&mut pool, 1, STAKED_DECIMAL), Ok(()));
+    assert_eq!(pool.last_update_block, 123);
+    assert_eq!(pool.acc_reward_per_share, "123".to_string());
+
+    assert_eq!(update_pool(&mut pool, 125, STAKED_DECIMAL), Ok(()));
+    assert_eq!(pool.last_update_block, 125);
+    assert_eq!(pool.acc_reward_per_share, "123".to_string());
+  }
+
+  #[test]
+  fn test_pool_minted() {}
+
+  #[test]
+  fn test_pool_dmax() {}
+
+  #[test]
+  fn test_precision() {}
+
+  #[test]
+  fn test_user_staked() {}
+
+  #[test]
+  fn test_block() {}
+
+  #[test]
+  fn test_query() {}
+
+  #[test]
+  fn test_pool_one_user_18() {}
 
   fn do_one_case(
     user: &mut UserInfo,
@@ -1480,10 +1444,11 @@ mod tests {
     expect_pool_minted: u128,
     expect_withdraw_reward_result: Result<u128, BRC30Error>,
     expect_update_stake_result: Result<(), BRC30Error>,
+    staked_decimal: u8,
   ) {
-    assert_eq!(update_pool(pool, block_mum, STAKED_DECIMAL), Ok(()));
+    assert_eq!(update_pool(pool, block_mum, staked_decimal), Ok(()));
 
-    let result = withdraw_user_reward(user, pool, STAKED_DECIMAL);
+    let result = withdraw_user_reward(user, pool, staked_decimal);
     match result {
       Ok(value) => {
         assert_eq!(value, expect_withdraw_reward_result.clone().unwrap());
@@ -1501,7 +1466,7 @@ mod tests {
       user.staked -= stake_alter;
       pool.staked -= stake_alter;
     }
-    let u_result = update_user_stake(user, pool, STAKED_DECIMAL);
+    let u_result = update_user_stake(user, pool, staked_decimal);
     match u_result {
       Ok(value) => {}
       Err(err) => {
@@ -1517,7 +1482,7 @@ mod tests {
     assert_eq!(pool.last_update_block, block_mum);
   }
 
-  fn new_pool(pid: &Pid, pool_type: PoolType, erate_new: u128, dmax: u128) -> PoolInfo {
+  fn new_pool(pid: &Pid, pool_type: PoolType, erate: u128, dmax: u128) -> PoolInfo {
     PoolInfo {
       pid: pid.clone(),
       ptype: pool_type,
@@ -1526,7 +1491,7 @@ mod tests {
       )
       .unwrap(),
       stake: PledgedTick::NATIVE,
-      erate: erate_new,
+      erate,
       minted: 0,
       staked: 0,
       dmax,
@@ -1544,5 +1509,13 @@ mod tests {
       reward_debt: 0,
       latest_updated_block: 0,
     }
+  }
+
+  fn get_base_decimal(decimal: u8) -> u128 {
+    BIGDECIMAL_TEN
+      .checked_powu(decimal as u64)
+      .unwrap()
+      .truncate_to_u128()
+      .unwrap()
   }
 }

@@ -1412,7 +1412,342 @@ mod tests {
   }
 
   #[test]
-  fn test_pool_minted() {}
+  fn test_block() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let erate = 10 * erate_base;
+    let dmax = 10000 * erate_base;
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
+    let mut user = new_user(&pid);
+    pool.acc_reward_per_share = "123".to_string();
+    pool.last_update_block = 123;
+
+    assert_eq!(update_pool(&mut pool, 1, STAKED_DECIMAL), Ok(()));
+    assert_eq!(pool.last_update_block, 123);
+    assert_eq!(pool.acc_reward_per_share, "123".to_string());
+
+    assert_eq!(update_pool(&mut pool, 100, STAKED_DECIMAL), Ok(()));
+    assert_eq!(pool.last_update_block, 123);
+    assert_eq!(pool.acc_reward_per_share, "123".to_string());
+  }
+
+  #[test]
+  fn test_pool_minted() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let erate = 10 * erate_base;
+    let dmax = 10000 * erate_base;
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
+    let mut user1 = new_user(&pid);
+    let mut user2 = new_user(&pid);
+    let mut user3 = new_user(&pid);
+
+    do_one_case(
+      &mut user1,
+      &mut pool,
+      1,
+      100 * stake_base,
+      true,
+      0,
+      100 * stake_base,
+      100 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+    do_one_case(
+      &mut user2,
+      &mut pool,
+      1,
+      200 * stake_base,
+      true,
+      0,
+      200 * stake_base,
+      300 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+    do_one_case(
+      &mut user3,
+      &mut pool,
+      1,
+      300 * stake_base,
+      true,
+      0,
+      300 * stake_base,
+      600 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user1,
+      &mut pool,
+      100,
+      0,
+      true,
+      165 * stake_base,
+      100 * stake_base,
+      600 * stake_base,
+      990 * stake_base,
+      Ok(165 * stake_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user2,
+      &mut pool,
+      1000,
+      0,
+      true,
+      3330 * stake_base,
+      200 * stake_base,
+      600 * stake_base,
+      9990 * stake_base,
+      Ok(3330 * stake_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user3,
+      &mut pool,
+      1001,
+      0,
+      true,
+      4999999,
+      300 * stake_base,
+      600 * stake_base,
+      10000 * stake_base,
+      Ok(4999999),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user1,
+      &mut pool,
+      2001,
+      0,
+      true,
+      1666666,
+      100 * stake_base,
+      600 * stake_base,
+      10000 * stake_base,
+      Ok(1501666),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user2,
+      &mut pool,
+      2001,
+      0,
+      true,
+      3333333,
+      200 * stake_base,
+      600 * stake_base,
+      10000 * stake_base,
+      Ok(3333),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user3,
+      &mut pool,
+      2001,
+      0,
+      true,
+      4999999,
+      300 * stake_base,
+      600 * stake_base,
+      10000 * stake_base,
+      Ok(0),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    assert_eq!(user1.reward + user2.reward + user3.reward, 9999998);
+  }
+
+  #[test]
+  fn test_fix_minted() {
+    const STAKED_DECIMAL: u8 = 3;
+    const ERATE_DECIMAL: u8 = 3;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let erate = 10 * erate_base;
+    let dmax = 10000 * erate_base;
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Fixed, erate, dmax);
+    let mut user1 = new_user(&pid);
+    let mut user2 = new_user(&pid);
+    let mut user3 = new_user(&pid);
+
+    do_one_case(
+      &mut user1,
+      &mut pool,
+      1,
+      10 * stake_base,
+      true,
+      0,
+      10 * stake_base,
+      10 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+    do_one_case(
+      &mut user2,
+      &mut pool,
+      1,
+      20 * stake_base,
+      true,
+      0,
+      20 * stake_base,
+      30 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+    do_one_case(
+      &mut user3,
+      &mut pool,
+      1,
+      30 * stake_base,
+      true,
+      0,
+      30 * stake_base,
+      60 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user1,
+      &mut pool,
+      5,
+      0,
+      true,
+      400 * stake_base,
+      10 * stake_base,
+      60 * stake_base,
+      2400 * stake_base,
+      Ok(400 * stake_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user2,
+      &mut pool,
+      15,
+      0,
+      true,
+      2800 * erate_base,
+      20 * stake_base,
+      60 * stake_base,
+      8400 * erate_base,
+      Ok(2800 * stake_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user3,
+      &mut pool,
+      20,
+      0,
+      true,
+      4999999,
+      30 * stake_base,
+      60 * stake_base,
+      10000 * erate_base,
+      Ok(4999999),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user1,
+      &mut pool,
+      30,
+      0,
+      true,
+      1666666,
+      10 * stake_base,
+      60 * stake_base,
+      10000 * erate_base,
+      Ok(1266666),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user2,
+      &mut pool,
+      2001,
+      0,
+      true,
+      3333333,
+      20 * stake_base,
+      60 * stake_base,
+      10000 * stake_base,
+      Ok(533333),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    do_one_case(
+      &mut user3,
+      &mut pool,
+      2001,
+      0,
+      true,
+      4999999,
+      30 * stake_base,
+      60 * stake_base,
+      10000 * stake_base,
+      Ok(0),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    assert_eq!(user1.reward + user2.reward + user3.reward, 9999998);
+  }
 
   #[test]
   fn test_pool_dmax() {}
@@ -1422,9 +1757,6 @@ mod tests {
 
   #[test]
   fn test_user_staked() {}
-
-  #[test]
-  fn test_block() {}
 
   #[test]
   fn test_query() {}

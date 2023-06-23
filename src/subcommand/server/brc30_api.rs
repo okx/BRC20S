@@ -2,7 +2,7 @@ use super::brc30_types::*;
 use super::error::ApiError;
 use super::*;
 use crate::okx::datastore::brc30;
-use crate::okx::datastore::brc30::{PledgedTick, TickId};
+use crate::okx::datastore::brc30::{BRC30Receipt, PledgedTick, TickId};
 use axum::Json;
 
 // 3.4.1 /brc30/tick
@@ -361,6 +361,21 @@ pub(crate) async fn brc30_txid_events(
     events: all_receipt.iter().map(|receipt| receipt.into()).collect(),
     txid: txid.to_string(),
   })))
+}
+
+//  /brc30/debug/tx/:txid/events
+pub(crate) async fn brc30_debug_txid_events(
+  Extension(index): Extension<Arc<Index>>,
+  Path(txid): Path<String>,
+) -> ApiResult<Vec<BRC30Receipt>> {
+  log::debug!("rpc: get brc30_txid_events: {}", txid);
+  let txid = Txid::from_str(&txid).unwrap();
+
+  let all_receipt = index.brc30_txid_events(&txid)?;
+
+  log::debug!("rpc: get brc30_txid_events: {:?}", all_receipt);
+
+  Ok(Json(ApiResponse::ok(all_receipt)))
 }
 
 // 3.4.11 /brc30/block/:blockhash/events

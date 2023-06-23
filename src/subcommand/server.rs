@@ -252,6 +252,7 @@ impl Server {
           get(brc30_all_transferable),
         )
         .route("/brc30/tx/:txid/events", get(brc30_txid_events))
+        .route("/brc30/debug/tx/:txid/events", get(brc30_debug_txid_events))
         .route("/brc30/block/:blockhash/events", get(brc30_block_events));
 
       // .route("/brc20/tx/:txid/events", get(brc20_tx_events))

@@ -64,8 +64,8 @@ impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
             self.client,
             self.network,
             self.ord_store,
-            block_height,
-            block_time,
+            Some(block_height),
+            Some(block_time),
             &new_inscriptions,
             &operation,
           )?

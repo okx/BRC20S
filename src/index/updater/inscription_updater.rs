@@ -121,7 +121,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       let offset = input_value;
 
       input_value +=
-        Index::get_transaction_output_by_outpoint(self.outpoint_to_entry, &tx_in.previous_output)
+        Index::transaction_output_by_outpoint(self.outpoint_to_entry, tx_in.previous_output)
           .map(|txout| txout.value)?;
 
       // go through all inscriptions in this input
@@ -352,13 +352,21 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
     self.operations.push(InscriptionOp {
       txid: flotsam.txid,
+      inscription_number: self
+        .id_to_entry
+        .get(&flotsam.inscription_id.store())?
+        .map(|entry| InscriptionEntry::load(entry.value()).number),
       inscription_id: flotsam.inscription_id,
       action: match flotsam.origin {
         Origin::Old => Action::Transfer,
-        Origin::New { .. } => Action::New,
+        Origin::New {
+          fee: _,
+          cursed,
+          unbound,
+        } => Action::New { cursed, unbound },
       },
       old_satpoint: flotsam.old_satpoint,
-      new_satpoint: Entry::load(satpoint),
+      new_satpoint: Some(Entry::load(satpoint)),
     });
 
     self.satpoint_to_id.insert(&satpoint, &inscription_id)?;

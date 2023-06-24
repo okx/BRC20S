@@ -8,7 +8,7 @@ use crate::{
     },
     protocol::brc20::deserialize_brc20_operation,
   },
-  unbound_outpoint, Index, Result,
+  Index, Result,
 };
 use anyhow::anyhow;
 use bitcoin::Network;
@@ -18,22 +18,17 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
   client: &Client,
   network: Network,
   ord_store: &'a O,
-  block_height: u64,
-  block_time: u32,
+  block_height: Option<u64>,
+  block_time: Option<u32>,
   new_inscriptions: &Vec<Inscription>,
   op: &InscriptionOp,
 ) -> Result<Option<BRC20Message>> {
-  let number = ord_store.get_number_by_inscription_id(op.inscription_id)?;
-
   // Ignore cursed and unbound inscription.
   // There is a bug in ordinals that may cause unbound inscriptions to occupy normal inscription numbers. The code needs to be reviewed after this bug is fixed.
   // https://github.com/ordinals/ord/issues/2202
-  if number < 0 || op.new_satpoint.outpoint == unbound_outpoint() {
-    return Ok(None);
-  }
 
   let inscription = match op.action {
-    Action::New => new_inscriptions
+    Action::New { .. } => new_inscriptions
       .get(usize::try_from(op.inscription_id.index).unwrap())
       .unwrap()
       .clone(),
@@ -57,31 +52,28 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
     let from = ScriptKey::from_script(
       &ord_store
         .get_outpoint_to_txout(op.old_satpoint.outpoint)?
-        .ok_or(anyhow!(format!(
-          "outpoint {} not found",
-          op.old_satpoint.outpoint
-        )))?
+        .ok_or(anyhow!("outpoint {} not found", op.old_satpoint.outpoint))?
         .script_pubkey,
       network,
     );
 
-    let to = ScriptKey::from_script(
-      &ord_store
-        .get_outpoint_to_txout(op.new_satpoint.outpoint)?
-        .ok_or(anyhow!(format!(
-          "outpoint {} not found",
-          op.new_satpoint.outpoint
-        )))?
-        .script_pubkey,
-      network,
-    );
+    let to = match op.new_satpoint {
+      Some(satpoint) => ScriptKey::from_script(
+        &ord_store
+          .get_outpoint_to_txout(satpoint.outpoint)?
+          .ok_or(anyhow!("outpoint {} not found", satpoint.outpoint))?
+          .script_pubkey,
+        network,
+      ),
+      None => ScriptKey::UnKnown,
+    };
 
     Ok(Some(BRC20Message {
       txid: op.txid,
       block_height,
       block_time,
       inscription_id: op.inscription_id,
-      inscription_number: number,
+      inscription_number: op.inscription_number,
       old_satpoint: op.old_satpoint,
       new_satpoint: op.new_satpoint,
       from,

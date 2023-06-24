@@ -25,13 +25,13 @@ pub(crate) use self::{
 
 pub struct BRC20Message {
   pub txid: Txid,
-  pub block_height: u64,
-  pub block_time: u32,
+  pub block_height: Option<u64>,
+  pub block_time: Option<u32>,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i64,
+  pub inscription_number: Option<i64>,
   pub from: ScriptKey,
   pub to: ScriptKey,
   pub old_satpoint: SatPoint,
-  pub new_satpoint: SatPoint,
+  pub new_satpoint: Option<SatPoint>,
   pub op: BRC20Operation,
 }

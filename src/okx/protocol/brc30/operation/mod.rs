@@ -70,6 +70,12 @@ pub fn deserialize_brc30_operation(
   inscription: &Inscription,
   action: &Action,
 ) -> Result<BRC30Operation> {
+  if let Action::New { cursed, unbound } = *action {
+    if cursed || unbound {
+      return Err(JSONError::NotBRC30Json.into());
+    }
+  }
+
   let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
   if content_body.len() < 40 {
     return Err(JSONError::NotBRC30Json.into());
@@ -97,7 +103,7 @@ pub fn deserialize_brc30_operation(
   };
 
   match action {
-    Action::New => match raw_operation {
+    Action::New { .. } => match raw_operation {
       Operation::Deploy(deploy) => Ok(BRC30Operation::Deploy(deploy)),
       Operation::Stake(stake) => Ok(BRC30Operation::Stake(stake)),
       Operation::UnStake(unstake) => Ok(BRC30Operation::UnStake(unstake)),
@@ -342,7 +348,7 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New{cursed:false,unbound:false},
       )
       .unwrap(),
       BRC30Operation::Deploy(Deploy {
@@ -368,7 +374,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::Stake(Stake {
@@ -387,7 +396,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::Mint(Mint {
@@ -407,7 +419,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::UnStake(UnStake {

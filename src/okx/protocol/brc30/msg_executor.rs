@@ -205,8 +205,8 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
       0_u128,
       supply,
       &to_script_key,
-      msg.block_height,
-      msg.block_height,
+      msg.block_height.unwrap(),
+      msg.block_height.unwrap(),
       pids,
     );
     brc30_store
@@ -225,7 +225,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     0,
     dmax,
     "0".to_string(),
-    msg.block_height,
+    msg.block_height.unwrap(),
     only,
   );
 
@@ -321,7 +321,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
 
   let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
-  reward::update_pool(&mut pool, msg.block_height, dec)?;
+  reward::update_pool(&mut pool, msg.block_height.unwrap(), dec)?;
   let mut reward = 0_u128;
   if !is_first_stake {
     reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
@@ -416,7 +416,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
 
   let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
-  reward::update_pool(&mut pool, msg.block_height, dec)?;
+  reward::update_pool(&mut pool, msg.block_height.unwrap(), dec)?;
   let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
   userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
   pool.staked = Num::from(pool.staked)
@@ -561,11 +561,12 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       continue;
     };
     let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
-    let reward = if let Ok(r) = reward::query_reward(user_info, pool_info, msg.block_height, dec) {
-      r
-    } else {
-      continue;
-    };
+    let reward =
+      if let Ok(r) = reward::query_reward(user_info, pool_info, msg.block_height.unwrap(), dec) {
+        r
+      } else {
+        continue;
+      };
     if reward > 0 {
       total_reward += reward;
       staked_pools.push((pid, reward))
@@ -600,7 +601,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       .ok_or(BRC30Error::InternalError(String::from("pool not found")))?;
 
     let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
-    reward::update_pool(&mut pool_info, msg.block_height, dec)?;
+    reward::update_pool(&mut pool_info, msg.block_height.unwrap(), dec)?;
     let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
     reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
 
@@ -623,7 +624,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 
   // update tick info
   tick_info.minted += amt.checked_to_u128()?;
-  tick_info.latest_mint_block = msg.block_height;
+  tick_info.latest_mint_block = msg.block_height.unwrap();
   brc30_store
     .set_tick_info(&tick_id, &tick_info)
     .map_err(|e| Error::LedgerError(e))?;
@@ -821,10 +822,10 @@ mod tests {
   ) -> BRC30Message {
     BRC30Message {
       txid: Txid::all_zeros(),
-      block_height: 0,
-      block_time: 1687245485,
+      block_height: Some(0),
+      block_time: Some(1687245485),
       inscription_id,
-      inscription_number: 0,
+      inscription_number: Some(0),
       commit_from: None,
       from: from.clone(),
       to: to.clone(),
@@ -834,12 +835,12 @@ mod tests {
           .unwrap(),
         offset: 1,
       },
-      new_satpoint: SatPoint {
+      new_satpoint: Some(SatPoint {
         outpoint: "1111111111111111111111111111111111111111111111111111111111111111:2"
           .parse()
           .unwrap(),
         offset: 1,
-      },
+      }),
       op,
     }
   }
@@ -2184,7 +2185,7 @@ mod tests {
         script.clone(),
         BRC30Operation::Stake(stakeMsg.clone()),
       );
-      msg.block_height = 1;
+      msg.block_height = Some(1);
       let result = process_stake(&brc20_data_store, &brc30_data_store, &msg, stakeMsg.clone());
 
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -2373,7 +2374,7 @@ mod tests {
         script.clone(),
         BRC30Operation::UnStake(unstakeMsg.clone()),
       );
-      msg.block_height = 1;
+      msg.block_height = Some(1);
       let result = process_unstake(
         &brc20_data_store,
         &brc30_data_store,
@@ -2566,7 +2567,7 @@ mod tests {
         script.clone(),
         BRC30Operation::PassiveUnStake(passive_unstakeMsg.clone()),
       );
-      msg.block_height = 1;
+      msg.block_height = Some(1);
       let result = process_passive_unstake(
         &brc20_data_store,
         &brc30_data_store,

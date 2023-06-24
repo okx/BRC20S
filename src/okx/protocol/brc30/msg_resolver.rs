@@ -8,7 +8,7 @@ use crate::{
     },
     protocol::brc30::deserialize_brc30_operation,
   },
-  unbound_outpoint, Index, Result,
+  Index, Result,
 };
 use anyhow::anyhow;
 use bitcoin::Network;
@@ -23,17 +23,15 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
   new_inscriptions: &Vec<Inscription>,
   op: &InscriptionOp,
 ) -> Result<Option<BRC30Message>> {
-  let inscription_number = ord_store.get_number_by_inscription_id(op.inscription_id)?;
-
   // Ignore cursed and unbound inscription.
   // There is a bug in ordinals that may cause unbound inscriptions to occupy normal inscription numbers. The code needs to be reviewed after this bug is fixed.
   // https://github.com/ordinals/ord/issues/2202
-  if inscription_number < 0 || op.new_satpoint.outpoint == unbound_outpoint() {
-    return Ok(None);
-  }
 
   let inscription = match op.action {
-    Action::New => new_inscriptions
+    Action::New {
+      cursed: false,
+      unbound: false,
+    } => new_inscriptions
       .get(usize::try_from(op.inscription_id.index).unwrap())
       .unwrap()
       .clone(),
@@ -51,17 +49,31 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
       .inscription
       .clone()
     }
+    _ => return Ok(None),
   };
 
-  if let Ok(brc20_operation) = deserialize_brc30_operation(&inscription, &op.action) {
-    let from = Index::get_outpoint_script_key(ord_store, op.old_satpoint.outpoint, network)?
-      .ok_or(anyhow!("outpoint {} not found", op.old_satpoint.outpoint))?;
+  if let Ok(brc30_operation) = deserialize_brc30_operation(&inscription, &op.action) {
+    let from = ScriptKey::from_script(
+      &ord_store
+        .get_outpoint_to_txout(op.old_satpoint.outpoint)?
+        .ok_or(anyhow!("outpoint {} not found", op.old_satpoint.outpoint))?
+        .script_pubkey,
+      network,
+    );
 
-    let to = Index::get_outpoint_script_key(ord_store, op.new_satpoint.outpoint, network)?
-      .ok_or(anyhow!("outpoint {} not found", op.new_satpoint.outpoint))?;
+    let to = match op.new_satpoint {
+      Some(satpoint) => ScriptKey::from_script(
+        &ord_store
+          .get_outpoint_to_txout(satpoint.outpoint)?
+          .ok_or(anyhow!("outpoint {} not found", satpoint.outpoint))?
+          .script_pubkey,
+        network,
+      ),
+      None => ScriptKey::UnKnown,
+    };
 
     let commit_from = match op.action {
-      Action::New => Some(get_origin_scriptkey(
+      Action::New { .. } => Some(get_origin_scriptkey(
         client,
         network,
         ord_store,
@@ -72,16 +84,16 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
 
     Ok(Some(BRC30Message {
       txid: op.txid,
-      block_height,
-      block_time,
+      block_height: Some(block_height),
+      block_time: Some(block_time),
       inscription_id: op.inscription_id,
-      inscription_number,
+      inscription_number: op.inscription_number,
       old_satpoint: op.old_satpoint,
       new_satpoint: op.new_satpoint,
       commit_from,
       from,
       to,
-      op: brc20_operation,
+      op: brc30_operation,
     }))
   } else {
     Ok(None)

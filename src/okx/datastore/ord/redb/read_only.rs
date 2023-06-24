@@ -28,9 +28,9 @@ pub(crate) fn new_with_wtx<'db, 'a>(wtx: &'a WriteTransaction<'db>) -> OrdDbRead
 }
 
 impl<'db, 'a> OrdDbReader<'db, 'a> {
-  pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
+  pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
-      wrapper: ReaderWrapper::Wtx(wtx),
+      wrapper: ReaderWrapper::Rtx(rtx),
     }
   }
 }

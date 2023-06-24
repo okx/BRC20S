@@ -2142,7 +2142,7 @@ mod tests {
   #[test]
   fn test_pool_one_user_18() {}
 
-  fn ToNum(s: &str) -> Num {
+  fn to_num(s: &str) -> Num {
     Num::from_str(s).unwrap()
   }
 
@@ -2151,234 +2151,246 @@ mod tests {
     //Fix
     do_one_precision(
       PoolType::Fixed,
-      ToNum("10.0"),
-      ToNum("20.0"),
+      to_num("10.0"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "1000000000000000000000",
       "2000000000000000000000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "100",
       "2000000000000000000000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("1.0"),
-      ToNum("10000.0"),
+      to_num("1.0"),
+      to_num("10000.0"),
       "10",
       "200000000000000000000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("0.1"),
-      ToNum("10000.0"),
+      to_num("0.1"),
+      to_num("10000.0"),
       "1",
       "20000000000000000000",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("0.01"),
-      ToNum("10000.0"),
+      to_num("0.01"),
+      to_num("10000.0"),
       "0",
       "2000000000000000000",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("0.000000000000000001"),
-      ToNum("10000.0"),
+      to_num("0.000000000000000001"),
+      to_num("10000.0"),
       "0",
       "200",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("2.0"),
+      to_num("0.000000000000000001"),
+      to_num("2.0"),
       18,
       18,
-      ToNum("0.000000000000000001"),
-      ToNum("10000.0"),
+      to_num("0.000000000000000001"),
+      to_num("10000.0"),
       "0",
       "20",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("0.2"),
+      to_num("0.000000000000000001"),
+      to_num("0.2"),
       18,
       18,
-      ToNum("0.000000000000000001"),
-      ToNum("10000.0"),
+      to_num("0.000000000000000001"),
+      to_num("10000.0"),
       "0",
       "2",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("0.02"),
+      to_num("0.000000000000000001"),
+      to_num("0.02"),
       18,
       18,
-      ToNum("0.000000000000000001"),
-      ToNum("10000.0"),
+      to_num("0.000000000000000001"),
+      to_num("10000.0"),
       "0",
       "0",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("100000000.0"),
+      to_num("0.000000000000000001"),
+      to_num("100000000.0"),
       18,
       18,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "0",
       "1000000000000000000000",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000001"),
-      ToNum("100000000.0"),
+      to_num("0.000000000001"),
+      to_num("100000000.0"),
       18,
       18,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "10",
       "1000000000000000000000",
     );
 
     do_one_precision(
+      PoolType::Fixed,
+      to_num("0.000000000000000001"),
+      to_num("100000000.0"),
+      18,
+      18,
+      to_num("1"),
+      to_num("10000000000.0"),
+      "10",
+      "1000000000000000000000000000",
+    );
+
+    do_one_precision(
       PoolType::Pool,
-      ToNum("10.0"),
-      ToNum("20.0"),
+      to_num("10.0"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "33333333333333333330",
       "66666666666666666660",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "4",
       "99999999999999999980",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("1.0"),
-      ToNum("10000.0"),
+      to_num("1.0"),
+      to_num("10000.0"),
       "0",
       "9999999999999999980",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("0.1"),
-      ToNum("10000.0"),
+      to_num("0.1"),
+      to_num("10000.0"),
       "0",
       "999999999999999980",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.00000000001"),
-      ToNum("20.0"),
+      to_num("0.00000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("0.01"),
-      ToNum("10000.0"),
+      to_num("0.01"),
+      to_num("10000.0"),
       "49999",
       "99999999999950000",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.00000000001"),
-      ToNum("20.0"),
+      to_num("0.00000000001"),
+      to_num("20.0"),
       18,
       18,
-      ToNum("0.000000000000000001"),
-      ToNum("10000.0"),
+      to_num("0.000000000000000001"),
+      to_num("10000.0"),
       "0",
       "0",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.00000000001"),
-      ToNum("2.0"),
+      to_num("0.00000000001"),
+      to_num("2.0"),
       18,
       18,
-      ToNum("0.000000000000000001"),
-      ToNum("10000.0"),
+      to_num("0.000000000000000001"),
+      to_num("10000.0"),
       "0",
       "8",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.00000000001"),
-      ToNum("0.2"),
+      to_num("0.00000000001"),
+      to_num("0.2"),
       18,
       18,
-      ToNum("0.000000000000000001"),
-      ToNum("10000.0"),
+      to_num("0.000000000000000001"),
+      to_num("10000.0"),
       "0",
       "9",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.000000000000000001"),
-      ToNum("0.02"),
+      to_num("0.000000000000000001"),
+      to_num("0.02"),
       18,
       18,
-      ToNum("0.000000000000000001"),
-      ToNum("10000.0"),
+      to_num("0.000000000000000001"),
+      to_num("10000.0"),
       "0",
       "9",
     );
@@ -2389,222 +2401,258 @@ mod tests {
     //Fix
     do_one_precision(
       PoolType::Fixed,
-      ToNum("10.0"),
-      ToNum("20.0"),
+      to_num("10.0"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "1000000000",
       "2000000000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "100000",
       "2000000000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("1.0"),
-      ToNum("10000.0"),
+      to_num("1.0"),
+      to_num("10000.0"),
       "10000",
       "200000000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("0.1"),
-      ToNum("10000.0"),
+      to_num("0.1"),
+      to_num("10000.0"),
       "1000",
       "20000000",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("0.01"),
-      ToNum("10000.0"),
+      to_num("0.01"),
+      to_num("10000.0"),
       "100",
       "2000000",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "0",
       "200",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.001"),
-      ToNum("2.0"),
+      to_num("0.001"),
+      to_num("2.0"),
       3,
       6,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "10",
       "20000",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.001"),
-      ToNum("0.2"),
+      to_num("0.001"),
+      to_num("0.2"),
       3,
       6,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "0",
       "2",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.001"),
-      ToNum("0.02"),
+      to_num("0.001"),
+      to_num("0.02"),
       3,
       6,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "0",
       "0",
     );
 
     do_one_precision(
-      PoolType::Pool,
-      ToNum("10.0"),
-      ToNum("20.0"),
+      PoolType::Fixed,
+      to_num("0.001"),
+      to_num("100000000.0"),
       3,
       6,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
+      "0",
+      "1000000000",
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      to_num("1"),
+      to_num("100000000.0"),
+      3,
+      6,
+      to_num("0.000001"),
+      to_num("10000.0"),
+      "10",
+      "1000000000",
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      to_num("1"),
+      to_num("100000000.0"),
+      3,
+      6,
+      to_num("10"),
+      to_num("10000000000.0"),
+      "99999999",
+      "9999999900000000",
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      to_num("10.0"),
+      to_num("20.0"),
+      3,
+      6,
+      to_num("10.0"),
+      to_num("10000.0"),
       "33333333",
       "66666666",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "4999",
       "99995000",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("1.0"),
-      ToNum("10000.0"),
+      to_num("1.0"),
+      to_num("10000.0"),
       "499",
       "9999500",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("0.1"),
-      ToNum("10000.0"),
+      to_num("0.1"),
+      to_num("10000.0"),
       "49",
       "999950",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("0.01"),
-      ToNum("10000.0"),
+      to_num("0.01"),
+      to_num("10000.0"),
       "4",
       "99995",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "0",
       "9999",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("20.0"),
+      to_num("0.001"),
+      to_num("20.0"),
       3,
       6,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "0",
       "9",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("2.0"),
+      to_num("0.001"),
+      to_num("2.0"),
       3,
       6,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "0",
       "9",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("0.2"),
+      to_num("0.001"),
+      to_num("0.2"),
       3,
       6,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "0",
       "9",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.001"),
-      ToNum("0.02"),
+      to_num("0.001"),
+      to_num("0.02"),
       3,
       6,
-      ToNum("0.000001"),
-      ToNum("10000.0"),
+      to_num("0.000001"),
+      to_num("10000.0"),
       "0",
       "9",
     );
@@ -2615,210 +2663,246 @@ mod tests {
     //Fix
     do_one_precision(
       PoolType::Fixed,
-      ToNum("10.0"),
-      ToNum("20.0"),
+      to_num("10.0"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "1000000",
       "2000000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "0",
       "2000000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("1.0"),
-      ToNum("10000.0"),
+      to_num("1.0"),
+      to_num("10000.0"),
       "0",
       "200000",
     );
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("0.1"),
-      ToNum("10000.0"),
+      to_num("0.1"),
+      to_num("10000.0"),
       "0",
       "20000",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("0.01"),
-      ToNum("10000.0"),
+      to_num("0.01"),
+      to_num("10000.0"),
       "0",
       "2000",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "0",
       "200",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("2.0"),
+      to_num("0.000000000000000001"),
+      to_num("2.0"),
       18,
       3,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "0",
       "20",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("0.2"),
+      to_num("0.000000000000000001"),
+      to_num("0.2"),
       18,
       3,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("100000000000.0"),
       "0",
       "2",
     );
 
     do_one_precision(
       PoolType::Fixed,
-      ToNum("0.000000000000000001"),
-      ToNum("0.02"),
+      to_num("0.000000000000000001"),
+      to_num("0.02"),
       18,
       3,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "0",
       "0",
     );
 
     do_one_precision(
-      PoolType::Pool,
-      ToNum("10.0"),
-      ToNum("20.0"),
+      PoolType::Fixed,
+      to_num("0.000000000000000001"),
+      to_num("100000000.0"),
       18,
       3,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("100000000000.0"),
+      "0",
+      "1000000000",
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      to_num("1"),
+      to_num("100000000.0"),
+      18,
+      3,
+      to_num("0.001"),
+      to_num("100000000000.0"),
+      "10",
+      "1000000000",
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      to_num("1"),
+      to_num("100000000.0"),
+      18,
+      3,
+      to_num("10"),
+      to_num("100000000000.0"),
+      "100000",
+      "10000000000000",
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      to_num("10.0"),
+      to_num("20.0"),
+      18,
+      3,
+      to_num("10.0"),
+      to_num("10000.0"),
       "33330",
       "66660",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("10.0"),
-      ToNum("10000.0"),
+      to_num("10.0"),
+      to_num("10000.0"),
       "0",
       "99980",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("1.0"),
-      ToNum("10000.0"),
+      to_num("1.0"),
+      to_num("10000.0"),
       "0",
       "9980",
     );
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.000000000000000001"),
-      ToNum("20.0"),
+      to_num("0.000000000000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("0.1"),
-      ToNum("10000.0"),
+      to_num("0.1"),
+      to_num("10000.0"),
       "0",
       "980",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.00000000001"),
-      ToNum("20.0"),
+      to_num("0.00000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("0.01"),
-      ToNum("80.0"),
+      to_num("0.01"),
+      to_num("80.0"),
       "0",
       "80",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.00000000001"),
-      ToNum("20.0"),
+      to_num("0.00000000001"),
+      to_num("20.0"),
       18,
       3,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "0",
       "0",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.00000000001"),
-      ToNum("2.0"),
+      to_num("0.00000000001"),
+      to_num("2.0"),
       18,
       3,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "0",
       "8",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.00000000001"),
-      ToNum("0.2"),
+      to_num("0.00000000001"),
+      to_num("0.2"),
       18,
       3,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "0",
       "9",
     );
 
     do_one_precision(
       PoolType::Pool,
-      ToNum("0.000000000000000001"),
-      ToNum("0.02"),
+      to_num("0.000000000000000001"),
+      to_num("0.02"),
       18,
       3,
-      ToNum("0.001"),
-      ToNum("10000.0"),
+      to_num("0.001"),
+      to_num("10000.0"),
       "0",
       "9",
     );
@@ -2852,8 +2936,8 @@ mod tests {
     let mut user2 = new_user(&pid);
 
     //first
-    update_pool(&mut pool, 1, staked_decimal);
-    withdraw_user_reward(&mut user1, &mut pool, staked_decimal);
+    let _ = update_pool(&mut pool, 1, staked_decimal);
+    let _ = withdraw_user_reward(&mut user1, &mut pool, staked_decimal);
     user1.staked += stake_base
       .checked_mul(&stake1)
       .unwrap()
@@ -2864,11 +2948,11 @@ mod tests {
       .unwrap()
       .truncate_to_u128()
       .unwrap();
-    withdraw_user_reward(&mut user1, &mut pool, staked_decimal);
-    update_user_stake(&mut user1, &mut pool, staked_decimal);
+    let _ = withdraw_user_reward(&mut user1, &mut pool, staked_decimal);
+    let _ = update_user_stake(&mut user1, &mut pool, staked_decimal);
 
-    update_pool(&mut pool, 1, staked_decimal);
-    withdraw_user_reward(&mut user2, &mut pool, staked_decimal);
+    let _ = update_pool(&mut pool, 1, staked_decimal);
+    let _ = withdraw_user_reward(&mut user2, &mut pool, staked_decimal);
     user2.staked += stake_base
       .checked_mul(&stake2)
       .unwrap()
@@ -2879,11 +2963,11 @@ mod tests {
       .unwrap()
       .truncate_to_u128()
       .unwrap();
-    withdraw_user_reward(&mut user2, &mut pool, staked_decimal);
-    update_user_stake(&mut user2, &mut pool, staked_decimal);
+    let _ = withdraw_user_reward(&mut user2, &mut pool, staked_decimal);
+    let _ = update_user_stake(&mut user2, &mut pool, staked_decimal);
 
     //second
-    update_pool(&mut pool, 11, staked_decimal);
+    let _ = update_pool(&mut pool, 11, staked_decimal);
     let reward1 = withdraw_user_reward(&mut user1, &mut pool, staked_decimal).unwrap();
     let reward2 = withdraw_user_reward(&mut user2, &mut pool, staked_decimal).unwrap();
     assert_eq!(

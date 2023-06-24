@@ -2143,7 +2143,7 @@ mod tests {
   fn test_pool_one_user_18() {}
 
   #[test]
-  fn test_precision_block10() {
+  fn test_precision_18_18_block10() {
     //Fix
     do_one_precision(
       PoolType::Fixed,
@@ -2354,8 +2354,232 @@ mod tests {
       "0".to_string(),
       "9".to_string(),
     );
+  }
 
-    //TODO precision3/6; 6/3; 18/3; 3/18
+  #[test]
+  fn test_precision_3_6_block10() {
+    //Fix
+    do_one_precision(
+      PoolType::Fixed,
+      10.0,
+      20.0,
+      3,
+      6,
+      10.0,
+      10000.0,
+      "1000000000".to_string(),
+      "2000000000".to_string(),
+    );
+    do_one_precision(
+      PoolType::Fixed,
+      0.001,
+      20.0,
+      3,
+      6,
+      10.0,
+      10000.0,
+      "100000".to_string(),
+      "2000000000".to_string(),
+    );
+    do_one_precision(
+      PoolType::Fixed,
+      0.001,
+      20.0,
+      3,
+      6,
+      1.0,
+      10000.0,
+      "10000".to_string(),
+      "200000000".to_string(),
+    );
+    do_one_precision(
+      PoolType::Fixed,
+      0.001,
+      20.0,
+      3,
+      6,
+      0.1,
+      10000.0,
+      "1000".to_string(),
+      "20000000".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      0.001,
+      20.0,
+      3,
+      6,
+      0.01,
+      10000.0,
+      "100".to_string(),
+      "2000000".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      0.001,
+      20.0,
+      3,
+      6,
+      0.000001,
+      10000.0,
+      "0".to_string(),
+      "200".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      0.001,
+      2.0,
+      3,
+      6,
+      0.001,
+      10000.0,
+      "10".to_string(),
+      "20000".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      0.001,
+      0.2,
+      3,
+      6,
+      0.000001,
+      10000.0,
+      "0".to_string(),
+      "2".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Fixed,
+      0.001,
+      0.02,
+      3,
+      6,
+      0.000001,
+      10000.0,
+      "0".to_string(),
+      "0".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      10.0,
+      20.0,
+      3,
+      6,
+      10.0,
+      10000.0,
+      "33333333".to_string(),
+      "66666666".to_string(),
+    );
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      20.0,
+      3,
+      6,
+      10.0,
+      10000.0,
+      "4999".to_string(),
+      "99995000".to_string(),
+    );
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      20.0,
+      3,
+      6,
+      1.0,
+      10000.0,
+      "499".to_string(),
+      "9999500".to_string(),
+    );
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      20.0,
+      3,
+      6,
+      0.1,
+      10000.0,
+      "49".to_string(),
+      "999950".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      20.0,
+      3,
+      6,
+      0.01,
+      10000.0,
+      "4".to_string(),
+      "99995".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      20.0,
+      3,
+      6,
+      0.001,
+      10000.0,
+      "0".to_string(),
+      "9999".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      20.0,
+      3,
+      6,
+      0.000001,
+      10000.0,
+      "0".to_string(),
+      "9".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      2.0,
+      3,
+      6,
+      0.000001,
+      10000.0,
+      "0".to_string(),
+      "9".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      0.2,
+      3,
+      6,
+      0.000001,
+      10000.0,
+      "0".to_string(),
+      "9".to_string(),
+    );
+
+    do_one_precision(
+      PoolType::Pool,
+      0.001,
+      0.02,
+      3,
+      6,
+      0.000001,
+      10000.0,
+      "0".to_string(),
+      "9".to_string(),
+    );
   }
 
   fn do_one_precision(

@@ -128,7 +128,8 @@ impl Deploy {
       return Err(BRC30Error::UnknownStakeType);
     }
 
-    if self.stake.eq(&self.earn) {
+    let tick_id = self.get_tick_id();
+    if self.stake.eq(tick_id.hex().as_str()) {
       return Err(BRC30Error::StakeEqualEarn(
         self.stake.clone(),
         self.earn.clone(),

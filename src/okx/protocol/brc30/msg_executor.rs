@@ -18,6 +18,7 @@ use crate::okx::reward::reward;
 use crate::Result;
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
+use std::cmp;
 use std::str::FromStr;
 
 pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
@@ -289,19 +290,42 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       UserInfo::default(&pool_id)
     }
   };
+  let mut user_stakeinfo = brc30_store
+    .get_user_stakeinfo(&to_script_key, &stake_tick)
+    .map_err(|e| Error::LedgerError(e))?
+    .map_or(
+      StakeInfo::new(
+        &vec![(pool_id.clone(), pool.only, userinfo.staked)],
+        &stake_tick,
+        0,
+        0,
+      ),
+      |v| v,
+    );
 
-  let has_staked = Num::from(userinfo.staked);
-  if stake_balance.lt(&has_staked) {
-    return Err(Error::BRC30Error(BRC30Error::InValidStakeInfo(
-      userinfo.staked,
-      stake_balance.checked_to_u128()?,
-    )));
-  } else if stake_balance.checked_sub(&has_staked)?.lt(&amount) {
-    return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
-      amount.clone(),
-      stake_balance.checked_sub(&has_staked)?,
+  let staked_total =
+    Num::from(user_stakeinfo.total_only).checked_add(&Num::from(user_stakeinfo.max_share))?;
+  if stake_balance.lt(&staked_total) {
+    return Err(Error::BRC30Error(BRC30Error::InternalError(
+      "got serious error stake_balance < user staked total".to_string(),
     )));
   }
+  let mut can_stake_balance = Num::from(0_u128);
+  let has_staked = Num::from(userinfo.staked);
+  if pool.only {
+    can_stake_balance = stake_balance.checked_sub(&staked_total)?;
+  } else {
+    can_stake_balance = stake_balance
+      .checked_sub(&Num::from(user_stakeinfo.total_only))?
+      .checked_sub(&has_staked)?;
+  }
+  if can_stake_balance.lt(&amount) {
+    return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
+      amount.clone(),
+      can_stake_balance,
+    )));
+  }
+
   let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
   reward::update_pool(&mut pool, msg.block_height, dec)?;
   let mut reward = 0_u128;
@@ -316,22 +340,20 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?;
 
   //update the stake_info of user
-  let mut user_stakeinfo = brc30_store
-    .get_user_stakeinfo(&to_script_key, &stake_tick)
-    .map_err(|e| Error::LedgerError(e))?
-    .map_or(
-      StakeInfo::new(
-        &vec![(pool_id.clone(), pool.only, userinfo.staked)],
-        &stake_tick,
-      ),
-      |v| v,
-    );
 
   for pool_stake in user_stakeinfo.pool_stakes.iter_mut() {
     if pool_stake.0 == pool_id {
       pool_stake.2 = userinfo.staked;
       break;
     }
+  }
+
+  if pool.only {
+    user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)
+      .checked_add(&amount)?
+      .checked_to_u128()?;
+  } else {
+    user_stakeinfo.max_share = cmp::max(user_stakeinfo.max_share, userinfo.staked)
   }
 
   brc30_store
@@ -437,6 +459,14 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     }
   }
 
+  if pool.only {
+    user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)
+      .checked_sub(&amount)?
+      .checked_to_u128()?;
+  } else {
+    user_stakeinfo.max_share = user_stakeinfo.calculate_max_share()?.checked_to_u128()?;
+  }
+
   brc30_store
     .set_pid_to_poolinfo(&pool_id, &pool)
     .map_err(|e| Error::LedgerError(e))?;
@@ -486,28 +516,9 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
       Num::from(0_u128),
     )))?;
 
-  let passive_unstake_amt = convert_pledged_tick_with_decimal(
-    &stake_tick,
-    passive_unstake.amount.as_str(),
-    brc30_store,
-    brc20_store,
-  )?;
-
   let balance = get_user_common_balance(&to_script_key, &stake_tick, brc30_store, brc20_store);
-  //search max stake within share pools and total only of only's pools
-  let mut staked_max_share = Num::from(0_u128);
-  let mut staked_total_only = Num::from(0_u128);
-  for (_, only, pool_stake) in stake_info.pool_stakes.clone() {
-    let current_pool_stake = Num::from(pool_stake);
-    if only {
-      staked_total_only = staked_total_only.checked_add(&current_pool_stake)?;
-    } else {
-      if current_pool_stake.gt(&staked_max_share) {
-        staked_max_share = current_pool_stake;
-      }
-    }
-  }
-  let staked_total = staked_total_only.checked_add(&staked_max_share)?;
+  let staked_total =
+    Num::from(stake_info.total_only).checked_add(&Num::from(stake_info.max_share))?;
 
   // the balance which is minused by passive_amt, so if it >= staked_total, it can staked. others we need passive_withdraw
   if balance.ge(&staked_total) {

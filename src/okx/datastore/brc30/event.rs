@@ -18,9 +18,9 @@ pub enum BRC30OperationType {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BRC30Receipt {
   pub inscription_id: InscriptionId,
-  pub inscription_number: Option<i64>,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
-  pub new_satpoint: Option<SatPoint>,
+  pub new_satpoint: SatPoint,
   pub op: BRC30OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
@@ -158,15 +158,15 @@ mod tests {
         "9991111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
-      inscription_number: Some(0),
+      inscription_number: 0,
       old_satpoint: SatPoint {
         outpoint: Default::default(),
         offset: 0,
       },
-      new_satpoint: Some(SatPoint {
+      new_satpoint: SatPoint {
         outpoint: Default::default(),
         offset: 0,
-      }),
+      },
       op: BRC30OperationType::Deploy,
       from: ScriptKey::Address(addr.clone()),
       to: ScriptKey::Address(addr.clone()),

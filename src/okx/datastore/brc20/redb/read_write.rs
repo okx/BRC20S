@@ -449,7 +449,7 @@ mod tests {
           "1111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
-        inscription_number: Some(1),
+        inscription_number: 1,
         op: BRC20OperationType::Deploy,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -461,12 +461,10 @@ mod tests {
           "1111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        new_satpoint: Some(
-          SatPoint::from_str(
-            "2111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
-        ),
+        new_satpoint: SatPoint::from_str(
+          "2111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
         result: Err(BRC20Error::InvalidTickLen("abcde".to_string())),
       },
       BRC20Receipt {
@@ -474,7 +472,7 @@ mod tests {
           "2111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
-        inscription_number: Some(1),
+        inscription_number: 1,
         op: BRC20OperationType::Mint,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -486,12 +484,10 @@ mod tests {
           "2111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        new_satpoint: Some(
-          SatPoint::from_str(
-            "3111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
-        ),
+        new_satpoint: SatPoint::from_str(
+          "3111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
         result: Ok(BRC20Event::Mint(MintEvent {
           tick: Tick::from_str("maEd").unwrap(),
           amount: 30,
@@ -503,7 +499,7 @@ mod tests {
           "3111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
-        inscription_number: Some(1),
+        inscription_number: 1,
         op: BRC20OperationType::Mint,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -515,12 +511,10 @@ mod tests {
           "4111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        new_satpoint: Some(
-          SatPoint::from_str(
-            "4111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
-        ),
+        new_satpoint: SatPoint::from_str(
+          "4111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
         result: Ok(BRC20Event::Transfer(TransferEvent {
           tick: Tick::from_str("mmmm").unwrap(),
           amount: 11,

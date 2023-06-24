@@ -44,9 +44,9 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 
   let receipt = BRC30Receipt {
     inscription_id: msg.inscription_id,
-    inscription_number: msg.inscription_number,
+    inscription_number: msg.inscription_number.unwrap(),
     old_satpoint: msg.old_satpoint,
-    new_satpoint: msg.new_satpoint,
+    new_satpoint: msg.new_satpoint.unwrap(),
     from: msg.from.clone(),
     to: msg.to.clone(),
     op: msg.op.op_type(),

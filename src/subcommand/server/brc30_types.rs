@@ -74,15 +74,30 @@ pub struct BRC30Pool {
   pub txid: String,
 }
 
+impl BRC30Pool {
+  pub fn set_earn(&mut self, earn_id: String, earn_name: String) {
+    self.earn.id = earn_id;
+    self.earn.name = earn_name;
+  }
+
+  pub fn set_inscription_num(&mut self, inscription_number: u64) {
+    self.inscription_number = inscription_number
+  }
+
+  pub fn set_deploy(&mut self, deployer: String, deploy_height: u64, deploy_blocktime: u64) {
+    self.deployer = deployer;
+    self.deploy_height = deploy_height;
+    self.deploy_blocktime = deploy_blocktime;
+  }
+}
+
 impl From<&brc30::PoolInfo> for BRC30Pool {
   fn from(pool_info: &brc30::PoolInfo) -> Self {
-    // TODO
     let stake = Stake {
-      type_field: "".to_string(),
-      tick: "".to_string(),
+      type_field: pool_info.ptype.to_string(),
+      tick: pool_info.stake.to_string(),
     };
 
-    //Todo
     let earn = Earn {
       id: "".to_string(),
       name: "".to_string(),
@@ -101,10 +116,10 @@ impl From<&brc30::PoolInfo> for BRC30Pool {
       acc_per_share: pool_info.acc_reward_per_share.to_string(),
       latest_update_block: pool_info.last_update_block,
       inscription_id: pool_info.inscription_id.to_string(),
-      inscription_number: 0,    // TODO inscription_number
-      deployer: "".to_string(), //TODO
-      deploy_height: 0,         //TODO
-      deploy_blocktime: 0,      // TODO  add deploy_blocktime
+      inscription_number: 0,
+      deployer: "".to_string(),
+      deploy_height: 0,
+      deploy_blocktime: 0,
       txid: pool_info.inscription_id.txid.to_string(),
     }
   }
@@ -160,18 +175,28 @@ pub struct BRC30Balance {
   pub claimable: String,
 }
 
+impl BRC30Balance {
+  pub fn set_claimable(&mut self, claimable: u128) {
+    self.claimable = claimable.to_string();
+  }
+
+  pub fn set_tick_name(&mut self, name: String) {
+    self.tick.name = name;
+  }
+}
+
 impl From<&brc30::Balance> for BRC30Balance {
   fn from(balance: &brc30::Balance) -> Self {
     let tick = Tick {
       id: balance.tick_id.to_lowercase().hex(),
-      name: "".to_string(), //TODO
+      name: "".to_string(),
     };
 
     Self {
       tick,
       transferable: balance.transferable_balance.to_string(),
       overall: balance.overall_balance.to_string(),
-      claimable: "0".to_string(), //TODO
+      claimable: "0".to_string(),
     }
   }
 }

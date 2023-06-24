@@ -570,7 +570,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 ) -> Result<BRC30Event, Error<N>> {
   let to_script_key = msg.to.clone();
   // check tick
-  let tick_id = TickId::from_str(mint.tick_id.as_str())?;
+  let tick_id = mint.get_tick_id();
   let mut tick_info = brc30_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
@@ -593,80 +593,36 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   if amt.sign() == Sign::NoSign {
     return Err(Error::BRC30Error(BRC30Error::InvalidZeroAmount));
   }
-  // get all staked pools and calculate total reward
-  let mut staked_pools: Vec<(Pid, u128)> = Vec::new();
-  let mut total_reward = 0;
-  for pid in tick_info.pids.clone() {
-    let user_info = if let Ok(Some(u)) = brc30_store.get_pid_to_use_info(&to_script_key, &pid) {
-      u
-    } else {
-      continue;
-    };
-    let pool_info = if let Ok(Some(p)) = brc30_store.get_pid_to_poolinfo(&pid) {
-      p
-    } else {
-      continue;
-    };
-    let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
-    let reward = if let Ok(r) = reward::query_reward(user_info, pool_info, msg.block_height, dec) {
-      r
-    } else {
-      continue;
-    };
-    if reward > 0 {
-      total_reward += reward;
-      staked_pools.push((pid, reward))
-    }
-  }
-  if amt > total_reward.into() {
+
+  // get user info and pool info
+  let pool_id = mint.get_pool_id();
+  let mut user_info = brc30_store
+    .get_pid_to_use_info(&to_script_key, &pool_id)
+    .map_or(Some(UserInfo::default(&pool_id)), |v| v)
+    .unwrap();
+  let mut pool_info = brc30_store
+    .get_pid_to_poolinfo(&pool_id)
+    .map_err(|e| Error::LedgerError(e))?
+    .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(mint.pool_id)))?;
+
+  // calculate reward
+  let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
+  reward::update_pool(&mut pool_info, msg.block_height, dec)?;
+  let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
+  reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
+
+  if amt > withdraw_reward.into() {
     return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
+  } else if amt < withdraw_reward.into() {
+    user_info.reward = user_info.reward - withdraw_reward + amt.checked_to_u128()?;
   }
-
-  // claim rewards
-  let mut remain_amt = amt.clone();
-  for (pid, reward) in staked_pools {
-    let reward = Num::from(reward);
-    if remain_amt <= Num::zero() {
-      break;
-    }
-    let mut reward = if reward < remain_amt {
-      reward
-    } else {
-      remain_amt.clone()
-    };
-
-    let mut user_info = brc30_store
-      .get_pid_to_use_info(&to_script_key, &pid)
-      .map_err(|e| Error::LedgerError(e))?
-      .ok_or(BRC30Error::InternalError(String::from(
-        "user info not found",
-      )))?;
-    let mut pool_info = brc30_store
-      .get_pid_to_poolinfo(&pid)
-      .map_err(|e| Error::LedgerError(e))?
-      .ok_or(BRC30Error::InternalError(String::from("pool not found")))?;
-
-    let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
-    reward::update_pool(&mut pool_info, msg.block_height, dec)?;
-    let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
-    reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
-
-    if withdraw_reward > reward.checked_to_u128()? {
-      user_info.reward = user_info.reward - withdraw_reward + reward.checked_to_u128()?;
-      //pool_info.minted = pool_info.minted - withdraw_reward + reward.checked_to_u128()?;
-    } else {
-      reward = Num::from(withdraw_reward)
-    }
-
-    brc30_store
-      .set_pid_to_use_info(&to_script_key, &pid, &user_info)
-      .map_err(|e| Error::LedgerError(e))?;
-    brc30_store
-      .set_pid_to_poolinfo(&pid, &pool_info)
-      .map_err(|e| Error::LedgerError(e))?;
-
-    remain_amt = remain_amt.checked_sub(&reward)?;
-  }
+  // update user info and pool info
+  brc30_store
+    .set_pid_to_use_info(&to_script_key, &pool_id, &user_info)
+    .map_err(|e| Error::LedgerError(e))?;
+  brc30_store
+    .set_pid_to_poolinfo(&pool_id, &pool_info)
+    .map_err(|e| Error::LedgerError(e))?;
 
   // update tick info
   tick_info.minted += amt.checked_to_u128()?;

@@ -1,4 +1,6 @@
+use crate::okx::datastore::brc30::{Pid, TickId};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Mint {
@@ -6,13 +8,24 @@ pub struct Mint {
   #[serde(rename = "tick")]
   pub tick: String,
 
-  // 10 letter identifier of the pool id，pool number not included
-  #[serde(rename = "tid")]
-  pub tick_id: String,
+  // 10 letter identifier of the token id + "#" + 2 letter of pool number
+  #[serde(rename = "pid")]
+  pub pool_id: String,
 
   // Amount to mint: States the amount of the brc20-s to mint. Has to be less than "lim" above if stated
   #[serde(rename = "amt")]
   pub amount: String,
+}
+
+impl Mint {
+  pub fn get_pool_id(&self) -> Pid {
+    Pid::from_str(self.pool_id.as_str()).unwrap()
+  }
+
+  pub fn get_tick_id(&self) -> TickId {
+    let tick_str = self.pool_id.as_str().split("#").next().unwrap();
+    TickId::from_str(tick_str).unwrap()
+  }
 }
 
 #[cfg(test)]
@@ -24,14 +37,14 @@ mod tests {
   fn test_serialize() {
     let obj = Mint {
       tick: "tick".to_string(),
-      tick_id: "tid".to_string(),
+      pool_id: "pid".to_string(),
       amount: "amt".to_string(),
     };
 
     assert_eq!(
       serde_json::to_string(&obj).unwrap(),
       format!(
-        r##"{{"tick":"{}","tid":"{}","amt":"{}"}}"##,
+        r##"{{"tick":"{}","pid":"{}","amt":"{}"}}"##,
         obj.tick, obj.tick_id, obj.amount
       )
     )
@@ -43,7 +56,7 @@ mod tests {
       r##"{{
         "p": "brc20-s",
         "op": "mint",
-        "tid": "tid",
+        "pid": "tid",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -57,7 +70,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        tick_id: "tid".to_string(),
+        pool_id: "tid".to_string(),
         amount: "amt".to_string(),
       })
     );
@@ -89,7 +102,7 @@ mod tests {
         "p": "brc20-s",
         "op": "mint",
         "tid": "pid-1",
-        "tid": "pid-2",
+        "pid": "pid-2",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -98,7 +111,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        tick_id: "tid-2".to_string(),
+        pool_id: "tid-2".to_string(),
         amount: "amt".to_string(),
       })
     );

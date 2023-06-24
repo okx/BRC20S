@@ -780,8 +780,6 @@ mod tests {
       Ok(()),
       STAKED_DECIMAL,
     );
-
-    // todo go on
   }
 
   #[test]
@@ -1355,7 +1353,6 @@ mod tests {
       Ok(()),
       STAKED_DECIMAL,
     );
-    // todo go on
   }
 
   #[test]

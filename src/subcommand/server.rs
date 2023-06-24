@@ -218,6 +218,7 @@ impl Server {
           get(brc20_all_transferable),
         )
         .route("/brc30/tick", get(brc30_all_tick_info))
+        .route("/brc30/tick/:tick_id", get(brc30_tick_info))
         .route("/brc30/debug/tick/:tick_id", get(brc30_debug_tick_info))
         .route("/brc30/pool", get(brc30_all_pool_info))
         .route("/brc30/pool/:pid", get(brc30_pool_info))

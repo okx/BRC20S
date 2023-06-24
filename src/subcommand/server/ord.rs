@@ -11,11 +11,7 @@ struct Flotsam {
 
 #[derive(Debug, Clone)]
 enum Origin {
-  New {
-    fee: u64,
-    cursed: bool,
-    unbound: bool,
-  },
+  New { cursed: bool, unbound: bool },
   Old,
 }
 
@@ -116,51 +112,13 @@ fn simulate_index_ord_transaction(
         },
         inscription_id,
         offset,
-        origin: Origin::New {
-          fee: 0,
-          cursed,
-          unbound,
-        },
+        origin: Origin::New { cursed, unbound },
       });
 
       new_inscriptions.next();
       id_counter += 1;
     }
   }
-
-  // still have to normalize over inscription size
-  let total_output_value = tx.output.iter().map(|txout| txout.value).sum::<u64>();
-  let mut floating_inscriptions = floating_inscriptions
-    .into_iter()
-    .map(|flotsam| {
-      if let Flotsam {
-        txid,
-        old_satpoint,
-        inscription_id,
-        offset,
-        origin: Origin::New {
-          fee: _,
-          cursed,
-          unbound,
-        },
-      } = flotsam
-      {
-        Flotsam {
-          txid,
-          old_satpoint,
-          inscription_id,
-          offset,
-          origin: Origin::New {
-            fee: (input_value - total_output_value) / u64::from(id_counter),
-            cursed,
-            unbound,
-          },
-        }
-      } else {
-        flotsam
-      }
-    })
-    .collect::<Vec<Flotsam>>();
 
   floating_inscriptions.sort_by_key(|flotsam| flotsam.offset);
   let mut inscriptions = floating_inscriptions.into_iter().peekable();
@@ -186,13 +144,9 @@ fn simulate_index_ord_transaction(
 
       // Find the inscription with the output position and add it to the vector.
       operations.push(InscriptionOp {
-        txid,
+        txid: flotsam.txid,
         action: match flotsam.origin {
-          Origin::New {
-            fee: _,
-            cursed,
-            unbound,
-          } => Action::New { cursed, unbound },
+          Origin::New { cursed, unbound } => Action::New { cursed, unbound },
           Origin::Old => Action::Transfer,
         },
         // Unknown number, replaced with zero.
@@ -208,13 +162,9 @@ fn simulate_index_ord_transaction(
 
   // Inscription not found with matching output position.
   operations.extend(inscriptions.map(|flotsam| InscriptionOp {
-    txid,
+    txid: flotsam.txid,
     action: match flotsam.origin {
-      Origin::New {
-        fee: _,
-        cursed,
-        unbound,
-      } => Action::New { cursed, unbound },
+      Origin::New { cursed, unbound } => Action::New { cursed, unbound },
       Origin::Old => Action::Transfer,
     },
     inscription_number: None,

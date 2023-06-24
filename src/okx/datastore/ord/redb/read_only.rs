@@ -4,7 +4,6 @@ use redb::{
 };
 use std::{borrow::Borrow, io, ops::RangeBounds};
 
-use anyhow::anyhow;
 use bitcoin::{
   consensus::{Decodable, Encodable},
   hashes::Hash,
@@ -84,28 +83,25 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
 }
 
 impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
-  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64> {
-    let mut value = [0; 36];
-    let (txid, index) = value.split_at_mut(32);
+  type Error = redb::Error;
+  fn get_number_by_inscription_id(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<i64>, Self::Error> {
+    let mut key = [0; 36];
+    let (txid, index) = key.split_at_mut(32);
     txid.copy_from_slice(inscription_id.txid.as_inner());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
-    // value
-
     Ok(
       self
         .wrapper
         .open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY)?
-        .get(&value)?
-        .ok_or(anyhow!(
-          "failed to find inscription number for {}",
-          inscription_id
-        ))?
-        .value()
-        .2,
+        .get(&key)?
+        .map(|value| value.value().2),
     )
   }
 
-  fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>> {
+  fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>, Self::Error> {
     let mut value = [0; 36];
     outpoint
       .consensus_encode(&mut value.as_mut_slice())

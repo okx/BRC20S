@@ -15,7 +15,7 @@ mod util;
 
 pub use self::{
   error::{BRC30Error, Error},
-  msg_executor::execute,
+  msg_executor::{execute, BRC30ExecutionMessage},
   msg_resolver::resolve_message,
   num::Num,
   operation::{
@@ -25,13 +25,8 @@ pub use self::{
 
 pub struct BRC30Message {
   pub txid: Txid,
-  pub block_height: Option<u64>,
-  pub block_time: Option<u32>,
   pub inscription_id: InscriptionId,
-  pub inscription_number: Option<i64>,
-  pub commit_from: Option<ScriptKey>,
-  pub from: ScriptKey,
-  pub to: ScriptKey,
+  pub commit_input_satpoint: Option<SatPoint>,
   pub old_satpoint: SatPoint,
   pub new_satpoint: Option<SatPoint>,
   pub op: BRC30Operation,

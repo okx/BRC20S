@@ -70,12 +70,6 @@ pub fn deserialize_brc30_operation(
   inscription: &Inscription,
   action: &Action,
 ) -> Result<BRC30Operation> {
-  if let Action::New { cursed, unbound } = *action {
-    if cursed || unbound {
-      return Err(JSONError::NotBRC30Json.into());
-    }
-  }
-
   let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
   if content_body.len() < 40 {
     return Err(JSONError::NotBRC30Json.into());

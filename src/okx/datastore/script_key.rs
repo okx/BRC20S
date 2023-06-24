@@ -4,7 +4,6 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum ScriptKey {
-  UnKnown,
   Address(Address),
   ScriptHash(ScriptHash),
 }
@@ -28,7 +27,6 @@ impl Display for ScriptKey {
       f,
       "{}",
       match self {
-        ScriptKey::UnKnown => String::from("UnKnown"),
         ScriptKey::Address(address) => address.to_string(),
         ScriptKey::ScriptHash(script_hash) => script_hash.to_string(),
       }

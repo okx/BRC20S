@@ -21,11 +21,15 @@ where
 }
 
 impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
-  fn get_number_by_inscription_id(&self, inscription_id: InscriptionId) -> Result<i64> {
+  type Error = redb::Error;
+  fn get_number_by_inscription_id(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<i64>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_number_by_inscription_id(inscription_id)
   }
 
-  fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>> {
+  fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_outpoint_to_txout(outpoint)
   }
 }

@@ -11,6 +11,13 @@ use crate::{
 use bitcoin::Network;
 use bitcoincore_rpc::Client;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct BlockContext {
+  pub network: Network,
+  pub blockheight: u64,
+  pub blocktime: u32,
+}
+
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum ProtocolKind {
   BRC20,
@@ -31,22 +38,16 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
   ProtocolManager<'a, O, P, M>
 {
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(
-    client: &'a Client,
-    network: Network,
-    ord_store: &'a O,
-    brc20_store: &'a P,
-    brc30_store: &'a M,
-  ) -> Self {
+  pub fn new(client: &'a Client, ord_store: &'a O, brc20_store: &'a P, brc30_store: &'a M) -> Self {
     Self {
-      resolve_man: MsgResolveManager::new(client, network, ord_store),
+      resolve_man: MsgResolveManager::new(client, ord_store),
       call_man: CallManager::new(ord_store, brc20_store, brc30_store),
     }
   }
 
   pub fn index_block(
     &self,
-    block_height: u64,
+    context: BlockContext,
     block: &BlockData,
     operation: Vec<InscriptionOp>,
   ) -> Result {
@@ -63,12 +64,8 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
       }
 
       // Resolve and execute messages.
-      for msg in
-        self
-          .resolve_man
-          .resolve_message(block_height, block.header.time, tx, tx_operations)?
-      {
-        self.call_man.execute_message(&msg)?;
+      for msg in self.resolve_man.resolve_message(tx, tx_operations)? {
+        self.call_man.execute_message(context, &msg)?;
       }
     }
     Ok(())

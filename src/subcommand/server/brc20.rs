@@ -1,5 +1,8 @@
 use super::{ord::get_ord_operations_by_txid, *};
-use crate::okx::{datastore::ord::OrdDbReader, protocol::brc20};
+use crate::okx::{
+  datastore::{ord::OrdDbReader, ScriptKey},
+  protocol::brc20,
+};
 
 pub(super) fn get_operations_by_txid(
   index: &Arc<Index>,
@@ -36,25 +39,33 @@ pub(super) fn get_operations_by_txid(
   let rtx = index.begin_read()?.0;
   let ord_store = OrdDbReader::new(&rtx);
   for operation in operations {
-    match brc20::resolve_message(
-      index.client(),
-      index.get_chain_network(),
-      &ord_store,
-      block_height,
-      tx_result.blocktime.map(|v| u32::try_from(v).unwrap()),
-      &new_inscriptions,
-      &operation,
-    )? {
+    match brc20::resolve_message(index.client(), &ord_store, &new_inscriptions, &operation)? {
       None => continue,
       Some(msg) => brc20_operation_infos.push(InscriptionInfo {
         action: match msg.op {
           brc20::BRC20Operation::Transfer(_) => ActionType::Transfer,
           _ => ActionType::Inscribe,
         },
-        inscription_number: msg.inscription_number,
+        inscription_number: index
+          .get_inscription_entry(msg.inscription_id)?
+          .map(|entry| entry.number),
         inscription_id: msg.inscription_id.to_string(),
-        from: msg.from.into(),
-        to: msg.to.into(),
+        from: index
+          .get_outpoint_entry(&msg.old_satpoint.outpoint)?
+          .map(|txout| {
+            ScriptKey::from_script(&txout.script_pubkey, index.get_chain_network()).into()
+          })
+          .ok_or(anyhow!("outpoint not found {}", msg.old_satpoint.outpoint))?,
+        to: match msg.new_satpoint {
+          Some(satpoint) => match index.get_outpoint_entry(&satpoint.outpoint) {
+            Ok(Some(txout)) => {
+              Some(ScriptKey::from_script(&txout.script_pubkey, index.get_chain_network()).into())
+            }
+            Ok(None) => return Err(anyhow!("outpoint not found {}", satpoint.outpoint)),
+            Err(e) => return Err(e),
+          },
+          None => None,
+        },
         old_satpoint: msg.old_satpoint.to_string(),
         new_satpoint: msg.new_satpoint.map(|v| v.to_string()),
         operation: Some(RawOperation::Brc20Operation(msg.op.into())),

@@ -12,35 +12,96 @@ use crate::{
       },
       ord::OrdDataStoreReadOnly,
     },
-    protocol::brc20::{BRC20Message, BRC20Operation},
+    protocol::{
+      brc20::{BRC20Message, BRC20Operation},
+      BlockContext,
+    },
   },
   Result,
 };
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
+use bitcoin::Network;
 use std::str::FromStr;
 
+pub struct BRC20ExecutionMessage {
+  pub(self) txid: Txid,
+  pub(self) inscription_id: InscriptionId,
+  pub(self) inscription_number: i64,
+  pub(self) old_satpoint: SatPoint,
+  pub(self) new_satpoint: SatPoint,
+  pub(self) from: ScriptKey,
+  pub(self) to: ScriptKey,
+  pub(self) op: BRC20Operation,
+}
+
+impl BRC20ExecutionMessage {
+  pub fn from_message<'a, O: OrdDataStoreReadOnly>(
+    ord_store: &'a O,
+    msg: &BRC20Message,
+    network: Network,
+  ) -> Result<Self> {
+    Ok(Self {
+      txid: msg.txid,
+      inscription_id: msg.inscription_id,
+      inscription_number: ord_store
+        .get_number_by_inscription_id(msg.inscription_id)
+        .map_err(|e| anyhow!("{}", e))?
+        .ok_or(anyhow!("Inscription id {} not found", msg.inscription_id))?,
+      old_satpoint: msg.old_satpoint,
+      new_satpoint: msg.new_satpoint.ok_or(anyhow!("satpoint not found"))?,
+      from: ScriptKey::from_script(
+        &ord_store
+          .get_outpoint_to_txout(msg.old_satpoint.outpoint)
+          .map_err(|e| anyhow!("{}", e))?
+          .ok_or(anyhow!("outpoint not found {}", msg.old_satpoint.outpoint))?
+          .script_pubkey,
+        network,
+      ),
+      to: ScriptKey::from_script(
+        &ord_store
+          .get_outpoint_to_txout(msg.new_satpoint.unwrap().outpoint)
+          .map_err(|e| anyhow!("{}", e))?
+          .ok_or(anyhow!(
+            "outpoint not found {}",
+            msg.new_satpoint.unwrap().outpoint
+          ))?
+          .script_pubkey,
+        network,
+      ),
+      op: msg.op.clone(),
+    })
+  }
+}
+
 pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+  context: BlockContext,
   ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20Message,
+  msg: &BRC20ExecutionMessage,
 ) -> Result<BRC20Receipt> {
   let event = match &msg.op {
-    BRC20Operation::Deploy(deploy) => process_deploy(ord_store, brc20_store, msg, deploy.clone()),
-    BRC20Operation::Mint(mint) => process_mint(ord_store, brc20_store, msg, mint.clone()),
-    BRC20Operation::InscribeTransfer(transfer) => {
-      process_inscribe_transfer(ord_store, brc20_store, msg, transfer.clone())
+    BRC20Operation::Deploy(deploy) => {
+      process_deploy(context, ord_store, brc20_store, &msg, deploy.clone())
     }
-    BRC20Operation::Transfer(_) => process_transfer(ord_store, brc20_store, msg),
+    BRC20Operation::Mint(mint) => process_mint(context, ord_store, brc20_store, &msg, mint.clone()),
+    BRC20Operation::InscribeTransfer(transfer) => {
+      process_inscribe_transfer(context, ord_store, brc20_store, &msg, transfer.clone())
+    }
+    BRC20Operation::Transfer(_) => process_transfer(context, ord_store, brc20_store, &msg),
   };
 
   let receipt = BRC20Receipt {
     inscription_id: msg.inscription_id,
-    inscription_number: msg.inscription_number.unwrap(),
+    inscription_number: msg.inscription_number,
     old_satpoint: msg.old_satpoint,
-    new_satpoint: msg.new_satpoint.unwrap(),
+    new_satpoint: msg.new_satpoint,
     from: msg.from.clone(),
-    to: msg.to.clone(),
+    to: if msg.new_satpoint.outpoint.txid != msg.txid {
+      msg.from.clone()
+    } else {
+      msg.to.clone()
+    },
     op: msg.op.op_type(),
     result: match event {
       Ok(event) => Ok(event),
@@ -61,13 +122,14 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
 }
 
 fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+  context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20Message,
+  msg: &BRC20ExecutionMessage,
   deploy: BRC20Deploy,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.unwrap().outpoint.txid != msg.txid {
+  if msg.new_satpoint.outpoint.txid != msg.txid {
     return Err(Error::BRC20Error(BRC20Error::InscribeToCoinbase));
   }
 
@@ -116,16 +178,16 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
 
   let new_info = TokenInfo {
     inscription_id: msg.inscription_id,
-    inscription_number: msg.inscription_number.unwrap(),
+    inscription_number: msg.inscription_number,
     tick,
     decimal: dec,
     supply,
     limit_per_mint: limit,
     minted: 0u128,
     deploy_by: msg.to.clone(),
-    deployed_number: msg.block_height.unwrap(),
-    deployed_timestamp: msg.block_time.unwrap(),
-    latest_mint_number: 0u64,
+    deployed_number: context.blockheight,
+    latest_mint_number: context.blockheight,
+    deployed_timestamp: context.blocktime,
   };
   brc20_store
     .insert_token_info(&lower_tick, &new_info)
@@ -140,13 +202,14 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
 }
 
 fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+  context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20Message,
+  msg: &BRC20ExecutionMessage,
   mint: BRC20Mint,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.unwrap().outpoint.txid != msg.txid {
+  if msg.new_satpoint.outpoint.txid != msg.txid {
     return Err(Error::BRC20Error(BRC20Error::InscribeToCoinbase));
   }
 
@@ -219,7 +282,7 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   // update token minted.
   let minted = minted.checked_add(&amt)?.checked_to_u128()?;
   brc20_store
-    .update_mint_token_info(&lower_tick, minted, msg.block_height.unwrap())
+    .update_mint_token_info(&lower_tick, minted, context.blockheight)
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(BRC20Event::Mint(MintEvent {
@@ -230,13 +293,14 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
 }
 
 fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+  _context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20Message,
+  msg: &BRC20ExecutionMessage,
   transfer: BRC20Transfer,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.unwrap().outpoint.txid != msg.txid {
+  if msg.new_satpoint.outpoint.txid != msg.txid {
     return Err(Error::BRC20Error(BRC20Error::InscribeToCoinbase));
   }
 
@@ -289,7 +353,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
 
   let inscription = TransferableLog {
     inscription_id: msg.inscription_id,
-    inscription_number: msg.inscription_number.unwrap(),
+    inscription_number: msg.inscription_number,
     amount: amt,
     tick: token_info.tick,
     owner: msg.to.clone(),
@@ -305,9 +369,10 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
 }
 
 fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+  _context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20Message,
+  msg: &BRC20ExecutionMessage,
 ) -> Result<BRC20Event, Error<N>> {
   let transferable = brc20_store
     .get_transferable_by_id(&msg.from, &msg.inscription_id)
@@ -351,7 +416,7 @@ fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   // redirect receiver to sender if transfer to conibase.
   let mut out_msg = None;
 
-  let to_script_key = if msg.new_satpoint.unwrap().outpoint.txid != msg.txid {
+  let to_script_key = if msg.new_satpoint.outpoint.txid != msg.txid {
     out_msg = Some(format!(
       "redirect receiver to sender, reason: transfer inscription to coinbase"
     ));

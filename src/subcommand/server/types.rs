@@ -7,7 +7,6 @@ use crate::okx::{
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ScriptPubkey {
-  UnKnown,
   Address(String),
   NonStandard(String),
 }
@@ -17,19 +16,9 @@ impl Default for ScriptPubkey {
   }
 }
 
-impl ScriptPubkey {
-  pub fn from_script(script: &Script, network: Network) -> Self {
-    match Address::from_script(script, network) {
-      Ok(address) => ScriptPubkey::Address(address.to_string()),
-      Err(_) => ScriptPubkey::NonStandard(script.script_hash().to_string()),
-    }
-  }
-}
-
 impl From<ScriptKey> for ScriptPubkey {
   fn from(script_key: ScriptKey) -> Self {
     match script_key {
-      ScriptKey::UnKnown => ScriptPubkey::UnKnown,
       ScriptKey::Address(address) => ScriptPubkey::Address(address.to_string()),
       ScriptKey::ScriptHash(hash) => ScriptPubkey::NonStandard(hash.to_string()),
     }
@@ -62,7 +51,8 @@ pub struct InscriptionInfo {
   pub inscription_number: Option<i64>,
   pub inscription_id: String,
   pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub to: Option<ScriptPubkey>,
   pub old_satpoint: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   // if transfer to coinbase new_satpoint is None
@@ -162,23 +152,25 @@ mod tests {
   use super::*;
   #[test]
   fn serialize_script_pubkey() {
-    let script_pubkey = ScriptPubkey::from_script(
+    let script_pubkey: ScriptPubkey = ScriptKey::from_script(
       &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
         .unwrap()
         .script_pubkey(),
       Network::Bitcoin,
-    );
+    )
+    .into();
     assert_eq!(
       serde_json::to_string(&script_pubkey).unwrap(),
       r#"{"address":"bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"}"#
     );
-    let script_pubkey = ScriptPubkey::from_script(
+    let script_pubkey: ScriptPubkey = ScriptKey::from_script(
       &Script::from_hex(
         "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
       )
       .unwrap(),
       Network::Bitcoin,
-    );
+    )
+    .into();
 
     assert_eq!(
       serde_json::to_string(&script_pubkey).unwrap(),
@@ -282,18 +274,22 @@ mod tests {
       )
       .unwrap()
       .to_string(),
-      from: ScriptPubkey::from_script(
+      from: ScriptKey::from_script(
         &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
           .unwrap()
           .script_pubkey(),
         Network::Bitcoin,
-      ),
-      to: ScriptPubkey::from_script(
-        &Script::from_hex(
-          "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+      )
+      .into(),
+      to: Some(
+        ScriptKey::from_script(
+          &Script::from_hex(
+            "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+          )
+          .unwrap(),
+          Network::Bitcoin,
         )
-        .unwrap(),
-        Network::Bitcoin,
+        .into(),
       ),
       old_satpoint: SatPoint::from_str(
         "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
@@ -325,18 +321,22 @@ mod tests {
       )
       .unwrap()
       .to_string(),
-      from: ScriptPubkey::from_script(
+      from: ScriptKey::from_script(
         &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
           .unwrap()
           .script_pubkey(),
         Network::Bitcoin,
-      ),
-      to: ScriptPubkey::from_script(
-        &Script::from_hex(
-          "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+      )
+      .into(),
+      to: Some(
+        ScriptKey::from_script(
+          &Script::from_hex(
+            "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+          )
+          .unwrap(),
+          Network::Bitcoin,
         )
-        .unwrap(),
-        Network::Bitcoin,
+        .into(),
       ),
       old_satpoint: SatPoint::from_str(
         "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
@@ -376,18 +376,22 @@ mod tests {
       )
       .unwrap()
       .to_string(),
-      from: ScriptPubkey::from_script(
+      from: ScriptKey::from_script(
         &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
           .unwrap()
           .script_pubkey(),
         Network::Bitcoin,
-      ),
-      to: ScriptPubkey::from_script(
-        &Script::from_hex(
-          "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+      )
+      .into(),
+      to: Some(
+        ScriptKey::from_script(
+          &Script::from_hex(
+            "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+          )
+          .unwrap(),
+          Network::Bitcoin,
         )
-        .unwrap(),
-        Network::Bitcoin,
+        .into(),
       ),
       old_satpoint: SatPoint::from_str(
         "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",

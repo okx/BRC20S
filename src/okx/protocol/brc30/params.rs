@@ -21,6 +21,7 @@ pub const PID_BYTE_COUNT: usize = 13;
 pub static MAXIMUM_SUPPLY: Lazy<Num> = Lazy::new(|| Num::from(u64::MAX));
 
 pub static BIGDECIMAL_TEN: Lazy<Num> = Lazy::new(|| Num::from(10u64));
+pub static ZERO_NUM: Lazy<Num> = Lazy::new(|| Num::from(0u64));
 
 pub const fn default_decimals() -> u8 {
   MAX_DECIMAL_WIDTH

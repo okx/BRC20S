@@ -447,6 +447,8 @@ mod tests {
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
       pool_stakes: vec![(pid_20.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
@@ -454,6 +456,8 @@ mod tests {
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
       pool_stakes: vec![(pid_30.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("f7c515d6b0").unwrap());
@@ -461,6 +465,8 @@ mod tests {
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
       pool_stakes: vec![(pid_btc.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     brc30db
@@ -691,6 +697,8 @@ mod tests {
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
       pool_stakes: vec![(pid_20.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
@@ -698,6 +706,8 @@ mod tests {
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
       pool_stakes: vec![(pid_30.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     let tick1 = TickId::from_str("f7c515d6b1").unwrap();
@@ -709,6 +719,8 @@ mod tests {
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
       pool_stakes: vec![(pid_btc.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     brc30db
@@ -756,6 +768,8 @@ mod tests {
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
       pool_stakes: vec![(pid_20.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
@@ -763,6 +777,8 @@ mod tests {
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
       pool_stakes: vec![(pid_30.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     let tick1 = TickId::from_str("f7c515d6b1").unwrap();
@@ -774,6 +790,8 @@ mod tests {
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
       pool_stakes: vec![(pid_btc.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
     };
 
     brc30db

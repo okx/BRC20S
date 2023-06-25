@@ -416,7 +416,18 @@ pub(crate) async fn brc30_transferable(
   Ok(Json(ApiResponse::ok(Transferable {
     inscriptions: all_transfer
       .iter()
-      .map(|transfer| transfer.into())
+      .map(|asset| {
+        let mut inscription = Brc30Inscription::from(asset);
+
+        let tick_info = &index
+          .brc30_tick_info(&asset.tick_id.hex().to_string())
+          .unwrap()
+          .unwrap();
+
+        inscription.set_tick_name(tick_info.name.as_str().to_string());
+        inscription.set_inscription_number(888888);
+        inscription
+      })
       .collect(),
   })))
 }
@@ -437,7 +448,21 @@ pub(crate) async fn brc30_all_transferable(
   log::debug!("rpc: get brc30_all_transferable: {} {:?}", address, all);
 
   Ok(Json(ApiResponse::ok(Transferable {
-    inscriptions: all.iter().map(|transer| transer.into()).collect(),
+    inscriptions: all
+      .iter()
+      .map(|asset| {
+        let mut inscription = Brc30Inscription::from(asset);
+
+        let tick_info = &index
+          .brc30_tick_info(&asset.tick_id.hex().to_string())
+          .unwrap()
+          .unwrap();
+
+        inscription.set_tick_name(tick_info.name.as_str().to_string());
+        inscription.set_inscription_number(888888);
+        inscription
+      })
+      .collect(),
   })))
 }
 

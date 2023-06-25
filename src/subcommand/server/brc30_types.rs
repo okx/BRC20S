@@ -210,12 +210,12 @@ pub struct AllBRC30Balance {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transferable {
-  pub inscriptions: Vec<Inscription>,
+  pub inscriptions: Vec<Brc30Inscription>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Inscription {
+pub struct Brc30Inscription {
   pub tick: Tick,
   pub inscription_id: String,
   pub inscription_number: u64,
@@ -223,18 +223,28 @@ pub struct Inscription {
   pub owner: String,
 }
 
-impl From<&brc30::TransferableAsset> for Inscription {
+impl Brc30Inscription {
+  pub fn set_tick_name(&mut self, name: String) {
+    self.tick.name = name;
+  }
+
+  pub fn set_inscription_number(&mut self, inscription_number: u64) {
+    self.inscription_number = inscription_number;
+  }
+}
+
+impl From<&brc30::TransferableAsset> for Brc30Inscription {
   fn from(asset: &brc30::TransferableAsset) -> Self {
     let tick = Tick {
       id: asset.tick_id.to_lowercase().hex(),
-      name: "".to_string(), //TODO
+      name: "".to_string(),
     };
 
     Self {
       tick,
       inscription_id: asset.inscription_id.to_string(),
-      inscription_number: 0,   //TODO
-      amount: "0".to_string(), //TODO
+      inscription_number: 0,
+      amount: asset.amount.to_string(),
       owner: asset.owner.to_string(),
     }
   }

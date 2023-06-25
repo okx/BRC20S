@@ -50,16 +50,16 @@ pub enum Operation {
   #[serde(rename = "deploy")]
   Deploy(Deploy),
 
-  #[serde(rename = "stake")]
+  #[serde(rename = "deposit")]
   Stake(Stake),
 
   #[serde(rename = "mint")]
   Mint(Mint),
 
-  #[serde(rename = "unstake")]
+  #[serde(rename = "withdraw")]
   UnStake(UnStake),
 
-  #[serde(rename = "passive_unstake")]
+  #[serde(rename = "passive_withdraw")]
   PassiveUnStake(PassiveUnStake),
 
   #[serde(rename = "transfer")]

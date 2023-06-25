@@ -69,7 +69,7 @@ mod tests {
     let json_str = format!(
       r##"{{
         "p": "brc20-s",
-        "op": "unstake",
+        "op": "withdraw",
         "pid": "pid",
         "amt": "amt"
       }}"##
@@ -93,7 +93,7 @@ mod tests {
     let json_str = format!(
       r##"{{
         "p": "brc20-s",
-        "op": "unstake",
+        "op": "withdraw",
         "amt": "amt"
       }}"##
     );
@@ -111,7 +111,7 @@ mod tests {
     let json_str = format!(
       r##"{{
         "p": "brc20-s",
-        "op": "unstake",
+        "op": "withdraw",
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"

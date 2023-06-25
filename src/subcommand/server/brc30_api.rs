@@ -102,7 +102,7 @@ pub(crate) async fn brc30_all_pool_info(
           tick_info.tick_id.hex().to_string(),
           tick_info.name.as_str().to_string(),
         );
-        pool_result.set_inscription_num(88888u64);
+        pool_result.set_inscription_num(8888u64);
         pool_result.set_deploy(
           tick_info.deployer.to_string(),
           tick_info.deploy_block,

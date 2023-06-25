@@ -638,4 +638,25 @@ mod tests {
       assert_eq!(result, expect);
     }
   }
+  #[test]
+  fn test_remove_withdraw_pools() {
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let pid1 = Pid::from_str("0000000000#01").unwrap();
+    let pid2 = Pid::from_str("0000000000#02").unwrap();
+    let pid3 = Pid::from_str("0000000000#03").unwrap();
+    stake_info.pool_stakes.push((pid1.clone(), false, 10));
+    stake_info.pool_stakes.push((pid2.clone(), false, 0));
+    stake_info.pool_stakes.push((pid3.clone(), false, 30));
+
+    for pool_stake in stake_info.pool_stakes.iter_mut() {
+      if pool_stake.0 == pid1 {
+        pool_stake.2 = 5;
+        break;
+      }
+    }
+    stake_info
+      .pool_stakes
+      .retain(|pool_stake| pool_stake.2 != 0);
+    println!("stake_info:{}", serde_json::to_string(&stake_info).unwrap())
+  }
 }

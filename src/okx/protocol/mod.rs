@@ -5,6 +5,7 @@ pub(crate) mod message;
 pub(crate) mod protocol_manager;
 pub(crate) mod resolve_manager;
 
+pub use self::protocol_manager::{BlockContext, ProtocolManager};
 use self::{
   execute_manager::CallManager,
   message::{Message, Receipt},

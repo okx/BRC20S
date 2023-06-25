@@ -50,16 +50,16 @@ pub enum Operation {
   #[serde(rename = "deploy")]
   Deploy(Deploy),
 
-  #[serde(rename = "stake")]
+  #[serde(rename = "deposit")]
   Stake(Stake),
 
   #[serde(rename = "mint")]
   Mint(Mint),
 
-  #[serde(rename = "unstake")]
+  #[serde(rename = "withdraw")]
   UnStake(UnStake),
 
-  #[serde(rename = "passive_unstake")]
+  #[serde(rename = "passive_withdraw")]
   PassiveUnStake(PassiveUnStake),
 
   #[serde(rename = "transfer")]
@@ -97,7 +97,7 @@ pub fn deserialize_brc30_operation(
   };
 
   match action {
-    Action::New => match raw_operation {
+    Action::New { .. } => match raw_operation {
       Operation::Deploy(deploy) => Ok(BRC30Operation::Deploy(deploy)),
       Operation::Stake(stake) => Ok(BRC30Operation::Stake(stake)),
       Operation::UnStake(unstake) => Ok(BRC30Operation::UnStake(unstake)),
@@ -181,7 +181,7 @@ mod tests {
       r##"{{
         "p": "brc20-s",
         "op": "mint",
-        "tid": "tid",
+        "pid": "pid",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -195,7 +195,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        tick_id: "tid".to_string(),
+        pool_id: "pid".to_string(),
         amount: "amt".to_string(),
       })
     );
@@ -342,7 +342,7 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New{cursed:false,unbound:false},
       )
       .unwrap(),
       BRC30Operation::Deploy(Deploy {
@@ -368,7 +368,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::Stake(Stake {
@@ -382,17 +385,20 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc20-s","op":"mint","tick":"tick","tid":"tick_id","amt":"12000"}"##
+            r##"{"p":"brc20-s","op":"mint","tick":"tick","pid":"pool_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::Mint(Mint {
         tick: "tick".to_string(),
-        tick_id: "tick_id".to_string(),
+        pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
       })
     );
@@ -407,7 +413,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::UnStake(UnStake {

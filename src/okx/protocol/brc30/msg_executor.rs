@@ -1,45 +1,128 @@
-use crate::okx::datastore::balance::{
-  convert_amount_with_decimal, convert_amount_without_decimal, convert_pledged_tick_with_decimal,
-  convert_pledged_tick_without_decimal, get_stake_dec, get_user_common_balance, stake_is_exist,
+use crate::okx::{
+  datastore::{
+    balance::{
+      convert_amount_with_decimal, convert_amount_without_decimal,
+      convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_stake_dec,
+      get_user_common_balance, stake_is_exist,
+    },
+    brc30::{
+      BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DepositEvent,
+      InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, StakeInfo, TickId,
+      TickInfo, TransferEvent, TransferableAsset, UserInfo, WithdrawEvent,
+    },
+    ord::OrdDataStoreReadOnly,
+    BRC20DataStoreReadWrite, BRC30DataStoreReadWrite, ScriptKey,
+  },
+  protocol::{
+    brc30::{
+      hash::caculate_tick_id,
+      operation::BRC30Operation,
+      params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
+      BRC30Error, BRC30Message, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
+    },
+    BlockContext,
+  },
+  reward::reward,
 };
-use crate::okx::datastore::brc30::{
-  BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DepositEvent,
-  InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, StakeInfo, TickId,
-  TickInfo, TransferEvent, TransferableAsset, UserInfo, WithdrawEvent,
-};
-use crate::okx::datastore::{BRC20DataStoreReadWrite, BRC30DataStoreReadWrite};
-use crate::okx::protocol::brc30::hash::caculate_tick_id;
-use crate::okx::protocol::brc30::operation::BRC30Operation;
-use crate::okx::protocol::brc30::params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH};
-use crate::okx::protocol::brc30::{
-  BRC30Error, BRC30Message, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
-};
-use crate::okx::reward::reward;
-use crate::Result;
+use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
+use bitcoin::{Network, Txid};
 use std::cmp;
 use std::str::FromStr;
 
+pub struct BRC30ExecutionMessage {
+  pub(self) txid: Txid,
+  pub(self) inscription_id: InscriptionId,
+  pub(self) inscription_number: i64,
+  pub(self) commit_input_satpoint: Option<SatPoint>,
+  pub(self) old_satpoint: SatPoint,
+  pub(self) new_satpoint: SatPoint,
+  pub(self) commit_from: Option<ScriptKey>,
+  pub(self) from: ScriptKey,
+  pub(self) to: ScriptKey,
+  pub(self) op: BRC30Operation,
+}
+impl BRC30ExecutionMessage {
+  pub fn from_message<'a, O: OrdDataStoreReadOnly>(
+    ord_store: &'a O,
+    msg: &BRC30Message,
+    network: Network,
+  ) -> Result<Self> {
+    Ok(Self {
+      txid: msg.txid,
+      inscription_id: msg.inscription_id,
+      inscription_number: ord_store
+        .get_number_by_inscription_id(msg.inscription_id)
+        .map_err(|e| anyhow!("{}", e))?
+        .ok_or(anyhow!("Inscription id {} not found", msg.inscription_id))?,
+      commit_input_satpoint: msg.commit_input_satpoint,
+      old_satpoint: msg.old_satpoint,
+      new_satpoint: msg.new_satpoint.ok_or(anyhow!("new_satpoint not found"))?,
+      commit_from: match msg.commit_input_satpoint {
+        Some(satpoint) => Some(ScriptKey::from_script(
+          &ord_store
+            .get_outpoint_to_txout(satpoint.outpoint)
+            .map_err(|e| anyhow!("{}", e))?
+            .ok_or(anyhow!("outpoint not found {}", satpoint.outpoint))?
+            .script_pubkey,
+          network,
+        )),
+        None => None,
+      },
+      from: ScriptKey::from_script(
+        &ord_store
+          .get_outpoint_to_txout(msg.old_satpoint.outpoint)
+          .map_err(|e| anyhow!("{}", e))?
+          .ok_or(anyhow!("outpoint not found {}", msg.old_satpoint.outpoint))?
+          .script_pubkey,
+        network,
+      ),
+      to: ScriptKey::from_script(
+        &ord_store
+          .get_outpoint_to_txout(msg.new_satpoint.unwrap().outpoint)
+          .map_err(|e| anyhow!("{}", e))?
+          .ok_or(anyhow!(
+            "outpoint not found {}",
+            msg.new_satpoint.unwrap().outpoint
+          ))?
+          .script_pubkey,
+        network,
+      ),
+      op: msg.op.clone(),
+    })
+  }
+}
 pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+  context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
-  msg: &BRC30Message,
+  msg: &BRC30ExecutionMessage,
 ) -> Result<BRC30Receipt> {
   let event = match &msg.op {
-    BRC30Operation::Deploy(deploy) => process_deploy(brc20_store, brc30_store, msg, deploy.clone()),
-    BRC30Operation::Stake(stake) => process_stake(brc20_store, brc30_store, msg, stake.clone()),
+    BRC30Operation::Deploy(deploy) => {
+      process_deploy(context, brc20_store, brc30_store, msg, deploy.clone())
+    }
+    BRC30Operation::Stake(stake) => {
+      process_stake(context, brc20_store, brc30_store, msg, stake.clone())
+    }
     BRC30Operation::UnStake(unstake) => {
-      process_unstake(brc20_store, brc30_store, msg, unstake.clone())
+      process_unstake(context, brc20_store, brc30_store, msg, unstake.clone())
     }
-    BRC30Operation::PassiveUnStake(passive_unstake) => {
-      process_passive_unstake(brc20_store, brc30_store, msg, passive_unstake.clone())
+    BRC30Operation::PassiveUnStake(passive_unstake) => process_passive_unstake(
+      context,
+      brc20_store,
+      brc30_store,
+      msg,
+      passive_unstake.clone(),
+    ),
+    BRC30Operation::Mint(mint) => {
+      process_mint(context, brc20_store, brc30_store, msg, mint.clone())
     }
-    BRC30Operation::Mint(mint) => process_mint(brc20_store, brc30_store, msg, mint.clone()),
     BRC30Operation::InscribeTransfer(transfer) => {
-      process_inscribe_transfer(brc20_store, brc30_store, msg, transfer.clone())
+      process_inscribe_transfer(context, brc20_store, brc30_store, msg, transfer.clone())
     }
-    BRC30Operation::Transfer => process_transfer(brc20_store, brc30_store, msg),
+    BRC30Operation::Transfer => process_transfer(context, brc20_store, brc30_store, msg),
   };
 
   let receipt = BRC30Receipt {
@@ -48,7 +131,11 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     old_satpoint: msg.old_satpoint,
     new_satpoint: msg.new_satpoint,
     from: msg.from.clone(),
-    to: msg.to.clone(),
+    to: if msg.new_satpoint.outpoint.txid != msg.txid {
+      msg.from.clone()
+    } else {
+      msg.to.clone()
+    },
     op: msg.op.op_type(),
     result: match event {
       Ok(event) => Ok(event),
@@ -69,9 +156,10 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 }
 
 pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+  context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
-  msg: &BRC30Message,
+  msg: &BRC30ExecutionMessage,
   deploy: Deploy,
 ) -> Result<BRC30Event, Error<N>> {
   if let Some(iserr) = deploy.validate_basic().err() {
@@ -205,8 +293,8 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
       0_u128,
       supply,
       &to_script_key,
-      msg.block_height,
-      msg.block_height,
+      context.blockheight,
+      context.blockheight,
       pids,
     );
     brc30_store
@@ -225,7 +313,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     0,
     dmax,
     "0".to_string(),
-    msg.block_height,
+    context.blockheight,
     only,
   );
 
@@ -245,9 +333,10 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
 }
 
 fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+  context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
-  msg: &BRC30Message,
+  msg: &BRC30ExecutionMessage,
   stake_msg: Stake,
 ) -> Result<BRC30Event, Error<N>> {
   if let Some(iserr) = stake_msg.validate_basics().err() {
@@ -256,6 +345,19 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   let pool_id = stake_msg.get_pool_id();
 
   let to_script_key = msg.to.clone();
+
+  let from_script_key = match msg.commit_from.clone() {
+    Some(script) => script,
+    None => {
+      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    }
+  };
+  if !to_script_key.eq(&from_script_key) {
+    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+      from_script_key.to_string(),
+      to_script_key.to_string(),
+    )));
+  }
 
   let mut pool = brc30_store
     .get_pid_to_poolinfo(&pool_id)
@@ -297,6 +399,12 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?
     .map_or(StakeInfo::new(&vec![], &stake_tick, 0, 0), |v| v);
 
+  if user_stakeinfo.pool_stakes.len() == MAX_STAKED_POOL_NUM {
+    return Err(Error::BRC30Error(BRC30Error::InternalError(
+      "the number of stake pool is full".to_string(),
+    )));
+  }
+
   let staked_total =
     Num::from(user_stakeinfo.total_only).checked_add(&Num::from(user_stakeinfo.max_share))?;
   if stake_balance.lt(&staked_total) {
@@ -321,7 +429,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
 
   let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
-  reward::update_pool(&mut pool, msg.block_height, dec)?;
+  reward::update_pool(&mut pool, context.blockheight, dec)?;
   let mut reward = 0_u128;
   if !is_first_stake {
     reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
@@ -376,9 +484,10 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 }
 
 fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+  context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
-  msg: &BRC30Message,
+  msg: &BRC30ExecutionMessage,
   unstake: UnStake,
 ) -> Result<BRC30Event, Error<N>> {
   if let Some(iserr) = unstake.validate_basics().err() {
@@ -386,6 +495,18 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
   let pool_id = unstake.get_pool_id();
   let to_script_key = msg.to.clone();
+  let from_script_key = match msg.commit_from.clone() {
+    Some(script) => script,
+    None => {
+      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    }
+  };
+  if !to_script_key.eq(&from_script_key) {
+    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+      from_script_key.to_string(),
+      to_script_key.to_string(),
+    )));
+  }
 
   let mut pool = brc30_store
     .get_pid_to_poolinfo(&pool_id)
@@ -406,7 +527,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   let mut userinfo = brc30_store
     .get_pid_to_use_info(&to_script_key, &pool_id)
     .map_or(Some(UserInfo::default(&pool_id)), |v| v)
-    .unwrap();
+    .unwrap_or(UserInfo::default(&pool_id));
   let has_staked = Num::from(userinfo.staked);
   if has_staked.lt(&amount) {
     return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
@@ -416,7 +537,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
 
   let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
-  reward::update_pool(&mut pool, msg.block_height, dec)?;
+  reward::update_pool(&mut pool, context.blockheight, dec)?;
   let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
   userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
   pool.staked = Num::from(pool.staked)
@@ -443,6 +564,10 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       break;
     }
   }
+  //remove staked is zero
+  user_stakeinfo
+    .pool_stakes
+    .retain(|pool_stake| pool_stake.2 != 0);
 
   if pool.only {
     user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)
@@ -468,9 +593,10 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 }
 
 fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+  context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
-  msg: &BRC30Message,
+  msg: &BRC30ExecutionMessage,
   passive_unstake: PassiveUnStake,
 ) -> Result<BRC30Event, Error<N>> {
   if let Some(iserr) = passive_unstake.validate_basics().err() {
@@ -508,7 +634,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
       pid.to_lowercase().as_str(),
       withdraw_stake.to_string().as_str(),
     );
-    process_unstake(brc20_store, brc30_store, &msg, stake_msg)?;
+    process_unstake(context, brc20_store, brc30_store, &msg, stake_msg)?;
   }
 
   Ok(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {
@@ -516,14 +642,29 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
   }))
 }
 fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
-  _brc20_store: &'a M,
+  context: BlockContext,
+  brc20_store: &'a M,
   brc30_store: &'a N,
-  msg: &BRC30Message,
+  msg: &BRC30ExecutionMessage,
   mint: Mint,
 ) -> Result<BRC30Event, Error<N>> {
   let to_script_key = msg.to.clone();
+
+  let from_script_key = match msg.commit_from.clone() {
+    Some(script) => script,
+    None => {
+      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    }
+  };
+  if !to_script_key.eq(&from_script_key) {
+    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+      from_script_key.to_string(),
+      to_script_key.to_string(),
+    )));
+  }
+
   // check tick
-  let tick_id = TickId::from_str(mint.tick_id.as_str())?;
+  let tick_id = mint.get_tick_id();
   let mut tick_info = brc30_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
@@ -546,84 +687,40 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   if amt.sign() == Sign::NoSign {
     return Err(Error::BRC30Error(BRC30Error::InvalidZeroAmount));
   }
-  // get all staked pools and calculate total reward
-  let mut staked_pools: Vec<(Pid, u128)> = Vec::new();
-  let mut total_reward = 0;
-  for pid in tick_info.pids.clone() {
-    let user_info = if let Ok(Some(u)) = brc30_store.get_pid_to_use_info(&to_script_key, &pid) {
-      u
-    } else {
-      continue;
-    };
-    let pool_info = if let Ok(Some(p)) = brc30_store.get_pid_to_poolinfo(&pid) {
-      p
-    } else {
-      continue;
-    };
-    let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
-    let reward = if let Ok(r) = reward::query_reward(user_info, pool_info, msg.block_height, dec) {
-      r
-    } else {
-      continue;
-    };
-    if reward > 0 {
-      total_reward += reward;
-      staked_pools.push((pid, reward))
-    }
-  }
-  if amt > total_reward.into() {
+
+  // get user info and pool info
+  let pool_id = mint.get_pool_id();
+  let mut user_info = brc30_store
+    .get_pid_to_use_info(&to_script_key, &pool_id)
+    .unwrap_or(Some(UserInfo::default(&pool_id)))
+    .unwrap_or(UserInfo::default(&pool_id));
+  let mut pool_info = brc30_store
+    .get_pid_to_poolinfo(&pool_id)
+    .map_err(|e| Error::LedgerError(e))?
+    .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(mint.pool_id)))?;
+
+  // calculate reward
+  let dec = get_stake_dec(&pool_info.stake, brc30_store, brc20_store);
+  reward::update_pool(&mut pool_info, context.blockheight, dec)?;
+  let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
+  reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
+
+  if amt > withdraw_reward.into() {
     return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
+  } else if amt < withdraw_reward.into() {
+    user_info.reward = user_info.reward - withdraw_reward + amt.checked_to_u128()?;
   }
-
-  // claim rewards
-  let mut remain_amt = amt.clone();
-  for (pid, reward) in staked_pools {
-    let reward = Num::from(reward);
-    if remain_amt <= Num::zero() {
-      break;
-    }
-    let mut reward = if reward < remain_amt {
-      reward
-    } else {
-      remain_amt.clone()
-    };
-
-    let mut user_info = brc30_store
-      .get_pid_to_use_info(&to_script_key, &pid)
-      .map_err(|e| Error::LedgerError(e))?
-      .ok_or(BRC30Error::InternalError(String::from(
-        "user info not found",
-      )))?;
-    let mut pool_info = brc30_store
-      .get_pid_to_poolinfo(&pid)
-      .map_err(|e| Error::LedgerError(e))?
-      .ok_or(BRC30Error::InternalError(String::from("pool not found")))?;
-
-    let dec = get_stake_dec(&pool_info.stake, brc30_store, _brc20_store);
-    reward::update_pool(&mut pool_info, msg.block_height, dec)?;
-    let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
-    reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
-
-    if withdraw_reward > reward.checked_to_u128()? {
-      user_info.reward = user_info.reward - withdraw_reward + reward.checked_to_u128()?;
-      //pool_info.minted = pool_info.minted - withdraw_reward + reward.checked_to_u128()?;
-    } else {
-      reward = Num::from(withdraw_reward)
-    }
-
-    brc30_store
-      .set_pid_to_use_info(&to_script_key, &pid, &user_info)
-      .map_err(|e| Error::LedgerError(e))?;
-    brc30_store
-      .set_pid_to_poolinfo(&pid, &pool_info)
-      .map_err(|e| Error::LedgerError(e))?;
-
-    remain_amt = remain_amt.checked_sub(&reward)?;
-  }
+  // update user info and pool info
+  brc30_store
+    .set_pid_to_use_info(&to_script_key, &pool_id, &user_info)
+    .map_err(|e| Error::LedgerError(e))?;
+  brc30_store
+    .set_pid_to_poolinfo(&pool_id, &pool_info)
+    .map_err(|e| Error::LedgerError(e))?;
 
   // update tick info
-  tick_info.minted += amt.checked_to_u128()?;
-  tick_info.latest_mint_block = msg.block_height;
+  tick_info.circulation += amt.checked_to_u128()?;
+  tick_info.latest_mint_block = context.blockheight;
   brc30_store
     .set_tick_info(&tick_id, &tick_info)
     .map_err(|e| Error::LedgerError(e))?;
@@ -649,9 +746,10 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 }
 
 fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
-  _brc20_store: &'a M,
+  context: BlockContext,
+  brc20_store: &'a M,
   brc30_store: &'a N,
-  msg: &BRC30Message,
+  msg: &BRC30ExecutionMessage,
   transfer: Transfer,
 ) -> Result<BRC30Event, Error<N>> {
   let to_script_key = msg.to.clone();
@@ -723,9 +821,10 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
 }
 
 fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
-  _brc20_store: &'a M,
+  context: BlockContext,
+  brc20_store: &'a M,
   brc30_store: &'a N,
-  msg: &BRC30Message,
+  msg: &BRC30ExecutionMessage,
 ) -> Result<BRC30Event, Error<N>> {
   let from_script_key = msg.from.clone();
   let to_script_key = msg.to.clone();
@@ -818,14 +917,13 @@ mod tests {
     from: ScriptKey,
     to: ScriptKey,
     op: BRC30Operation,
-  ) -> BRC30Message {
-    BRC30Message {
+  ) -> BRC30ExecutionMessage {
+    BRC30ExecutionMessage {
       txid: Txid::all_zeros(),
-      block_height: 0,
-      block_time: 1687245485,
       inscription_id,
       inscription_number: 0,
       commit_from: None,
+      commit_input_satpoint: None,
       from: from.clone(),
       to: to.clone(),
       old_satpoint: SatPoint {
@@ -877,7 +975,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
-    let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, deploy.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_deploy(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      deploy.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -909,7 +1018,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
-    let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, deploy.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_deploy(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      deploy.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -948,7 +1068,13 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(secondDeply.clone()),
     );
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
     let result = process_deploy(
+      context,
       &brc20_data_store,
       &brc30_data_store,
       &msg,
@@ -1008,7 +1134,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
-    let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, deploy.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_deploy(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      deploy.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -1091,7 +1228,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(deploy.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, deploy.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        deploy.clone(),
+      );
 
       let result: Result<BRC30Event, BRC30Error> = match result {
         Ok(event) => Ok(event),
@@ -1116,7 +1264,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1153,7 +1307,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1191,7 +1351,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1224,7 +1390,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1256,7 +1428,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1289,7 +1467,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1353,7 +1537,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(secondDeply.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1381,7 +1571,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(secondDeply.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1412,7 +1608,13 @@ mod tests {
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
           .unwrap(),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1443,7 +1645,13 @@ mod tests {
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
           .unwrap(),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1473,7 +1681,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pool_type.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1500,7 +1714,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_pid.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_pid.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1524,7 +1749,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_pid.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_pid.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1548,7 +1784,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_pid.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_pid.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1573,7 +1820,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_pid.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_pid.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1597,7 +1855,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_pid.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_pid.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1621,7 +1890,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_pid.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_pid.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1645,7 +1925,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_pid.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_pid.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1669,7 +1960,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_pid.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_pid.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1696,7 +1998,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1719,7 +2027,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1742,7 +2056,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1765,7 +2085,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_earn.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_earn.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1786,7 +2117,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_earn.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_earn.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1807,7 +2149,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_earn.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_earn.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1828,7 +2181,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_earn.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_earn.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1850,7 +2214,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_earn.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_earn.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1876,7 +2251,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_erate.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1902,7 +2283,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_erate.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -1931,7 +2318,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_dmax.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_dmax.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1952,7 +2350,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_dmax.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_dmax.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -1973,7 +2382,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_dmax.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_dmax.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -2000,7 +2420,13 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_total.clone()),
       );
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_deploy(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -2026,7 +2452,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
       );
-      let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, err_dmax.clone());
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        err_dmax.clone(),
+      );
 
       let pid = deploy.get_pool_id();
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -2103,7 +2540,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
-    let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, deploy.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_deploy(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      deploy.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -2141,7 +2589,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Stake(stakeMsg.clone()),
     );
-    let result = process_stake(&brc20_data_store, &brc30_data_store, &msg, stakeMsg.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_stake(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      stakeMsg.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -2184,8 +2643,18 @@ mod tests {
         script.clone(),
         BRC30Operation::Stake(stakeMsg.clone()),
       );
-      msg.block_height = 1;
-      let result = process_stake(&brc20_data_store, &brc30_data_store, &msg, stakeMsg.clone());
+      let context = BlockContext {
+        blockheight: 1,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_stake(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        stakeMsg.clone(),
+      );
 
       let result: Result<BRC30Event, BRC30Error> = match result {
         Ok(event) => Ok(event),
@@ -2292,7 +2761,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
-    let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, deploy.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_deploy(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      deploy.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -2330,7 +2810,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Stake(stakeMsg.clone()),
     );
-    let result = process_stake(&brc20_data_store, &brc30_data_store, &msg, stakeMsg.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_stake(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      stakeMsg.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -2373,8 +2864,13 @@ mod tests {
         script.clone(),
         BRC30Operation::UnStake(unstakeMsg.clone()),
       );
-      msg.block_height = 1;
+      let context = BlockContext {
+        blockheight: 1,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_unstake(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,
@@ -2486,7 +2982,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
-    let result = process_deploy(&brc20_data_store, &brc30_data_store, &msg, deploy.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_deploy(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      deploy.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -2524,7 +3031,18 @@ mod tests {
       script.clone(),
       BRC30Operation::Stake(stakeMsg.clone()),
     );
-    let result = process_stake(&brc20_data_store, &brc30_data_store, &msg, stakeMsg.clone());
+    let context = BlockContext {
+      blockheight: 0,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = process_stake(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      stakeMsg.clone(),
+    );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
       Ok(event) => Ok(event),
@@ -2566,8 +3084,13 @@ mod tests {
         script.clone(),
         BRC30Operation::PassiveUnStake(passive_unstakeMsg.clone()),
       );
-      msg.block_height = 1;
+      let context = BlockContext {
+        blockheight: 1,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
       let result = process_passive_unstake(
+        context,
         &brc20_data_store,
         &brc30_data_store,
         &msg,

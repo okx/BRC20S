@@ -1,8 +1,11 @@
-use crate::okx::datastore::{
-  brc20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
-  brc30::{self, redb::BRC30DataStoreReader, BRC30DataStoreReadOnly},
-  ord::OrdDataStoreReadOnly,
-  ScriptKey,
+use crate::okx::{
+  datastore::{
+    brc20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
+    brc30::{self, redb::BRC30DataStoreReader, BRC30DataStoreReadOnly},
+    ord::{InscriptionOp, OrdDbReader},
+    ScriptKey,
+  },
+  protocol::{self, brc20::BRC20Message},
 };
 #[cfg(feature = "rollback")]
 use std::cell::OnceCell;
@@ -427,7 +430,7 @@ impl Index {
     Ok(())
   }
 
-  fn begin_read(&self) -> Result<rtx::Rtx> {
+  pub(crate) fn begin_read(&self) -> Result<rtx::Rtx> {
     Ok(rtx::Rtx(self.database.begin_read()?))
   }
 
@@ -450,6 +453,10 @@ impl Index {
       + n;
     statistic_to_count.insert(&statistic.key(), &value)?;
     Ok(())
+  }
+
+  pub(crate) fn client(&self) -> &Client {
+    &self.client
   }
 
   #[cfg(test)]
@@ -676,6 +683,29 @@ impl Index {
       )?
       .map(|(_satpoint, inscription_id)| inscription_id)
       .collect(),
+    )
+  }
+
+  pub(crate) fn get_inscriptions_with_satpoint_on_output(
+    &self,
+    outpoint: OutPoint,
+  ) -> Result<Vec<(SatPoint, InscriptionId)>> {
+    Ok(
+      Self::inscriptions_on_output(
+        &self
+          .database
+          .begin_read()?
+          .open_table(SATPOINT_TO_INSCRIPTION_ID)?,
+        outpoint,
+      )?
+      .collect(),
+    )
+  }
+
+  pub(crate) fn get_transaction_output_by_outpoint(&self, outpoint: OutPoint) -> Result<TxOut> {
+    Self::transaction_output_by_outpoint(
+      &self.database.begin_read()?.open_table(OUTPOINT_TO_ENTRY)?,
+      outpoint,
     )
   }
 
@@ -941,17 +971,6 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_outpoint_script_key(
-    ord_store: &dyn OrdDataStoreReadOnly,
-    outpoint: OutPoint,
-    network: Network,
-  ) -> Result<Option<ScriptKey>> {
-    match ord_store.get_outpoint_to_txout(outpoint)? {
-      Some(txout) => Ok(Some(ScriptKey::from_script(&txout.script_pubkey, network))),
-      None => Ok(None),
-    }
-  }
-
   #[cfg(test)]
   fn assert_inscription_location(
     &self,
@@ -1074,9 +1093,9 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_transaction_output_by_outpoint(
+  pub(crate) fn transaction_output_by_outpoint(
     outpoint_to_entry: &impl ReadableTable<&'static OutPointValue, &'static [u8]>,
-    outpoint: &OutPoint,
+    outpoint: OutPoint,
   ) -> Result<TxOut> {
     outpoint_to_entry
       .get(&outpoint.store())?

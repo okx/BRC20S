@@ -14,7 +14,7 @@ pub enum BRC20Operation {
   Deploy(BRC20Deploy),
   Mint(BRC20Mint),
   InscribeTransfer(BRC20Transfer),
-  Transfer,
+  Transfer(BRC20Transfer),
 }
 
 impl BRC20Operation {
@@ -23,7 +23,7 @@ impl BRC20Operation {
       BRC20Operation::Deploy(_) => BRC20OperationType::Deploy,
       BRC20Operation::Mint(_) => BRC20OperationType::Mint,
       BRC20Operation::InscribeTransfer(_) => BRC20OperationType::InscribeTransfer,
-      BRC20Operation::Transfer => BRC20OperationType::Transfer,
+      BRC20Operation::Transfer(_) => BRC20OperationType::Transfer,
     }
   }
 }
@@ -69,13 +69,13 @@ pub fn deserialize_brc20_operation(
   };
 
   match action {
-    Action::New => match raw_operation {
+    Action::New { .. } => match raw_operation {
       RawOperation::Deploy(deploy) => Ok(BRC20Operation::Deploy(deploy)),
       RawOperation::Mint(mint) => Ok(BRC20Operation::Mint(mint)),
       RawOperation::Transfer(transfer) => Ok(BRC20Operation::InscribeTransfer(transfer)),
     },
     Action::Transfer => match raw_operation {
-      RawOperation::Transfer(_) => Ok(BRC20Operation::Transfer),
+      RawOperation::Transfer(transfer) => Ok(BRC20Operation::Transfer(transfer)),
       _ => Err(JSONError::NotBRC20Json.into()),
     },
   }
@@ -212,7 +212,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC20Operation::Deploy(BRC20Deploy {
@@ -233,7 +236,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC20Operation::Mint(Mint {
@@ -252,7 +258,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC20Operation::InscribeTransfer(Transfer {
@@ -300,7 +309,10 @@ mod tests {
         &Action::Transfer
       )
       .unwrap(),
-      BRC20Operation::Transfer
+      BRC20Operation::Transfer(Transfer {
+        tick: "abcd".to_string(),
+        amount: "12000".to_string()
+      })
     );
   }
 }

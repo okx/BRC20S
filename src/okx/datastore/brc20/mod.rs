@@ -67,7 +67,8 @@ pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
     receipts: &[BRC20Receipt],
   ) -> Result<(), Self::Error>;
 
-  fn add_transaction_receipt(&self, txid: &Txid, receipt: &BRC20Receipt) -> Result<(), Self::Error>;
+  fn add_transaction_receipt(&self, txid: &Txid, receipt: &BRC20Receipt)
+    -> Result<(), Self::Error>;
 
   fn insert_transferable(
     &self,

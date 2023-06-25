@@ -29,7 +29,7 @@ impl From<&brc30::TickInfo> for BRC30TickInfo {
       tick,
       inscription_id: tick_info.inscription_id.to_string(),
       inscription_number: 0, // TODO inscription_number
-      minted: tick_info.minted.to_string(),
+      minted: tick_info.circulation.to_string(),
       supply: tick_info.supply.to_string(),
       decimal: tick_info.decimal as u64,
       deployer: tick_info.deployer.to_string(),

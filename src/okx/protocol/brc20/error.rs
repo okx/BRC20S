@@ -7,7 +7,7 @@ pub enum Error<L: BRC20DataStoreReadOnly> {
   BRC20Error(BRC20Error),
 
   #[error("ledger error: {0}")]
-  LedgerError(<L as BRC20DataStoreReadOnly>::Error),
+  LedgerError(<L>::Error),
 
   #[error("brc20 num error: {0}")]
   NumError(NumError),

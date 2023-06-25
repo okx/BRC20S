@@ -527,7 +527,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   let mut userinfo = brc30_store
     .get_pid_to_use_info(&to_script_key, &pool_id)
     .map_or(Some(UserInfo::default(&pool_id)), |v| v)
-    .unwrap();
+    .unwrap_or(UserInfo::default(&pool_id));
   let has_staked = Num::from(userinfo.staked);
   if has_staked.lt(&amount) {
     return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
@@ -692,8 +692,8 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   let pool_id = mint.get_pool_id();
   let mut user_info = brc30_store
     .get_pid_to_use_info(&to_script_key, &pool_id)
-    .map_or(Some(UserInfo::default(&pool_id)), |v| v)
-    .unwrap();
+    .unwrap_or(Some(UserInfo::default(&pool_id)))
+    .unwrap_or(UserInfo::default(&pool_id));
   let mut pool_info = brc30_store
     .get_pid_to_poolinfo(&pool_id)
     .map_err(|e| Error::LedgerError(e))?

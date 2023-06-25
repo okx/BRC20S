@@ -97,12 +97,17 @@ pub(crate) async fn brc30_all_pool_info(
           .unwrap()
           .unwrap();
 
+        let inscription_number = &index
+          .get_inscription_entry(pool.inscription_id)
+          .unwrap()
+          .unwrap();
+
         let mut pool_result = BRC30Pool::from(pool);
         pool_result.set_earn(
           tick_info.tick_id.hex().to_string(),
           tick_info.name.as_str().to_string(),
         );
-        pool_result.set_inscription_num(88888u64);
+        pool_result.set_inscription_num(inscription_number.number as u64);
         pool_result.set_deploy(
           tick_info.deployer.to_string(),
           tick_info.deploy_block,
@@ -151,12 +156,17 @@ pub(crate) async fn brc30_pool_info(
     .unwrap()
     .unwrap();
 
+  let inscription_number = &index
+    .get_inscription_entry(pool_info.inscription_id)
+    .unwrap()
+    .unwrap();
+
   let mut pool = BRC30Pool::from(pool_info);
   pool.set_earn(
     tick_info.tick_id.hex().to_string(),
     tick_info.name.as_str().to_string(),
   );
-  pool.set_inscription_num(88888u64);
+  pool.set_inscription_num(inscription_number.number as u64);
   pool.set_deploy(
     tick_info.deployer.to_string(),
     tick_info.deploy_block,
@@ -416,7 +426,23 @@ pub(crate) async fn brc30_transferable(
   Ok(Json(ApiResponse::ok(Transferable {
     inscriptions: all_transfer
       .iter()
-      .map(|transfer| transfer.into())
+      .map(|asset| {
+        let mut inscription = Brc30Inscription::from(asset);
+
+        let tick_info = &index
+          .brc30_tick_info(&asset.tick_id.hex().to_string())
+          .unwrap()
+          .unwrap();
+
+        let inscription_number = &index
+          .get_inscription_entry(asset.inscription_id)
+          .unwrap()
+          .unwrap();
+
+        inscription.set_tick_name(tick_info.name.as_str().to_string());
+        inscription.set_inscription_number(inscription_number.number as u64);
+        inscription
+      })
       .collect(),
   })))
 }
@@ -437,7 +463,26 @@ pub(crate) async fn brc30_all_transferable(
   log::debug!("rpc: get brc30_all_transferable: {} {:?}", address, all);
 
   Ok(Json(ApiResponse::ok(Transferable {
-    inscriptions: all.iter().map(|transer| transer.into()).collect(),
+    inscriptions: all
+      .iter()
+      .map(|asset| {
+        let mut inscription = Brc30Inscription::from(asset);
+
+        let tick_info = &index
+          .brc30_tick_info(&asset.tick_id.hex().to_string())
+          .unwrap()
+          .unwrap();
+
+        let inscription_number = &index
+          .get_inscription_entry(asset.inscription_id)
+          .unwrap()
+          .unwrap();
+
+        inscription.set_tick_name(tick_info.name.as_str().to_string());
+        inscription.set_inscription_number(inscription_number.number as u64);
+        inscription
+      })
+      .collect(),
   })))
 }
 
@@ -487,6 +532,41 @@ pub(crate) async fn brc30_block_events(
     .brc30_block_events(&hash)?
     .ok_or_api_not_found("block not found")?;
 
+  log::debug!("rpc: get brc30_block_events: {:?}", block_event);
+  Ok(Json(ApiResponse::ok(BRC30BlockEvents {
+    block: block_event
+      .iter()
+      .map(|(tx_id, receipt)| Events {
+        events: receipt
+          .iter()
+          .map(|e| {
+            let mut event = Brc30Event::from(e);
+            event
+          })
+          .collect(),
+        txid: tx_id.to_string(),
+      })
+      .collect(),
+  })))
+}
+
+pub(crate) async fn brc30_debug_block_events(
+  Extension(index): Extension<Arc<Index>>,
+  Path(num): Path<String>,
+) -> ApiResult<BRC30BlockEvents> {
+  log::debug!("rpc: get brc30_block_events: {}", num);
+
+  let block = index
+    .get_block_by_height(num.parse::<u64>().unwrap())?
+    .ok_or_api_not_found("block not found")?;
+
+  let hash = bitcoin::BlockHash::from_str(&block.block_hash().to_string().as_str())
+    .map_err(|e| ApiError::bad_request(e.to_string()))?;
+  let block_event = index
+    .brc30_block_events(&hash)?
+    .ok_or_api_not_found("block not found")?;
+
+  log::debug!("rpc: get block hash: {:?}", hash.to_string());
   log::debug!("rpc: get brc30_block_events: {:?}", block_event);
   Ok(Json(ApiResponse::ok(BRC30BlockEvents {
     block: block_event

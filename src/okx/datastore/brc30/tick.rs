@@ -200,6 +200,16 @@ impl PledgedTick {
       PledgedTick::BRC30Tick(tickid) => tickid.to_lowercase().hex(),
     }
   }
+
+  pub fn to_type(&self) -> String {
+    match self {
+      PledgedTick::UNKNOWN => "unknown".to_string(),
+      PledgedTick::NATIVE => NATIVE_TOKEN.to_string(),
+      PledgedTick::BRC20Tick(tick) => "brc20".to_string(),
+      PledgedTick::BRC30Tick(tickid) => "brc20-s".to_string(),
+    }
+  }
+
   pub fn from_str(str: &str) -> Self {
     match str {
       NATIVE_TOKEN => PledgedTick::NATIVE,

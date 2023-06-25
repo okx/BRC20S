@@ -864,4 +864,76 @@ mod tests {
       vec![pid_30.clone(), pid_30.clone(), pid_30.clone()]
     );
   }
+
+  #[test]
+  fn test_all_get_transferable() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let brc30db = BRC30DataStore::new(&wtx);
+
+    let script_key1 = ScriptKey::from_address(
+      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap(),
+    );
+    let tick_id1 = TickId::from_str("17c515d6b7").unwrap();
+    let inscription_id1 =
+      InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
+    let transferable_asset1 = TransferableAsset {
+      inscription_id: inscription_id1,
+      amount: 100,
+      tick_id: tick_id1.clone(),
+      owner: script_key1.clone(),
+    };
+
+    brc30db
+      .set_transferable_assets(
+        &script_key1,
+        &tick_id1,
+        &inscription_id1,
+        &transferable_asset1.clone(),
+      )
+      .unwrap();
+
+    assert_eq!(
+      brc30db
+        .get_transferable_asset(&script_key1, &tick_id1, &inscription_id1)
+        .unwrap()
+        .unwrap(),
+      transferable_asset1
+    );
+
+    let tick_id2 = TickId::from_str("f7c515d6b7").unwrap();
+    let inscription_id2 =
+      InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
+    let transferable_asset2 = TransferableAsset {
+      inscription_id: inscription_id2,
+      amount: 100,
+      tick_id: tick_id2.clone(),
+      owner: script_key1.clone(),
+    };
+
+    brc30db
+      .set_transferable_assets(
+        &script_key1,
+        &tick_id2,
+        &inscription_id2,
+        &transferable_asset2.clone(),
+      )
+      .unwrap();
+
+    assert_eq!(
+      brc30db
+        .get_transferable_asset(&script_key1, &tick_id2, &inscription_id2)
+        .unwrap()
+        .unwrap(),
+      transferable_asset2
+    );
+
+    assert_eq!(
+      brc30db.get_transferable(&script_key1).unwrap(),
+      vec![transferable_asset1.clone(), transferable_asset2.clone()]
+    );
+  }
 }

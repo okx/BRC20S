@@ -38,9 +38,10 @@ use {
 };
 
 mod api;
-mod brc20_operations;
+mod brc20;
 mod brc30_api;
 mod brc30_types;
+mod ord;
 mod types;
 
 mod error;
@@ -254,11 +255,10 @@ impl Server {
         )
         .route("/brc30/tx/:txid/events", get(brc30_txid_events))
         .route("/brc30/debug/tx/:txid/events", get(brc30_debug_txid_events))
-        .route("/brc30/block/:blockhash/events", get(brc30_block_events));
-
-      // .route("/brc20/tx/:txid/events", get(brc20_tx_events))
-      // .route("/brc20/tx/:txid", get(brc20_tx))
-      // .route("/brc20/block/:block_hash/events", get(brc20_block_events));
+        .route("/brc30/block/:blockhash/events", get(brc30_block_events))
+        .route("/brc20/tx/:txid/events", get(brc20_tx_events))
+        .route("/brc20/tx/:txid", get(brc20_tx))
+        .route("/brc20/block/:block_hash/events", get(brc20_block_events));
 
       let api_router = Router::new().nest("/v1", api_v1_router);
 

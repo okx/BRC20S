@@ -6,7 +6,7 @@ use {self::inscription_updater::InscriptionUpdater, super::*, std::sync::mpsc};
 
 #[cfg(feature = "rollback")]
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
-use crate::okx::protocol::protocol_manager::ProtocolManager;
+use crate::okx::protocol::{BlockContext, ProtocolManager};
 
 #[cfg(feature = "rollback")]
 const FAST_QUERY_HEIGHT: u64 = 10;
@@ -468,12 +468,19 @@ impl Updater {
     // Create a protocol manager to index the block of brc20, brc30 data.
     ProtocolManager::new(
       &index.client,
-      index.get_chain_network(),
       &OrdDbReadWriter::new(wtx),
       &BRC20DataStore::new(wtx),
       &BRC30DataStore::new(wtx),
     )
-    .index_block(self.height, &block, operations)?;
+    .index_block(
+      BlockContext {
+        network: index.get_chain_network(),
+        blockheight: self.height,
+        blocktime: block.header.time,
+      },
+      &block,
+      operations,
+    )?;
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
 

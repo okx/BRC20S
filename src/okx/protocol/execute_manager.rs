@@ -3,9 +3,9 @@ use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20::BRC20Event;
 use crate::okx::datastore::brc30::{BRC30Event, PledgedTick};
 use crate::okx::datastore::BRC30DataStoreReadWrite;
-use crate::okx::protocol::brc20::BRC20Message;
+use crate::okx::protocol::brc20::{BRC20Message, BRC20ExecutionMessage};
 use crate::okx::protocol::brc30::operation::BRC30Operation;
-use crate::okx::protocol::brc30::{BRC30Message, PassiveUnStake};
+use crate::okx::protocol::brc30::{BRC30Message, BRC30ExecutionMessage, PassiveUnStake};
 use crate::{
   okx::datastore::{BRC20DataStoreReadWrite, OrdDataStoreReadWrite},
   Result,
@@ -33,15 +33,23 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
     }
   }
 
-  pub fn execute_message(&self, msg: &Message) -> Result {
+  pub fn execute_message(&self, context: BlockContext, msg: &Message) -> Result {
     let receipt = match msg {
-      Message::BRC20(msg) => {
-        brc20::execute(self.ord_store, self.brc20_store, &msg).map(|v| Receipt::BRC20(v))?
-      }
+      Message::BRC20(msg) => brc20::execute(
+        context,
+        self.ord_store,
+        self.brc20_store,
+        &BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
+      )
+      .map(|v| Receipt::BRC20(v))?,
 
-      Message::BRC30(msg) => {
-        brc30::execute(self.brc20_store, self.brc30_store, &msg).map(|v| Receipt::BRC30(v))?
-      }
+      Message::BRC30(msg) => brc30::execute(
+        context,
+        self.brc20_store,
+        self.brc30_store,
+        &BRC30ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
+      )
+      .map(|v| Receipt::BRC30(v))?,
     };
 
     match receipt {
@@ -62,8 +70,17 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                 };
                 if let Message::BRC20(old_brc20_msg) = msg {
                   let passive_msg = convert_brc20msg_to_brc30msg(old_brc20_msg, passive_unstake);
-                  brc30::execute(self.brc20_store, self.brc30_store, &passive_msg)
-                    .map(|v| Receipt::BRC30(v))?;
+                  brc30::execute(
+                    context,
+                    self.brc20_store,
+                    self.brc30_store,
+                    &BRC30ExecutionMessage::from_message(
+                      self.ord_store,
+                      &passive_msg,
+                      context.network,
+                    )?,
+                  )
+                  .map(|v| Receipt::BRC30(v))?;
                 }
               }
               Err(e) => {
@@ -92,8 +109,17 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                 };
                 if let Message::BRC30(old_brc30_msg) = msg {
                   let passive_msg = convert_brc30msg_to_brc30msg(old_brc30_msg, passive_unstake);
-                  brc30::execute(self.brc20_store, self.brc30_store, &passive_msg)
-                    .map(|v| Receipt::BRC30(v))?;
+                  brc30::execute(
+                    context,
+                    self.brc20_store,
+                    self.brc30_store,
+                    &BRC30ExecutionMessage::from_message(
+                      self.ord_store,
+                      &passive_msg,
+                      context.network,
+                    )?,
+                  )
+                  .map(|v| Receipt::BRC30(v))?;
                 }
               }
               Err(e) => {
@@ -112,13 +138,8 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
 fn convert_brc20msg_to_brc30msg(msg: &BRC20Message, op: PassiveUnStake) -> BRC30Message {
   BRC30Message {
     txid: msg.txid.clone(),
-    block_height: msg.block_height,
-    block_time: msg.block_time,
     inscription_id: msg.inscription_id.clone(),
-    inscription_number: msg.inscription_number,
-    commit_from: None,
-    from: msg.from.clone(),
-    to: msg.to.clone(),
+    commit_input_satpoint: None,
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
     op: BRC30Operation::PassiveUnStake(op),
@@ -128,13 +149,8 @@ fn convert_brc20msg_to_brc30msg(msg: &BRC20Message, op: PassiveUnStake) -> BRC30
 fn convert_brc30msg_to_brc30msg(msg: &BRC30Message, op: PassiveUnStake) -> BRC30Message {
   BRC30Message {
     txid: msg.txid.clone(),
-    block_height: msg.block_height,
-    block_time: msg.block_time,
     inscription_id: msg.inscription_id.clone(),
-    inscription_number: msg.inscription_number,
-    commit_from: None,
-    from: msg.from.clone(),
-    to: msg.to.clone(),
+    commit_input_satpoint: None,
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
     op: BRC30Operation::PassiveUnStake(op),

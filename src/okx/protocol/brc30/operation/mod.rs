@@ -97,7 +97,7 @@ pub fn deserialize_brc30_operation(
   };
 
   match action {
-    Action::New => match raw_operation {
+    Action::New { .. } => match raw_operation {
       Operation::Deploy(deploy) => Ok(BRC30Operation::Deploy(deploy)),
       Operation::Stake(stake) => Ok(BRC30Operation::Stake(stake)),
       Operation::UnStake(unstake) => Ok(BRC30Operation::UnStake(unstake)),
@@ -342,7 +342,7 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New{cursed:false,unbound:false},
       )
       .unwrap(),
       BRC30Operation::Deploy(Deploy {
@@ -368,7 +368,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::Stake(Stake {
@@ -387,7 +390,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::Mint(Mint {
@@ -407,7 +413,10 @@ mod tests {
               .to_vec(),
           ),
         ),
-        &Action::New,
+        &Action::New {
+          cursed: false,
+          unbound: false
+        },
       )
       .unwrap(),
       BRC30Operation::UnStake(UnStake {

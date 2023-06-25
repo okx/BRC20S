@@ -346,6 +346,19 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 
   let to_script_key = msg.to.clone();
 
+  let from_script_key = match msg.commit_from.clone() {
+    Some(script) => script,
+    None => {
+      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    }
+  };
+  if !to_script_key.eq(&from_script_key) {
+    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+      from_script_key.to_string(),
+      to_script_key.to_string(),
+    )));
+  }
+
   let mut pool = brc30_store
     .get_pid_to_poolinfo(&pool_id)
     .map_err(|e| Error::LedgerError(e))?
@@ -482,6 +495,18 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
   let pool_id = unstake.get_pool_id();
   let to_script_key = msg.to.clone();
+  let from_script_key = match msg.commit_from.clone() {
+    Some(script) => script,
+    None => {
+      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    }
+  };
+  if !to_script_key.eq(&from_script_key) {
+    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+      from_script_key.to_string(),
+      to_script_key.to_string(),
+    )));
+  }
 
   let mut pool = brc30_store
     .get_pid_to_poolinfo(&pool_id)
@@ -624,6 +649,20 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   mint: Mint,
 ) -> Result<BRC30Event, Error<N>> {
   let to_script_key = msg.to.clone();
+
+  let from_script_key = match msg.commit_from.clone() {
+    Some(script) => script,
+    None => {
+      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+    }
+  };
+  if !to_script_key.eq(&from_script_key) {
+    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+      from_script_key.to_string(),
+      to_script_key.to_string(),
+    )));
+  }
+
   // check tick
   let tick_id = mint.get_tick_id();
   let mut tick_info = brc30_store
@@ -680,7 +719,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?;
 
   // update tick info
-  tick_info.minted += amt.checked_to_u128()?;
+  tick_info.circulation += amt.checked_to_u128()?;
   tick_info.latest_mint_block = context.blockheight;
   brc30_store
     .set_tick_info(&tick_id, &tick_info)

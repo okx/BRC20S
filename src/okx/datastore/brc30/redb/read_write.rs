@@ -529,7 +529,7 @@ mod tests {
       inscription_id: inscription_id.clone(),
       allocated: 100,
       decimal: 8,
-      minted: 100,
+      circulation: 100,
       supply: 100,
       deployer: ScriptKey::from_address(
         Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),

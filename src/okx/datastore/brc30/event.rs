@@ -15,6 +15,20 @@ pub enum BRC30OperationType {
   Transfer,
 }
 
+impl BRC30OperationType {
+  pub fn to_string(&self) -> String {
+    match self {
+      BRC30OperationType::Deploy => "Deploy".to_string(),
+      BRC30OperationType::Mint => "Mint".to_string(),
+      BRC30OperationType::Stake => "Stake".to_string(),
+      BRC30OperationType::UnStake => "UnStake".to_string(),
+      BRC30OperationType::PassiveUnStake => "PassiveUnStake".to_string(),
+      BRC30OperationType::InscribeTransfer => "InscribeTransfer".to_string(),
+      BRC30OperationType::Transfer => "Transfer".to_string(),
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BRC30Receipt {
   pub inscription_id: InscriptionId,

@@ -285,7 +285,6 @@ pub struct Event {
 
 impl From<&brc30::BRC30Receipt> for Event {
   fn from(_receipt: &brc30::BRC30Receipt) -> Self {
-    // TODO
     let earn = Earn {
       id: "".to_string(),
       name: "".to_string(),
@@ -302,17 +301,17 @@ impl From<&brc30::BRC30Receipt> for Event {
     };
 
     Self {
-      type_field: "".to_string(),
+      type_field: _receipt.op.to_string(),
       tick,
       supply: "".to_string(),
       decimal: 0,
-      inscription_number: 0,
-      inscription_id: "".to_string(),
-      old_satpoint: "".to_string(),
-      new_satpoint: "".to_string(),
-      from: "".to_string(),
-      to: "".to_string(),
-      valid: false,
+      inscription_number: _receipt.inscription_number as u64,
+      inscription_id: _receipt.inscription_id.to_string(),
+      old_satpoint: _receipt.old_satpoint.to_string(),
+      new_satpoint: _receipt.new_satpoint.to_string(),
+      from: _receipt.from.to_string(),
+      to: _receipt.to.to_string(),
+      valid: false, // todo
       msg: "".to_string(),
       pid: "".to_string(),
       stake,

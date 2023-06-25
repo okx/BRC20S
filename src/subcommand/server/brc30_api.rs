@@ -537,7 +537,13 @@ pub(crate) async fn brc30_block_events(
     block: block_event
       .iter()
       .map(|(tx_id, receipt)| Events {
-        events: receipt.iter().map(|e| e.into()).collect(),
+        events: receipt
+          .iter()
+          .map(|e| {
+            let mut event = Brc30Event::from(e);
+            event
+          })
+          .collect(),
         txid: tx_id.to_string(),
       })
       .collect(),

@@ -45,7 +45,7 @@ mod tests {
       serde_json::to_string(&obj).unwrap(),
       format!(
         r##"{{"tick":"{}","pid":"{}","amt":"{}"}}"##,
-        obj.tick, obj.tick_id, obj.amount
+        obj.tick, obj.tick, obj.amount
       )
     )
   }

@@ -181,7 +181,7 @@ mod tests {
       r##"{{
         "p": "brc20-s",
         "op": "mint",
-        "tid": "tid",
+        "pid": "pid",
         "tick": "tick",
         "amt": "amt"
       }}"##
@@ -195,7 +195,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        tick_id: "tid".to_string(),
+        pool_id: "pid".to_string(),
         amount: "amt".to_string(),
       })
     );
@@ -385,7 +385,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc20-s","op":"mint","tick":"tick","tid":"tick_id","amt":"12000"}"##
+            r##"{"p":"brc20-s","op":"mint","tick":"tick","pid":"pool_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -398,7 +398,7 @@ mod tests {
       .unwrap(),
       BRC30Operation::Mint(Mint {
         tick: "tick".to_string(),
-        tick_id: "tick_id".to_string(),
+        pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
       })
     );

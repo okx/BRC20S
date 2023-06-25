@@ -281,8 +281,7 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC30_TRANSFERABLE_ASSETS)?
         .range(min_script_tick_id_key(script).as_str()..max_script_tick_id_key(script).as_str())?
-        .map(|(_, v)| bincode::deserialize::<Vec<TransferableAsset>>(v.value()).unwrap())
-        .flatten()
+        .map(|(_, v)| bincode::deserialize::<TransferableAsset>(v.value()).unwrap())
         .collect(),
     )
   }

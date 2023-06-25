@@ -17,7 +17,7 @@ use crate::okx::{
     brc30::{
       hash::caculate_tick_id,
       operation::BRC30Operation,
-      params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH},
+      params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
       BRC30Error, BRC30Message, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
     },
     BlockContext,
@@ -386,6 +386,12 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?
     .map_or(StakeInfo::new(&vec![], &stake_tick, 0, 0), |v| v);
 
+  if user_stakeinfo.pool_stakes.len() == MAX_STAKED_POOL_NUM {
+    return Err(Error::BRC30Error(BRC30Error::InternalError(
+      "the number of stake pool is full".to_string(),
+    )));
+  }
+
   let staked_total =
     Num::from(user_stakeinfo.total_only).checked_add(&Num::from(user_stakeinfo.max_share))?;
   if stake_balance.lt(&staked_total) {
@@ -533,6 +539,10 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       break;
     }
   }
+  //remove staked is zero
+  user_stakeinfo
+    .pool_stakes
+    .retain(|pool_stake| pool_stake.2 != 0);
 
   if pool.only {
     user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)

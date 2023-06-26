@@ -95,7 +95,7 @@ impl BRC30Pool {
 impl From<&brc30::PoolInfo> for BRC30Pool {
   fn from(pool_info: &brc30::PoolInfo) -> Self {
     let stake = Stake {
-      type_field: pool_info.ptype.to_string(),
+      type_field: pool_info.stake.to_type(),
       tick: pool_info.stake.to_string(),
     };
 
@@ -438,7 +438,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
     match { receipt.result.clone() } {
       Ok(a) => match a {
         BRC30Event::DeployTick(d) => Self::DeployTick(DeployTickEvent {
-          type_field: receipt.op.to_string(),
+          type_field: String::from("deployTick"),
           tick: Tick {
             id: d.tick_id.hex(),
             name: d.name.as_str().to_string(),
@@ -455,7 +455,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
           msg: "ok".to_string(),
         }),
         BRC30Event::DeployPool(d) => Self::DeployPool(DeployPoolEvent {
-          type_field: receipt.op.to_string(),
+          type_field: String::from("deployPool"),
           pid: d.pid.hex(),
           stake: Stake {
             type_field: d.stake.to_type(),
@@ -480,7 +480,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
         }),
 
         BRC30Event::Deposit(d) => Self::Deposit(DepositEvent {
-          type_field: receipt.op.to_string(),
+          type_field: String::from("deposit"),
           pid: d.pid.hex(),
           amount: d.amt.to_string(),
           inscription_number: receipt.inscription_number,
@@ -494,7 +494,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
         }),
 
         BRC30Event::Withdraw(d) => Self::Withdraw(WithdrawEvent {
-          type_field: receipt.op.to_string(),
+          type_field: String::from("withdraw"),
           pid: d.pid.hex(),
           amount: d.amt.to_string(),
           inscription_number: receipt.inscription_number,
@@ -508,7 +508,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
         }),
 
         BRC30Event::PassiveWithdraw(d) => Self::PassiveWithdraw(PassiveWithdrawEvent {
-          type_field: receipt.op.to_string(),
+          type_field: String::from("passiveWithdraw"),
           passive_withdraw: d
             .pid
             .iter()
@@ -528,7 +528,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
         }),
 
         BRC30Event::Mint(d) => Self::Mint(Brc30MintEvent {
-          type_field: receipt.op.to_string(),
+          type_field: String::from("mint"),
           pid: d.tick_id.hex().to_string(),
           amount: d.amt.to_string(),
           inscription_number: receipt.inscription_number,
@@ -542,7 +542,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
         }),
 
         BRC30Event::InscribeTransfer(d) => Self::InscribeTransfer(Brc30InscribeTransferEvent {
-          type_field: receipt.op.to_string(),
+          type_field: String::from("inscribeTransfer"),
           tick: Tick {
             id: d.tick_id.hex(),
             name: d.tick_id.hex(),
@@ -559,7 +559,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
         }),
 
         BRC30Event::Transfer(d) => Self::Transfer(Brc30TransferEvent {
-          type_field: receipt.op.to_string(),
+          type_field: String::from("transfer"),
           tick: Tick {
             id: d.tick_id.hex(),
             name: d.tick_id.hex(),

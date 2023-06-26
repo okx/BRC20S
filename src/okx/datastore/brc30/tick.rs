@@ -205,8 +205,8 @@ impl PledgedTick {
     match self {
       PledgedTick::UNKNOWN => "unknown".to_string(),
       PledgedTick::NATIVE => NATIVE_TOKEN.to_string(),
-      PledgedTick::BRC20Tick(tick) => "brc20".to_string(),
-      PledgedTick::BRC30Tick(tickid) => "brc20-s".to_string(),
+      PledgedTick::BRC20Tick(_) => "BRC20".to_string(),
+      PledgedTick::BRC30Tick(_) => "BRC20-S".to_string(),
     }
   }
 

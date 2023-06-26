@@ -14,19 +14,6 @@ pub(super) fn get_operations_by_txid(
     .get_transaction_info(txid)?
     .ok_or(anyhow!("can't get transaction info: {txid}"))?;
 
-  let block_height = match tx_result.blockhash {
-    Some(blockhash) => Some(
-      u64::try_from(
-        index
-          .block_header_info(blockhash)?
-          .ok_or(anyhow!("can't get block info: {blockhash}"))?
-          .height,
-      )
-      .unwrap(),
-    ),
-    None => None,
-  };
-
   // get inscription operations
   let operations = get_ord_operations_by_txid(index, txid)?;
 

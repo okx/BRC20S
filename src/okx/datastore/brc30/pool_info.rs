@@ -89,9 +89,9 @@ pub enum PoolType {
 impl PoolType {
   pub fn to_string(&self) -> String {
     match self {
-      PoolType::Pool => String::from("Pool"),
-      PoolType::Fixed => String::from("Fixed"),
-      PoolType::Unknown => String::from("Unknown"),
+      PoolType::Pool => String::from("pool"),
+      PoolType::Fixed => String::from("fixed"),
+      PoolType::Unknown => String::from("unknown"),
     }
   }
 }

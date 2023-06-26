@@ -38,7 +38,7 @@ mod rtx;
 mod updater;
 
 use crate::okx::datastore::brc30::PledgedTick;
-use redb::Savepoint;
+use redb::{ReadTransaction, Savepoint};
 
 const SCHEMA_VERSION: u64 = 4;
 
@@ -205,6 +205,7 @@ impl Index {
 
         database
       }
+
       Err(redb::Error::Io(error)) if error.kind() == io::ErrorKind::NotFound => {
         let database = unsafe {
           Database::builder()
@@ -396,6 +397,90 @@ impl Index {
     };
 
     Ok(info)
+  }
+
+  pub(crate) fn read_database_info(&self) -> Result {
+    let rtx = self.database.begin_read()?;
+    let talbe = rtx.open_table(HEIGHT_TO_BLOCK_HASH)?;
+    let mut db_total_size = 0_u128;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 40 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!("HEIGHT_TO_BLOCK_HASH num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY)?;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 72 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!("INSCRIPTION_ID_TO_INSCRIPTION_ENTRY num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(INSCRIPTION_ID_TO_SATPOINT)?;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 80 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!("INSCRIPTION_ID_TO_SATPOINT num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(INSCRIPTION_NUMBER_TO_INSCRIPTION_ID)?;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 44 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!("INSCRIPTION_NUMBER_TO_INSCRIPTION_ID num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(OUTPOINT_TO_SAT_RANGES)?;
+    let mut totalNum = 0_u128;
+    let mut totalSize = 0_u128;
+    for (_, value) in talbe.iter()? {
+      totalNum = totalNum + 1;
+      let value = value.value().len() as u128;
+      totalSize = totalSize + 36 + value;
+    }
+    db_total_size = db_total_size + totalSize;
+    log::info!("OUTPOINT_TO_SAT_RANGES num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(OUTPOINT_TO_ENTRY)?;
+    let mut totalNum = 0_u128;
+    let mut totalSize = 0_u128;
+    for (_, value) in talbe.iter()? {
+      totalNum = totalNum + 1;
+      let value = value.value().len() as u128;
+      totalSize = totalSize + 36 + value;
+    }
+    db_total_size = db_total_size + totalSize;
+    log::info!("OUTPOINT_TO_ENTRY num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 80 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!("SATPOINT_TO_INSCRIPTION_ID num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(SAT_TO_INSCRIPTION_ID)?;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 44 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!("SAT_TO_INSCRIPTION_ID num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(SAT_TO_SATPOINT)?;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 52 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!("SAT_TO_SATPOINT num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(STATISTIC_TO_COUNT)?;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 16 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!("STATISTIC_TO_COUNT num:{totalNum},size:{totalSize}");
+
+    let talbe = rtx.open_table(WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP)?;
+    let mut totalNum = talbe.len()? as u128;
+    let mut totalSize = 24 * talbe.len()? as u128;
+    db_total_size = db_total_size + totalSize;
+    log::info!(
+      "WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP num:{totalNum},size:{totalSize}"
+    );
+    log::info!("database size:{}", db_total_size);
+    Ok(())
   }
 
   pub(crate) fn update(&self) -> Result {

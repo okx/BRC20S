@@ -1,6 +1,7 @@
 use super::*;
 
 mod index;
+mod read_database_info;
 mod server;
 
 #[derive(Debug, Parser)]
@@ -9,6 +10,8 @@ pub(crate) enum Subcommand {
   Index,
   #[clap(about = "Run the explorer server")]
   Server(server::Server),
+  #[clap(about = "Read database info")]
+  ReadDatabase,
 }
 
 impl Subcommand {
@@ -21,6 +24,7 @@ impl Subcommand {
         LISTENERS.lock().unwrap().push(handle.clone());
         server.run(options, index, handle)
       }
+      Self::ReadDatabase => read_database_info::run(options),
     }
   }
 }

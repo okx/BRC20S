@@ -339,8 +339,8 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   msg: &BRC30ExecutionMessage,
   stake_msg: Stake,
 ) -> Result<BRC30Event, Error<N>> {
-  if let Some(iserr) = stake_msg.validate_basics().err() {
-    return Err(Error::BRC30Error(iserr));
+  if let Some(err) = stake_msg.validate_basic().err() {
+    return Err(Error::BRC30Error(err));
   }
   let pool_id = stake_msg.get_pool_id();
 
@@ -490,8 +490,8 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   msg: &BRC30ExecutionMessage,
   unstake: UnStake,
 ) -> Result<BRC30Event, Error<N>> {
-  if let Some(iserr) = unstake.validate_basics().err() {
-    return Err(Error::BRC30Error(iserr));
+  if let Some(err) = unstake.validate_basic().err() {
+    return Err(Error::BRC30Error(err));
   }
   let pool_id = unstake.get_pool_id();
   let to_script_key = msg.to.clone();
@@ -648,6 +648,9 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   msg: &BRC30ExecutionMessage,
   mint: Mint,
 ) -> Result<BRC30Event, Error<N>> {
+  if let Some(iserr) = mint.validate_basic().err() {
+    return Err(Error::BRC30Error(iserr));
+  }
   let to_script_key = msg.to.clone();
 
   let from_script_key = match msg.commit_from.clone() {

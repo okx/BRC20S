@@ -155,6 +155,7 @@ pub struct InscribeTransferEvent {
 pub struct TransferEvent {
   pub tick_id: TickId,
   pub amt: u128,
+  pub msg: Option<String>,
 }
 
 #[cfg(test)]

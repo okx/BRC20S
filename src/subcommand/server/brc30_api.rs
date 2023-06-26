@@ -44,7 +44,21 @@ pub(crate) async fn brc30_tick_info(
     return Err(ApiError::internal("db: not match"));
   }
 
-  Ok(Json(ApiResponse::ok(tick_info.into())))
+  let inscription_number = &index
+    .get_inscription_entry(tick_info.inscription_id)
+    .unwrap()
+    .unwrap();
+
+  let block = &index
+    .get_block_by_height(tick_info.deploy_block)
+    .unwrap()
+    .unwrap();
+
+  let mut brc30_tick = BRC30TickInfo::from(tick_info);
+  brc30_tick.set_deploy_blocktime(block.header.time as u64);
+  brc30_tick.set_inscription_number(inscription_number.number as u64);
+
+  Ok(Json(ApiResponse::ok(brc30_tick)))
 }
 
 // 3.4.2 /brc30/tick/:tickId

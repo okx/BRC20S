@@ -376,7 +376,6 @@ pub(crate) async fn brc30_balance(
     .ok_or_api_not_found("tick not found")?;
 
   balance_result.set_tick_name(tick_info.name.as_str().to_string());
-  balance_result.set_claimable(8888);
   log::debug!(
     "rpc: get brc30_userinfo: {:?} {:?}",
     tick_id.as_str(),
@@ -413,7 +412,6 @@ pub(crate) async fn brc30_all_balance(
           .unwrap();
 
         balance_result.set_tick_name(tick_info.name.as_str().to_string());
-        balance_result.set_claimable(8888);
         log::debug!(
           "rpc: get brc30_userinfo: {:?} {:?}",
           tick_id,

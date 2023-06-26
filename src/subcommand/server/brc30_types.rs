@@ -175,14 +175,9 @@ pub struct BRC30Balance {
   pub tick: Tick,
   pub transferable: String,
   pub overall: String,
-  pub claimable: String,
 }
 
 impl BRC30Balance {
-  pub fn set_claimable(&mut self, claimable: u128) {
-    self.claimable = claimable.to_string();
-  }
-
   pub fn set_tick_name(&mut self, name: String) {
     self.tick.name = name;
   }
@@ -199,7 +194,6 @@ impl From<&brc30::Balance> for BRC30Balance {
       tick,
       transferable: balance.transferable_balance.to_string(),
       overall: balance.overall_balance.to_string(),
-      claimable: "0".to_string(),
     }
   }
 }

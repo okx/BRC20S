@@ -63,6 +63,14 @@ pub fn update_pool(
       rewards = pool_dmax.checked_sub(&pool_minted)?;
     }
     pool.minted = pool_minted.checked_add(&rewards)?.truncate_to_u128()?;
+
+    // calculating accRewardPerShare
+    pool.acc_reward_per_share = rewards
+      .clone()
+      .checked_mul(&get_per_share_multiplier())?
+      .checked_div(&pool_stake)? // pool's per share = reward / all stake
+      .checked_add(&acc_reward_per_share)?
+      .truncate_to_str()?;
   } else if pool.ptype == PoolType::Fixed {
     let mut estimate_reward = pool_stake
       .checked_mul(&rewards)?
@@ -83,25 +91,16 @@ pub fn update_pool(
     pool.minted = pool_minted
       .checked_add(&estimate_reward)?
       .truncate_to_u128()?;
+
+    // calculating accRewardPerShare
+    pool.acc_reward_per_share = rewards
+      .clone()
+      .checked_mul(&get_per_share_multiplier())?
+      .checked_add(&acc_reward_per_share)?
+      .truncate_to_str()?;
   }
 
   pool.last_update_block = block_num;
-
-  //3 calculating accRewardPerShare for fixed or pool
-  if pool.ptype == PoolType::Pool {
-    pool.acc_reward_per_share = rewards
-      .clone()
-      .checked_mul(&get_per_share_multiplier())?
-      .checked_div(&pool_stake)? // pool's per share = reward / all stake
-      .checked_add(&acc_reward_per_share)?
-      .truncate_to_str()?;
-  } else if pool.ptype == PoolType::Fixed {
-    pool.acc_reward_per_share = rewards
-      .clone()
-      .checked_mul(&get_per_share_multiplier())?
-      .checked_add(&acc_reward_per_share)?
-      .truncate_to_str()?;
-  }
 
   info!(
     "  pool's acc_reward_per_share:{}, rewards:{}",

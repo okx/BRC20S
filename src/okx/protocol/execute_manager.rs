@@ -56,7 +56,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
     match receipt {
       Receipt::BRC20(brc20_receipt) => {
         match brc20_receipt.result {
-          Ok(BRC20Event::InscripbeTransfer(brc20_transfer)) => {
+          Ok(BRC20Event::Transfer(brc20_transfer)) => {
             let ptick = PledgedTick::BRC20Tick(brc20_transfer.tick.clone());
             match convert_pledged_tick_without_decimal(
               &ptick,
@@ -95,7 +95,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
       }
       Receipt::BRC30(brc30_recipt) => {
         match brc30_recipt.result {
-          Ok(BRC30Event::InscribeTransfer(brc30_transfer)) => {
+          Ok(BRC30Event::Transfer(brc30_transfer)) => {
             let ptick = PledgedTick::BRC30Tick(brc30_transfer.tick_id.clone());
             match convert_pledged_tick_without_decimal(
               &ptick,

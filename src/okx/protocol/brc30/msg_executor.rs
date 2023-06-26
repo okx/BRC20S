@@ -667,7 +667,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
 
   // check tick
-  let tick_id = mint.get_tick_id();
+  let tick_id = mint.get_tick_id()?;
   let mut tick_info = brc30_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
@@ -692,7 +692,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
 
   // get user info and pool info
-  let pool_id = mint.get_pool_id();
+  let pool_id = mint.get_pool_id()?;
   let mut user_info = brc30_store
     .get_pid_to_use_info(&to_script_key, &pool_id)
     .unwrap_or(Some(UserInfo::default(&pool_id)))

@@ -20,13 +20,13 @@ pub struct Mint {
 }
 
 impl Mint {
-  pub fn get_pool_id(&self) -> Pid {
-    Pid::from_str(self.pool_id.as_str()).unwrap()
+  pub fn get_pool_id(&self) -> Result<Pid, BRC30Error> {
+    Pid::from_str(self.pool_id.as_str())
   }
 
-  pub fn get_tick_id(&self) -> TickId {
-    let tick_str = self.pool_id.as_str().split("#").next().unwrap();
-    TickId::from_str(tick_str).unwrap()
+  pub fn get_tick_id(&self) -> Result<TickId, BRC30Error> {
+    let tick_str = self.pool_id.as_str().split("#").next().unwrap_or("");
+    TickId::from_str(tick_str)
   }
 
   pub fn validate_basic(&self) -> Result<(), BRC30Error> {

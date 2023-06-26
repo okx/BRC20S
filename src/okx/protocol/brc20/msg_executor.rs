@@ -46,24 +46,32 @@ impl BRC20ExecutionMessage {
       inscription_id: msg.inscription_id,
       inscription_number: ord_store
         .get_number_by_inscription_id(msg.inscription_id)
-        .map_err(|e| anyhow!("{}", e))?
-        .ok_or(anyhow!("Inscription id {} not found", msg.inscription_id))?,
+        .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
+        .ok_or(anyhow!(
+          "failed to get inscription number! {} not found",
+          msg.inscription_id
+        ))?,
       old_satpoint: msg.old_satpoint,
-      new_satpoint: msg.new_satpoint.ok_or(anyhow!("satpoint not found"))?,
+      new_satpoint: msg
+        .new_satpoint
+        .ok_or(anyhow!("new satpoint cannot be None"))?,
       from: ScriptKey::from_script(
         &ord_store
           .get_outpoint_to_txout(msg.old_satpoint.outpoint)
-          .map_err(|e| anyhow!("{}", e))?
-          .ok_or(anyhow!("outpoint not found {}", msg.old_satpoint.outpoint))?
+          .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
+          .ok_or(anyhow!(
+            "failed to get txout! {} not found",
+            msg.old_satpoint.outpoint
+          ))?
           .script_pubkey,
         network,
       ),
       to: ScriptKey::from_script(
         &ord_store
           .get_outpoint_to_txout(msg.new_satpoint.unwrap().outpoint)
-          .map_err(|e| anyhow!("{}", e))?
+          .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
           .ok_or(anyhow!(
-            "outpoint not found {}",
+            "failed to get txout! {} not found",
             msg.new_satpoint.unwrap().outpoint
           ))?
           .script_pubkey,
@@ -97,6 +105,7 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     old_satpoint: msg.old_satpoint,
     new_satpoint: msg.new_satpoint,
     from: msg.from.clone(),
+    // redirect receiver to sender if transfer to conibase.
     to: if msg.new_satpoint.outpoint.txid != msg.txid {
       msg.from.clone()
     } else {
@@ -106,18 +115,14 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     result: match event {
       Ok(event) => Ok(event),
       Err(Error::BRC20Error(e)) => Err(e),
-      Err(e) => {
-        return Err(anyhow!(format!(
-          "brc20 execute message error: {}",
-          e.to_string()
-        )))
-      }
+      Err(e) => return Err(anyhow!("BRC20 execute exception: {e}")),
     },
   };
 
   brc20_store
     .add_transaction_receipt(&msg.txid, &receipt)
-    .map_err(|e| anyhow!(format!("brc20 execute message error: {}", e.to_string())))?;
+    .map_err(|e| anyhow!("failed to add transaction receipt to state! error: {e}"))?;
+
   Ok(receipt)
 }
 

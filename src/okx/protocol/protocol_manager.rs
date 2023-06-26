@@ -52,6 +52,7 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     operation: Vec<InscriptionOp>,
   ) -> Result {
     let mut operations_peeker = operation.into_iter().peekable();
+    // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
       let mut tx_operations: Vec<InscriptionOp> = Vec::new();
 

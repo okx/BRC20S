@@ -102,7 +102,7 @@ mod tests {
   // 1        1           1
   #[test]
   fn test_calculate_withdraw_pools_000() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -147,7 +147,7 @@ mod tests {
 
   #[test]
   fn test_calculate_withdraw_pools_001() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -218,7 +218,7 @@ mod tests {
 
   #[test]
   fn test_calculate_withdraw_pools_010() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -290,7 +290,7 @@ mod tests {
 
   #[test]
   fn test_calculate_withdraw_pools_100() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -361,7 +361,7 @@ mod tests {
 
   #[test]
   fn test_calculate_withdraw_pools_011() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -431,7 +431,7 @@ mod tests {
 
   #[test]
   fn test_calculate_withdraw_pools_110() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -501,7 +501,7 @@ mod tests {
 
   #[test]
   fn test_calculate_withdraw_pools_101() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -571,7 +571,7 @@ mod tests {
 
   #[test]
   fn test_calculate_withdraw_pools_111() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -640,7 +640,7 @@ mod tests {
   }
   #[test]
   fn test_remove_withdraw_pools() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::UNKNOWN, 0, 0);
+    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();

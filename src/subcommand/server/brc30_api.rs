@@ -15,7 +15,25 @@ pub(crate) async fn brc30_all_tick_info(
   log::debug!("rpc: get brc30_all_tick_info: {:?}", all_tick_info);
 
   Ok(Json(ApiResponse::ok(AllBRC30TickInfo {
-    tokens: all_tick_info.iter().map(|t| t.into()).collect(),
+    tokens: all_tick_info
+      .iter()
+      .map(|tick_info| {
+        let inscription_number = &index
+          .get_inscription_entry(tick_info.inscription_id)
+          .unwrap()
+          .unwrap();
+
+        let block = &index
+          .get_block_by_height(tick_info.deploy_block)
+          .unwrap()
+          .unwrap();
+
+        let mut brc30_tick = BRC30TickInfo::from(tick_info);
+        brc30_tick.set_deploy_blocktime(block.header.time as u64);
+        brc30_tick.set_inscription_number(inscription_number.number as u64);
+        brc30_tick
+      })
+      .collect(),
   })))
 }
 

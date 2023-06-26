@@ -38,14 +38,14 @@ impl From<&brc30::TickInfo> for BRC30TickInfo {
     Self {
       tick,
       inscription_id: tick_info.inscription_id.to_string(),
-      inscription_number: 0, // TODO inscription_number
+      inscription_number: 0,
       minted: tick_info.circulation.to_string(),
       supply: tick_info.supply.to_string(),
       decimal: tick_info.decimal as u64,
       deployer: tick_info.deployer.to_string(),
       txid: tick_info.inscription_id.txid.to_string(),
       deploy_height: tick_info.deploy_block,
-      deploy_blocktime: 0, // TODO  add deploy_blocktime
+      deploy_blocktime: 0,
     }
   }
 }
@@ -123,7 +123,7 @@ impl From<&brc30::PoolInfo> for BRC30Pool {
       erate: pool_info.erate.to_string(),
       minted: pool_info.minted.to_string(),
       dmax: pool_info.dmax.to_string(),
-      only: if pool_info.only { 0 } else { 1 },
+      only: if pool_info.only { 1 } else { 0 },
       acc_per_share: pool_info.acc_reward_per_share.to_string(),
       latest_update_block: pool_info.last_update_block,
       inscription_id: pool_info.inscription_id.to_string(),
@@ -277,6 +277,27 @@ pub enum Brc30Event {
   InscribeTransfer(Brc30InscribeTransferEvent),
   Transfer(Brc30TransferEvent),
   Error(Brc30ErrorEvent),
+}
+
+impl Brc30Event {
+  pub fn set_only(&mut self, only: i64) {
+    match self {
+      Self::DeployPool(d) => {
+        d.only = only;
+      }
+      _ => {}
+    }
+  }
+
+  pub fn set_earn(&mut self, id: String, name: String) {
+    match self {
+      Self::DeployPool(d) => {
+        d.earn.id = id;
+        d.earn.name = name;
+      }
+      _ => {}
+    }
+  }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -477,7 +498,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
           },
           pool: d.ptype.to_string(),
           erate: d.erate.to_string(),
-          only: 0, //todo
+          only: 0,
           dmax: d.dmax.to_string(),
           inscription_number: receipt.inscription_number,
           inscription_id: receipt.inscription_id.to_string(),

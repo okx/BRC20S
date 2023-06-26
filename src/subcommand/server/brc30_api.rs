@@ -557,7 +557,34 @@ pub(crate) async fn brc30_txid_events(
   log::debug!("rpc: get brc30_txid_events: {:?}", all_receipt);
 
   Ok(Json(ApiResponse::ok(Events {
-    events: all_receipt.iter().map(|receipt| receipt.into()).collect(),
+    events: all_receipt
+      .iter()
+      .map(|receipt| {
+        let mut event = Brc30Event::from(receipt);
+        let pid = match event.clone() {
+          Brc30Event::DeployPool(d) => d.pid,
+          _ => "".to_string(),
+        };
+
+        if pid.len() > 0 {
+          let parts: Vec<&str> = pid.split("#").collect();
+          let tick_info = &index
+            .brc30_tick_info(&parts[0].to_string())
+            .unwrap()
+            .unwrap();
+
+          event.set_earn(
+            tick_info.tick_id.hex().to_string(),
+            tick_info.name.as_str().to_string(),
+          );
+
+          let pool_info = &index.brc30_pool_info(&pid).unwrap().unwrap();
+          event.set_only(if pool_info.only { 1 } else { 0 });
+        }
+
+        event
+      })
+      .collect(),
     txid: txid.to_string(),
   })))
 }
@@ -597,8 +624,29 @@ pub(crate) async fn brc30_block_events(
       .map(|(tx_id, receipt)| Events {
         events: receipt
           .iter()
-          .map(|e| {
-            let mut event = Brc30Event::from(e);
+          .map(|receipt| {
+            let mut event = Brc30Event::from(receipt);
+            let pid = match event.clone() {
+              Brc30Event::DeployPool(d) => d.pid,
+              _ => "".to_string(),
+            };
+
+            if pid.len() > 0 {
+              let parts: Vec<&str> = pid.split("#").collect();
+              let tick_info = &index
+                .brc30_tick_info(&parts[0].to_string())
+                .unwrap()
+                .unwrap();
+
+              event.set_earn(
+                tick_info.tick_id.hex().to_string(),
+                tick_info.name.as_str().to_string(),
+              );
+
+              let pool_info = &index.brc30_pool_info(&pid).unwrap().unwrap();
+              event.set_only(if pool_info.only { 1 } else { 0 });
+            }
+
             event
           })
           .collect(),

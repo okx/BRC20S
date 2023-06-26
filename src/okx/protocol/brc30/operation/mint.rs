@@ -1,4 +1,6 @@
-use crate::okx::datastore::brc30::{Pid, TickId};
+use crate::okx::datastore::brc30::{BRC30Tick, Pid, PoolType, TickId};
+use crate::okx::protocol::brc30::util::{validate_amount, validate_pool_str};
+use crate::okx::protocol::brc30::{BRC30Error, Num};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -26,6 +28,26 @@ impl Mint {
     let tick_str = self.pool_id.as_str().split("#").next().unwrap();
     TickId::from_str(tick_str).unwrap()
   }
+
+  pub fn validate_basic(&self) -> Result<(), BRC30Error> {
+    if let Some(err) = validate_pool_str(self.pool_id.as_str()).err() {
+      return Err(err);
+    }
+
+    if let Some(err) = BRC30Tick::from_str(self.tick.as_str()).err() {
+      return Err(err);
+    }
+
+    //validate tick
+    if let Some(err) = BRC30Tick::from_str(self.tick.as_str()).err() {
+      return Err(err);
+    }
+
+    // validate amount
+    validate_amount(self.amount.as_str())?;
+
+    Ok(())
+  }
 }
 
 #[cfg(test)]
@@ -45,7 +67,7 @@ mod tests {
       serde_json::to_string(&obj).unwrap(),
       format!(
         r##"{{"tick":"{}","pid":"{}","amt":"{}"}}"##,
-        obj.tick, obj.tick, obj.amount
+        obj.tick, obj.pool_id, obj.amount
       )
     )
   }

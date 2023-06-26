@@ -3,7 +3,7 @@ use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId
 use crate::okx::protocol::brc30::params::{
   FIXED_TYPE, NATIVE_TOKEN, POOL_TYPE, TICK_BYTE_COUNT, TICK_ID_STR_COUNT,
 };
-use crate::okx::protocol::brc30::util::validate_pool_str;
+use crate::okx::protocol::brc30::util::{validate_amount, validate_pool_str};
 use crate::okx::protocol::brc30::{BRC30Error, Num};
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
@@ -140,18 +140,15 @@ impl Deploy {
       return Err(iserr);
     }
 
-    if let Some(iserr) = Num::from_str(self.earn_rate.as_str()).err() {
-      return Err(BRC30Error::InvalidNum(
-        self.earn_rate.clone() + iserr.to_string().as_str(),
-      ));
-    }
-    if let Some(iserr) = Num::from_str(self.distribution_max.as_str()).err() {
-      return Err(BRC30Error::InvalidNum(
-        self.distribution_max.clone() + iserr.to_string().as_str(),
-      ));
-    }
+    // validate earn_rate
+    validate_amount(self.earn_rate.as_str())?;
+    // validate distribution_max
+    validate_amount(self.distribution_max.as_str())?;
 
     if let Some(supply) = self.total_supply.as_ref() {
+      // validate total_supply
+      validate_amount(supply.as_str())?;
+
       let total = Num::from_str(supply.as_str());
       match total {
         Ok(total) => {

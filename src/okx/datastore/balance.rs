@@ -140,7 +140,7 @@ pub fn convert_amount_with_decimal<L: BRC30DataStoreReadWrite>(
     return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
   }
 
-  if !amt.is_less_than_max_u64() || !amt.is_positive_integer() {
+  if !amt.is_less_than_max_u64() || !amt.is_positive() {
     return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
   }
 
@@ -198,8 +198,8 @@ pub fn convert_amount_without_decimal<L: BRC30DataStoreReadWrite>(
   let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
   let mut amt = Num::from(amount);
 
-  //amount must be integer
-  if amt.scale() != 0_i64 {
+  //amount must be plus integer
+  if !amt.is_positive_integer() {
     return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
   }
 
@@ -208,7 +208,7 @@ pub fn convert_amount_without_decimal<L: BRC30DataStoreReadWrite>(
     return Err(Error::from(BRC30Error::InvalidZeroAmount));
   }
 
-  if !amt.is_less_than_max_u64() || !amt.is_positive_integer() {
+  if !amt.is_less_than_max_u64() || !amt.is_positive() {
     return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
   }
 

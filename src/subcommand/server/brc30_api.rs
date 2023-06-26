@@ -141,7 +141,7 @@ pub(crate) async fn brc30_all_pool_info(
         );
         pool_result.set_inscription_num(inscription_number.number as u64);
         pool_result.set_deploy(
-          tick_info.deployer.to_string(),
+          tick_info.deployer.clone().into(),
           tick_info.deploy_block,
           block.header.time as u64,
         );
@@ -200,7 +200,7 @@ pub(crate) async fn brc30_pool_info(
   );
   pool.set_inscription_num(inscription_number.number as u64);
   pool.set_deploy(
-    tick_info.deployer.to_string(),
+    tick_info.deployer.clone().into(),
     tick_info.deploy_block,
     block.header.time as u64,
   );

@@ -250,6 +250,34 @@ pub(crate) async fn brc30_userinfo(
   Ok(Json(ApiResponse::ok(user_info.into())))
 }
 
+pub(crate) async fn brc30_user_reward(
+  Extension(index): Extension<Arc<Index>>,
+  Path((pid, address)): Path<(String, String)>,
+) -> ApiResult<UserReward> {
+  log::debug!("rpc: get brc30_user_reward: {}, {}", pid, address);
+
+  if pid.as_bytes().len() != 13 {
+    return Err(ApiError::bad_request("pid length must 13."));
+  }
+  let pid = pid.to_lowercase();
+  let address: bitcoin::Address = address
+    .parse()
+    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let (user_reward, block) = &index.brc30_user_reward(&pid, &address)?;
+
+  log::debug!(
+    "rpc: get brc30_user_reward: {:?}, {:?}, {:?}",
+    pid.as_str(),
+    user_reward,
+    block,
+  );
+
+  Ok(Json(ApiResponse::ok(UserReward {
+    user_reward: user_reward.clone().unwrap(),
+    block_num: block.clone().unwrap(),
+  })))
+}
+
 // 3.4.5 /brc30/debug/pool/:pid/address/:address/userinfo
 pub(crate) async fn brc30_debug_userinfo(
   Extension(index): Extension<Arc<Index>>,

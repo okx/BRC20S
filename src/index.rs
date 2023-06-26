@@ -5,7 +5,8 @@ use crate::okx::{
     ord::{InscriptionOp, OrdDbReader},
     ScriptKey,
   },
-  protocol::{self, brc20::BRC20Message},
+  protocol::{self, brc20::BRC20Message, brc30::params::NATIVE_TOKEN_DECIMAL},
+  reward::reward,
 };
 #[cfg(feature = "rollback")]
 use std::cell::OnceCell;
@@ -1287,6 +1288,40 @@ impl Index {
       &brc30::Pid::from_str(pid)?,
     )?;
     Ok(info)
+  }
+
+  pub(crate) fn brc30_user_reward(
+    &self,
+    pid: &String,
+    address: &bitcoin::Address,
+  ) -> Result<(Option<String>, Option<String>)> {
+    let wtx = self.database.begin_read().unwrap();
+    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc20_db = BRC20DataStoreReader::new(&wtx);
+    let user_info = brc30_db.get_pid_to_use_info(
+      &ScriptKey::from_address(address.clone()),
+      &brc30::Pid::from_str(pid)?,
+    )?;
+
+    let pool_info = brc30_db.get_pid_to_poolinfo(&brc30::Pid::from_str(pid)?)?;
+
+    let dec = match pool_info.clone().unwrap().stake {
+      PledgedTick::NATIVE => NATIVE_TOKEN_DECIMAL,
+      PledgedTick::BRC30Tick(tickid) => brc30_db.get_tick_info(&tickid).unwrap().unwrap().decimal,
+      PledgedTick::BRC20Tick(tick) => brc20_db.get_token_info(&tick).unwrap().unwrap().decimal,
+      PledgedTick::UNKNOWN => 0_u8,
+    };
+
+    let block = self.height().unwrap().unwrap_or(Height(0)).n();
+
+    let result = reward::query_reward(
+      user_info.unwrap(),
+      pool_info.unwrap(),
+      self.height().unwrap().unwrap_or(Height(0)).n(),
+      dec,
+    )?;
+
+    Ok((Some(result.to_string()), Some(block.to_string())))
   }
 
   pub(crate) fn brc30_balance(

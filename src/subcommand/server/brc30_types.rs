@@ -152,6 +152,7 @@ pub struct AllBRC30PoolInfo {
 pub struct UserInfo {
   pub pid: String,
   pub staked: String,
+  pub reward: String,
   pub reward_debt: String,
   pub latest_update_block: u64,
 }
@@ -161,6 +162,7 @@ impl From<&brc30::UserInfo> for UserInfo {
     Self {
       pid: user_info.pid.as_str().to_string(),
       staked: user_info.staked.to_string(),
+      reward: user_info.reward.to_string(),
       reward_debt: user_info.reward_debt.to_string(),
       latest_update_block: user_info.latest_updated_block,
     }
@@ -173,14 +175,9 @@ pub struct BRC30Balance {
   pub tick: Tick,
   pub transferable: String,
   pub overall: String,
-  pub claimable: String,
 }
 
 impl BRC30Balance {
-  pub fn set_claimable(&mut self, claimable: u128) {
-    self.claimable = claimable.to_string();
-  }
-
   pub fn set_tick_name(&mut self, name: String) {
     self.tick.name = name;
   }
@@ -197,7 +194,6 @@ impl From<&brc30::Balance> for BRC30Balance {
       tick,
       transferable: balance.transferable_balance.to_string(),
       overall: balance.overall_balance.to_string(),
-      claimable: "0".to_string(),
     }
   }
 }
@@ -599,4 +595,13 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
 #[serde(rename_all = "camelCase")]
 pub struct BRC30BlockEvents {
   pub block: Vec<Events>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserReward {
+  #[serde(rename = "user_reward")]
+  pub user_reward: String,
+  #[serde(rename = "block_num")]
+  pub block_num: String,
 }

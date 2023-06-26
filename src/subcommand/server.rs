@@ -236,6 +236,10 @@ impl Server {
           get(brc30_userinfo),
         )
         .route(
+          "/brc30/debug/pool/:pid/address/:address/reward",
+          get(brc30_user_reward),
+        )
+        .route(
           "/brc30/tick/:tick_id/address/:address/balance",
           get(brc30_balance),
         )

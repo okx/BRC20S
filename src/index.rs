@@ -404,6 +404,11 @@ impl Index {
     for table in rtx.list_tables()? {
       log::info!("Database table :{}", table);
     }
+
+    let wtx = self.database.begin_write()?;
+    let stas = wtx.stats()?;
+    log::info!("stats{:#?}", stas);
+
     let talbe = rtx.open_table(HEIGHT_TO_BLOCK_HASH)?;
     let mut db_total_size = 0_u128;
     let mut totalNum = talbe.len()? as u128;

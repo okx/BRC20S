@@ -761,7 +761,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(BRC30Event::Mint(MintEvent {
-    tick_id,
+    pool_id,
     amt: amt.checked_to_u128()?,
   }))
 }

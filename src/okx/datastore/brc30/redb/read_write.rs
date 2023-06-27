@@ -559,7 +559,8 @@ mod tests {
     let user_info = UserInfo {
       pid: pid.clone(),
       staked: 0,
-      reward: 0,
+      minted: 0,
+      pending_reward: 0,
       reward_debt: 0,
       latest_updated_block: 0,
     };

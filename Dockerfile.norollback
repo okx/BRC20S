@@ -2,7 +2,7 @@ FROM rust:1.70.0-buster as builder
 
 ADD . /ord
 
-RUN cd /ord && cargo build --release --features=rollback
+RUN cd /ord && cargo build --release
 
 # runtime
 FROM debian:buster-slim

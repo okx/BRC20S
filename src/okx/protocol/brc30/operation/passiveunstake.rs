@@ -27,16 +27,16 @@ impl PassiveUnStake {
   pub fn get_stake_tick(&self) -> PledgedTick {
     let stake = self.stake.as_str();
     match stake {
-      NATIVE_TOKEN => PledgedTick::NATIVE,
+      NATIVE_TOKEN => PledgedTick::Native,
       _ => match self.stake.len() {
         TICK_BYTE_COUNT => PledgedTick::BRC20Tick(Tick::from_str(stake).unwrap()),
         TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(stake).unwrap()),
-        _ => PledgedTick::UNKNOWN,
+        _ => PledgedTick::Unknown,
       },
     }
   }
   pub fn validate_basics(&self) -> Result<(), BRC30Error> {
-    if self.get_stake_tick() == PledgedTick::UNKNOWN {
+    if self.get_stake_tick() == PledgedTick::Unknown {
       return Err(BRC30Error::UnknownStakeType);
     }
 

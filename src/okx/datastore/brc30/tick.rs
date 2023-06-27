@@ -176,8 +176,8 @@ impl<'de> Deserialize<'de> for BRC30Tick {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum PledgedTick {
-  UNKNOWN,
-  NATIVE,
+  Unknown,
+  Native,
   BRC20Tick(Tick),
   BRC30Tick(TickId),
 }
@@ -194,8 +194,8 @@ impl PledgedTick {
   }
   pub fn to_string(&self) -> String {
     match self {
-      PledgedTick::UNKNOWN => "UNKNOWN".to_string(),
-      PledgedTick::NATIVE => NATIVE_TOKEN.to_string(),
+      PledgedTick::Unknown => "Unknown".to_string(),
+      PledgedTick::Native => NATIVE_TOKEN.to_string(),
       PledgedTick::BRC20Tick(tick) => tick.as_str().to_string(),
       PledgedTick::BRC30Tick(tickid) => tickid.to_lowercase().hex(),
     }
@@ -203,8 +203,8 @@ impl PledgedTick {
 
   pub fn to_type(&self) -> String {
     match self {
-      PledgedTick::UNKNOWN => "unknown".to_string(),
-      PledgedTick::NATIVE => NATIVE_TOKEN.to_string(),
+      PledgedTick::Unknown => "Unknown".to_string(),
+      PledgedTick::Native => NATIVE_TOKEN.to_uppercase().to_string(),
       PledgedTick::BRC20Tick(_) => "BRC20".to_string(),
       PledgedTick::BRC30Tick(_) => "BRC20-S".to_string(),
     }
@@ -212,11 +212,11 @@ impl PledgedTick {
 
   pub fn from_str(str: &str) -> Self {
     match str {
-      NATIVE_TOKEN => PledgedTick::NATIVE,
+      NATIVE_TOKEN => PledgedTick::Native,
       _ => match str.len() {
         TICK_BYTE_COUNT => PledgedTick::BRC20Tick(Tick::from_str(str).unwrap()),
         TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(str).unwrap()),
-        _ => PledgedTick::UNKNOWN,
+        _ => PledgedTick::Unknown,
       },
     }
   }

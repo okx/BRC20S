@@ -18,7 +18,7 @@ pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStore
   brc20ledger: &'a M,
 ) -> Num {
   match token {
-    PledgedTick::NATIVE => Num::from(0_u128),
+    PledgedTick::Native => Num::from(0_u128),
     PledgedTick::BRC30Tick(tickid) => {
       let balance = match brc30ledger.get_balance(&script, tickid) {
         Ok(Some(brc30_balance)) => brc30_balance,
@@ -33,7 +33,7 @@ pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStore
       };
       Num::from(balance.overall_balance - balance.transferable_balance)
     }
-    PledgedTick::UNKNOWN => Num::from(0_u128),
+    PledgedTick::Unknown => Num::from(0_u128),
   }
 }
 
@@ -43,10 +43,10 @@ pub fn get_stake_dec<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
   brc20ledger: &'a M,
 ) -> u8 {
   match token {
-    PledgedTick::NATIVE => NATIVE_TOKEN_DECIMAL,
+    PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
     PledgedTick::BRC30Tick(tickid) => brc30ledger.get_tick_info(&tickid).unwrap().unwrap().decimal,
     PledgedTick::BRC20Tick(tick) => brc20ledger.get_token_info(tick).unwrap().unwrap().decimal,
-    PledgedTick::UNKNOWN => 0_u8,
+    PledgedTick::Unknown => 0_u8,
   }
 }
 pub fn stake_is_exist<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
@@ -55,7 +55,7 @@ pub fn stake_is_exist<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite
   brc20ledger: &'a M,
 ) -> bool {
   match token {
-    PledgedTick::NATIVE => true,
+    PledgedTick::Native => true,
     PledgedTick::BRC30Tick(tickid) => {
       let tickinfo = brc30ledger.get_tick_info(&tickid);
       match tickinfo {
@@ -76,7 +76,7 @@ pub fn stake_is_exist<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite
         _ => false,
       }
     }
-    PledgedTick::UNKNOWN => false,
+    PledgedTick::Unknown => false,
   }
 }
 
@@ -105,8 +105,8 @@ pub fn convert_pledged_tick_with_decimal<
   brc20ledger: &'a M,
 ) -> Result<Num, Error<L>> {
   match tick {
-    PledgedTick::UNKNOWN => Err(Error::BRC30Error(BRC30Error::UnknownStakeType)),
-    PledgedTick::NATIVE => convert_amount_with_decimal(amount, NATIVE_TOKEN_DECIMAL),
+    PledgedTick::Unknown => Err(Error::BRC30Error(BRC30Error::UnknownStakeType)),
+    PledgedTick::Native => convert_amount_with_decimal(amount, NATIVE_TOKEN_DECIMAL),
     PledgedTick::BRC20Tick(tick) => {
       let token = brc20ledger
         .get_token_info(tick)
@@ -166,8 +166,8 @@ pub fn convert_pledged_tick_without_decimal<
   brc20ledger: &'a M,
 ) -> Result<Num, Error<L>> {
   match tick {
-    PledgedTick::UNKNOWN => Err(Error::BRC30Error(BRC30Error::UnknownStakeType)),
-    PledgedTick::NATIVE => convert_amount_without_decimal(amount, NATIVE_TOKEN_DECIMAL),
+    PledgedTick::Unknown => Err(Error::BRC30Error(BRC30Error::UnknownStakeType)),
+    PledgedTick::Native => convert_amount_without_decimal(amount, NATIVE_TOKEN_DECIMAL),
     PledgedTick::BRC20Tick(tick) => {
       let token = brc20ledger
         .get_token_info(tick)

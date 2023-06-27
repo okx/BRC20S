@@ -3143,7 +3143,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111i1",
       )
       .unwrap(),
-      stake: PledgedTick::NATIVE,
+      stake: PledgedTick::Native,
       erate,
       minted: 0,
       staked: 0,

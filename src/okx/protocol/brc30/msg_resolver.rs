@@ -39,8 +39,12 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
           // Ignore negative number inscriptions.
           if inscription_number >= 0 {
             Inscription::from_transaction(
-              &Index::get_transaction_with_retries(client, op.inscription_id.txid)?
-                .ok_or(anyhow!("transaction not found {}", op.inscription_id.txid))?,
+              &Index::get_transaction_with_retries(client, op.inscription_id.txid)?.ok_or(
+                anyhow!(
+                  "failed to fetch transaction! {} not found",
+                  op.inscription_id.txid
+                ),
+              )?,
             )
             .get(usize::try_from(op.inscription_id.index).unwrap())
             .unwrap()
@@ -84,8 +88,11 @@ fn get_commit_input_satpoint<'a, O: OrdDataStoreReadOnly>(
   ord_store: &'a O,
   satpoint: SatPoint,
 ) -> Result<SatPoint> {
-  let transaction = &Index::get_transaction_with_retries(client, satpoint.outpoint.txid)?
-    .ok_or(anyhow!("transaction not found {}", satpoint.outpoint.txid))?;
+  let transaction =
+    &Index::get_transaction_with_retries(client, satpoint.outpoint.txid)?.ok_or(anyhow!(
+      "failed to fetch transaction! {} not found",
+      satpoint.outpoint.txid
+    ))?;
 
   // get satoshi offset
   let mut offset = 0;
@@ -102,8 +109,11 @@ fn get_commit_input_satpoint<'a, O: OrdDataStoreReadOnly>(
   for input in &transaction.input {
     let prevout = ord_store
       .get_outpoint_to_txout(input.previous_output)
-      .map_err(|e| anyhow!("get outpoint to txout error {}", e))?
-      .ok_or(anyhow!("outpoint {} not found", input.previous_output))?;
+      .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
+      .ok_or(anyhow!(
+        "failed to get txout! {} not found",
+        input.previous_output
+      ))?;
     input_value += prevout.value;
     if input_value >= offset {
       return Ok(SatPoint {
@@ -112,5 +122,5 @@ fn get_commit_input_satpoint<'a, O: OrdDataStoreReadOnly>(
       });
     }
   }
-  return Err(anyhow!("origin satpoint not found"));
+  return Err(anyhow!("no match found for the commit offset!"));
 }

@@ -141,7 +141,7 @@ pub struct PassiveWithdrawEvent {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct MintEvent {
-  pub tick_id: TickId,
+  pub pool_id: Pid,
   pub amt: u128,
 }
 

@@ -3299,7 +3299,7 @@ mod tests {
   }
 
   #[test]
-  fn test_complex_pool_big_stake() {
+  fn test_complex_fix_big_stake() {
     const STAKED_DECIMAL: u8 = 18;
     const ERATE_DECIMAL: u8 = 18;
     let stake_base = get_base_decimal(STAKED_DECIMAL);
@@ -3407,6 +3407,152 @@ mod tests {
       20000000 * stake_base,
       100000000000 * erate_base,
       Ok(40000000000 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+  }
+
+  #[test]
+  fn test_complex_pool_big_stake() {
+    const STAKED_DECIMAL: u8 = 18;
+    const ERATE_DECIMAL: u8 = 18;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let dmax = 100000000000 * erate_base;
+    let erate = 1 * erate_base;
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Pool, erate, dmax);
+    let mut user_a = new_user(&pid);
+    let mut user_b = new_user(&pid);
+
+    // A deposit
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      1,
+      10000000 * stake_base,
+      true,
+      0,
+      10000000 * stake_base,
+      10000000 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+    // B deposit
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      1,
+      10000000 * stake_base,
+      true,
+      0,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // A, dothing
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      1001,
+      0,
+      false,
+      500 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      1000 * erate_base,
+      Ok(500 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // 10-B dothing
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      1001,
+      0,
+      false,
+      500 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      1000 * erate_base,
+      Ok(500 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // A, dothing
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      1000000001,
+      0,
+      false,
+      500000000 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      1000000000 * erate_base,
+      Ok(499999500 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // 10-B dothing
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      1000000001,
+      0,
+      false,
+      500000000 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      1000000000 * erate_base,
+      Ok(499999500 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // A, dothing
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      1000000000001,
+      0,
+      false,
+      50000000000 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      100000000000 * erate_base,
+      Ok(49500000000 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // 10-B dothing
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      1000000000001,
+      0,
+      false,
+      50000000000 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      100000000000 * erate_base,
+      Ok(49500000000 * erate_base),
       Ok(()),
       STAKED_DECIMAL,
     );

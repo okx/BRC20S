@@ -126,7 +126,7 @@ pub fn withdraw_user_reward(
   let user_staked = Into::<Num>::into(user.staked);
   let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
   let reward_debt = Into::<Num>::into(user.reward_debt);
-  let user_reward = Into::<Num>::into(user.reward);
+  let user_reward = Into::<Num>::into(user.pending_reward);
   info!("  {}", pool);
   info!("  {}", user);
 
@@ -155,7 +155,7 @@ pub fn withdraw_user_reward(
 
   if pending_reward > Num::zero() {
     //3 update minted of user_info and pool
-    user.reward = user_reward
+    user.pending_reward = user_reward
       .checked_add(&pending_reward)?
       .truncate_to_u128()?;
   }
@@ -1587,7 +1587,10 @@ mod tests {
       STAKED_DECIMAL,
     );
 
-    assert_eq!(user1.reward + user2.reward + user3.reward, 9999998);
+    assert_eq!(
+      user1.pending_reward + user2.pending_reward + user3.reward,
+      9999998
+    );
   }
 
   #[test]
@@ -1744,7 +1747,10 @@ mod tests {
       STAKED_DECIMAL,
     );
 
-    assert_eq!(user1.reward + user2.reward + user3.reward, 9999998);
+    assert_eq!(
+      user1.pending_reward + user2.pending_reward + user3.reward,
+      9999998
+    );
   }
 
   #[test]
@@ -1779,7 +1785,7 @@ mod tests {
       Ok(())
     );
     assert_eq!(user.staked, 0);
-    assert_eq!(user.reward, 0);
+    assert_eq!(user.pending_reward, 0);
     assert_eq!(user.latest_updated_block, 100);
     assert_eq!(user.reward_debt, 0);
   }
@@ -1938,7 +1944,10 @@ mod tests {
       STAKED_DECIMAL,
     );
 
-    assert_eq!(user1.reward + user2.reward + user3.reward, 9999998);
+    assert_eq!(
+      user1.pending_reward + user2.pending_reward + user3.reward,
+      9999998
+    );
   }
 
   #[test]
@@ -2133,7 +2142,10 @@ mod tests {
       STAKED_DECIMAL,
     );
 
-    assert_eq!(user1.reward + user2.reward + user3.reward, 9999998);
+    assert_eq!(
+      user1.pending_reward + user2.pending_reward + user3.reward,
+      9999998
+    );
   }
 
   #[test]
@@ -3128,7 +3140,7 @@ mod tests {
       }
     }
 
-    assert_eq!(user.reward, expect_user_remain_reward);
+    assert_eq!(user.pending_reward, expect_user_remain_reward);
     assert_eq!(user.staked, expert_user_staked);
     assert_eq!(pool.staked, expect_pool_staked);
     assert_eq!(pool.minted, expect_pool_minted);
@@ -3158,7 +3170,8 @@ mod tests {
     UserInfo {
       pid: pid.clone(),
       staked: 0,
-      reward: 0,
+      minted: 0,
+      pending_reward: 0,
       reward_debt: 0,
       latest_updated_block: 0,
     }

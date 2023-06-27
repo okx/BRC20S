@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct UserInfo {
   pub pid: Pid,
   pub staked: u128,
-  pub reward: u128,
+  pub minted: u128,
+  pub pending_reward: u128,
   pub reward_debt: u128,
   pub latest_updated_block: u64,
 }
@@ -16,7 +17,8 @@ impl UserInfo {
     Self {
       pid: pid.clone(),
       staked: 0,
-      reward: 0,
+      minted: 0,
+      pending_reward: 0,
       reward_debt: 0,
       latest_updated_block: 0,
     }
@@ -27,10 +29,11 @@ impl std::fmt::Display for UserInfo {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
       f,
-      "UserInfo {{ pid: {}, staked: {}, reward: {},reward_debt: {},latest_updated_block: {}}}",
+      "UserInfo {{ pid: {}, staked: {}, minted: {}, pending_reward: {},reward_debt: {},latest_updated_block: {}}}",
       self.pid.as_str(),
       self.staked,
-      self.reward,
+      self.minted,
+      self.pending_reward,
       self.reward_debt,
       self.latest_updated_block,
     )

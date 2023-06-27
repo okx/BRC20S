@@ -172,7 +172,7 @@ impl From<&brc30::UserInfo> for UserInfo {
     Self {
       pid: user_info.pid.as_str().to_string(),
       staked: user_info.staked.to_string(),
-      reward: user_info.reward.to_string(),
+      reward: user_info.pending_reward.to_string(),
       reward_debt: user_info.reward_debt.to_string(),
       latest_update_block: user_info.latest_updated_block,
     }

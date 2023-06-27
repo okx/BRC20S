@@ -282,7 +282,7 @@ pub(crate) async fn brc30_userinfo(
   Ok(Json(ApiResponse::ok(user_info.into())))
 }
 
-pub(crate) async fn brc30_user_reward(
+pub(crate) async fn brc30_user_pending_reward(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
 ) -> ApiResult<UserReward> {
@@ -295,7 +295,7 @@ pub(crate) async fn brc30_user_reward(
   let address: bitcoin::Address = address
     .parse()
     .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
-  let (user_reward, block) = &index.brc30_user_reward(&pid, &address)?;
+  let (user_reward, block) = &index.brc30_user_pending_reward(&pid, &address)?;
 
   log::debug!(
     "rpc: get brc30_user_reward: {:?}, {:?}, {:?}",
@@ -305,7 +305,7 @@ pub(crate) async fn brc30_user_reward(
   );
 
   Ok(Json(ApiResponse::ok(UserReward {
-    user_reward: user_reward.clone().unwrap(),
+    pending_reward: user_reward.clone().unwrap(),
     block_num: block.clone().unwrap(),
   })))
 }

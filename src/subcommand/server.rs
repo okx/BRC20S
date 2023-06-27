@@ -237,7 +237,7 @@ impl Server {
         )
         .route(
           "/brc30/debug/pool/:pid/address/:address/reward",
-          get(brc30_user_reward),
+          get(brc30_user_pending_reward),
         )
         .route(
           "/brc30/tick/:tick_id/address/:address/balance",

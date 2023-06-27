@@ -830,7 +830,6 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   msg: &BRC30ExecutionMessage,
 ) -> Result<BRC30Event, Error<N>> {
   let from_script_key = msg.from.clone();
-  let to_script_key = msg.to.clone();
   let transferable = brc30_store
     .get_transferable_by_id(&from_script_key, &msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?
@@ -843,6 +842,17 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       msg.inscription_id,
     )));
   }
+
+  // redirect receiver to sender if transfer to conibase.
+  let mut out_msg = None;
+  let to_script_key = if msg.new_satpoint.outpoint.txid != msg.txid {
+    out_msg = Some(format!(
+      "redirect receiver to sender, reason: transfer inscription to coinbase"
+    ));
+    msg.from.clone()
+  } else {
+    msg.to.clone()
+  };
 
   let tick_info = brc30_store
     .get_tick_info(&transferable.tick_id)
@@ -895,6 +905,7 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   Ok(BRC30Event::Transfer(TransferEvent {
     tick_id: transferable.tick_id,
     amt: amt.checked_to_u128()?,
+    msg: out_msg,
   }))
 }
 

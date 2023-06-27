@@ -1,6 +1,6 @@
 use crate::okx::datastore::brc30::{Pid, TickId};
 use crate::okx::protocol::brc30::params::BIGDECIMAL_TEN;
-use crate::okx::protocol::brc30::util::validate_pool_str;
+use crate::okx::protocol::brc30::util::{validate_amount, validate_pool_str};
 use crate::okx::protocol::brc30::{BRC30Error, Num};
 use bigdecimal::num_bigint::Sign;
 use serde::{Deserialize, Serialize};
@@ -45,15 +45,13 @@ impl Stake {
     Ok(Some(amt))
   }
 
-  pub fn validate_basics(&self) -> Result<(), BRC30Error> {
-    validate_pool_str(self.pool_id.as_str())
-      .map_err(|e| BRC30Error::InvalidPoolId(self.pool_id.to_string(), e.to_string()))?;
-
-    if let Some(iserr) = Num::from_str(self.amount.as_str()).err() {
-      return Err(BRC30Error::InvalidNum(
-        self.amount.clone() + iserr.to_string().as_str(),
-      ));
+  pub fn validate_basic(&self) -> Result<(), BRC30Error> {
+    if let Some(err) = validate_pool_str(self.pool_id.as_str()).err() {
+      return Err(err);
     }
+
+    // validate amount
+    validate_amount(self.amount.as_str())?;
 
     Ok(())
   }

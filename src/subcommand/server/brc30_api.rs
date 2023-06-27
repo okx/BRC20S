@@ -15,7 +15,25 @@ pub(crate) async fn brc30_all_tick_info(
   log::debug!("rpc: get brc30_all_tick_info: {:?}", all_tick_info);
 
   Ok(Json(ApiResponse::ok(AllBRC30TickInfo {
-    tokens: all_tick_info.iter().map(|t| t.into()).collect(),
+    tokens: all_tick_info
+      .iter()
+      .map(|tick_info| {
+        let inscription_number = &index
+          .get_inscription_entry(tick_info.inscription_id)
+          .unwrap()
+          .unwrap();
+
+        let block = &index
+          .get_block_by_height(tick_info.deploy_block)
+          .unwrap()
+          .unwrap();
+
+        let mut brc30_tick = BRC30TickInfo::from(tick_info);
+        brc30_tick.set_deploy_blocktime(block.header.time as u64);
+        brc30_tick.set_inscription_number(inscription_number.number as u64);
+        brc30_tick
+      })
+      .collect(),
   })))
 }
 
@@ -44,7 +62,21 @@ pub(crate) async fn brc30_tick_info(
     return Err(ApiError::internal("db: not match"));
   }
 
-  Ok(Json(ApiResponse::ok(tick_info.into())))
+  let inscription_number = &index
+    .get_inscription_entry(tick_info.inscription_id)
+    .unwrap()
+    .unwrap();
+
+  let block = &index
+    .get_block_by_height(tick_info.deploy_block)
+    .unwrap()
+    .unwrap();
+
+  let mut brc30_tick = BRC30TickInfo::from(tick_info);
+  brc30_tick.set_deploy_blocktime(block.header.time as u64);
+  brc30_tick.set_inscription_number(inscription_number.number as u64);
+
+  Ok(Json(ApiResponse::ok(brc30_tick)))
 }
 
 // 3.4.2 /brc30/tick/:tickId
@@ -109,7 +141,7 @@ pub(crate) async fn brc30_all_pool_info(
         );
         pool_result.set_inscription_num(inscription_number.number as u64);
         pool_result.set_deploy(
-          tick_info.deployer.to_string(),
+          tick_info.deployer.clone().into(),
           tick_info.deploy_block,
           block.header.time as u64,
         );
@@ -168,7 +200,7 @@ pub(crate) async fn brc30_pool_info(
   );
   pool.set_inscription_num(inscription_number.number as u64);
   pool.set_deploy(
-    tick_info.deployer.to_string(),
+    tick_info.deployer.clone().into(),
     tick_info.deploy_block,
     block.header.time as u64,
   );
@@ -525,7 +557,34 @@ pub(crate) async fn brc30_txid_events(
   log::debug!("rpc: get brc30_txid_events: {:?}", all_receipt);
 
   Ok(Json(ApiResponse::ok(Events {
-    events: all_receipt.iter().map(|receipt| receipt.into()).collect(),
+    events: all_receipt
+      .iter()
+      .map(|receipt| {
+        let mut event = Brc30Event::from(receipt);
+        let pid = match event.clone() {
+          Brc30Event::DeployPool(d) => d.pid,
+          _ => "".to_string(),
+        };
+
+        if pid.len() > 0 {
+          let parts: Vec<&str> = pid.split("#").collect();
+          let tick_info = &index
+            .brc30_tick_info(&parts[0].to_string())
+            .unwrap()
+            .unwrap();
+
+          event.set_earn(
+            tick_info.tick_id.hex().to_string(),
+            tick_info.name.as_str().to_string(),
+          );
+
+          let pool_info = &index.brc30_pool_info(&pid).unwrap().unwrap();
+          event.set_only(if pool_info.only { 1 } else { 0 });
+        }
+
+        event
+      })
+      .collect(),
     txid: txid.to_string(),
   })))
 }
@@ -565,8 +624,29 @@ pub(crate) async fn brc30_block_events(
       .map(|(tx_id, receipt)| Events {
         events: receipt
           .iter()
-          .map(|e| {
-            let mut event = Brc30Event::from(e);
+          .map(|receipt| {
+            let mut event = Brc30Event::from(receipt);
+            let pid = match event.clone() {
+              Brc30Event::DeployPool(d) => d.pid,
+              _ => "".to_string(),
+            };
+
+            if pid.len() > 0 {
+              let parts: Vec<&str> = pid.split("#").collect();
+              let tick_info = &index
+                .brc30_tick_info(&parts[0].to_string())
+                .unwrap()
+                .unwrap();
+
+              event.set_earn(
+                tick_info.tick_id.hex().to_string(),
+                tick_info.name.as_str().to_string(),
+              );
+
+              let pool_info = &index.brc30_pool_info(&pid).unwrap().unwrap();
+              event.set_only(if pool_info.only { 1 } else { 0 });
+            }
+
             event
           })
           .collect(),

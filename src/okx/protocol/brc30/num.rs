@@ -141,6 +141,10 @@ impl Num {
     self.0.is_positive() && self.scale() == 0
   }
 
+  pub fn is_positive(&self) -> bool {
+    self.0.is_positive()
+  }
+
   pub fn is_less_than_max_u64(&self) -> bool {
     self.0 <= Into::<BigDecimal>::into(u64::MAX)
   }

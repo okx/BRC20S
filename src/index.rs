@@ -1290,7 +1290,7 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn brc30_user_reward(
+  pub(crate) fn brc30_user_pending_reward(
     &self,
     pid: &String,
     address: &bitcoin::Address,

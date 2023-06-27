@@ -633,8 +633,8 @@ pub struct BRC30BlockEvents {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserReward {
-  #[serde(rename = "user_reward")]
-  pub user_reward: String,
+  #[serde(rename = "pending_reward")]
+  pub pending_reward: String,
   #[serde(rename = "block_num")]
   pub block_num: String,
 }

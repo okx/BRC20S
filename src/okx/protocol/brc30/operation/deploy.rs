@@ -90,11 +90,11 @@ impl Deploy {
   pub fn get_stake_id(&self) -> PledgedTick {
     let stake = self.stake.as_str();
     match stake {
-      NATIVE_TOKEN => PledgedTick::NATIVE,
+      NATIVE_TOKEN => PledgedTick::Native,
       _ => match self.stake.len() {
         TICK_BYTE_COUNT => PledgedTick::BRC20Tick(Tick::from_str(stake).unwrap()),
         TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(stake).unwrap()),
-        _ => PledgedTick::UNKNOWN,
+        _ => PledgedTick::Unknown,
       },
     }
   }
@@ -124,7 +124,7 @@ impl Deploy {
       return Err(iserr.unwrap());
     }
 
-    if self.get_stake_id() == PledgedTick::UNKNOWN {
+    if self.get_stake_id() == PledgedTick::Unknown {
       return Err(BRC30Error::UnknownStakeType);
     }
 

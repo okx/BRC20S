@@ -3,9 +3,9 @@ use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20::BRC20Event;
 use crate::okx::datastore::brc30::{BRC30Event, PledgedTick};
 use crate::okx::datastore::BRC30DataStoreReadWrite;
-use crate::okx::protocol::brc20::{BRC20Message, BRC20ExecutionMessage};
+use crate::okx::protocol::brc20::{BRC20ExecutionMessage, BRC20Message};
 use crate::okx::protocol::brc30::operation::BRC30Operation;
-use crate::okx::protocol::brc30::{BRC30Message, BRC30ExecutionMessage, PassiveUnStake};
+use crate::okx::protocol::brc30::{BRC30ExecutionMessage, BRC30Message, PassiveUnStake};
 use crate::{
   okx::datastore::{BRC20DataStoreReadWrite, OrdDataStoreReadWrite},
   Result,
@@ -34,6 +34,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
   }
 
   pub fn execute_message(&self, context: BlockContext, msg: &Message) -> Result {
+    // execute message
     let receipt = match msg {
       Message::BRC20(msg) => brc20::execute(
         context,
@@ -42,7 +43,6 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         &BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
       )
       .map(|v| Receipt::BRC20(v))?,
-
       Message::BRC30(msg) => brc30::execute(
         context,
         self.brc20_store,
@@ -52,10 +52,11 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
       .map(|v| Receipt::BRC30(v))?,
     };
 
+    // convert receipt to internal call message
     match receipt {
       Receipt::BRC20(brc20_receipt) => {
         match brc20_receipt.result {
-          Ok(BRC20Event::InscripbeTransfer(brc20_transfer)) => {
+          Ok(BRC20Event::Transfer(brc20_transfer)) => {
             let ptick = PledgedTick::BRC20Tick(brc20_transfer.tick.clone());
             match convert_pledged_tick_without_decimal(
               &ptick,
@@ -84,7 +85,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                 }
               }
               Err(e) => {
-                log::error!("brc30 receipt failed:{}", e);
+                log::error!("brc30 receipt failed: {e}");
               }
             }
           }
@@ -94,7 +95,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
       }
       Receipt::BRC30(brc30_recipt) => {
         match brc30_recipt.result {
-          Ok(BRC30Event::InscribeTransfer(brc30_transfer)) => {
+          Ok(BRC30Event::Transfer(brc30_transfer)) => {
             let ptick = PledgedTick::BRC30Tick(brc30_transfer.tick_id.clone());
             match convert_pledged_tick_without_decimal(
               &ptick,

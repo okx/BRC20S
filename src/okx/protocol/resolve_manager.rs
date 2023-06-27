@@ -61,6 +61,7 @@ impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
               .map(Message::BRC20)
           {
             messages.push(msg);
+            continue;
           }
         }
 
@@ -71,6 +72,7 @@ impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
               .map(Message::BRC30)
           {
             messages.push(msg);
+            continue;
           }
         }
       }

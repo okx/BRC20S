@@ -247,7 +247,11 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn set_txid_to_receipts(&self, tx_id: &Txid, receipt: &BRC30Receipt) -> Result<(), Self::Error> {
+  fn add_transaction_receipt(
+    &self,
+    tx_id: &Txid,
+    receipt: &BRC30Receipt,
+  ) -> Result<(), Self::Error> {
     let mut receipts = self.get_transaction_receipts(tx_id)?;
     receipts.push(receipt.clone());
     self.save_transaction_receipts(tx_id, &receipts)
@@ -413,7 +417,7 @@ mod tests {
       pid: pid.clone(),
       ptype: PoolType::Pool,
       inscription_id: inscription_id.clone(),
-      stake: PledgedTick::NATIVE,
+      stake: PledgedTick::Native,
       erate: 0,
       minted: 0,
       staked: 0,

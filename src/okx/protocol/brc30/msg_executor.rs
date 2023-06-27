@@ -43,6 +43,7 @@ pub struct BRC30ExecutionMessage {
   pub(self) to: ScriptKey,
   pub(self) op: BRC30Operation,
 }
+
 impl BRC30ExecutionMessage {
   pub fn from_message<'a, O: OrdDataStoreReadOnly>(
     ord_store: &'a O,
@@ -54,17 +55,25 @@ impl BRC30ExecutionMessage {
       inscription_id: msg.inscription_id,
       inscription_number: ord_store
         .get_number_by_inscription_id(msg.inscription_id)
-        .map_err(|e| anyhow!("{}", e))?
-        .ok_or(anyhow!("Inscription id {} not found", msg.inscription_id))?,
+        .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
+        .ok_or(anyhow!(
+          "failed to get inscription number! {} not found",
+          msg.inscription_id
+        ))?,
       commit_input_satpoint: msg.commit_input_satpoint,
       old_satpoint: msg.old_satpoint,
-      new_satpoint: msg.new_satpoint.ok_or(anyhow!("new_satpoint not found"))?,
+      new_satpoint: msg
+        .new_satpoint
+        .ok_or(anyhow!("new satpoint cannot be None"))?,
       commit_from: match msg.commit_input_satpoint {
         Some(satpoint) => Some(ScriptKey::from_script(
           &ord_store
             .get_outpoint_to_txout(satpoint.outpoint)
-            .map_err(|e| anyhow!("{}", e))?
-            .ok_or(anyhow!("outpoint not found {}", satpoint.outpoint))?
+            .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
+            .ok_or(anyhow!(
+              "failed to get txout! {} not found",
+              satpoint.outpoint
+            ))?
             .script_pubkey,
           network,
         )),
@@ -73,17 +82,20 @@ impl BRC30ExecutionMessage {
       from: ScriptKey::from_script(
         &ord_store
           .get_outpoint_to_txout(msg.old_satpoint.outpoint)
-          .map_err(|e| anyhow!("{}", e))?
-          .ok_or(anyhow!("outpoint not found {}", msg.old_satpoint.outpoint))?
+          .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
+          .ok_or(anyhow!(
+            "failed to get txout! {} not found",
+            msg.old_satpoint.outpoint
+          ))?
           .script_pubkey,
         network,
       ),
       to: ScriptKey::from_script(
         &ord_store
           .get_outpoint_to_txout(msg.new_satpoint.unwrap().outpoint)
-          .map_err(|e| anyhow!("{}", e))?
+          .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
           .ok_or(anyhow!(
-            "outpoint not found {}",
+            "failed to get txout! {} not found",
             msg.new_satpoint.unwrap().outpoint
           ))?
           .script_pubkey,
@@ -140,18 +152,13 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     result: match event {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => {
-        return Err(anyhow!(format!(
-          "brc30 execute message error: {}",
-          e.to_string()
-        )))
-      }
+      Err(e) => return Err(anyhow!("BRC30 execute exception: {e}")),
     },
   };
 
   brc30_store
-    .set_txid_to_receipts(&msg.txid, &receipt)
-    .map_err(|e| anyhow!(format!("brc20 execute message error: {}", e.to_string())))?;
+    .add_transaction_receipt(&msg.txid, &receipt)
+    .map_err(|e| anyhow!("failed to set transaction receipts to state! error: {e}"))?;
   Ok(receipt)
 }
 
@@ -162,6 +169,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   msg: &BRC30ExecutionMessage,
   deploy: Deploy,
 ) -> Result<BRC30Event, Error<N>> {
+  // inscription message basic availability check
   if let Some(iserr) = deploy.validate_basic().err() {
     return Err(Error::BRC30Error(iserr));
   }
@@ -171,7 +179,9 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
     None => {
-      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+      return Err(Error::BRC30Error(BRC30Error::InternalError(
+        "commit from script pubkey not exist".to_string(),
+      )));
     }
   };
 
@@ -180,12 +190,6 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   let ptype = deploy.get_pool_type();
 
   let stake = deploy.get_stake_id();
-
-  let mut erate = Num::from(0_u128);
-  let only = deploy.get_only();
-  let name = deploy.get_earn_id();
-  let dmax_str = deploy.distribution_max.as_str();
-  let mut dmax = 0_u128;
 
   //check stake
   if !stake_is_exist(&stake, brc30_store, brc20_store) {
@@ -203,12 +207,18 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     )));
   }
 
+  let mut erate = Num::zero();
+  let only = deploy.get_only();
+  let tick_name = deploy.get_earn_id();
+  let dmax_str = deploy.distribution_max.as_str();
+  let mut dmax = 0_u128;
+
   //Get or create the tick
   if let Some(mut temp_tick) = brc30_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
   {
-    if temp_tick.name != name {
+    if temp_tick.name != tick_name {
       return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
         deploy.earn.clone(),
       )));
@@ -269,7 +279,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
 
     let supply = total_supply.checked_to_u128()?;
     let c_tick_id = caculate_tick_id(
-      name.as_str(),
+      tick_name.as_str(),
       convert_amount_without_decimal(supply, decimal)?.checked_to_u128()?,
       decimal,
       &from_script_key,
@@ -286,7 +296,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     dmax = convert_amount_with_decimal(dmax_str.clone(), decimal)?.checked_to_u128()?;
     let tick = TickInfo::new(
       tick_id,
-      &name,
+      &tick_name,
       &msg.inscription_id.clone(),
       dmax,
       decimal,
@@ -302,13 +312,13 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
       .map_err(|e| Error::LedgerError(e))?;
   };
 
-  let erate_128 = erate.checked_to_u128()?;
+  let erate = erate.checked_to_u128()?;
   let pool = PoolInfo::new(
     &pid,
     &ptype,
     &msg.inscription_id.clone(),
     &stake,
-    erate_128,
+    erate,
     0,
     0,
     dmax,
@@ -327,7 +337,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     pid,
     ptype,
     stake,
-    erate: erate_128,
+    erate,
     dmax,
   }))
 }

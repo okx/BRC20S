@@ -151,7 +151,8 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
   ) -> Result<(), Self::Error>;
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn set_txid_to_receipts(&self, txid: &Txid, receipts: &BRC30Receipt) -> Result<(), Self::Error>;
+  fn add_transaction_receipt(&self, txid: &Txid, receipt: &BRC30Receipt)
+    -> Result<(), Self::Error>;
   fn save_transaction_receipts(
     &self,
     tx_id: &Txid,

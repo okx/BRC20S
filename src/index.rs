@@ -1306,10 +1306,10 @@ impl Index {
     let pool_info = brc30_db.get_pid_to_poolinfo(&brc30::Pid::from_str(pid)?)?;
 
     let dec = match pool_info.clone().unwrap().stake {
-      PledgedTick::NATIVE => NATIVE_TOKEN_DECIMAL,
+      PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
       PledgedTick::BRC30Tick(tickid) => brc30_db.get_tick_info(&tickid).unwrap().unwrap().decimal,
       PledgedTick::BRC20Tick(tick) => brc20_db.get_token_info(&tick).unwrap().unwrap().decimal,
-      PledgedTick::UNKNOWN => 0_u8,
+      PledgedTick::Unknown => 0_u8,
     };
 
     let block = self.height().unwrap().unwrap_or(Height(0)).n();

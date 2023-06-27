@@ -717,14 +717,19 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 
   // calculate reward
   let dec = get_stake_dec(&pool_info.stake, brc30_store, brc20_store);
-  reward::update_pool(&mut pool_info, context.blockheight, dec)?;
-  let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
-  reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
-  if amt > withdraw_reward.into() {
-    return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
+  if user_info.pending_reward >= amt.checked_to_u128()? {
+    user_info.pending_reward = user_info.pending_reward - amt.checked_to_u128()?;
+    user_info.minted = user_info.minted + amt.checked_to_u128()?;
+  } else {
+    reward::update_pool(&mut pool_info, context.blockheight, dec)?;
+    let withdraw_reward = reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
+    reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
+    if amt > withdraw_reward.into() {
+      return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
+    }
+    user_info.pending_reward = user_info.pending_reward - amt.checked_to_u128()?;
+    user_info.minted = user_info.minted + amt.checked_to_u128()?;
   }
-  user_info.pending_reward = user_info.pending_reward - amt.checked_to_u128()?;
-  user_info.minted = user_info.minted + amt.checked_to_u128()?;
 
   // update user info and pool info
   brc30_store

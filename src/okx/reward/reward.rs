@@ -3298,6 +3298,120 @@ mod tests {
     );
   }
 
+  #[test]
+  fn test_complex_pool_big_stake() {
+    const STAKED_DECIMAL: u8 = 18;
+    const ERATE_DECIMAL: u8 = 18;
+    let stake_base = get_base_decimal(STAKED_DECIMAL);
+    let erate_base = get_base_decimal(ERATE_DECIMAL);
+    let dmax = 100000000000 * erate_base;
+    let erate = 1 * erate_base;
+
+    let pid = Pid::from_str("Bca1DaBca1D#1").unwrap();
+    let mut pool = new_pool(&pid.clone(), PoolType::Fixed, erate, dmax);
+    let mut user_a = new_user(&pid);
+    let mut user_b = new_user(&pid);
+
+    // A deposit
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      1,
+      10000000 * stake_base,
+      true,
+      0,
+      10000000 * stake_base,
+      10000000 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+    // B deposit
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      1,
+      10000000 * stake_base,
+      true,
+      0,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      0,
+      Err(BRC30Error::NoStaked(
+        pid.to_lowercase().as_str().to_string(),
+      )),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // A, dothing
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      1001,
+      0,
+      false,
+      10000000000 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      20000000000 * erate_base,
+      Ok(10000000000 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // 10-B dothing
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      1001,
+      0,
+      false,
+      10000000000 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      20000000000 * erate_base,
+      Ok(10000000000 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // A, dothing
+    do_one_case(
+      &mut user_a,
+      &mut pool,
+      5001,
+      0,
+      false,
+      50000000000 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      100000000000 * erate_base,
+      Ok(40000000000 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+
+    // 10-B dothing
+    do_one_case(
+      &mut user_b,
+      &mut pool,
+      5001,
+      0,
+      false,
+      50000000000 * erate_base,
+      10000000 * stake_base,
+      20000000 * stake_base,
+      100000000000 * erate_base,
+      Ok(40000000000 * erate_base),
+      Ok(()),
+      STAKED_DECIMAL,
+    );
+  }
+
   fn do_one_precision(
     ptype: PoolType,
     stake1: Num,

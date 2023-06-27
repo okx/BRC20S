@@ -1587,7 +1587,7 @@ mod tests {
     );
 
     assert_eq!(
-      user1.pending_reward + user2.pending_reward + user3.reward,
+      user1.pending_reward + user2.pending_reward + user3.pending_reward,
       9999998
     );
   }
@@ -1747,7 +1747,7 @@ mod tests {
     );
 
     assert_eq!(
-      user1.pending_reward + user2.pending_reward + user3.reward,
+      user1.pending_reward + user2.pending_reward + user3.pending_reward,
       9999998
     );
   }
@@ -1944,7 +1944,7 @@ mod tests {
     );
 
     assert_eq!(
-      user1.pending_reward + user2.pending_reward + user3.reward,
+      user1.pending_reward + user2.pending_reward + user3.pending_reward,
       9999998
     );
   }
@@ -2142,7 +2142,7 @@ mod tests {
     );
 
     assert_eq!(
-      user1.pending_reward + user2.pending_reward + user3.reward,
+      user1.pending_reward + user2.pending_reward + user3.pending_reward,
       9999998
     );
   }

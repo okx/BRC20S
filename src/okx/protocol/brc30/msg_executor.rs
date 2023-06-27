@@ -28,9 +28,11 @@ use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use bitcoin::{Network, Txid};
+use log::info;
 use std::cmp;
 use std::str::FromStr;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct BRC30ExecutionMessage {
   pub(self) txid: Txid,
   pub(self) inscription_id: InscriptionId,
@@ -111,6 +113,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   brc30_store: &'a N,
   msg: &BRC30ExecutionMessage,
 ) -> Result<BRC30Receipt> {
+  info!("execute:{:?}", msg);
   let event = match &msg.op {
     BRC30Operation::Deploy(deploy) => {
       process_deploy(context, brc20_store, brc30_store, msg, deploy.clone())

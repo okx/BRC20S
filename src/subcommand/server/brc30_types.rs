@@ -1,7 +1,6 @@
 use super::*;
-use crate::okx::datastore::brc30;
-use crate::okx::datastore::brc30::BRC30Event;
-use std::convert::From;
+use crate::okx::datastore::brc30::{self, BRC30OperationType};
+use std::{convert::From, vec};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -74,7 +73,7 @@ pub struct BRC30Pool {
   pub staked: String,
   pub minted: String,
   pub dmax: String,
-  pub only: u64,
+  pub only: u8,
   pub acc_per_share: String,
   pub latest_update_block: u64,
   pub inscription_id: String,
@@ -219,12 +218,12 @@ pub struct AllBRC30Balance {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transferable {
-  pub inscriptions: Vec<Brc30Inscription>,
+  pub inscriptions: Vec<BRC30Inscription>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Brc30Inscription {
+pub struct BRC30Inscription {
   pub tick: Tick,
   pub inscription_id: String,
   pub inscription_number: u64,
@@ -232,7 +231,7 @@ pub struct Brc30Inscription {
   pub owner: String,
 }
 
-impl Brc30Inscription {
+impl BRC30Inscription {
   pub fn set_tick_name(&mut self, name: String) {
     self.tick.name = name;
   }
@@ -242,7 +241,7 @@ impl Brc30Inscription {
   }
 }
 
-impl From<&brc30::TransferableAsset> for Brc30Inscription {
+impl From<&brc30::TransferableAsset> for BRC30Inscription {
   fn from(asset: &brc30::TransferableAsset) -> Self {
     let tick = Tick {
       id: asset.tick_id.to_lowercase().hex(),
@@ -261,373 +260,351 @@ impl From<&brc30::TransferableAsset> for Brc30Inscription {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Events {
-  pub events: Vec<Brc30Event>,
+pub struct TxReceipts {
+  pub receipts: Vec<BRC30Receipt>,
   pub txid: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
 #[serde(rename_all = "camelCase")]
-pub enum Brc30Event {
+pub enum OperationType {
+  Deploy,
+  Mint,
+  Deposit,
+  Withdraw,
+  PassiveWithdraw,
+  InscribeTransfer,
+  Transfer,
+}
+impl From<BRC30OperationType> for OperationType {
+  fn from(op_type: BRC30OperationType) -> Self {
+    match op_type {
+      BRC30OperationType::Deploy => Self::Deploy,
+      BRC30OperationType::Mint => Self::Mint,
+      BRC30OperationType::Stake => Self::Deposit,
+      BRC30OperationType::UnStake => Self::Withdraw,
+      BRC30OperationType::PassiveUnStake => Self::PassiveWithdraw,
+      BRC30OperationType::InscribeTransfer => Self::InscribeTransfer,
+      BRC30OperationType::Transfer => Self::Transfer,
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BRC30Receipt {
+  pub op: OperationType,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_number: Option<i64>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub inscription_id: Option<InscriptionId>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub old_satpoint: Option<SatPoint>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub new_satpoint: Option<SatPoint>,
+  pub from: ScriptPubkey,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub to: Option<ScriptPubkey>,
+  pub valid: bool,
+  pub msg: String,
+  pub events: Vec<BRC30Event>,
+}
+
+impl BRC30Receipt {
+  pub(super) fn from(receipt: &brc30::BRC30Receipt, index: Arc<Index>) -> Result<Self> {
+    let mut result = Self {
+      op: receipt.op.clone().into(),
+      inscription_number: match receipt.op {
+        BRC30OperationType::PassiveUnStake => None,
+        _ => Some(receipt.inscription_number),
+      },
+      inscription_id: match receipt.op {
+        BRC30OperationType::PassiveUnStake => None,
+        _ => Some(receipt.inscription_id),
+      },
+      old_satpoint: match receipt.op {
+        BRC30OperationType::PassiveUnStake => None,
+        _ => Some(receipt.old_satpoint),
+      },
+      new_satpoint: match receipt.op {
+        BRC30OperationType::PassiveUnStake => None,
+        _ => Some(receipt.new_satpoint),
+      },
+      from: receipt.from.clone().into(),
+      to: match receipt.op {
+        BRC30OperationType::PassiveUnStake => None,
+        _ => Some(receipt.clone().to.into()),
+      },
+      valid: receipt.result.is_ok(),
+      msg: match &receipt.result {
+        Ok(_) => "ok".to_string(),
+        Err(e) => e.to_string(),
+      },
+      events: vec![],
+    };
+
+    if let Ok(events) = receipt.result.clone() {
+      let mut receipt_events = Vec::new();
+      for event in events.into_iter() {
+        receipt_events.push(match event {
+          brc30::BRC30Event::DeployTick(deploy_tick) => {
+            BRC30Event::DeployTick(DeployTickEvent::new(deploy_tick, receipt.to.clone().into()))
+          }
+          brc30::BRC30Event::DeployPool(deploy_pool) => BRC30Event::DeployPool(
+            DeployPoolEvent::new(deploy_pool, receipt.to.clone().into(), index.clone())?,
+          ),
+          brc30::BRC30Event::Deposit(deposit) => {
+            BRC30Event::Deposit(DepositEvent::new(deposit, receipt.to.clone().into()))
+          }
+          brc30::BRC30Event::Withdraw(withdraw) => {
+            BRC30Event::Withdraw(WithdrawEvent::new(withdraw, receipt.to.clone().into()))
+          }
+          brc30::BRC30Event::PassiveWithdraw(passive_withdraw) => BRC30Event::PassiveWithdraw(
+            PassiveWithdrawEvent::new(passive_withdraw, receipt.from.clone().into()),
+          ),
+          brc30::BRC30Event::Mint(mint) => {
+            BRC30Event::Mint(MintEvent::new(mint, receipt.to.clone().into()))
+          }
+          brc30::BRC30Event::InscribeTransfer(inscribe_transfer) => {
+            BRC30Event::InscribeTransfer(InscribeTransferEvent::new(
+              inscribe_transfer,
+              receipt.to.clone().into(),
+              index.clone(),
+            )?)
+          }
+          brc30::BRC30Event::Transfer(transfer) => BRC30Event::Transfer(TransferEvent::new(
+            transfer,
+            receipt.from.clone().into(),
+            receipt.to.clone().into(),
+            index.clone(),
+          )?),
+        });
+      }
+      result.events = receipt_events;
+    }
+    Ok(result)
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
+pub enum BRC30Event {
   DeployTick(DeployTickEvent),
   DeployPool(DeployPoolEvent),
   Deposit(DepositEvent),
   Withdraw(WithdrawEvent),
   PassiveWithdraw(PassiveWithdrawEvent),
-  Mint(Brc30MintEvent),
-  InscribeTransfer(Brc30InscribeTransferEvent),
-  Transfer(Brc30TransferEvent),
-  Error(Brc30ErrorEvent),
-}
-
-impl Brc30Event {
-  pub fn set_only(&mut self, only: i64) {
-    match self {
-      Self::DeployPool(d) => {
-        d.only = only;
-      }
-      _ => {}
-    }
-  }
-
-  pub fn set_earn(&mut self, id: String, name: String) {
-    match self {
-      Self::DeployPool(d) => {
-        d.earn.id = id;
-        d.earn.name = name;
-      }
-      _ => {}
-    }
-  }
+  Mint(MintEvent),
+  InscribeTransfer(InscribeTransferEvent),
+  Transfer(TransferEvent),
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeployTickEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub tick: Tick,
-  pub supply: String,
-  pub decimal: u8,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
+  tick: Tick,
+  supply: String,
+  decimal: u8,
+  deployer: ScriptPubkey,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeployPoolEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub pid: String,
-  pub stake: Stake,
-  pub earn: Earn,
-  pub pool: String,
-  pub erate: String,
-  pub only: i64,
-  pub dmax: String,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DepositEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub pid: String,
-  pub amount: String,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WithdrawEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub pid: String,
-  pub amount: String,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PassiveWithdraw {
-  pub pid: String,
-  pub amount: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PassiveWithdrawEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub passive_withdraw: Vec<PassiveWithdraw>,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Brc30MintEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub pid: String,
-  pub amount: String,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Brc30InscribeTransferEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub tick: Tick,
-  pub amount: String,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Brc30TransferEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub tick: Tick,
-  pub amount: String,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Brc30ErrorEvent {
-  #[serde(rename = "type")]
-  pub type_field: String,
-  pub pid: String,
-  pub inscription_number: i64,
-  pub inscription_id: String,
-  pub old_satpoint: String,
-  pub new_satpoint: String,
-  pub from: ScriptPubkey,
-  pub to: ScriptPubkey,
-  pub valid: bool,
-  pub msg: String,
-}
-
-impl From<&brc30::BRC30Receipt> for Brc30Event {
-  fn from(receipt: &brc30::BRC30Receipt) -> Self {
-    match { receipt.result.clone() } {
-      Ok(a) => match a {
-        BRC30Event::DeployTick(d) => Self::DeployTick(DeployTickEvent {
-          type_field: String::from("deployTick"),
-          tick: Tick {
-            id: d.tick_id.to_lowercase().hex(),
-            name: d.name.as_str().to_string(),
-          },
-          supply: d.supply.to_string(),
-          decimal: d.decimal,
-          inscription_number: receipt.inscription_number,
-          inscription_id: receipt.inscription_id.to_string(),
-          old_satpoint: receipt.old_satpoint.to_string(),
-          new_satpoint: receipt.new_satpoint.to_string(),
-          from: receipt.from.clone().into(),
-          to: receipt.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-        }),
-        BRC30Event::DeployPool(d) => Self::DeployPool(DeployPoolEvent {
-          type_field: String::from("deployPool"),
-          pid: d.pid.as_str().to_string(),
-          stake: Stake {
-            type_field: d.stake.to_type(),
-            tick: d.stake.to_string(),
-          },
-          earn: Earn {
-            id: "".to_string(),
-            name: "".to_string(),
-          },
-          pool: d.ptype.to_string(),
-          erate: d.erate.to_string(),
-          only: 0,
-          dmax: d.dmax.to_string(),
-          inscription_number: receipt.inscription_number,
-          inscription_id: receipt.inscription_id.to_string(),
-          old_satpoint: receipt.old_satpoint.to_string(),
-          new_satpoint: receipt.new_satpoint.to_string(),
-          from: receipt.from.clone().into(),
-          to: receipt.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-        }),
-
-        BRC30Event::Deposit(d) => Self::Deposit(DepositEvent {
-          type_field: String::from("deposit"),
-          pid: d.pid.as_str().to_string(),
-          amount: d.amt.to_string(),
-          inscription_number: receipt.inscription_number,
-          inscription_id: receipt.inscription_id.to_string(),
-          old_satpoint: receipt.old_satpoint.to_string(),
-          new_satpoint: receipt.new_satpoint.to_string(),
-          from: receipt.from.clone().into(),
-          to: receipt.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-        }),
-
-        BRC30Event::Withdraw(d) => Self::Withdraw(WithdrawEvent {
-          type_field: String::from("withdraw"),
-          pid: d.pid.as_str().to_string(),
-          amount: d.amt.to_string(),
-          inscription_number: receipt.inscription_number,
-          inscription_id: receipt.inscription_id.to_string(),
-          old_satpoint: receipt.old_satpoint.to_string(),
-          new_satpoint: receipt.new_satpoint.to_string(),
-          from: receipt.from.clone().into(),
-          to: receipt.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-        }),
-
-        BRC30Event::PassiveWithdraw(d) => Self::PassiveWithdraw(PassiveWithdrawEvent {
-          type_field: String::from("passiveWithdraw"),
-          passive_withdraw: d
-            .pid
-            .iter()
-            .map(|(x, y)| PassiveWithdraw {
-              pid: x.as_str().to_string(),
-              amount: y.to_string(),
-            })
-            .collect(),
-          inscription_number: receipt.inscription_number,
-          inscription_id: receipt.inscription_id.to_string(),
-          old_satpoint: receipt.old_satpoint.to_string(),
-          new_satpoint: receipt.new_satpoint.to_string(),
-          from: receipt.from.clone().into(),
-          to: receipt.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-        }),
-
-        BRC30Event::Mint(d) => Self::Mint(Brc30MintEvent {
-          type_field: String::from("mint"),
-          pid: d.pool_id.as_str().to_string(),
-          amount: d.amt.to_string(),
-          inscription_number: receipt.inscription_number,
-          inscription_id: receipt.inscription_id.to_string(),
-          old_satpoint: receipt.old_satpoint.to_string(),
-          new_satpoint: receipt.new_satpoint.to_string(),
-          from: receipt.from.clone().into(),
-          to: receipt.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-        }),
-
-        BRC30Event::InscribeTransfer(d) => Self::InscribeTransfer(Brc30InscribeTransferEvent {
-          type_field: String::from("inscribeTransfer"),
-          tick: Tick {
-            id: d.tick_id.to_lowercase().hex(),
-            name: d.tick_id.to_lowercase().hex(),
-          },
-          amount: d.amt.to_string(),
-          inscription_number: receipt.inscription_number,
-          inscription_id: receipt.inscription_id.to_string(),
-          old_satpoint: receipt.old_satpoint.to_string(),
-          new_satpoint: receipt.new_satpoint.to_string(),
-          from: receipt.from.clone().into(),
-          to: receipt.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-        }),
-
-        BRC30Event::Transfer(d) => Self::Transfer(Brc30TransferEvent {
-          type_field: String::from("transfer"),
-          tick: Tick {
-            id: d.tick_id.to_lowercase().hex(),
-            name: d.tick_id.to_lowercase().hex(),
-          },
-          amount: d.amt.to_string(),
-          inscription_number: receipt.inscription_number,
-          inscription_id: receipt.inscription_id.to_string(),
-          old_satpoint: receipt.old_satpoint.to_string(),
-          new_satpoint: receipt.new_satpoint.to_string(),
-          from: receipt.from.clone().into(),
-          to: receipt.to.clone().into(),
-          valid: true,
-          msg: "ok".to_string(),
-        }),
+impl DeployTickEvent {
+  pub(super) fn new(event: brc30::DeployTickEvent, deployer: ScriptPubkey) -> Self {
+    Self {
+      tick: Tick {
+        id: event.tick_id.to_lowercase().hex(),
+        name: event.name.as_str().to_string(),
       },
-      Err(e) => Self::Error(Brc30ErrorEvent {
-        type_field: receipt.op.to_string(),
-        pid: "".to_string(),
-        inscription_number: receipt.inscription_number,
-        inscription_id: receipt.inscription_id.to_string(),
-        old_satpoint: receipt.old_satpoint.to_string(),
-        new_satpoint: receipt.new_satpoint.to_string(),
-        from: receipt.from.clone().into(),
-        to: receipt.to.clone().into(),
-        valid: false,
-        msg: e.to_string(),
-      }),
+      supply: event.supply.to_string(),
+      decimal: event.decimal,
+      deployer,
     }
   }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BRC30BlockEvents {
-  pub block: Vec<Events>,
+pub struct DeployPoolEvent {
+  pid: String,
+  stake: Stake,
+  earn: Earn,
+  pool: String,
+  erate: String,
+  only: u8,
+  dmax: String,
+  deployer: ScriptPubkey,
+}
+
+impl DeployPoolEvent {
+  pub(super) fn new(
+    event: brc30::DeployPoolEvent,
+    deployer: ScriptPubkey,
+    index: Arc<Index>,
+  ) -> Result<Self> {
+    let parts: Vec<&str> = event.pid.as_str().split("#").collect();
+    let tick_info = index
+      .brc30_tick_info(&parts[0].to_string())?
+      .ok_or(anyhow!("tick not found, pid: {}", event.pid.as_str()))?;
+
+    Ok(Self {
+      pid: event.pid.as_str().to_string(),
+      stake: Stake {
+        type_field: event.stake.to_type(),
+        tick: event.stake.to_string(),
+      },
+      earn: Earn {
+        id: tick_info.tick_id.hex().to_string(),
+        name: tick_info.name.as_str().to_string(),
+      },
+      pool: event.ptype.to_string(),
+      erate: event.erate.to_string(),
+      only: event.only.into(),
+      dmax: event.dmax.to_string(),
+      deployer,
+    })
+  }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DepositEvent {
+  pid: String,
+  amount: String,
+  owner: ScriptPubkey,
+}
+
+impl DepositEvent {
+  pub(super) fn new(event: brc30::DepositEvent, owner: ScriptPubkey) -> Self {
+    Self {
+      pid: event.pid.as_str().to_string(),
+      amount: event.amt.to_string(),
+      owner,
+    }
+  }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WithdrawEvent {
+  pid: String,
+  amount: String,
+  owner: ScriptPubkey,
+}
+
+impl WithdrawEvent {
+  pub(super) fn new(event: brc30::WithdrawEvent, owner: ScriptPubkey) -> Self {
+    Self {
+      pid: event.pid.as_str().to_string(),
+      amount: event.amt.to_string(),
+      owner,
+    }
+  }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PassiveWithdrawEvent {
+  pid: String,
+  amount: String,
+  owner: ScriptPubkey,
+}
+
+impl PassiveWithdrawEvent {
+  pub(super) fn new(event: brc30::PassiveWithdrawEvent, owner: ScriptPubkey) -> Self {
+    Self {
+      pid: event.pid.as_str().to_string(),
+      amount: event.amt.to_string(),
+      owner,
+    }
+  }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MintEvent {
+  pid: String,
+  amount: String,
+  owner: ScriptPubkey,
+}
+
+impl MintEvent {
+  pub(super) fn new(event: brc30::MintEvent, owner: ScriptPubkey) -> Self {
+    Self {
+      pid: event.pid.as_str().to_string(),
+      amount: event.amt.to_string(),
+      owner,
+    }
+  }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InscribeTransferEvent {
+  tick: Tick,
+  amount: String,
+  owner: ScriptPubkey,
+}
+
+impl InscribeTransferEvent {
+  pub(super) fn new(
+    event: brc30::InscribeTransferEvent,
+    owner: ScriptPubkey,
+    index: Arc<Index>,
+  ) -> Result<Self> {
+    let tick_info = index
+      .brc30_tick_info(&event.tick_id.hex())?
+      .ok_or(anyhow!("tick not found, tid: {}", event.tick_id.hex()))?;
+
+    Ok(Self {
+      tick: Tick {
+        id: event.tick_id.hex(),
+        name: tick_info.name.as_str().to_string(),
+      },
+      amount: event.amt.to_string(),
+      owner,
+    })
+  }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransferEvent {
+  tick: Tick,
+  amount: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  msg: Option<String>,
+  from: ScriptPubkey,
+  to: ScriptPubkey,
+}
+
+impl TransferEvent {
+  pub(super) fn new(
+    event: brc30::TransferEvent,
+    from: ScriptPubkey,
+    to: ScriptPubkey,
+    index: Arc<Index>,
+  ) -> Result<Self> {
+    let tick_info = index
+      .brc30_tick_info(&event.tick_id.hex())?
+      .ok_or(anyhow!("tick not found, tid: {}", event.tick_id.hex()))?;
+    Ok(Self {
+      tick: Tick {
+        id: event.tick_id.hex(),
+        name: tick_info.name.as_str().to_string(),
+      },
+      amount: event.amt.to_string(),
+      msg: event.msg.clone(),
+      from,
+      to,
+    })
+  }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BRC30BlockReceipts {
+  pub block: Vec<TxReceipts>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -637,4 +614,150 @@ pub struct UserReward {
   pub pending_reward: String,
   #[serde(rename = "block_num")]
   pub block_num: String,
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::{
+    okx::datastore::{
+      brc30::{BRC30OperationType, PledgedTick, TickId},
+      ScriptKey,
+    },
+    txid, InscriptionId, SatPoint,
+  };
+  use bitcoin::{Address, Network};
+  use std::str::FromStr;
+
+  #[test]
+  fn serialize_brc30_receipts() {
+    let receipt = BRC30Receipt {
+      inscription_id: Some(InscriptionId {
+        txid: txid(1),
+        index: 0xFFFFFFFF,
+      }),
+      inscription_number: Some(10),
+      op: BRC30OperationType::Deploy.into(),
+      old_satpoint: Some(
+        SatPoint::from_str(
+          "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+        )
+        .unwrap(),
+      ),
+      new_satpoint: Some(
+        SatPoint::from_str(
+          "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+        )
+        .unwrap(),
+      ),
+      from: ScriptKey::from_script(
+        &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .script_pubkey(),
+        Network::Bitcoin,
+      )
+      .into(),
+      to: Some(
+        ScriptKey::from_script(
+          &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+            .unwrap()
+            .script_pubkey(),
+          Network::Bitcoin,
+        )
+        .into(),
+      ),
+      valid: true,
+      msg: "ok".to_string(),
+      events: vec![
+        BRC30Event::DeployTick(DeployTickEvent {
+          tick: Tick {
+            id: "aabbccddee".to_string(),
+            name: "abcdef".to_string(),
+          },
+          supply: "1000000".to_string(),
+          decimal: 18,
+          deployer: ScriptKey::from_script(
+            &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+              .unwrap()
+              .script_pubkey(),
+            Network::Bitcoin,
+          )
+          .into(),
+        }),
+        BRC30Event::DeployPool(DeployPoolEvent {
+          pid: "aabbccddee#1f".to_string(),
+          stake: Stake {
+            type_field: PledgedTick::BRC30Tick(TickId::from_str("aabbccddee").unwrap()).to_type(),
+            tick: "aabbccddee".to_string(),
+          },
+          earn: Earn {
+            id: "aabbccddee".to_string(),
+            name: "abcdef".to_string(),
+          },
+          pool: "pool".to_string(),
+          erate: "1000000".to_string(),
+          only: 0,
+          dmax: "10000".to_string(),
+          deployer: ScriptKey::from_script(
+            &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+              .unwrap()
+              .script_pubkey(),
+            Network::Bitcoin,
+          )
+          .into(),
+        }),
+      ],
+    };
+    pretty_assert_eq!(
+      serde_json::to_string_pretty(&receipt).unwrap(),
+      r#"{
+  "op": "deploy",
+  "inscriptionNumber": 10,
+  "inscriptionId": "1111111111111111111111111111111111111111111111111111111111111111i4294967295",
+  "oldSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+  "newSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+  "from": {
+    "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
+  },
+  "to": {
+    "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
+  },
+  "valid": true,
+  "msg": "ok",
+  "events": [
+    {
+      "type": "deployTick",
+      "tick": {
+        "id": "aabbccddee",
+        "name": "abcdef"
+      },
+      "supply": "1000000",
+      "decimal": 18,
+      "deployer": {
+        "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
+      }
+    },
+    {
+      "type": "deployPool",
+      "pid": "aabbccddee#1f",
+      "stake": {
+        "type": "BRC20-S",
+        "tick": "aabbccddee"
+      },
+      "earn": {
+        "id": "aabbccddee",
+        "name": "abcdef"
+      },
+      "pool": "pool",
+      "erate": "1000000",
+      "only": 0,
+      "dmax": "10000",
+      "deployer": {
+        "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
+      }
+    }
+  ]
+}"#
+    )
+  }
 }

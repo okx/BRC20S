@@ -15,20 +15,6 @@ pub enum BRC30OperationType {
   Transfer,
 }
 
-impl BRC30OperationType {
-  pub fn to_string(&self) -> String {
-    match self {
-      BRC30OperationType::Deploy => "deployPool".to_string(),
-      BRC30OperationType::Mint => "mint".to_string(),
-      BRC30OperationType::Stake => "deposit".to_string(),
-      BRC30OperationType::UnStake => "withdraw".to_string(),
-      BRC30OperationType::PassiveUnStake => "passiveWithdraw".to_string(),
-      BRC30OperationType::InscribeTransfer => "inscribeTransfer".to_string(),
-      BRC30OperationType::Transfer => "transfer".to_string(),
-    }
-  }
-}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BRC30Receipt {
   pub inscription_id: InscriptionId,
@@ -38,7 +24,7 @@ pub struct BRC30Receipt {
   pub op: BRC30OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
-  pub result: Result<BRC30Event, BRC30Error>,
+  pub result: Result<Vec<BRC30Event>, BRC30Error>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -51,56 +37,6 @@ pub enum BRC30Event {
   Mint(MintEvent),
   InscribeTransfer(InscribeTransferEvent),
   Transfer(TransferEvent),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum EventType {
-  DeployTick,
-  DeployPool,
-  Deposit,
-  Withdraw,
-  PassiveWithdraw,
-  Mint,
-  InscribeTransfer,
-  Transfer,
-}
-
-impl Serialize for EventType {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    match self {
-      Self::DeployTick => "deployTick".serialize(serializer),
-      Self::DeployPool => "deployPool".serialize(serializer),
-      Self::Deposit => "deposit".serialize(serializer),
-      Self::Withdraw => "withdraw".serialize(serializer),
-      Self::PassiveWithdraw => "passive_withdraw".serialize(serializer),
-      Self::Mint => "mint".serialize(serializer),
-      Self::InscribeTransfer => "inscribeTransfer".serialize(serializer),
-      Self::Transfer => "transfer".serialize(serializer),
-    }
-  }
-}
-
-impl<'de> Deserialize<'de> for EventType {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    match String::deserialize(deserializer)?.as_str() {
-      "deployTick" => Ok(Self::DeployTick),
-      "deployPool" => Ok(Self::DeployPool),
-      "deposit" => Ok(Self::Deposit),
-      "withdraw" => Ok(Self::Withdraw),
-      "passive_withdraw" => Ok(Self::PassiveWithdraw),
-      "mint" => Ok(Self::Mint),
-      "inscribeTransfer" => Ok(Self::InscribeTransfer),
-      "transfer" => Ok(Self::Transfer),
-      _ => Err("no such event type"),
-    }
-    .map_err(|e| de::Error::custom(format!("deserialize event type error: {}", e)))
-  }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -118,30 +54,31 @@ pub struct DeployPoolEvent {
   pub stake: PledgedTick,
   pub erate: u128,
   pub dmax: u128,
+  pub only: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct DepositEvent {
-  pub(crate) pid: Pid,
-  pub(crate) amt: u128,
-  pub(crate) reward: u128,
+  pub pid: Pid,
+  pub amt: u128,
+  pub reward: u128,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct WithdrawEvent {
-  pub(crate) pid: Pid,
-  pub(crate) amt: u128,
-  pub(crate) initiative: bool,
+  pub pid: Pid,
+  pub amt: u128,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PassiveWithdrawEvent {
-  pub(crate) pid: Vec<(Pid, u128)>,
+  pub pid: Pid,
+  pub amt: u128,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct MintEvent {
-  pub pool_id: Pid,
+  pub pid: Pid,
   pub amt: u128,
 }
 
@@ -187,11 +124,20 @@ mod tests {
       to: ScriptKey::Address(addr.clone()),
       result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
     };
-    println!("{}", serde_json::to_string_pretty(&action_receipt).unwrap());
     assert_eq!(
       serde_json::to_string_pretty(&action_receipt).unwrap(),
       r##"{
   "inscription_id": "9991111111111111111111111111111111111111111111111111111111111111i1",
+  "inscription_number": 0,
+  "old_satpoint": "0000000000000000000000000000000000000000000000000000000000000000:4294967295:0",
+  "new_satpoint": "0000000000000000000000000000000000000000000000000000000000000000:4294967295:0",
+  "op": "Deploy",
+  "from": {
+    "Address": "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"
+  },
+  "to": {
+    "Address": "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"
+  },
   "result": {
     "Err": {
       "InvalidTickLen": "abcde"

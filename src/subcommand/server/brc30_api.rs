@@ -485,7 +485,7 @@ pub(crate) async fn brc30_transferable(
     inscriptions: all_transfer
       .iter()
       .map(|asset| {
-        let mut inscription = Brc30Inscription::from(asset);
+        let mut inscription = BRC30Inscription::from(asset);
 
         let tick_info = &index
           .brc30_tick_info(&asset.tick_id.hex().to_string())
@@ -524,7 +524,7 @@ pub(crate) async fn brc30_all_transferable(
     inscriptions: all
       .iter()
       .map(|asset| {
-        let mut inscription = Brc30Inscription::from(asset);
+        let mut inscription = BRC30Inscription::from(asset);
 
         let tick_info = &index
           .brc30_tick_info(&asset.tick_id.hex().to_string())
@@ -544,143 +544,88 @@ pub(crate) async fn brc30_all_transferable(
   })))
 }
 
-// 3.4.10 /brc30/tx/:txid/events
-pub(crate) async fn brc30_txid_events(
+// 3.4.10 /brc30/tx/:txid/receipts
+pub(crate) async fn brc30_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
-) -> ApiResult<Events> {
-  log::debug!("rpc: get brc30_txid_events: {}", txid);
+) -> ApiResult<TxReceipts> {
+  log::debug!("rpc: get brc30_txid_receipts: {}", txid);
   let txid = Txid::from_str(&txid).unwrap();
 
-  let all_receipt = index.brc30_txid_events(&txid)?;
+  let all_receipt = index.brc30_txid_receipts(&txid)?;
 
-  log::debug!("rpc: get brc30_txid_events: {:?}", all_receipt);
+  log::debug!("rpc: get brc30_txid_receipts: {:?}", all_receipt);
 
-  Ok(Json(ApiResponse::ok(Events {
-    events: all_receipt
-      .iter()
-      .map(|receipt| {
-        let mut event = Brc30Event::from(receipt);
-        let pid = match event.clone() {
-          Brc30Event::DeployPool(d) => d.pid,
-          _ => "".to_string(),
-        };
+  let mut receipts = Vec::new();
+  for receipt in all_receipt.iter() {
+    match brc30_types::BRC30Receipt::from(receipt, index.clone()) {
+      Ok(receipt) => {
+        receipts.push(receipt);
+      }
+      Err(error) => {
+        return Err(ApiError::internal("failed to get transaction receipts"));
+      }
+    }
+  }
 
-        if pid.len() > 0 {
-          let parts: Vec<&str> = pid.split("#").collect();
-          let tick_info = &index
-            .brc30_tick_info(&parts[0].to_string())
-            .unwrap()
-            .unwrap();
-
-          event.set_earn(
-            tick_info.tick_id.hex().to_string(),
-            tick_info.name.as_str().to_string(),
-          );
-
-          let pool_info = &index.brc30_pool_info(&pid).unwrap().unwrap();
-          event.set_only(if pool_info.only { 1 } else { 0 });
-        }
-
-        event
-      })
-      .collect(),
+  Ok(Json(ApiResponse::ok(TxReceipts {
+    receipts,
     txid: txid.to_string(),
   })))
 }
 
-//  /brc30/debug/tx/:txid/events
-pub(crate) async fn brc30_debug_txid_events(
+//  /brc30/debug/tx/:txid/receipts
+pub(crate) async fn brc30_debug_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
 ) -> ApiResult<Vec<BRC30Receipt>> {
-  log::debug!("rpc: get brc30_txid_events: {}", txid);
+  log::debug!("rpc: get brc30_txid_receipts: {}", txid);
   let txid = Txid::from_str(&txid).unwrap();
 
-  let all_receipt = index.brc30_txid_events(&txid)?;
+  let all_receipt = index.brc30_txid_receipts(&txid)?;
 
-  log::debug!("rpc: get brc30_txid_events: {:?}", all_receipt);
+  log::debug!("rpc: get brc30_txid_receipts: {:?}", all_receipt);
 
   Ok(Json(ApiResponse::ok(all_receipt)))
 }
 
-// 3.4.11 /brc30/block/:blockhash/events
-pub(crate) async fn brc30_block_events(
+// 3.4.11 /brc30/block/:blockhash/receipts
+pub(crate) async fn brc30_block_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,
-) -> ApiResult<BRC30BlockEvents> {
-  log::debug!("rpc: get brc30_block_events: {}", block_hash);
+) -> ApiResult<BRC30BlockReceipts> {
+  log::debug!("rpc: get brc30_block_receipts: {}", block_hash);
 
   let hash =
     bitcoin::BlockHash::from_str(&block_hash).map_err(|e| ApiError::bad_request(e.to_string()))?;
-  let block_event = index
-    .brc30_block_events(&hash)?
+  let block_receipts = index
+    .brc30_block_receipts(&hash)?
     .ok_or_api_not_found("block not found")?;
 
-  log::debug!("rpc: get brc30_block_events: {:?}", block_event);
-  Ok(Json(ApiResponse::ok(BRC30BlockEvents {
-    block: block_event
-      .iter()
-      .map(|(tx_id, receipt)| Events {
-        events: receipt
-          .iter()
-          .map(|receipt| {
-            let mut event = Brc30Event::from(receipt);
-            let pid = match event.clone() {
-              Brc30Event::DeployPool(d) => d.pid,
-              _ => "".to_string(),
-            };
+  log::debug!("rpc: get brc30_block_receipts: {:?}", block_receipts);
 
-            if pid.len() > 0 {
-              let parts: Vec<&str> = pid.split("#").collect();
-              let tick_info = &index
-                .brc30_tick_info(&parts[0].to_string())
-                .unwrap()
-                .unwrap();
+  let mut api_block_receipts = Vec::new();
+  for (txid, tx_receipts) in block_receipts.iter() {
+    let mut api_tx_receipts = Vec::new();
+    for receipt in tx_receipts.iter() {
+      match brc30_types::BRC30Receipt::from(receipt, index.clone()) {
+        Ok(receipt) => {
+          api_tx_receipts.push(receipt);
+        }
+        Err(error) => {
+          return Err(ApiError::internal(format!(
+            "failed to get transaction receipts for {txid}, error: {error}"
+          )));
+        }
+      }
+    }
+    api_block_receipts.push(TxReceipts {
+      receipts: api_tx_receipts,
+      txid: txid.to_string(),
+    });
+  }
 
-              event.set_earn(
-                tick_info.tick_id.hex().to_string(),
-                tick_info.name.as_str().to_string(),
-              );
-
-              let pool_info = &index.brc30_pool_info(&pid).unwrap().unwrap();
-              event.set_only(if pool_info.only { 1 } else { 0 });
-            }
-
-            event
-          })
-          .collect(),
-        txid: tx_id.to_string(),
-      })
-      .collect(),
-  })))
-}
-
-pub(crate) async fn brc30_debug_block_events(
-  Extension(index): Extension<Arc<Index>>,
-  Path(num): Path<String>,
-) -> ApiResult<BRC30BlockEvents> {
-  log::debug!("rpc: get brc30_block_events: {}", num);
-
-  let block = index
-    .get_block_by_height(num.parse::<u64>().unwrap())?
-    .ok_or_api_not_found("block not found")?;
-
-  let hash = bitcoin::BlockHash::from_str(&block.block_hash().to_string().as_str())
-    .map_err(|e| ApiError::bad_request(e.to_string()))?;
-  let block_event = index
-    .brc30_block_events(&hash)?
-    .ok_or_api_not_found("block not found")?;
-
-  log::debug!("rpc: get block hash: {:?}", hash.to_string());
-  log::debug!("rpc: get brc30_block_events: {:?}", block_event);
-  Ok(Json(ApiResponse::ok(BRC30BlockEvents {
-    block: block_event
-      .iter()
-      .map(|(tx_id, receipt)| Events {
-        events: receipt.iter().map(|e| e.into()).collect(),
-        txid: tx_id.to_string(),
-      })
-      .collect(),
+  Ok(Json(ApiResponse::ok(BRC30BlockReceipts {
+    block: api_block_receipts,
   })))
 }

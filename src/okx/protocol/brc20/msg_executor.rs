@@ -22,7 +22,6 @@ use crate::{
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use bitcoin::Network;
-use log::info;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -89,8 +88,8 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   ord_store: &'a O,
   brc20_store: &'a N,
   msg: &BRC20ExecutionMessage,
-) -> Result<BRC20Receipt> {
-  info!("execute:{:?}", msg);
+) -> Result<Option<BRC20Receipt>> {
+  log::debug!("BRC20 execute message: {:?}", msg);
   let event = match &msg.op {
     BRC20Operation::Deploy(deploy) => {
       process_deploy(context, ord_store, brc20_store, &msg, deploy.clone())
@@ -122,11 +121,12 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     },
   };
 
+  log::debug!("BRC20 message receipt: {:?}", receipt);
   brc20_store
     .add_transaction_receipt(&msg.txid, &receipt)
     .map_err(|e| anyhow!("failed to add transaction receipt to state! error: {e}"))?;
 
-  Ok(receipt)
+  Ok(Some(receipt))
 }
 
 fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(

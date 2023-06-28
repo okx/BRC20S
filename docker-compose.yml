@@ -6,7 +6,7 @@ services:
     image: "okexchain/brc20s:0.0.1-no-rollback"
     ports:
       - "${ORD_HTTP_PORT}:80"
-    command: --log-level=$ORD_LOG_LEVEL --rpc-url $ORD_RPC_URL --bitcoin-rpc-user $ORD_BITCOIN_RPC_USER --bitcoin-rpc-pass $ORD_BITCOIN_RPC_PASS --height-limit $ORD_HEIGHT_LIMIT --data-dir /data --regtest server
+    command: --log-level=$ORD_LOG_LEVEL --rpc-url $ORD_RPC_URL --bitcoin-rpc-user $ORD_BITCOIN_RPC_USER --bitcoin-rpc-pass $ORD_BITCOIN_RPC_PASS --height-limit $ORD_HEIGHT_LIMIT --data-dir /data server
     volumes:
       - $ORD_DATA_DIR:/data:Z
 
@@ -15,6 +15,6 @@ services:
     image: "okexchain/brc20s:0.0.1-rollback"
     ports:
       - "${ORD_HTTP_PORT}:80"
-    command: --log-level=$ORD_LOG_LEVEL --rpc-url $ORD_RPC_URL --bitcoin-rpc-user $ORD_BITCOIN_RPC_USER --bitcoin-rpc-pass $ORD_BITCOIN_RPC_PASS --data-dir /data --regtest server
+    command: --log-level=$ORD_LOG_LEVEL --rpc-url $ORD_RPC_URL --bitcoin-rpc-user $ORD_BITCOIN_RPC_USER --bitcoin-rpc-pass $ORD_BITCOIN_RPC_PASS --data-dir /data server
     volumes:
       - $ORD_DATA_DIR:/data:Z

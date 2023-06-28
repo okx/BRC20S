@@ -28,6 +28,7 @@ use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use bitcoin::{Network, Txid};
+use log::log;
 use std::cmp;
 use std::str::FromStr;
 
@@ -149,8 +150,15 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
         passive_unstake.clone(),
       );
       match &events {
-        Ok(events) if !events.is_empty() => {}
-        _ => is_save_receipt = false,
+        Ok(events) => {
+          if events.is_empty() {
+            is_save_receipt = false
+          }
+        }
+        Err(e) => {
+          log::error!("passive failed:{:?}", e.to_string());
+          is_save_receipt = false
+        }
       };
       events
     }
@@ -542,7 +550,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   return Ok(BRC30Event::Deposit(DepositEvent {
     pid: pool_id,
     amt: amount.checked_to_u128()?,
-    reward,
+    period_settlement_reward: reward,
   }));
 }
 
@@ -655,6 +663,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   return Ok(BRC30Event::Withdraw(WithdrawEvent {
     pid: pool_id,
     amt: amount.checked_to_u128()?,
+    period_settlement_reward: reward,
   }));
 }
 

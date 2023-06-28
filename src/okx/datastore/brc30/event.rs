@@ -61,13 +61,14 @@ pub struct DeployPoolEvent {
 pub struct DepositEvent {
   pub pid: Pid,
   pub amt: u128,
-  pub reward: u128,
+  pub period_settlement_reward: u128,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct WithdrawEvent {
   pub pid: Pid,
   pub amt: u128,
+  pub period_settlement_reward: u128,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

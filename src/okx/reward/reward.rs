@@ -43,7 +43,10 @@ pub fn update_pool(
   let pool_stake = Into::<Num>::into(pool.staked);
   let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
 
-  info!("  {}", pool);
+  info!(
+    "  {},block_num:{},staked_decimal:{}",
+    pool, block_num, staked_decimal
+  );
   //1 check block num, minted, stake
   if block_num <= pool.last_update_block {
     info!("update_pool out");
@@ -61,6 +64,7 @@ pub fn update_pool(
   if pool.ptype == PoolType::Pool {
     if pool_minted.checked_add(&rewards)? > pool_dmax {
       rewards = pool_dmax.checked_sub(&pool_minted)?;
+      info!("  beyond minted, new rewards:{}", rewards);
     }
     pool.minted = pool_minted.checked_add(&rewards)?.truncate_to_u128()?;
 
@@ -86,6 +90,10 @@ pub fn update_pool(
         .checked_mul(&get_num_by_decimal(staked_decimal)?)?
         .checked_div(&pool_stake)?
         .checked_div(&get_per_share_multiplier())?;
+      info!(
+        "  beyond minted, new estimate_reward:{}, rewards:{}",
+        estimate_reward, rewards
+      );
     }
 
     pool.minted = pool_minted

@@ -562,7 +562,7 @@ impl From<&brc30::BRC30Receipt> for Brc30Event {
 
         BRC30Event::Mint(d) => Self::Mint(Brc30MintEvent {
           type_field: String::from("mint"),
-          pid: d.tick_id.to_lowercase().hex().to_string(),
+          pid: d.pool_id.as_str().to_string(),
           amount: d.amt.to_string(),
           inscription_number: receipt.inscription_number,
           inscription_id: receipt.inscription_id.to_string(),

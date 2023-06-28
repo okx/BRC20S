@@ -138,7 +138,11 @@ impl Num {
   }
 
   pub fn is_positive_integer(&self) -> bool {
-    self.0.is_positive() && self.scale() == 0
+    self.0.is_positive() && self.0.is_integer()
+  }
+
+  pub fn is_integer(&self) -> bool {
+    self.0.is_integer()
   }
 
   pub fn is_positive(&self) -> bool {
@@ -210,7 +214,9 @@ impl<'de> Deserialize<'de> for Num {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::okx::protocol::brc30::params::BIGDECIMAL_TEN;
   use bigdecimal::FromPrimitive;
+
   #[test]
   fn test_num_from_str2() {
     assert_eq!(
@@ -614,5 +620,14 @@ mod tests {
       Num::from_str("100E2").unwrap_err(),
       BRC30Error::InvalidNum("100E2".to_string())
     );
+  }
+
+  #[test]
+  fn test_checked_to_mul() {
+    let num = Num::from_str("0.01").unwrap();
+    let base = BIGDECIMAL_TEN.checked_powu(18_u64).unwrap();
+    let amt = num.checked_mul(&base).unwrap();
+    let is_integer = amt.is_integer();
+    println!("checked_mul {:?}, {}", amt, is_integer);
   }
 }

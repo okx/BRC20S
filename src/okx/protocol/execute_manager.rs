@@ -42,18 +42,22 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         self.brc20_store,
         &BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
       )
-      .map(|v| Receipt::BRC20(v))?,
+      .map(|v| v.map(Receipt::BRC20))?,
       Message::BRC30(msg) => brc30::execute(
         context,
         self.brc20_store,
         self.brc30_store,
         &BRC30ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
       )
-      .map(|v| Receipt::BRC30(v))?,
+      .map(|v| v.map(Receipt::BRC30))?,
+    };
+
+    if receipt.is_none() {
+      return Ok(());
     };
 
     // convert receipt to internal call message
-    match receipt {
+    match receipt.unwrap() {
       Receipt::BRC20(brc20_receipt) => {
         match brc20_receipt.result {
           Ok(BRC20Event::Transfer(brc20_transfer)) => {
@@ -80,8 +84,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                       &passive_msg,
                       context.network,
                     )?,
-                  )
-                  .map(|v| Receipt::BRC30(v))?;
+                  )?;
                 }
               }
               Err(e) => {
@@ -95,36 +98,38 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
       }
       Receipt::BRC30(brc30_recipt) => {
         match brc30_recipt.result {
-          Ok(BRC30Event::Transfer(brc30_transfer)) => {
-            let ptick = PledgedTick::BRC30Tick(brc30_transfer.tick_id.clone());
-            match convert_pledged_tick_without_decimal(
-              &ptick,
-              brc30_transfer.amt,
-              self.brc30_store,
-              self.brc20_store,
-            ) {
-              Ok(amt) => {
-                let passive_unstake = PassiveUnStake {
-                  stake: ptick.to_string(),
-                  amount: amt.to_string(),
-                };
-                if let Message::BRC30(old_brc30_msg) = msg {
-                  let passive_msg = convert_brc30msg_to_brc30msg(old_brc30_msg, passive_unstake);
-                  brc30::execute(
-                    context,
-                    self.brc20_store,
-                    self.brc30_store,
-                    &BRC30ExecutionMessage::from_message(
-                      self.ord_store,
-                      &passive_msg,
-                      context.network,
-                    )?,
-                  )
-                  .map(|v| Receipt::BRC30(v))?;
+          Ok(events) => {
+            let mut events = events.into_iter();
+            while let Some(BRC30Event::Transfer(brc30_transfer)) = events.next() {
+              let ptick = PledgedTick::BRC30Tick(brc30_transfer.tick_id.clone());
+              match convert_pledged_tick_without_decimal(
+                &ptick,
+                brc30_transfer.amt,
+                self.brc30_store,
+                self.brc20_store,
+              ) {
+                Ok(amt) => {
+                  let passive_unstake = PassiveUnStake {
+                    stake: ptick.to_string(),
+                    amount: amt.to_string(),
+                  };
+                  if let Message::BRC30(old_brc30_msg) = msg {
+                    let passive_msg = convert_brc30msg_to_brc30msg(old_brc30_msg, passive_unstake);
+                    brc30::execute(
+                      context,
+                      self.brc20_store,
+                      self.brc30_store,
+                      &BRC30ExecutionMessage::from_message(
+                        self.ord_store,
+                        &passive_msg,
+                        context.network,
+                      )?,
+                    )?;
+                  }
                 }
-              }
-              Err(e) => {
-                log::error!("brc30 receipt failed:{}", e);
+                Err(e) => {
+                  log::error!("brc30 receipt failed:{}", e);
+                }
               }
             }
           }

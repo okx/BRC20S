@@ -1373,14 +1373,14 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn brc30_txid_events(&self, txid: &Txid) -> Result<Vec<brc30::BRC30Receipt>> {
+  pub(crate) fn brc30_txid_receipts(&self, txid: &Txid) -> Result<Vec<brc30::BRC30Receipt>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
     let info = brc30_db.get_txid_to_receipts(&txid)?;
     Ok(info)
   }
 
-  pub(crate) fn brc30_block_events(
+  pub(crate) fn brc30_block_receipts(
     &self,
     hash: &BlockHash,
   ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc30::BRC30Receipt>)>>> {
@@ -1396,7 +1396,7 @@ impl Index {
 
     let mut result = Vec::new();
     for tx_id in &block.tx {
-      let tx_events = self.brc30_txid_events(tx_id)?;
+      let tx_events = self.brc30_txid_receipts(tx_id)?;
       if tx_events.len() == 0 {
         continue;
       }

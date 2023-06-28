@@ -38,7 +38,7 @@ use {
 };
 
 mod api;
-mod brc20;
+mod brc20_api;
 mod brc30_api;
 mod brc30_types;
 mod ord;
@@ -260,12 +260,14 @@ impl Server {
           "/brc30/address/:address/transferable",
           get(brc30_all_transferable),
         )
-        .route("/brc30/tx/:txid/events", get(brc30_txid_events))
-        .route("/brc30/debug/tx/:txid/events", get(brc30_debug_txid_events))
-        .route("/brc30/block/:blockhash/events", get(brc30_block_events))
+        .route("/brc30/tx/:txid/receipts", get(brc30_txid_receipts))
         .route(
-          "/brc30/debug/block/:num/events",
-          get(brc30_debug_block_events),
+          "/brc30/debug/tx/:txid/receipts",
+          get(brc30_debug_txid_receipts),
+        )
+        .route(
+          "/brc30/block/:blockhash/receipts",
+          get(brc30_block_receipts),
         );
 
       let api_router = Router::new().nest("/v1", api_v1_router);

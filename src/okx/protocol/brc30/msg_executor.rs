@@ -6,7 +6,7 @@ use crate::okx::{
       get_user_common_balance, stake_is_exist,
     },
     brc30::{
-      BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DepositEvent,
+      BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent,
       InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, StakeInfo, TickId,
       TickInfo, TransferEvent, TransferableAsset, UserInfo, WithdrawEvent,
     },
@@ -28,7 +28,7 @@ use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use bitcoin::{Network, Txid};
-use log::info;
+use log::log;
 use std::cmp;
 use std::str::FromStr;
 
@@ -127,33 +127,56 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   brc20_store: &'a M,
   brc30_store: &'a N,
   msg: &BRC30ExecutionMessage,
-) -> Result<BRC30Receipt> {
-  info!("execute:{:?}", msg);
+) -> Result<Option<BRC30Receipt>> {
+  log::debug!("BRC20S execute message: {:?}", msg);
+  let mut is_save_receipt = true;
   let event = match &msg.op {
     BRC30Operation::Deploy(deploy) => {
       process_deploy(context, brc20_store, brc30_store, msg, deploy.clone())
     }
     BRC30Operation::Stake(stake) => {
-      process_stake(context, brc20_store, brc30_store, msg, stake.clone())
+      process_stake(context, brc20_store, brc30_store, msg, stake.clone()).map(|event| vec![event])
     }
     BRC30Operation::UnStake(unstake) => {
       process_unstake(context, brc20_store, brc30_store, msg, unstake.clone())
+        .map(|event| vec![event])
     }
-    BRC30Operation::PassiveUnStake(passive_unstake) => process_passive_unstake(
-      context,
-      brc20_store,
-      brc30_store,
-      msg,
-      passive_unstake.clone(),
-    ),
+    BRC30Operation::PassiveUnStake(passive_unstake) => {
+      let events = process_passive_unstake(
+        context,
+        brc20_store,
+        brc30_store,
+        msg,
+        passive_unstake.clone(),
+      );
+      match &events {
+        Ok(events) => {
+          if events.is_empty() {
+            is_save_receipt = false
+          }
+        }
+        Err(e) => {
+          log::error!("passive failed:{:?}", e.to_string());
+          is_save_receipt = false
+        }
+      };
+      events
+    }
     BRC30Operation::Mint(mint) => {
-      process_mint(context, brc20_store, brc30_store, msg, mint.clone())
+      process_mint(context, brc20_store, brc30_store, msg, mint.clone()).map(|event| vec![event])
     }
     BRC30Operation::InscribeTransfer(transfer) => {
       process_inscribe_transfer(context, brc20_store, brc30_store, msg, transfer.clone())
+        .map(|event| vec![event])
     }
-    BRC30Operation::Transfer => process_transfer(context, brc20_store, brc30_store, msg),
+    BRC30Operation::Transfer => {
+      process_transfer(context, brc20_store, brc30_store, msg).map(|event| vec![event])
+    }
   };
+
+  if !is_save_receipt {
+    return Ok(None);
+  }
 
   let receipt = BRC30Receipt {
     inscription_id: msg.inscription_id,
@@ -174,10 +197,11 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     },
   };
 
+  log::debug!("BRC20S message receipt: {:?}", receipt);
   brc30_store
     .add_transaction_receipt(&msg.txid, &receipt)
     .map_err(|e| anyhow!("failed to set transaction receipts to state! error: {e}"))?;
-  Ok(receipt)
+  Ok(Some(receipt))
 }
 
 pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
@@ -186,11 +210,12 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   brc30_store: &'a N,
   msg: &BRC30ExecutionMessage,
   deploy: Deploy,
-) -> Result<BRC30Event, Error<N>> {
+) -> Result<Vec<BRC30Event>, Error<N>> {
   // ignore inscribe inscription to coinbase.
   if msg.new_satpoint.outpoint.txid != msg.txid {
     return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
   }
+  let mut events = Vec::new();
   // inscription message basic availability check
   if let Some(iserr) = deploy.validate_basic().err() {
     return Err(Error::BRC30Error(iserr));
@@ -332,6 +357,13 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     brc30_store
       .set_tick_info(&tick_id, &tick)
       .map_err(|e| Error::LedgerError(e))?;
+
+    events.push(BRC30Event::DeployTick(DeployTickEvent {
+      tick_id,
+      name: tick_name,
+      supply: tick.supply,
+      decimal: tick.decimal,
+    }));
   };
 
   let erate = erate.checked_to_u128()?;
@@ -355,13 +387,16 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   brc30_store
     .set_tickid_stake_to_pid(&tick_id, &stake, &pid)
     .map_err(|e| Error::LedgerError(e))?;
-  Ok(BRC30Event::DeployPool(DeployPoolEvent {
+
+  events.push(BRC30Event::DeployPool(DeployPoolEvent {
     pid,
     ptype,
     stake,
     erate,
     dmax,
-  }))
+    only,
+  }));
+  Ok(events)
 }
 
 fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
@@ -515,7 +550,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   return Ok(BRC30Event::Deposit(DepositEvent {
     pid: pool_id,
     amt: amount.checked_to_u128()?,
-    reward,
+    period_settlement_reward: reward,
   }));
 }
 
@@ -628,7 +663,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   return Ok(BRC30Event::Withdraw(WithdrawEvent {
     pid: pool_id,
     amt: amount.checked_to_u128()?,
-    initiative: false,
+    period_settlement_reward: reward,
   }));
 }
 
@@ -638,7 +673,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
   brc30_store: &'a N,
   msg: &BRC30ExecutionMessage,
   passive_unstake: PassiveUnStake,
-) -> Result<BRC30Event, Error<N>> {
+) -> Result<Vec<BRC30Event>, Error<N>> {
   if let Some(iserr) = passive_unstake.validate_basics().err() {
     return Err(Error::BRC30Error(iserr));
   }
@@ -665,10 +700,10 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
   // the balance which is minused by passive_amt, so if it >= staked_total, it can staked. others we need passive_withdraw
   if balance.ge(&staked_total) {
     // user remain can make user to stake. so nothing to do
-    return Ok(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {
-      pid: vec![],
-    }));
+    return Ok(vec![]);
   };
+
+  let mut events = Vec::new();
 
   let stake_alterive = staked_total.checked_sub(&balance)?;
 
@@ -682,11 +717,13 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
     );
     passive_msg.op = BRC30Operation::UnStake(stake_msg.clone());
     process_unstake(context, brc20_store, brc30_store, &msg, stake_msg)?;
+    events.push(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {
+      pid: pid.clone(),
+      amt: *stake,
+    }));
   }
 
-  Ok(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {
-    pid: pids,
-  }))
+  Ok(events)
 }
 fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   context: BlockContext,
@@ -799,7 +836,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(BRC30Event::Mint(MintEvent {
-    pool_id,
+    pid: pool_id,
     amt: amt.checked_to_u128()?,
   }))
 }
@@ -1062,7 +1099,7 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<BRC30Event, BRC30Error> = match result {
+    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
       Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1105,7 +1142,7 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<BRC30Event, BRC30Error> = match result {
+    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
       Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1156,7 +1193,7 @@ mod tests {
       secondDeply.clone(),
     );
 
-    let result: Result<BRC30Event, BRC30Error> = match result {
+    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
       Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1222,7 +1259,7 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<BRC30Event, BRC30Error> = match result {
+    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
       Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1316,7 +1353,7 @@ mod tests {
         deploy.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1352,7 +1389,7 @@ mod tests {
         secondDeploy.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1395,7 +1432,7 @@ mod tests {
         secondDeploy.clone(),
       );
       assert_eq!(false, result.is_err());
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1439,7 +1476,7 @@ mod tests {
         secondDeploy.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1478,7 +1515,7 @@ mod tests {
         secondDeploy.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1516,7 +1553,7 @@ mod tests {
         secondDeploy.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1555,7 +1592,7 @@ mod tests {
         secondDeploy.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1625,7 +1662,7 @@ mod tests {
         secondDeply.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1659,7 +1696,7 @@ mod tests {
         secondDeply.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1697,7 +1734,7 @@ mod tests {
         secondDeply.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1734,7 +1771,7 @@ mod tests {
         secondDeply.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1772,7 +1809,7 @@ mod tests {
 
       let pid = deploy.get_pool_id();
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1804,7 +1841,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1839,7 +1876,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1874,7 +1911,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1910,7 +1947,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1945,7 +1982,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -1980,7 +2017,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2015,7 +2052,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2050,7 +2087,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2088,7 +2125,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2117,7 +2154,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2146,7 +2183,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2175,7 +2212,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2207,7 +2244,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2239,7 +2276,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2271,7 +2308,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2303,7 +2340,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2340,7 +2377,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2369,7 +2406,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2401,7 +2438,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2430,7 +2467,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2459,7 +2496,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2497,7 +2534,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2526,7 +2563,7 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2610,7 +2647,7 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<BRC30Event, BRC30Error> = match result {
+    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
       Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -2829,7 +2866,7 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<BRC30Event, BRC30Error> = match result {
+    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
       Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -3049,7 +3086,7 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<BRC30Event, BRC30Error> = match result {
+    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
       Ok(event) => Ok(event),
       Err(Error::BRC30Error(e)) => Err(e),
       Err(e) => Err(BRC30Error::InternalError(e.to_string())),
@@ -3163,7 +3200,7 @@ mod tests {
         passive_unstakeMsg.clone(),
       );
 
-      let result: Result<BRC30Event, BRC30Error> = match result {
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
         Ok(event) => Ok(event),
         Err(Error::BRC30Error(e)) => Err(e),
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),

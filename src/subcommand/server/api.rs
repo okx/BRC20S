@@ -1,5 +1,5 @@
 use super::*;
-use super::{brc20::get_operations_by_txid, error::ApiError};
+use super::{brc20_api::get_operations_by_txid, error::ApiError};
 use crate::okx::datastore::{brc20, ScriptKey};
 use axum::Json;
 

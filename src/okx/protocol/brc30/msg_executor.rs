@@ -189,7 +189,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC20Error(BRC30Error::InscribeToCoinbase));
+    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
   }
   // inscription message basic availability check
   if let Some(iserr) = deploy.validate_basic().err() {
@@ -373,7 +373,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC20Error(BRC30Error::InscribeToCoinbase));
+    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
   }
   if let Some(err) = stake_msg.validate_basic().err() {
     return Err(Error::BRC30Error(err));
@@ -528,7 +528,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC20Error(BRC30Error::InscribeToCoinbase));
+    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
   }
   if let Some(err) = unstake.validate_basic().err() {
     return Err(Error::BRC30Error(err));
@@ -697,7 +697,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC20Error(BRC30Error::InscribeToCoinbase));
+    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
   }
   if let Some(iserr) = mint.validate_basic().err() {
     return Err(Error::BRC30Error(iserr));
@@ -813,7 +813,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC20Error(BRC30Error::InscribeToCoinbase));
+    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
   }
   let to_script_key = msg.to.clone();
   // check tick

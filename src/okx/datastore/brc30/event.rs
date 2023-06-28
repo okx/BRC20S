@@ -18,11 +18,11 @@ pub enum BRC30OperationType {
 impl BRC30OperationType {
   pub fn to_string(&self) -> String {
     match self {
-      BRC30OperationType::Deploy => "deploy".to_string(),
+      BRC30OperationType::Deploy => "deployPool".to_string(),
       BRC30OperationType::Mint => "mint".to_string(),
-      BRC30OperationType::Stake => "stake".to_string(),
-      BRC30OperationType::UnStake => "unStake".to_string(),
-      BRC30OperationType::PassiveUnStake => "passiveUnStake".to_string(),
+      BRC30OperationType::Stake => "deposit".to_string(),
+      BRC30OperationType::UnStake => "withdraw".to_string(),
+      BRC30OperationType::PassiveUnStake => "passiveWithdraw".to_string(),
       BRC30OperationType::InscribeTransfer => "inscribeTransfer".to_string(),
       BRC30OperationType::Transfer => "transfer".to_string(),
     }

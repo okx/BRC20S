@@ -143,7 +143,7 @@ impl Server {
   pub(crate) fn run(self, options: Options, index: Arc<Index>, handle: Handle) -> Result {
     #[cfg(feature = "rollback")]
     unsafe {
-      index.backup_at_init()?;
+      //index.backup_at_init()?;
     }
 
     Runtime::new()?.block_on(async {

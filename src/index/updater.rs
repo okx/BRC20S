@@ -150,7 +150,13 @@ impl Updater {
           wtx = index.begin_write()?;
           let sp = wtx.savepoint()?;
           unsafe {
-            let savepoints = GLOBAL_SAVEPOINTS.get_mut().unwrap();
+            let savepoints = match GLOBAL_SAVEPOINTS.get_mut() {
+              Some(point) => point,
+              None => {
+                GLOBAL_SAVEPOINTS.get_or_init(|| VecDeque::new());
+                GLOBAL_SAVEPOINTS.get_mut().unwrap()
+              }
+            };
             savepoints.push_back(HeightSavepoint(self.height, sp));
             if savepoints.len() > MAX_SAVEPOINTS {
               drop(savepoints.pop_front().unwrap().1);

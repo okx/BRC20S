@@ -37,6 +37,7 @@ mod rtx;
 mod updater;
 
 use crate::okx::datastore::brc30::PledgedTick;
+#[cfg(feature = "rollback")]
 use redb::Savepoint;
 
 const SCHEMA_VERSION: u64 = 4;
@@ -408,10 +409,12 @@ impl Index {
     self.reorged.load(atomic::Ordering::Relaxed)
   }
 
+  #[cfg(feature = "rollback")]
   pub(crate) fn reset_reorged(&self) {
     self.reorged.store(false, atomic::Ordering::Relaxed);
   }
 
+  #[cfg(feature = "rollback")]
   pub(crate) fn restore_savepoint(&self, sp: &Savepoint) -> Result {
     let mut wtx = self.begin_write()?;
     wtx.restore_savepoint(sp)?;

@@ -46,8 +46,12 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_pid_to_poolinfo(pid)
   }
 
-  fn get_all_poolinfo(&self) -> Result<Vec<PoolInfo>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_all_poolinfo()
+  fn get_all_poolinfo(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<(Vec<PoolInfo>, usize), Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_all_poolinfo(start, limit)
   }
 
   // 3.3.5 BRC30_USER_STAKEINFO
@@ -415,10 +419,14 @@ mod tests {
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let pid = Pid::from_str("1234567890#01").unwrap();
+    let pid_1 = Pid::from_str("1234567890#01").unwrap();
+    let pid_2 = Pid::from_str("1234567890#02").unwrap();
+    let pid_3 = Pid::from_str("1234567890#03").unwrap();
+    let pid_4 = Pid::from_str("1234567890#04").unwrap();
+    let pid_5 = Pid::from_str("1234567890#05").unwrap();
 
-    let pool_info = PoolInfo {
-      pid: pid.clone(),
+    let pool_info_1 = PoolInfo {
+      pid: pid_1.clone(),
       ptype: PoolType::Pool,
       inscription_id: inscription_id.clone(),
       stake: PledgedTick::Native,
@@ -430,13 +438,90 @@ mod tests {
       last_update_block: 0,
       only: true,
     };
+    let mut pool_info_2 = pool_info_1.clone();
+    pool_info_2.pid = pid_2.clone();
+    let mut pool_info_3 = pool_info_1.clone();
+    pool_info_3.pid = pid_3.clone();
+    let mut pool_info_4 = pool_info_1.clone();
+    pool_info_4.pid = pid_4.clone();
+    let mut pool_info_5 = pool_info_1.clone();
+    pool_info_5.pid = pid_5.clone();
 
-    brc30db.set_pid_to_poolinfo(&pid, &pool_info).unwrap();
+    brc30db.set_pid_to_poolinfo(&pid_1, &pool_info_1).unwrap();
+    brc30db.set_pid_to_poolinfo(&pid_2, &pool_info_2).unwrap();
+    brc30db.set_pid_to_poolinfo(&pid_3, &pool_info_3).unwrap();
+    brc30db.set_pid_to_poolinfo(&pid_4, &pool_info_4).unwrap();
+    brc30db.set_pid_to_poolinfo(&pid_5, &pool_info_5).unwrap();
 
     assert_eq!(
-      brc30db.get_pid_to_poolinfo(&pid).unwrap().unwrap(),
-      pool_info
+      brc30db.get_pid_to_poolinfo(&pid_1).unwrap().unwrap(),
+      pool_info_1
     );
+
+    assert_eq!(
+      brc30db.get_all_poolinfo(0, None).unwrap(),
+      (
+        vec![
+          pool_info_1.clone(),
+          pool_info_2.clone(),
+          pool_info_3.clone(),
+          pool_info_4.clone(),
+          pool_info_5.clone(),
+        ],
+        5
+      )
+    );
+    assert_eq!(
+      brc30db.get_all_poolinfo(0, Some(3)).unwrap(),
+      (
+        vec![
+          pool_info_1.clone(),
+          pool_info_2.clone(),
+          pool_info_3.clone(),
+        ],
+        5
+      )
+    );
+
+    assert_eq!(
+      brc30db.get_all_poolinfo(0, Some(5)).unwrap(),
+      (
+        vec![
+          pool_info_1.clone(),
+          pool_info_2.clone(),
+          pool_info_3.clone(),
+          pool_info_4.clone(),
+          pool_info_5.clone()
+        ],
+        5
+      )
+    );
+
+    assert_eq!(
+      brc30db.get_all_poolinfo(0, Some(9)).unwrap(),
+      (
+        vec![
+          pool_info_1.clone(),
+          pool_info_2.clone(),
+          pool_info_3.clone(),
+          pool_info_4.clone(),
+          pool_info_5.clone()
+        ],
+        5
+      )
+    );
+
+    assert_eq!(
+      brc30db.get_all_poolinfo(3, Some(1)).unwrap(),
+      (vec![pool_info_4.clone()], 5)
+    );
+
+    assert_eq!(
+      brc30db.get_all_poolinfo(3, Some(9)).unwrap(),
+      (vec![pool_info_4.clone(), pool_info_5.clone()], 5)
+    );
+
+    assert_eq!(brc30db.get_all_poolinfo(5, Some(9)).unwrap(), (vec![], 5));
   }
 
   #[test]

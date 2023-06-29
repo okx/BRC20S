@@ -147,18 +147,25 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
     )
   }
 
-  fn get_all_poolinfo(&self) -> Result<Vec<PoolInfo>, Self::Error> {
-    Ok(
-      self
-        .wrapper
-        .open_table(BRC30_PID_TO_POOLINFO)?
+  fn get_all_poolinfo(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<(Vec<PoolInfo>, usize), Self::Error> {
+    let table = self.wrapper.open_table(BRC30_PID_TO_POOLINFO)?;
+    let total = table.len()?;
+    return Ok((
+      table
         .range(Pid::min_hex().as_str()..Pid::max_hex().as_str())?
+        .skip(start)
+        .take(limit.unwrap_or(usize::MAX))
         .map(|(_, data)| {
           let pool = bincode::deserialize::<PoolInfo>(data.value()).unwrap();
           pool
         })
         .collect(),
-    )
+      total,
+    ));
   }
 
   // 3.3.5 BRC30_USER_STAKEINFO

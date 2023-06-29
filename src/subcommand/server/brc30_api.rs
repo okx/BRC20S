@@ -111,9 +111,10 @@ pub(crate) async fn brc30_debug_tick_info(
 // brc30/pool
 pub(crate) async fn brc30_all_pool_info(
   Extension(index): Extension<Arc<Index>>,
+  Query(page): Query<Pagination>,
 ) -> ApiResult<AllBRC30PoolInfo> {
   log::debug!("rpc: get brc30_all_pool_info");
-  let all_pool_info = index.brc30_all_pool_info()?;
+  let (all_pool_info, total) = index.brc30_all_pool_info(page.start.unwrap_or(0), page.limit)?;
   log::debug!("rpc: get brc30_all_pool_info: {:?}", all_pool_info);
   Ok(Json(ApiResponse::ok(AllBRC30PoolInfo {
     tokens: all_pool_info
@@ -150,6 +151,7 @@ pub(crate) async fn brc30_all_pool_info(
         pool_result
       })
       .collect(),
+    total,
   })))
 }
 

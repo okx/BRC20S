@@ -1,4 +1,4 @@
-use super::*;
+use super::{types::ScriptPubkey, *};
 use crate::okx::datastore::brc30::{self, BRC30OperationType};
 use std::{convert::From, vec};
 

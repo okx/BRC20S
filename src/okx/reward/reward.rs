@@ -5,7 +5,7 @@ use std::str::FromStr;
 const PER_SHARE_MULTIPLIER: u8 = 18;
 
 #[cfg(not(test))]
-use log::{info, warn};
+use log::info;
 #[cfg(test)]
 use std::{println as info, println as warn};
 

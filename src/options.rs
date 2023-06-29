@@ -261,6 +261,7 @@ impl Options {
     Ok(client)
   }
 
+  #[allow(dead_code)]
   pub(crate) fn bitcoin_rpc_client_for_wallet_command(&self, create: bool) -> Result<Client> {
     let client = self.bitcoin_rpc_client()?;
 

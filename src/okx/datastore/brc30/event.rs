@@ -2,7 +2,7 @@ use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId
 use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc30::BRC30Error;
 use crate::{InscriptionId, SatPoint};
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum BRC30OperationType {

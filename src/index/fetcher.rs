@@ -8,6 +8,7 @@ use {
   serde_json::{json, Value},
 };
 
+#[allow(dead_code)]
 pub(crate) struct Fetcher {
   auth: String,
   client: Client<HttpConnector>,
@@ -15,6 +16,7 @@ pub(crate) struct Fetcher {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 struct JsonResponse<T> {
   error: Option<JsonError>,
   id: usize,
@@ -22,12 +24,14 @@ struct JsonResponse<T> {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 struct JsonError {
   code: i32,
   message: String,
 }
 
 impl Fetcher {
+  #[allow(dead_code)]
   pub(crate) fn new(options: &Options) -> Result<Self> {
     let client = Client::new();
 
@@ -48,6 +52,7 @@ impl Fetcher {
     Ok(Fetcher { client, url, auth })
   }
 
+  #[allow(dead_code)]
   pub(crate) async fn get_transactions(&self, txids: Vec<Txid>) -> Result<Vec<Transaction>> {
     if txids.is_empty() {
       return Ok(Vec::new());

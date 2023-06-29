@@ -17,13 +17,6 @@ pub struct PassiveUnStake {
 }
 
 impl PassiveUnStake {
-  pub fn new(stake: &str, amount: &str) -> Self {
-    Self {
-      stake: stake.to_string(),
-      amount: amount.to_string(),
-    }
-  }
-
   pub fn get_stake_tick(&self) -> PledgedTick {
     let stake = self.stake.as_str();
     match stake {

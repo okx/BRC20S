@@ -28,7 +28,6 @@ use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use bitcoin::{Network, Txid};
-use log::log;
 use std::cmp;
 use std::str::FromStr;
 
@@ -254,11 +253,11 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     )));
   }
 
-  let mut erate = Num::zero();
+  let erate: Num;
   let only = deploy.get_only();
   let tick_name = deploy.get_earn_id();
   let dmax_str = deploy.distribution_max.as_str();
-  let mut dmax = 0_u128;
+  let dmax: u128;
 
   //Get or create the tick
   if let Some(mut temp_tick) = brc30_store
@@ -449,7 +448,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   let stake_balance =
     get_user_common_balance(&to_script_key, &stake_tick, brc30_store, brc20_store);
 
-  let mut is_first_stake = false;
+  let is_first_stake: bool;
   let mut userinfo = match brc30_store.get_pid_to_use_info(&to_script_key, &pool_id) {
     Ok(Some(info)) => {
       if info.staked == 0_u128 {
@@ -483,7 +482,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       "got serious error stake_balance < user staked total".to_string(),
     )));
   }
-  let mut can_stake_balance = Num::from(0_u128);
+  let can_stake_balance: Num;
   let has_staked = Num::from(userinfo.staked);
   if pool.only {
     can_stake_balance = stake_balance.checked_sub(&staked_total)?;
@@ -842,8 +841,8 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 }
 
 fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
-  context: BlockContext,
-  brc20_store: &'a M,
+  _context: BlockContext,
+  _brc20_store: &'a M,
   brc30_store: &'a N,
   msg: &BRC30ExecutionMessage,
   transfer: Transfer,
@@ -921,8 +920,8 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
 }
 
 fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
-  context: BlockContext,
-  brc20_store: &'a M,
+  _context: BlockContext,
+  _brc20_store: &'a M,
   brc30_store: &'a N,
   msg: &BRC30ExecutionMessage,
 ) -> Result<BRC30Event, Error<N>> {
@@ -951,7 +950,7 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     msg.to.clone()
   };
 
-  let tick_info = brc30_store
+  brc30_store
     .get_tick_info(&transferable.tick_id)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC30Error::TickNotFound(transferable.tick_id.hex()))?;

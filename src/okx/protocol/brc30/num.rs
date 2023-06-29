@@ -10,10 +10,6 @@ use std::str::FromStr;
 pub struct Num(BigDecimal);
 
 impl Num {
-  pub fn new(num: BigDecimal) -> Self {
-    Self(num)
-  }
-
   pub fn zero() -> Self {
     Self(BigDecimal::zero())
   }
@@ -139,10 +135,6 @@ impl Num {
 
   pub fn is_positive_integer(&self) -> bool {
     self.0.is_positive() && self.0.is_integer()
-  }
-
-  pub fn is_integer(&self) -> bool {
-    self.0.is_integer()
   }
 
   pub fn is_positive(&self) -> bool {

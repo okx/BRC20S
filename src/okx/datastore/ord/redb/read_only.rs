@@ -1,8 +1,8 @@
 use redb::{
-  AccessGuard, Error, RangeIter, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
-  Table, TableDefinition, WriteTransaction,
+  AccessGuard, Error, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue, Table,
+  TableDefinition, WriteTransaction,
 };
-use std::{borrow::Borrow, io, ops::RangeBounds};
+use std::{borrow::Borrow, io};
 
 use bitcoin::{
   consensus::{Decodable, Encodable},
@@ -64,20 +64,6 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
     match self {
       Self::RtxTable(rtx_table) => rtx_table.get(key),
       Self::WtxTable(wtx_table) => wtx_table.get(key),
-    }
-  }
-
-  fn range<'a: 'b, 'b, KR>(
-    &'a self,
-    range: impl RangeBounds<KR> + 'b,
-  ) -> Result<RangeIter<'a, K, V>, Error>
-  where
-    K: 'a,
-    KR: Borrow<K::SelfType<'b>> + 'b,
-  {
-    match self {
-      Self::RtxTable(rtx_table) => rtx_table.range(range),
-      Self::WtxTable(wtx_table) => wtx_table.range(range),
     }
   }
 }

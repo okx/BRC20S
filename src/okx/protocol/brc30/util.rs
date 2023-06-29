@@ -3,14 +3,6 @@ use crate::okx::protocol::brc30::BRC30Error;
 use crate::okx::protocol::brc30::Num;
 use std::str::FromStr;
 
-pub fn validate_hex(s: &str) -> Result<(), BRC30Error> {
-  let prefix = hex::decode(s);
-  if prefix.is_err() {
-    return Err(BRC30Error::InvalidHexStr(s.to_string()));
-  }
-  Ok(())
-}
-
 pub fn validate_pool_str(s: &str) -> Result<(), BRC30Error> {
   if s.len() != PID_BYTE_COUNT {
     return Err(BRC30Error::InvalidPoolId(

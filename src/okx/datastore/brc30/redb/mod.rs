@@ -180,11 +180,3 @@ fn max_stake_tickid_key(pledged: &PledgedTick) -> String {
 
   format!("{}_{}", pledged_key.to_string(), TickId::max_hex())
 }
-
-fn min_script_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), PledgedTick::min_hex())
-}
-
-fn max_script_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), PledgedTick::max_hex())
-}

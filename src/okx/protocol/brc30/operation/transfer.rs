@@ -1,8 +1,4 @@
-use crate::okx::datastore::brc30::{BRC30Tick, TickId};
-use crate::okx::protocol::brc30::util::{validate_amount, validate_pool_str};
-use crate::okx::protocol::brc30::BRC30Error;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Transfer {
@@ -17,24 +13,6 @@ pub struct Transfer {
   // Amount to transfer: States the amount of the brc20-s to transfer.
   #[serde(rename = "amt")]
   pub amount: String,
-}
-
-impl Transfer {
-  pub fn validate_basic(&self) -> Result<(), BRC30Error> {
-    if let Some(err) = TickId::from_str(self.tick.as_str()).err() {
-      return Err(err);
-    }
-
-    //validate tick
-    if let Some(err) = BRC30Tick::from_str(self.tick.as_str()).err() {
-      return Err(err);
-    }
-
-    // validate amount
-    validate_amount(self.amount.as_str())?;
-
-    Ok(())
-  }
 }
 
 #[cfg(test)]

@@ -566,7 +566,7 @@ pub(crate) async fn brc30_txid_receipts(
       Ok(receipt) => {
         receipts.push(receipt);
       }
-      Err(error) => {
+      Err(_) => {
         return Err(ApiError::internal("failed to get transaction receipts"));
       }
     }

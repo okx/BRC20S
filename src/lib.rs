@@ -30,7 +30,6 @@ use {
     tally::Tally,
   },
   anyhow::{anyhow, bail, Context, Error},
-  bip39::Mnemonic,
   bitcoin::{
     blockdata::constants::COIN_VALUE,
     consensus::{self, Decodable, Encodable},
@@ -51,14 +50,13 @@ use {
     cmp,
     collections::{BTreeMap, HashSet, VecDeque},
     env,
-    ffi::OsString,
     fmt::{self, Display, Formatter},
     fs::{self, File},
     io,
-    net::{TcpListener, ToSocketAddrs},
+    net::ToSocketAddrs,
     ops::{Add, AddAssign, Sub},
     path::{Path, PathBuf},
-    process::{self, Command},
+    process,
     str::FromStr,
     sync::{
       atomic::{self, AtomicBool},
@@ -67,7 +65,6 @@ use {
     thread,
     time::{Duration, Instant, SystemTime},
   },
-  tempfile::TempDir,
   tokio::{runtime::Runtime, task},
 };
 
@@ -80,6 +77,7 @@ mod test;
 #[cfg(test)]
 use self::test::*;
 
+#[allow(unused_macros)]
 macro_rules! tprintln {
     ($($arg:tt)*) => {
 

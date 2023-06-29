@@ -2,14 +2,13 @@ use crate::okx::{
   datastore::{
     brc20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
     brc30::{self, redb::BRC30DataStoreReader, BRC30DataStoreReadOnly},
-    ord::{InscriptionOp, OrdDbReader},
     ScriptKey,
   },
-  protocol::{self, brc20::BRC20Message, brc30::params::NATIVE_TOKEN_DECIMAL},
+  protocol::brc30::params::NATIVE_TOKEN_DECIMAL,
   reward::reward,
 };
 #[cfg(feature = "rollback")]
-use std::cell::OnceCell;
+use once_cell::sync::OnceCell;
 
 use {
   self::{
@@ -68,6 +67,7 @@ pub(crate) const SAVEPOINT_INTERVAL: u64 = 3;
 #[cfg(feature = "rollback")]
 pub(crate) const MAX_SAVEPOINTS: usize = 4;
 
+#[allow(dead_code)]
 pub(crate) struct Index {
   client: Client,
   database: Database,
@@ -319,6 +319,7 @@ impl Index {
     )
   }
 
+  #[allow(dead_code)]
   pub(crate) fn get_unspent_output_ranges(&self) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
     self
       .get_unspent_outputs()?
@@ -347,6 +348,7 @@ impl Index {
     Ok(())
   }
 
+  #[cfg(test)]
   pub(crate) fn info(&self) -> Result<Info> {
     let wtx = self.begin_write()?;
 
@@ -758,6 +760,7 @@ impl Index {
     )
   }
 
+  #[cfg(test)]
   pub(crate) fn find(&self, sat: u64) -> Result<Option<SatPoint>> {
     self.require_sat_index("find")?;
 
@@ -854,6 +857,7 @@ impl Index {
     }
   }
 
+  #[allow(dead_code)]
   pub(crate) fn get_inscriptions(
     &self,
     n: Option<usize>,
@@ -1061,22 +1065,6 @@ impl Index {
       satpoint_to_id
         .range::<&[u8; 44]>(&start..=&end)?
         .map(|(satpoint, id)| (Entry::load(*satpoint.value()), Entry::load(*id.value()))),
-    )
-  }
-
-  pub(crate) fn get_number_by_inscription_id<'a>(
-    id_to_entry: &'a impl ReadableTable<&'static InscriptionIdValue, InscriptionEntryValue>,
-    inscription_id: InscriptionId,
-  ) -> Result<i64> {
-    Ok(
-      id_to_entry
-        .get(&inscription_id.store())?
-        .ok_or(anyhow!(
-          "failed to find inscription number for {}",
-          inscription_id
-        ))?
-        .value()
-        .2,
     )
   }
 

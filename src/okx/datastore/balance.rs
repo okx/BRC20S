@@ -49,14 +49,14 @@ pub fn get_stake_dec<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
         Some(info) => info.decimal,
         None => 0_u8,
       },
-      Err(e) => 0_u8,
+      Err(_) => 0_u8,
     },
     PledgedTick::BRC20Tick(tick) => match brc20ledger.get_token_info(tick) {
       Ok(info) => match info {
         Some(info) => info.decimal,
         None => 0_u8,
       },
-      Err(e) => 0_u8,
+      Err(_) => 0_u8,
     },
     PledgedTick::Unknown => 0_u8,
   }

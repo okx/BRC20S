@@ -60,6 +60,7 @@ impl Inscription {
     result
   }
 
+  #[allow(dead_code)]
   pub(crate) fn from_file(chain: Chain, path: impl AsRef<Path>) -> Result<Self, Error> {
     let path = path.as_ref();
 
@@ -80,6 +81,7 @@ impl Inscription {
     })
   }
 
+  #[cfg(test)]
   fn append_reveal_script_to_builder(&self, mut builder: script::Builder) -> script::Builder {
     builder = builder
       .push_opcode(opcodes::OP_FALSE)
@@ -102,6 +104,7 @@ impl Inscription {
     builder.push_opcode(opcodes::all::OP_ENDIF)
   }
 
+  #[cfg(test)]
   pub(crate) fn append_reveal_script(&self, builder: script::Builder) -> Script {
     self.append_reveal_script_to_builder(builder).into_script()
   }

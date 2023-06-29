@@ -39,6 +39,7 @@ impl Media {
     ("video/webm", Media::Video, &["webm"]),
   ];
 
+  #[allow(dead_code)]
   pub(crate) fn content_type_for_path(path: &Path) -> Result<&'static str, Error> {
     let extension = path
       .extension()
@@ -71,6 +72,7 @@ impl Media {
     ))
   }
 
+  #[allow(dead_code)]
   pub(crate) fn check_mp4_codec(path: &Path) -> Result<(), Error> {
     let f = File::open(path)?;
     let size = f.metadata()?.len();

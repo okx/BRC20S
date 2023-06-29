@@ -121,6 +121,31 @@ impl BRC30ExecutionMessage {
       op: msg.op.clone(),
     }
   }
+  pub fn new(
+    txid: &Txid,
+    inscription_id: &InscriptionId,
+    inscription_number: i64,
+    commit_input_satpoint: &Option<SatPoint>,
+    old_satpoint: &SatPoint,
+    new_satpoint: &SatPoint,
+    commit_from: &Option<ScriptKey>,
+    from: &ScriptKey,
+    to: &ScriptKey,
+    op: &BRC30Operation,
+  ) -> Self {
+    Self {
+      txid: txid.clone(),
+      inscription_id: inscription_id.clone(),
+      inscription_number: inscription_number.clone(),
+      commit_input_satpoint: commit_input_satpoint.clone(),
+      old_satpoint: old_satpoint.clone(),
+      new_satpoint: new_satpoint.clone(),
+      commit_from: commit_from.clone(),
+      from: from.clone(),
+      to: to.clone(),
+      op: op.clone(),
+    }
+  }
 }
 pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   context: BlockContext,
@@ -1016,43 +1041,13 @@ mod tests {
   use crate::okx::datastore::brc30::redb::BRC30DataStore;
   use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
   use crate::okx::datastore::brc30::PledgedTick;
+  use crate::okx::protocol::test::mock_create_brc30_message;
   use crate::test::Hash;
   use bech32::ToBase32;
   use bitcoin::Address;
   use redb::{Database, WriteTransaction};
   use std::borrow::Borrow;
   use tempfile::NamedTempFile;
-
-  fn create_brc30_message(
-    inscription_id: InscriptionId,
-    from: ScriptKey,
-    to: ScriptKey,
-    op: BRC30Operation,
-  ) -> BRC30ExecutionMessage {
-    let txid = inscription_id.txid.clone();
-    BRC30ExecutionMessage {
-      txid: txid.clone(),
-      inscription_id,
-      inscription_number: 0,
-      commit_from: Some(from.clone()),
-      commit_input_satpoint: None,
-      from: from.clone(),
-      to: to.clone(),
-      old_satpoint: SatPoint {
-        outpoint: "1111111111111111111111111111111111111111111111111111111111111111:1"
-          .parse()
-          .unwrap(),
-        offset: 1,
-      },
-      new_satpoint: SatPoint {
-        outpoint: "1111111111111111111111111111111111111111111111111111111111111111:2"
-          .parse()
-          .unwrap(),
-        offset: 1,
-      },
-      op,
-    }
-  }
 
   #[test]
   fn test_process_deploy() {
@@ -1082,7 +1077,7 @@ mod tests {
     let inscruptionId =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId,
       script.clone(),
       script.clone(),
@@ -1125,7 +1120,7 @@ mod tests {
     assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
     assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
 
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId,
       script.clone(),
       script.clone(),
@@ -1176,7 +1171,7 @@ mod tests {
     secondDeply.stake = "orea".to_string();
     secondDeply.distribution_max = "9000000".to_string();
     secondDeply.earn_rate = "0.1".to_string();
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId,
       script.clone(),
       script.clone(),
@@ -1242,7 +1237,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId,
       script.clone(),
       script.clone(),
@@ -1336,7 +1331,7 @@ mod tests {
     }
     //pool already exist
     {
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1372,7 +1367,7 @@ mod tests {
       secondDeploy.pool_id = "13395c5283#01".to_string();
       secondDeploy.stake = "ore1".to_string();
       secondDeploy.distribution_max = "8000000".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1415,7 +1410,7 @@ mod tests {
       secondDeploy.stake = "ore2".to_string();
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1459,7 +1454,7 @@ mod tests {
       secondDeploy.stake = "ore1".to_string();
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1498,7 +1493,7 @@ mod tests {
       secondDeploy.stake = "err1".to_string();
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1536,7 +1531,7 @@ mod tests {
       secondDeploy.stake = "ore3".to_string();
       secondDeploy.distribution_max = "10000000".to_string();
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1575,7 +1570,7 @@ mod tests {
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.total_supply = Some("22000000".to_string());
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1645,7 +1640,7 @@ mod tests {
     {
       let mut secondDeply = deploy.clone();
       secondDeply.total_supply = Some("20000000".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1679,7 +1674,7 @@ mod tests {
 
       let mut secondDeply = deploy.clone();
       secondDeply.decimals = Some("17".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1712,7 +1707,7 @@ mod tests {
       );
 
       let mut secondDeply = deploy.clone();
-      let mut msg = create_brc30_message(
+      let mut msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1750,7 +1745,7 @@ mod tests {
       );
 
       let mut secondDeply = deploy.clone();
-      let mut msg = create_brc30_message(
+      let mut msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1790,7 +1785,7 @@ mod tests {
     {
       let mut err_pool_type = deploy.clone();
       err_pool_type.pool_type = "errtype".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1823,7 +1818,7 @@ mod tests {
     {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "l8195197bc#1f".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1858,7 +1853,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "8195197bc#1f".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1893,7 +1888,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "13395c5283#lf".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1929,7 +1924,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c81195197bc#f".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1964,7 +1959,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "13395c5283$1f".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -1999,7 +1994,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c819519#bc#df".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2034,7 +2029,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c819519#bc#1f".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2069,7 +2064,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "a8195197bc#1f".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2107,7 +2102,7 @@ mod tests {
     {
       let mut err_stake = deploy.clone();
       err_stake.stake = "he".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2136,7 +2131,7 @@ mod tests {
 
       let mut err_stake = deploy.clone();
       err_stake.stake = "hehehh".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2165,7 +2160,7 @@ mod tests {
 
       let mut err_stake = deploy.clone();
       err_stake.stake = "test".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2194,7 +2189,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "tes".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2226,7 +2221,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "test".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2258,7 +2253,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "testt".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2290,7 +2285,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "testttt".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2322,7 +2317,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.stake = "13395c5283".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2359,7 +2354,7 @@ mod tests {
     {
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2388,7 +2383,7 @@ mod tests {
 
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "1l".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2420,7 +2415,7 @@ mod tests {
     {
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2449,7 +2444,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "1l".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2478,7 +2473,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "21000001".to_string();
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2516,7 +2511,7 @@ mod tests {
     {
       let mut err_total = deploy.clone();
       err_total.total_supply = Some("".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2545,7 +2540,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.total_supply = Some("1l".to_string());
-      let msg = create_brc30_message(
+      let msg = mock_create_brc30_message(
         inscruptionId,
         script.clone(),
         script.clone(),
@@ -2630,7 +2625,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId.clone(),
       script.clone(),
       script.clone(),
@@ -2679,7 +2674,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId.clone(),
       script.clone(),
       script.clone(),
@@ -2732,7 +2727,7 @@ mod tests {
         amount: "1000000".to_string(),
       };
 
-      let mut msg = create_brc30_message(
+      let mut msg = mock_create_brc30_message(
         inscruptionId.clone(),
         script.clone(),
         script.clone(),
@@ -2849,7 +2844,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId.clone(),
       script.clone(),
       script.clone(),
@@ -2898,7 +2893,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId.clone(),
       script.clone(),
       script.clone(),
@@ -2951,7 +2946,7 @@ mod tests {
         amount: "1000000".to_string(),
       };
 
-      let mut msg = create_brc30_message(
+      let mut msg = mock_create_brc30_message(
         inscruptionId.clone(),
         script.clone(),
         script.clone(),
@@ -3069,7 +3064,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId.clone(),
       script.clone(),
       script.clone(),
@@ -3118,7 +3113,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = create_brc30_message(
+    let msg = mock_create_brc30_message(
       inscruptionId.clone(),
       script.clone(),
       script.clone(),
@@ -3170,7 +3165,7 @@ mod tests {
         stake: stakeTick.to_string(),
         amount: "2000000".to_string(),
       };
-      let mut msg = create_brc30_message(
+      let mut msg = mock_create_brc30_message(
         inscruptionId.clone(),
         script.clone(),
         script.clone(),

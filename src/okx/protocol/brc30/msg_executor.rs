@@ -1029,8 +1029,9 @@ mod tests {
     to: ScriptKey,
     op: BRC30Operation,
   ) -> BRC30ExecutionMessage {
+    let txid = inscription_id.txid.clone();
     BRC30ExecutionMessage {
-      txid: Txid::all_zeros(),
+      txid: txid.clone(),
       inscription_id,
       inscription_number: 0,
       commit_from: Some(from.clone()),
@@ -1052,6 +1053,7 @@ mod tests {
       op,
     }
   }
+
   #[test]
   fn test_process_deploy() {
     let dbfile = NamedTempFile::new().unwrap();

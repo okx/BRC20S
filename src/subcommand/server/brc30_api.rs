@@ -8,10 +8,11 @@ use axum::Json;
 // 3.4.1 /brc30/tick
 pub(crate) async fn brc30_all_tick_info(
   Extension(index): Extension<Arc<Index>>,
+  Query(page): Query<Pagination>,
 ) -> ApiResult<AllBRC30TickInfo> {
   log::debug!("rpc: get brc30_all_tick_info");
 
-  let all_tick_info = index.brc30_all_tick_info()?;
+  let (all_tick_info, total) = index.brc30_all_tick_info(page.start.unwrap_or(0), page.limit)?;
   log::debug!("rpc: get brc30_all_tick_info: {:?}", all_tick_info);
 
   Ok(Json(ApiResponse::ok(AllBRC30TickInfo {
@@ -34,6 +35,7 @@ pub(crate) async fn brc30_all_tick_info(
         brc30_tick
       })
       .collect(),
+    total,
   })))
 }
 

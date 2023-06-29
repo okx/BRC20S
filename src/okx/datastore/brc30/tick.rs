@@ -222,7 +222,7 @@ impl PledgedTick {
   }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct TickInfo {
   pub tick_id: TickId,
   pub name: BRC30Tick,

@@ -33,8 +33,12 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_tick_info(tick_id)
   }
 
-  fn get_all_tick_info(&self) -> Result<Vec<TickInfo>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_all_tick_info()
+  fn get_all_tick_info(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<(Vec<TickInfo>, usize), Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_all_tick_info(start, limit)
   }
 
   // 3.3.4 BRC30_PID_TO_POOLINFO
@@ -524,15 +528,20 @@ mod tests {
     let inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
-    let tick_id = TickId::from_str("f7c515d6b7").unwrap();
+    let tick_id_1 = TickId::from_str("f7c515d6b1").unwrap();
+    let tick_id_2 = TickId::from_str("f7c515d6b2").unwrap();
+    let tick_id_3 = TickId::from_str("f7c515d6b3").unwrap();
+    let tick_id_4 = TickId::from_str("f7c515d6b4").unwrap();
+    let tick_id_5 = TickId::from_str("f7c515d6b5").unwrap();
+    let tick_id_6 = TickId::from_str("f7c515d6b6").unwrap();
 
     let pid = Pid::from_str("1234567890#01").unwrap();
-    let tick_info = TickInfo {
-      tick_id: tick_id.clone(),
+    let tick_info1 = TickInfo {
+      tick_id: tick_id_1.clone(),
       name: BRC30Tick::from_str("aBc1ab").unwrap(),
       inscription_id: inscription_id.clone(),
       allocated: 100,
-      decimal: 8,
+      decimal: 1,
       circulation: 100,
       supply: 100,
       deployer: ScriptKey::from_address(
@@ -543,9 +552,86 @@ mod tests {
       pids: vec![pid],
     };
 
-    brc30db.set_tick_info(&tick_id, &tick_info).unwrap();
+    let mut tick_info2 = tick_info1.clone();
+    tick_info2.decimal = 2;
+    let mut tick_info3 = tick_info1.clone();
+    tick_info3.decimal = 3;
+    let mut tick_info4 = tick_info1.clone();
+    tick_info4.decimal = 4;
+    let mut tick_info5 = tick_info1.clone();
+    tick_info5.decimal = 5;
 
-    assert_eq!(brc30db.get_tick_info(&tick_id).unwrap().unwrap(), tick_info);
+    brc30db.set_tick_info(&tick_id_1, &tick_info1).unwrap();
+    brc30db.set_tick_info(&tick_id_2, &tick_info2).unwrap();
+    brc30db.set_tick_info(&tick_id_3, &tick_info3).unwrap();
+    brc30db.set_tick_info(&tick_id_4, &tick_info4).unwrap();
+    brc30db.set_tick_info(&tick_id_5, &tick_info5).unwrap();
+
+    assert_eq!(
+      brc30db.get_tick_info(&tick_id_1).unwrap().unwrap(),
+      tick_info1.clone()
+    );
+
+    assert_eq!(
+      brc30db.get_all_tick_info(0, None).unwrap(),
+      (
+        vec![
+          tick_info1.clone(),
+          tick_info2.clone(),
+          tick_info3.clone(),
+          tick_info4.clone(),
+          tick_info5.clone(),
+        ],
+        5
+      )
+    );
+    assert_eq!(
+      brc30db.get_all_tick_info(0, Some(3)).unwrap(),
+      (
+        vec![tick_info1.clone(), tick_info2.clone(), tick_info3.clone(),],
+        5
+      )
+    );
+
+    assert_eq!(
+      brc30db.get_all_tick_info(0, Some(5)).unwrap(),
+      (
+        vec![
+          tick_info1.clone(),
+          tick_info2.clone(),
+          tick_info3.clone(),
+          tick_info4.clone(),
+          tick_info5.clone()
+        ],
+        5
+      )
+    );
+
+    assert_eq!(
+      brc30db.get_all_tick_info(0, Some(9)).unwrap(),
+      (
+        vec![
+          tick_info1.clone(),
+          tick_info2.clone(),
+          tick_info3.clone(),
+          tick_info4.clone(),
+          tick_info5.clone()
+        ],
+        5
+      )
+    );
+
+    assert_eq!(
+      brc30db.get_all_tick_info(3, Some(1)).unwrap(),
+      (vec![tick_info4.clone()], 5)
+    );
+
+    assert_eq!(
+      brc30db.get_all_tick_info(3, Some(9)).unwrap(),
+      (vec![tick_info4.clone(), tick_info5.clone()], 5)
+    );
+
+    assert_eq!(brc30db.get_all_tick_info(5, Some(9)).unwrap(), (vec![], 5));
   }
 
   #[test]

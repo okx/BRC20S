@@ -1236,10 +1236,14 @@ impl Index {
     Ok(res)
   }
 
-  pub(crate) fn brc30_all_tick_info(&self) -> Result<Vec<brc30::TickInfo>> {
+  pub(crate) fn brc30_all_tick_info(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<(Vec<brc30::TickInfo>, usize)> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
-    let all_tick = brc30_db.get_all_tick_info()?;
+    let all_tick = brc30_db.get_all_tick_info(start, limit)?;
     Ok(all_tick)
   }
 

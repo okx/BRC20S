@@ -47,10 +47,14 @@ pub(crate) async fn brc30_tick_info(
   log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
 
   let tick_id = tick_id.to_lowercase();
+  if tick_id.as_bytes().len() != 10 {
+    return Err(ApiError::bad_request("tick id must be 10 hex length"));
+  }
+
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
 
@@ -91,7 +95,7 @@ pub(crate) async fn brc30_debug_tick_info(
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
 
@@ -169,7 +173,7 @@ pub(crate) async fn brc30_pool_info(
 
   let pool_info = &index
     .brc30_pool_info(&pid)?
-    .ok_or_api_not_found("pid not found")?;
+    .ok_or_api_not_found("tick or address not found")?;
 
   log::debug!(
     "rpc: get brc30_pool_info: {:?} {:?}",
@@ -271,7 +275,7 @@ pub(crate) async fn brc30_userinfo(
     .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
   let user_info = &index
     .brc30_user_info(&pid, &address)?
-    .ok_or_api_not_found("pid not found")?;
+    .ok_or_api_not_found("pid or address not found")?;
 
   log::debug!(
     "rpc: get brc30_userinfo: {:?} {:?}",
@@ -359,7 +363,7 @@ pub(crate) async fn brc30_debug_balance(
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
   let tick_id = tick_id.to_lowercase();
@@ -391,10 +395,15 @@ pub(crate) async fn brc30_balance(
   );
 
   let tick_id = tick_id.to_lowercase();
+  if tick_id.as_bytes().len() != 10 {
+    return Err(ApiError::bad_request("tick id must be 10 hex length"));
+  }
+
+  let tick_id = tick_id.to_lowercase();
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
 
@@ -467,10 +476,14 @@ pub(crate) async fn brc30_transferable(
   log::debug!("rpc: get brc30_transferable: {},{}", tick_id, address);
 
   let tick_id = tick_id.to_lowercase();
+  if tick_id.as_bytes().len() != 10 {
+    return Err(ApiError::bad_request("tick id must be 10 hex length"));
+  }
+
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
 

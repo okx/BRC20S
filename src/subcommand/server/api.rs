@@ -27,6 +27,12 @@ impl<T> ApiOptionExt<T> for Option<T> {
 
 const ERR_TICK_LENGTH: &str = "tick must be 4 bytes length";
 
+#[derive(Deserialize)]
+pub struct Pagination {
+  pub start: Option<usize>,
+  pub limit: Option<usize>,
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TickInfo {

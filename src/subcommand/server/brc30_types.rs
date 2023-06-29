@@ -60,6 +60,7 @@ pub struct Tick {
 #[serde(rename_all = "camelCase")]
 pub struct AllBRC30TickInfo {
   pub tokens: Vec<BRC30TickInfo>,
+  pub total: usize,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -154,6 +155,7 @@ pub struct Earn {
 #[serde(rename_all = "camelCase")]
 pub struct AllBRC30PoolInfo {
   pub tokens: Vec<BRC30Pool>,
+  pub total: usize,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

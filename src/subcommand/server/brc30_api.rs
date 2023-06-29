@@ -1,8 +1,5 @@
-use super::brc30_types::*;
-use super::error::ApiError;
-use super::*;
-use crate::okx::datastore::brc30;
-use crate::okx::datastore::brc30::{BRC30Receipt, PledgedTick, TickId};
+use super::{brc30_types::*, error::ApiError, *};
+use crate::okx::datastore::brc30::{self, BRC30Receipt, PledgedTick, TickId};
 use axum::Json;
 
 // 3.4.1 /brc30/tick

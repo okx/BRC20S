@@ -715,7 +715,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
       withdraw_stake.to_string().as_str(),
     );
     passive_msg.op = BRC30Operation::UnStake(stake_msg.clone());
-    process_unstake(context, brc20_store, brc30_store, &msg, stake_msg)?;
+    process_unstake(context, brc20_store, brc30_store, &passive_msg, stake_msg)?;
     events.push(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {
       pid: pid.clone(),
       amt: *stake,

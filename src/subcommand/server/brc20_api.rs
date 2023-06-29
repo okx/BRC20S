@@ -107,7 +107,7 @@ impl From<&brc20::BRC20Receipt> for TxEvent {
           msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
           event: String::from("mint"),
         }),
-        brc20::BRC20Event::InscripbeTransfer(trans1) => {
+        brc20::BRC20Event::InscribeTransfer(trans1) => {
           Self::InscribeTransfer(InscribeTransferEvent {
             tick: std::str::from_utf8(trans1.tick.as_bytes())
               .unwrap()

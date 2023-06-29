@@ -7,7 +7,7 @@ const PER_SHARE_MULTIPLIER: u8 = 18;
 #[cfg(not(test))]
 use log::info;
 #[cfg(test)]
-use std::{println as info, println as warn};
+use std::println as info;
 
 // demo
 // | Pool type | earn rate | total stake      | user stake     | block | reward                                        |
@@ -543,8 +543,6 @@ mod tests {
   fn test_complex_fix_three_user() {
     const STAKED_DECIMAL: u8 = 3;
     const ERATE_DECIMAL: u8 = 3;
-    let stake_base = get_base_decimal(STAKED_DECIMAL);
-    let erate_base = get_base_decimal(ERATE_DECIMAL);
     let dmax = 1000;
     let erate = 100;
 
@@ -3577,7 +3575,6 @@ mod tests {
     expect1: &str,
     expect2: &str,
   ) {
-    println!("--------------");
     let stake_base = Num::from(get_base_decimal(staked_decimal));
     let erate_base = Num::from(get_base_decimal(earte_decimal));
     let erate = erate_base.checked_mul(&erate).unwrap();

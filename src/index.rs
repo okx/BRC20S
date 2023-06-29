@@ -1397,6 +1397,8 @@ mod tests {
   use {
     super::*,
     bitcoin::secp256k1::rand::{self, RngCore},
+    std::ffi::OsString,
+    tempfile::TempDir,
   };
 
   struct ContextBuilder {
@@ -2765,7 +2767,6 @@ mod tests {
     for context in Context::configurations() {
       let mut entropy = [0; 16];
       rand::thread_rng().fill_bytes(&mut entropy);
-      let mnemonic = Mnemonic::from_entropy(&entropy).unwrap();
       context.rpc_server.mine_blocks(1);
       assert_regex_match!(
         context.index.get_unspent_outputs().unwrap_err().to_string(),

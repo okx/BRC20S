@@ -1016,10 +1016,8 @@ mod tests {
   use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
   use crate::okx::datastore::brc30::PledgedTick;
   use crate::test::Hash;
-  use bech32::ToBase32;
   use bitcoin::Address;
-  use redb::{Database, WriteTransaction};
-  use std::borrow::Borrow;
+  use redb::Database;
   use tempfile::NamedTempFile;
 
   fn create_brc30_message(
@@ -1056,8 +1054,6 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let mut inscription_id_to_inscription_entry =
-      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
     let brc30_data_store = BRC30DataStore::new(&wtx);
@@ -1117,10 +1113,10 @@ mod tests {
     let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
-    let expectTickINfo = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
-    let expectPoolInfo = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
-    assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
-    assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
+    let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
+    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_eq!(expect_pool_info, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expect_tick_info, serde_json::to_string(&tickinfo).unwrap());
 
     let msg = create_brc30_message(
       inscruptionId,
@@ -1168,16 +1164,16 @@ mod tests {
     };
     brc20_data_store.insert_token_info(&token, &token_info);
 
-    let mut secondDeply = deploy.clone();
-    secondDeply.pool_id = "13395c5283#11".to_string();
-    secondDeply.stake = "orea".to_string();
-    secondDeply.distribution_max = "9000000".to_string();
-    secondDeply.earn_rate = "0.1".to_string();
+    let mut second_deply = deploy.clone();
+    second_deply.pool_id = "13395c5283#11".to_string();
+    second_deply.stake = "orea".to_string();
+    second_deply.distribution_max = "9000000".to_string();
+    second_deply.earn_rate = "0.1".to_string();
     let msg = create_brc30_message(
       inscruptionId,
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(secondDeply.clone()),
+      BRC30Operation::Deploy(second_deply.clone()),
     );
     let context = BlockContext {
       blockheight: 0,
@@ -1189,7 +1185,7 @@ mod tests {
       &brc20_data_store,
       &brc30_data_store,
       &msg,
-      secondDeply.clone(),
+      second_deply.clone(),
     );
 
     let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -1199,15 +1195,15 @@ mod tests {
     };
 
     assert_ne!(true, result.is_err());
-    let tick_id = secondDeply.get_tick_id();
-    let pid = secondDeply.get_pool_id();
+    let tick_id = second_deply.get_tick_id();
+    let pid = second_deply.get_pool_id();
     let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
-    let expectTickINfo = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#11"]}"##;
-    let expectPoolInfo = r##"{"pid":"13395c5283#11","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
-    assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
-    assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
+    let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#11"]}"##;
+    let expect_pool_info = r##"{"pid":"13395c5283#11","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_eq!(expect_pool_info, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expect_tick_info, serde_json::to_string(&tickinfo).unwrap());
   }
 
   #[test]
@@ -1215,8 +1211,6 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let mut inscription_id_to_inscription_entry =
-      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
     let brc30_data_store = BRC30DataStore::new(&wtx);
@@ -1277,10 +1271,10 @@ mod tests {
     let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
-    let expectTickINfo = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
-    let expectPoolInfo = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
-    assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
-    assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
+    let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
+    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_eq!(expect_pool_info, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expect_tick_info, serde_json::to_string(&tickinfo).unwrap());
     //add brc20 tokeninfo
     {
       let token = Tick::from_str("ore1".to_string().as_str()).unwrap();
@@ -2576,9 +2570,6 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let mut inscription_id_to_inscription_entry =
-      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
-
     let brc20_data_store = BRC20DataStore::new(&wtx);
     let brc30_data_store = BRC30DataStore::new(&wtx);
 
@@ -2795,9 +2786,6 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let mut inscription_id_to_inscription_entry =
-      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
-
     let brc20_data_store = BRC20DataStore::new(&wtx);
     let brc30_data_store = BRC30DataStore::new(&wtx);
 
@@ -3015,9 +3003,6 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let mut inscription_id_to_inscription_entry =
-      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
-
     let brc20_data_store = BRC20DataStore::new(&wtx);
     let brc30_data_store = BRC30DataStore::new(&wtx);
 
@@ -3104,13 +3089,13 @@ mod tests {
     let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
-    let expectTickINfo = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
-    let expectPoolInfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
-    assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
-    assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
+    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
+    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_eq!(expect_pool_info, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expect_tick_info, serde_json::to_string(&tickinfo).unwrap());
 
-    let stakeTick = PledgedTick::BRC20Tick(token.clone());
-    let stakeMsg = Stake {
+    let stake_tick = PledgedTick::BRC20Tick(token.clone());
+    let stake_msg = Stake {
       pool_id: pid.as_str().to_string(),
       amount: "1000000".to_string(),
     };
@@ -3119,7 +3104,7 @@ mod tests {
       inscruptionId.clone(),
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stakeMsg.clone()),
+      BRC30Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 0,
@@ -3131,7 +3116,7 @@ mod tests {
       &brc20_data_store,
       &brc30_data_store,
       &msg,
-      stakeMsg.clone(),
+      stake_msg.clone(),
     );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
@@ -3149,7 +3134,7 @@ mod tests {
       }
     }
     let stakeinfo = brc30_data_store
-      .get_user_stakeinfo(&script, &stakeTick)
+      .get_user_stakeinfo(&script, &stake_tick)
       .unwrap();
 
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
@@ -3162,16 +3147,16 @@ mod tests {
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
     assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
     {
-      let stakeTick = PledgedTick::BRC20Tick(token.clone());
-      let passive_unstakeMsg = PassiveUnStake {
-        stake: stakeTick.to_string(),
+      let stake_tick = PledgedTick::BRC20Tick(token.clone());
+      let passive_unstake_msg = PassiveUnStake {
+        stake: stake_tick.to_string(),
         amount: "2000000".to_string(),
       };
       let mut msg = create_brc30_message(
         inscruptionId.clone(),
         script.clone(),
         script.clone(),
-        BRC30Operation::PassiveUnStake(passive_unstakeMsg.clone()),
+        BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 1,
@@ -3196,7 +3181,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        passive_unstakeMsg.clone(),
+        passive_unstake_msg.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -3214,7 +3199,7 @@ mod tests {
         }
       }
       let stakeinfo = brc30_data_store
-        .get_user_stakeinfo(&script, &stakeTick)
+        .get_user_stakeinfo(&script, &stake_tick)
         .unwrap();
 
       let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();

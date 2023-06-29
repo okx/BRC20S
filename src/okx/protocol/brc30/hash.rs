@@ -24,11 +24,8 @@ pub fn caculate_tick_id(
 
 #[cfg(test)]
 mod tests {
-  use super::super::*;
   use super::*;
-  use bitcoin::util::address::Payload;
   use bitcoin::Address;
-  use bitcoin::Network::Bitcoin;
   use std::str::FromStr;
 
   #[test]

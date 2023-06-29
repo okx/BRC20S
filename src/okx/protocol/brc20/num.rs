@@ -413,10 +413,13 @@ mod tests {
       .to_bigint()
       .unwrap();
 
+    assert_eq!(a.to_u128().unwrap(), 0_u128);
+
     let n = Num::from_str("3140000000000000000.00").unwrap();
     assert_eq!(n.checked_to_u128().unwrap(), 3140000000000000000u128);
 
     let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
+    assert_eq!(n.scale(), 5_i64);
     assert_eq!(
       Num::from_str("1e2").unwrap_err(),
       NumError::InvalidNum("1e2".to_string())

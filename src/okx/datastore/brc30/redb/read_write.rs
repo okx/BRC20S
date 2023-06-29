@@ -299,7 +299,6 @@ mod tests {
     BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30OperationType,
   };
   use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
-  use crate::okx::protocol::brc30::operation::BRC30Operation;
   use crate::okx::protocol::brc30::BRC30Error;
   use crate::SatPoint;
   use bitcoin::Address;
@@ -618,7 +617,6 @@ mod tests {
     let tick_id_3 = TickId::from_str("f7c515d6b3").unwrap();
     let tick_id_4 = TickId::from_str("f7c515d6b4").unwrap();
     let tick_id_5 = TickId::from_str("f7c515d6b5").unwrap();
-    let tick_id_6 = TickId::from_str("f7c515d6b6").unwrap();
 
     let pid = Pid::from_str("1234567890#01").unwrap();
     let tick_info1 = TickInfo {
@@ -870,21 +868,9 @@ mod tests {
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
-    let stake_info_20 = StakeInfo {
-      stake: pledged_tick_20.clone(),
-      pool_stakes: vec![(pid_20.clone(), true, 123)],
-      max_share: 0,
-      total_only: 0,
-    };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
     let pid_30 = Pid::from_str("1234567891#01").unwrap();
-    let stake_info_30 = StakeInfo {
-      stake: pledged_tick_30.clone(),
-      pool_stakes: vec![(pid_30.clone(), true, 123)],
-      max_share: 0,
-      total_only: 0,
-    };
 
     let tick1 = TickId::from_str("f7c515d6b1").unwrap();
     let tick2 = TickId::from_str("f7c515d6b2").unwrap();
@@ -892,12 +878,6 @@ mod tests {
 
     let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("f7c515d600").unwrap());
     let pid_btc = Pid::from_str("1234567890#01").unwrap();
-    let stake_info_btc = StakeInfo {
-      stake: pledged_tick_btc.clone(),
-      pool_stakes: vec![(pid_btc.clone(), true, 123)],
-      max_share: 0,
-      total_only: 0,
-    };
 
     brc30db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_20, &pid_20)
@@ -941,21 +921,9 @@ mod tests {
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
-    let stake_info_20 = StakeInfo {
-      stake: pledged_tick_20.clone(),
-      pool_stakes: vec![(pid_20.clone(), true, 123)],
-      max_share: 0,
-      total_only: 0,
-    };
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
     let pid_30 = Pid::from_str("1234567891#01").unwrap();
-    let stake_info_30 = StakeInfo {
-      stake: pledged_tick_30.clone(),
-      pool_stakes: vec![(pid_30.clone(), true, 123)],
-      max_share: 0,
-      total_only: 0,
-    };
 
     let tick1 = TickId::from_str("f7c515d6b1").unwrap();
     let tick2 = TickId::from_str("f7c515d6b2").unwrap();
@@ -963,12 +931,6 @@ mod tests {
 
     let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("f7c515d600").unwrap());
     let pid_btc = Pid::from_str("1234567892#01").unwrap();
-    let stake_info_btc = StakeInfo {
-      stake: pledged_tick_btc.clone(),
-      pool_stakes: vec![(pid_btc.clone(), true, 123)],
-      max_share: 0,
-      total_only: 0,
-    };
 
     brc30db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_20, &pid_20)

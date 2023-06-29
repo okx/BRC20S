@@ -1055,7 +1055,7 @@ impl Server {
 
 #[cfg(test)]
 mod tests {
-  use {super::*, reqwest::Url, std::net::TcpListener};
+  use {super::*, reqwest::Url, std::net::TcpListener, tempfile::TempDir};
 
   struct TestServer {
     bitcoin_rpc_server: test_bitcoincore_rpc::Handle,

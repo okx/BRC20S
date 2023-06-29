@@ -619,7 +619,7 @@ mod tests {
     let num = Num::from_str("0.01").unwrap();
     let base = BIGDECIMAL_TEN.checked_powu(18_u64).unwrap();
     let amt = num.checked_mul(&base).unwrap();
-    let is_integer = amt.is_integer();
+    let is_integer = amt.is_positive();
     println!("checked_mul {:?}, {}", amt, is_integer);
   }
 }

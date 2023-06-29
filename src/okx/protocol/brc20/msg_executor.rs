@@ -370,7 +370,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
     .insert_transferable(&inscription.owner, &lower_tick, inscription.clone())
     .map_err(|e| Error::LedgerError(e))?;
 
-  Ok(BRC20Event::InscripbeTransfer(InscripbeTransferEvent {
+  Ok(BRC20Event::InscribeTransfer(InscripbeTransferEvent {
     tick: inscription.tick,
     amount: amt,
   }))

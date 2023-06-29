@@ -25,7 +25,7 @@ pub struct BRC20Receipt {
 pub enum BRC20Event {
   Deploy(DeployEvent),
   Mint(MintEvent),
-  InscripbeTransfer(InscripbeTransferEvent),
+  InscribeTransfer(InscripbeTransferEvent),
   Transfer(TransferEvent),
 }
 

@@ -4,13 +4,16 @@ use crate::SatPoint;
 use bitcoin::Txid;
 
 pub mod error;
-mod hash;
+pub mod hash;
 pub mod msg_executor;
 pub mod msg_resolver;
 pub mod num;
 pub mod operation;
 pub mod params;
 mod util;
+#[cfg(test)]
+#[macro_use]
+mod test;
 
 pub use self::{
   error::{BRC30Error, Error},

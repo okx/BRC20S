@@ -238,8 +238,10 @@ impl Index {
         tx.open_table(STATISTIC_TO_COUNT)?
           .insert(&Statistic::Schema.key(), &SCHEMA_VERSION)?;
 
-        tx.open_table(OUTPOINT_TO_SAT_RANGES)?
-          .insert(&OutPoint::null().store(), [].as_slice())?;
+        if options.index_sats {
+          tx.open_table(OUTPOINT_TO_SAT_RANGES)?
+            .insert(&OutPoint::null().store(), [].as_slice())?;
+        }
 
         tx.commit()?;
 
@@ -349,7 +351,7 @@ impl Index {
     Ok(())
   }
 
-  #[cfg(test)]
+  #[allow(dead_code)]
   pub(crate) fn info(&self) -> Result<Info> {
     let wtx = self.begin_write()?;
 
@@ -694,7 +696,10 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_transaction_output_by_outpoint(&self, outpoint: OutPoint) -> Result<TxOut> {
+  pub(crate) fn get_transaction_output_by_outpoint(
+    &self,
+    outpoint: OutPoint,
+  ) -> Result<Option<TxOut>> {
     Self::transaction_output_by_outpoint(
       &self.database.begin_read()?.open_table(OUTPOINT_TO_ENTRY)?,
       outpoint,
@@ -709,7 +714,11 @@ impl Index {
     }
   }
 
-  pub(crate) fn get_transaction_with_retries(
+  pub(crate) fn get_transaction_with_retries(&self, txid: Txid) -> Result<Option<Transaction>> {
+    Self::get_transaction_retries(&self.client, txid)
+  }
+
+  pub(crate) fn get_transaction_retries(
     client: &Client,
     txid: Txid,
   ) -> Result<Option<Transaction>> {
@@ -763,7 +772,7 @@ impl Index {
     )
   }
 
-  #[cfg(test)]
+  #[allow(dead_code)]
   pub(crate) fn find(&self, sat: u64) -> Result<Option<SatPoint>> {
     self.require_sat_index("find")?;
 
@@ -1074,11 +1083,12 @@ impl Index {
   pub(crate) fn transaction_output_by_outpoint(
     outpoint_to_entry: &impl ReadableTable<&'static OutPointValue, &'static [u8]>,
     outpoint: OutPoint,
-  ) -> Result<TxOut> {
-    outpoint_to_entry
-      .get(&outpoint.store())?
-      .ok_or(anyhow!("failed to find outpoint entry for {}", outpoint))
-      .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap())
+  ) -> Result<Option<TxOut>> {
+    Ok(
+      outpoint_to_entry
+        .get(&outpoint.store())?
+        .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap()),
+    )
   }
 
   pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<brc20::TokenInfo>> {

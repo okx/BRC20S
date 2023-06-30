@@ -3,20 +3,20 @@ use std::collections::HashSet;
 
 use crate::{
   okx::{
-    datastore::ord::{operation::InscriptionOp, OrdDataStoreReadOnly},
+    datastore::{ord::operation::InscriptionOp, OrdDataStoreReadWrite},
     protocol::Message,
   },
   Inscription, Result,
 };
 use bitcoin::Transaction;
 use bitcoincore_rpc::Client;
-pub struct MsgResolveManager<'a, O: OrdDataStoreReadOnly> {
+pub struct MsgResolveManager<'a, O: OrdDataStoreReadWrite> {
   protocols: HashSet<ProtocolKind>,
   client: &'a Client,
   ord_store: &'a O,
 }
 
-impl<'a, O: OrdDataStoreReadOnly> MsgResolveManager<'a, O> {
+impl<'a, O: OrdDataStoreReadWrite> MsgResolveManager<'a, O> {
   pub fn new(client: &'a Client, ord_store: &'a O) -> Self {
     let mut protocols: HashSet<ProtocolKind> = HashSet::new();
     protocols.insert(ProtocolKind::BRC20);

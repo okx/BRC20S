@@ -56,10 +56,6 @@ impl TickId {
     Self::from_str(lowercase).unwrap()
   }
 
-  pub fn as_bytes(&self) -> &[u8] {
-    self.0.as_slice()
-  }
-
   pub fn hex(&self) -> String {
     hex::encode(&self.0)
   }
@@ -138,6 +134,7 @@ impl BRC30Tick {
     Self::from_str(self.as_str().to_lowercase().as_str()).unwrap()
   }
 
+  #[allow(dead_code)]
   pub fn as_bytes(&self) -> &[u8] {
     self.0.as_slice()
   }
@@ -146,10 +143,12 @@ impl BRC30Tick {
     hex::encode(&self.0)
   }
 
+  #[allow(dead_code)]
   pub fn min_hex() -> String {
     Self(Vec::new()).hex()
   }
 
+  #[allow(dead_code)]
   pub fn max_hex() -> String {
     Self(vec![0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8]).hex()
   }
@@ -222,7 +221,7 @@ impl PledgedTick {
   }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct TickInfo {
   pub tick_id: TickId,
   pub name: BRC30Tick,

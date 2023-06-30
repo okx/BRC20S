@@ -47,6 +47,7 @@ impl From<Error> for ServerError {
 }
 
 #[repr(i32)]
+#[allow(dead_code)]
 pub(crate) enum ApiError {
   NoError = 0,
   Internal(String) = 1,

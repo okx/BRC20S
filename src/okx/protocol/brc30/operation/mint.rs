@@ -1,6 +1,6 @@
-use crate::okx::datastore::brc30::{BRC30Tick, Pid, PoolType, TickId};
+use crate::okx::datastore::brc30::{BRC30Tick, Pid, TickId};
 use crate::okx::protocol::brc30::util::{validate_amount, validate_pool_str};
-use crate::okx::protocol::brc30::{BRC30Error, Num};
+use crate::okx::protocol::brc30::BRC30Error;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 

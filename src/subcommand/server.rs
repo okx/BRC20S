@@ -3,7 +3,6 @@ use {
     deserialize_from_str::DeserializeFromStr,
     error::{OptionExt, ServerError, ServerResult},
   },
-  super::server::brc30_api::*,
   super::*,
   crate::page_config::PageConfig,
   crate::templates::{
@@ -39,17 +38,18 @@ use {
 
 mod api;
 mod brc20_api;
+mod brc20_types;
 mod brc30_api;
 mod brc30_types;
-mod ord;
+mod ord_api;
 mod types;
 
 mod error;
 mod response;
 
 use self::api::*;
+use self::brc20_types::*;
 use self::response::ApiResponse;
-use self::types::*;
 
 #[cfg(feature = "rollback")]
 use crate::index::GLOBAL_SAVEPOINTS;
@@ -141,11 +141,6 @@ pub(crate) struct Server {
 
 impl Server {
   pub(crate) fn run(self, options: Options, index: Arc<Index>, handle: Handle) -> Result {
-    #[cfg(feature = "rollback")]
-    unsafe {
-      index.backup_at_init()?;
-    }
-
     Runtime::new()?.block_on(async {
       let clone = index.clone();
       thread::spawn(move || loop {
@@ -197,77 +192,95 @@ impl Server {
 
       let api_v1_router = Router::new()
         .route("/node/info", get(node_info))
-        .route("/ord/id/:id/inscription", get(ord_inscription_id))
+        .route("/ord/id/:id/inscription", get(ord_api::ord_inscription_id))
         .route(
           "/ord/number/:number/inscription",
-          get(ord_inscription_number),
+          get(ord_api::ord_inscription_number),
         )
-        .route("/ord/outpoint/:outpoint/info", get(ord_outpoint))
-        .route("/brc20/tick/:tick", get(brc20_tick_info))
-        .route("/brc20/tick", get(brc20_all_tick_info))
+        .route("/ord/outpoint/:outpoint/info", get(ord_api::ord_outpoint))
+        .route("/brc20/tick/:tick", get(brc20_api::brc20_tick_info))
+        .route("/brc20/tick", get(brc20_api::brc20_all_tick_info))
         .route(
           "/brc20/tick/:tick/address/:address/balance",
-          get(brc20_balance),
+          get(brc20_api::brc20_balance),
         )
-        .route("/brc20/address/:address/balance", get(brc20_all_balance))
+        .route(
+          "/brc20/address/:address/balance",
+          get(brc20_api::brc20_all_balance),
+        )
         .route(
           "/brc20/tick/:tick/address/:address/transferable",
-          get(brc20_transferable),
+          get(brc20_api::brc20_transferable),
         )
         .route(
           "/brc20/address/:address/transferable",
-          get(brc20_all_transferable),
+          get(brc20_api::brc20_all_transferable),
         )
-        .route("/brc20/tx/:txid/events", get(brc20_tx_events))
-        .route("/brc20/tx/:txid", get(brc20_tx))
-        .route("/brc20/block/:block_hash/events", get(brc20_block_events))
-        .route("/brc30/tick", get(brc30_all_tick_info))
-        .route("/brc30/tick/:tick_id", get(brc30_tick_info))
-        .route("/brc30/debug/tick/:tick_id", get(brc30_debug_tick_info))
-        .route("/brc30/pool", get(brc30_all_pool_info))
-        .route("/brc30/pool/:pid", get(brc30_pool_info))
-        .route("/brc30/debug/pool/:pid", get(brc30_debug_pool_info))
+        .route("/brc20/tx/:txid/events", get(brc20_api::brc20_tx_events))
+        .route("/brc20/tx/:txid", get(brc20_api::brc20_tx))
         .route(
-          "/brc30/debug/stake/:address/:tick",
-          get(brc30_debug_stake_info),
+          "/brc20/block/:block_hash/events",
+          get(brc20_api::brc20_block_events),
         )
+        .route("/brc20s/tick", get(brc30_api::brc30_all_tick_info))
+        .route("/brc20s/tick/:tick_id", get(brc30_api::brc30_tick_info))
         .route(
-          "/brc30/pool/:pid/address/:address/userinfo",
-          get(brc30_userinfo),
+          "/brc20s/debug/tick/:tick_id",
+          get(brc30_api::brc30_debug_tick_info),
         )
+        .route("/brc20s/pool", get(brc30_api::brc30_all_pool_info))
+        .route("/brc20s/pool/:pid", get(brc30_api::brc30_pool_info))
         .route(
-          "/brc30/debug/pool/:pid/address/:address/reward",
-          get(brc30_user_pending_reward),
+          "/brc20s/debug/pool/:pid",
+          get(brc30_api::brc30_debug_pool_info),
         )
         .route(
-          "/brc30/tick/:tick_id/address/:address/balance",
-          get(brc30_balance),
+          "/brc20s/debug/stake/:address/:tick",
+          get(brc30_api::brc30_debug_stake_info),
         )
         .route(
-          "/brc30/debug/pool/:pid/address/:address/userinfo",
-          get(brc30_debug_userinfo),
+          "/brc20s/pool/:pid/address/:address/userinfo",
+          get(brc30_api::brc30_userinfo),
         )
         .route(
-          "/brc30/debug/tick/:tick_id/address/:address/balance",
-          get(brc30_debug_balance),
-        )
-        .route("/brc30/address/:address/balance", get(brc30_all_balance))
-        .route(
-          "/brc30/tick/:tick_id/address/:address/transferable",
-          get(brc30_transferable),
+          "/brc20s/debug/pool/:pid/address/:address/reward",
+          get(brc30_api::brc30_user_pending_reward),
         )
         .route(
-          "/brc30/address/:address/transferable",
-          get(brc30_all_transferable),
-        )
-        .route("/brc30/tx/:txid/receipts", get(brc30_txid_receipts))
-        .route(
-          "/brc30/debug/tx/:txid/receipts",
-          get(brc30_debug_txid_receipts),
+          "/brc20s/tick/:tick_id/address/:address/balance",
+          get(brc30_api::brc30_balance),
         )
         .route(
-          "/brc30/block/:blockhash/receipts",
-          get(brc30_block_receipts),
+          "/brc20s/debug/pool/:pid/address/:address/userinfo",
+          get(brc30_api::brc30_debug_userinfo),
+        )
+        .route(
+          "/brc20s/debug/tick/:tick_id/address/:address/balance",
+          get(brc30_api::brc30_debug_balance),
+        )
+        .route(
+          "/brc20s/address/:address/balance",
+          get(brc30_api::brc30_all_balance),
+        )
+        .route(
+          "/brc20s/tick/:tick_id/address/:address/transferable",
+          get(brc30_api::brc30_transferable),
+        )
+        .route(
+          "/brc20s/address/:address/transferable",
+          get(brc30_api::brc30_all_transferable),
+        )
+        .route(
+          "/brc20s/tx/:txid/receipts",
+          get(brc30_api::brc30_txid_receipts),
+        )
+        .route(
+          "/brc20s/debug/tx/:txid/receipts",
+          get(brc30_api::brc30_debug_txid_receipts),
+        )
+        .route(
+          "/brc20s/block/:blockhash/receipts",
+          get(brc30_api::brc30_block_receipts),
         );
 
       let api_router = Router::new().nest("/v1", api_v1_router);
@@ -1042,7 +1055,7 @@ impl Server {
 
 #[cfg(test)]
 mod tests {
-  use {super::*, reqwest::Url, std::net::TcpListener};
+  use {super::*, reqwest::Url, std::net::TcpListener, tempfile::TempDir};
 
   struct TestServer {
     bitcoin_rpc_server: test_bitcoincore_rpc::Handle,

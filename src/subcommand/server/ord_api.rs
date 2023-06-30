@@ -1,5 +1,22 @@
-use super::*;
-use crate::okx::datastore::ord::{Action, InscriptionOp};
+use super::{error::ApiError, types::ScriptPubkey, *};
+use crate::okx::datastore::{
+  ord::{Action, InscriptionOp},
+  ScriptKey,
+};
+use axum::Json;
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrdInscription {
+  pub id: String,
+  pub number: i64,
+  pub content_type: Option<String>,
+  pub content: Option<String>,
+  pub owner: ScriptPubkey,
+  pub genesis_height: u64,
+  pub location: String,
+  pub sat: Option<u64>,
+}
 #[derive(Debug, Clone)]
 struct Flotsam {
   txid: Txid,
@@ -9,10 +26,141 @@ struct Flotsam {
   origin: Origin,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutPointData {
+  pub txid: String,
+  pub script_pub_key: String,
+  pub owner: ScriptPubkey,
+  pub value: u64,
+  pub inscription_digest: Vec<InscriptionDigest>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InscriptionDigest {
+  pub id: String,
+  pub number: i64,
+  pub location: String,
+}
+
 #[derive(Debug, Clone)]
 enum Origin {
   New { cursed: bool, unbound: bool },
   Old,
+}
+
+fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<OrdInscription> {
+  let inscription_data = index
+    .get_inscription_all_data_by_id(id)?
+    .ok_or_api_not_found(format!("inscriptionId not found {id}"))?;
+  let location_outpoint = inscription_data.sat_point.outpoint;
+  let owner = if inscription_data.tx.txid() != location_outpoint.txid {
+    let location_raw_tx = index
+      .get_transaction(location_outpoint.txid)?
+      .ok_or_api_not_found(format!(
+        "inscriptionId not found {}",
+        location_outpoint.txid
+      ))?;
+    ScriptKey::from_script(
+      &location_raw_tx
+        .output
+        .get(usize::try_from(location_outpoint.vout).unwrap())
+        .unwrap()
+        .script_pubkey,
+      index.get_chain_network(),
+    )
+    .into()
+  } else {
+    ScriptKey::from_script(
+      &inscription_data.tx.output[0].script_pubkey,
+      index.get_chain_network(),
+    )
+    .into()
+  };
+
+  Ok(Json(ApiResponse::ok(OrdInscription {
+    id: id.to_string(),
+    number: inscription_data.entry.number,
+    content_type: inscription_data
+      .inscription
+      .content_type()
+      .map(|c| String::from(c)),
+    content: inscription_data.inscription.body().map(|c| hex::encode(c)),
+    owner,
+    genesis_height: inscription_data.entry.height,
+    location: inscription_data.sat_point.to_string(),
+    sat: inscription_data.entry.sat.map(|s| s.0),
+  })))
+}
+
+pub(crate) async fn ord_inscription_id(
+  Extension(index): Extension<Arc<Index>>,
+  Path(id): Path<String>,
+) -> ApiResult<OrdInscription> {
+  log::debug!("rpc: get ord_inscription_id: {id}");
+  let id = InscriptionId::from_str(&id).map_err(|e| ApiError::bad_request(e.to_string()))?;
+
+  ord_get_inscription_by_id(index, id)
+}
+
+pub(crate) async fn ord_inscription_number(
+  Extension(index): Extension<Arc<Index>>,
+  Path(number): Path<i64>,
+) -> ApiResult<OrdInscription> {
+  log::debug!("rpc: get ord_inscription_number: {number}");
+
+  let id = index
+    .get_inscription_id_by_inscription_number(number)?
+    .ok_or_api_not_found(format!("inscriptionId not found for number: {number}"))?;
+
+  ord_get_inscription_by_id(index, id)
+}
+
+pub(super) async fn ord_outpoint(
+  Extension(index): Extension<Arc<Index>>,
+  Path(outpoint): Path<OutPoint>,
+) -> ApiResult<OutPointData> {
+  log::debug!("rpc: get ord_outpoint: {outpoint}");
+
+  let inscription_ids = index.get_inscriptions_on_output(outpoint)?;
+  if inscription_ids.is_empty() {
+    return Err(ApiError::not_found("inscriptionIds not found"));
+  }
+
+  let tx = index
+    .get_transaction(outpoint.txid)?
+    .ok_or_api_not_found(format!("transaction not found {}", outpoint.txid))?;
+
+  let vout = tx
+    .output
+    .get(outpoint.vout as usize)
+    .ok_or_api_not_found(format!("vout not found for {outpoint}"))?;
+
+  let mut inscription_digests = Vec::with_capacity(inscription_ids.len());
+  for id in &inscription_ids {
+    let ins_data = index
+      .get_inscription_entry(id.clone())?
+      .ok_or_api_not_found(format!("inscriptionId not found for {id}"))?;
+
+    let satpoint = index
+      .get_inscription_satpoint_by_id(id.clone())?
+      .ok_or_api_not_found(format!("satpoint not found for {id}"))?;
+
+    inscription_digests.push(InscriptionDigest {
+      id: id.to_string(),
+      number: ins_data.number,
+      location: satpoint.to_string(),
+    });
+  }
+
+  Ok(Json(ApiResponse::ok(OutPointData {
+    txid: outpoint.txid.to_string(),
+    script_pub_key: vout.script_pubkey.asm(),
+    owner: ScriptKey::from_script(&vout.script_pubkey, index.get_chain_network()).into(),
+    value: vout.value,
+    inscription_digest: inscription_digests,
+  })))
 }
 
 pub(super) fn get_ord_operations_by_txid(
@@ -68,9 +216,20 @@ fn simulate_index_ord_transaction(
 
     let offset = input_value;
 
-    input_value += index
-      .get_transaction_output_by_outpoint(tx_in.previous_output)
-      .map(|txout| txout.value)?;
+    input_value +=
+      if let Some(tx_out) = index.get_transaction_output_by_outpoint(tx_in.previous_output)? {
+        tx_out.value
+      } else if let Some(tx) = index.get_transaction_with_retries(tx_in.previous_output.txid)? {
+        tx.output
+          .get(usize::try_from(tx_in.previous_output.vout).unwrap())
+          .unwrap()
+          .value
+      } else {
+        return Err(anyhow!(
+          "can't get transaction output by outpoint: {}",
+          tx_in.previous_output
+        ));
+      };
 
     // go through all inscriptions in this input
     while let Some(inscription) = new_inscriptions.peek() {

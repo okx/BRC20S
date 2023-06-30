@@ -39,12 +39,10 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
           // Ignore negative number inscriptions.
           if inscription_number >= 0 {
             Inscription::from_transaction(
-              &Index::get_transaction_with_retries(client, op.inscription_id.txid)?.ok_or(
-                anyhow!(
-                  "failed to fetch transaction! {} not found",
-                  op.inscription_id.txid
-                ),
-              )?,
+              &Index::get_transaction_retries(client, op.inscription_id.txid)?.ok_or(anyhow!(
+                "failed to fetch transaction! {} not found",
+                op.inscription_id.txid
+              ))?,
             )
             .get(usize::try_from(op.inscription_id.index).unwrap())
             .unwrap()

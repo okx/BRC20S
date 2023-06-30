@@ -13,10 +13,6 @@ use std::{
 pub struct Num(BigDecimal);
 
 impl Num {
-  pub fn new(num: BigDecimal) -> Self {
-    Self(num)
-  }
-
   // TODO check overflow
   pub fn checked_add(&self, other: &Num) -> Result<Self, NumError> {
     Ok(Self(self.0.clone() + &other.0))
@@ -37,11 +33,6 @@ impl Num {
   // TODO check overflow
   pub fn checked_mul(&self, other: &Num) -> Result<Self, NumError> {
     Ok(Self(self.0.clone() * &other.0))
-  }
-
-  // TODO check overflow
-  pub fn checked_div(&self, other: &Num) -> Result<Self, NumError> {
-    Ok(Self(self.0.clone() / &other.0))
   }
 
   pub fn checked_powu(&self, exp: u64) -> Result<Self, NumError> {
@@ -422,10 +413,13 @@ mod tests {
       .to_bigint()
       .unwrap();
 
+    assert_eq!(a.to_u128().unwrap(), 0_u128);
+
     let n = Num::from_str("3140000000000000000.00").unwrap();
     assert_eq!(n.checked_to_u128().unwrap(), 3140000000000000000u128);
 
     let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
+    assert_eq!(n.scale(), 5_i64);
     assert_eq!(
       Num::from_str("1e2").unwrap_err(),
       NumError::InvalidNum("1e2".to_string())

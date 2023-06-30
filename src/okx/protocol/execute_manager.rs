@@ -96,8 +96,8 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         }
         Ok(())
       }
-      Receipt::BRC30(brc30_recipt) => {
-        match brc30_recipt.result {
+      Receipt::BRC30(brc30_receipt) => {
+        match brc30_receipt.result {
           Ok(events) => {
             let mut events = events.into_iter();
             while let Some(BRC30Event::Transfer(brc30_transfer)) = events.next() {

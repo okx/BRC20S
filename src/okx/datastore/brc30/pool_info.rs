@@ -3,7 +3,6 @@ use crate::okx::datastore::brc30::PledgedTick;
 use crate::okx::protocol::brc30::{params::PID_BYTE_COUNT, BRC30Error};
 use crate::InscriptionId;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::Formatter;
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -41,10 +40,6 @@ impl Pid {
 
   pub fn to_lowercase(&self) -> Pid {
     Self::from_str(self.as_str().to_lowercase().as_str()).unwrap()
-  }
-
-  pub fn as_bytes(&self) -> &[u8] {
-    self.0.as_slice()
   }
 
   pub fn hex(&self) -> String {

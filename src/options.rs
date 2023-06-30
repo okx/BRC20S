@@ -44,6 +44,8 @@ pub(crate) struct Options {
   pub(crate) height_limit: Option<u64>,
   #[clap(long, help = "Use index at <INDEX>.")]
   pub(crate) index: Option<PathBuf>,
+  #[clap(long, help = "Track location of all satoshis.")]
+  pub(crate) index_sats: bool,
   #[clap(long, short, help = "Use regtest. Equivalent to `--chain regtest`.")]
   pub(crate) regtest: bool,
   #[clap(long, help = "Connect to Bitcoin Core RPC at <RPC_URL>.")]
@@ -261,6 +263,7 @@ impl Options {
     Ok(client)
   }
 
+  #[allow(dead_code)]
   pub(crate) fn bitcoin_rpc_client_for_wallet_command(&self, create: bool) -> Result<Client> {
     let client = self.bitcoin_rpc_client()?;
 
@@ -303,7 +306,7 @@ impl Options {
 
 #[cfg(test)]
 mod tests {
-  use {super::*, bitcoin::Network, std::path::Path};
+  use {super::*, bitcoin::Network, std::path::Path, tempfile::TempDir};
 
   #[test]
   fn rpc_url_overrides_network() {

@@ -1,5 +1,4 @@
 use crate::inscription_id::InscriptionId;
-use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc30::operation::BRC30Operation;
 use crate::SatPoint;
 use bitcoin::Txid;

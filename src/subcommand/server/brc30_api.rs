@@ -1,17 +1,15 @@
-use super::brc30_types::*;
-use super::error::ApiError;
-use super::*;
-use crate::okx::datastore::brc30;
-use crate::okx::datastore::brc30::{BRC30Receipt, PledgedTick, TickId};
+use super::{brc30_types::*, error::ApiError, *};
+use crate::okx::datastore::brc30::{self, BRC30Receipt, PledgedTick, TickId};
 use axum::Json;
 
 // 3.4.1 /brc30/tick
 pub(crate) async fn brc30_all_tick_info(
   Extension(index): Extension<Arc<Index>>,
+  Query(page): Query<Pagination>,
 ) -> ApiResult<AllBRC30TickInfo> {
   log::debug!("rpc: get brc30_all_tick_info");
 
-  let all_tick_info = index.brc30_all_tick_info()?;
+  let (all_tick_info, total) = index.brc30_all_tick_info(page.start.unwrap_or(0), page.limit)?;
   log::debug!("rpc: get brc30_all_tick_info: {:?}", all_tick_info);
 
   Ok(Json(ApiResponse::ok(AllBRC30TickInfo {
@@ -34,6 +32,7 @@ pub(crate) async fn brc30_all_tick_info(
         brc30_tick
       })
       .collect(),
+    total,
   })))
 }
 
@@ -45,10 +44,14 @@ pub(crate) async fn brc30_tick_info(
   log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
 
   let tick_id = tick_id.to_lowercase();
+  if tick_id.as_bytes().len() != 10 {
+    return Err(ApiError::bad_request("tick id must be 10 hex length"));
+  }
+
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
 
@@ -89,7 +92,7 @@ pub(crate) async fn brc30_debug_tick_info(
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
 
@@ -109,9 +112,10 @@ pub(crate) async fn brc30_debug_tick_info(
 // brc30/pool
 pub(crate) async fn brc30_all_pool_info(
   Extension(index): Extension<Arc<Index>>,
+  Query(page): Query<Pagination>,
 ) -> ApiResult<AllBRC30PoolInfo> {
   log::debug!("rpc: get brc30_all_pool_info");
-  let all_pool_info = index.brc30_all_pool_info()?;
+  let (all_pool_info, total) = index.brc30_all_pool_info(page.start.unwrap_or(0), page.limit)?;
   log::debug!("rpc: get brc30_all_pool_info: {:?}", all_pool_info);
   Ok(Json(ApiResponse::ok(AllBRC30PoolInfo {
     tokens: all_pool_info
@@ -148,6 +152,7 @@ pub(crate) async fn brc30_all_pool_info(
         pool_result
       })
       .collect(),
+    total,
   })))
 }
 
@@ -165,7 +170,7 @@ pub(crate) async fn brc30_pool_info(
 
   let pool_info = &index
     .brc30_pool_info(&pid)?
-    .ok_or_api_not_found("pid not found")?;
+    .ok_or_api_not_found("tick or address not found")?;
 
   log::debug!(
     "rpc: get brc30_pool_info: {:?} {:?}",
@@ -267,7 +272,7 @@ pub(crate) async fn brc30_userinfo(
     .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
   let user_info = &index
     .brc30_user_info(&pid, &address)?
-    .ok_or_api_not_found("pid not found")?;
+    .ok_or_api_not_found("pid or address not found")?;
 
   log::debug!(
     "rpc: get brc30_userinfo: {:?} {:?}",
@@ -355,7 +360,7 @@ pub(crate) async fn brc30_debug_balance(
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
   let tick_id = tick_id.to_lowercase();
@@ -387,10 +392,15 @@ pub(crate) async fn brc30_balance(
   );
 
   let tick_id = tick_id.to_lowercase();
+  if tick_id.as_bytes().len() != 10 {
+    return Err(ApiError::bad_request("tick id must be 10 hex length"));
+  }
+
+  let tick_id = tick_id.to_lowercase();
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
 
@@ -463,10 +473,14 @@ pub(crate) async fn brc30_transferable(
   log::debug!("rpc: get brc30_transferable: {},{}", tick_id, address);
 
   let tick_id = tick_id.to_lowercase();
+  if tick_id.as_bytes().len() != 10 {
+    return Err(ApiError::bad_request("tick id must be 10 hex length"));
+  }
+
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
     Err(error) => {
-      return Err(ApiError::Internal(error.to_string()));
+      return Err(ApiError::BadRequest(error.to_string()));
     }
   }
 
@@ -562,7 +576,7 @@ pub(crate) async fn brc30_txid_receipts(
       Ok(receipt) => {
         receipts.push(receipt);
       }
-      Err(error) => {
+      Err(_) => {
         return Err(ApiError::internal("failed to get transaction receipts"));
       }
     }

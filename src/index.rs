@@ -2,14 +2,13 @@ use crate::okx::{
   datastore::{
     brc20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
     brc30::{self, redb::BRC30DataStoreReader, BRC30DataStoreReadOnly},
-    ord::{InscriptionOp, OrdDbReader},
     ScriptKey,
   },
-  protocol::{self, brc20::BRC20Message, brc30::params::NATIVE_TOKEN_DECIMAL},
+  protocol::brc30::params::NATIVE_TOKEN_DECIMAL,
   reward::reward,
 };
 #[cfg(feature = "rollback")]
-use std::cell::OnceCell;
+use once_cell::sync::OnceCell;
 
 use {
   self::{
@@ -38,6 +37,7 @@ mod rtx;
 mod updater;
 
 use crate::okx::datastore::brc30::PledgedTick;
+#[cfg(feature = "rollback")]
 use redb::Savepoint;
 
 const SCHEMA_VERSION: u64 = 4;
@@ -68,6 +68,7 @@ pub(crate) const SAVEPOINT_INTERVAL: u64 = 3;
 #[cfg(feature = "rollback")]
 pub(crate) const MAX_SAVEPOINTS: usize = 4;
 
+#[allow(dead_code)]
 pub(crate) struct Index {
   client: Client,
   database: Database,
@@ -237,8 +238,10 @@ impl Index {
         tx.open_table(STATISTIC_TO_COUNT)?
           .insert(&Statistic::Schema.key(), &SCHEMA_VERSION)?;
 
-        tx.open_table(OUTPOINT_TO_SAT_RANGES)?
-          .insert(&OutPoint::null().store(), [].as_slice())?;
+        if options.index_sats {
+          tx.open_table(OUTPOINT_TO_SAT_RANGES)?
+            .insert(&OutPoint::null().store(), [].as_slice())?;
+        }
 
         tx.commit()?;
 
@@ -319,6 +322,7 @@ impl Index {
     )
   }
 
+  #[allow(dead_code)]
   pub(crate) fn get_unspent_output_ranges(&self) -> Result<Vec<(OutPoint, Vec<(u64, u64)>)>> {
     self
       .get_unspent_outputs()?
@@ -347,6 +351,7 @@ impl Index {
     Ok(())
   }
 
+  #[allow(dead_code)]
   pub(crate) fn info(&self) -> Result<Info> {
     let wtx = self.begin_write()?;
 
@@ -406,24 +411,12 @@ impl Index {
     self.reorged.load(atomic::Ordering::Relaxed)
   }
 
+  #[cfg(feature = "rollback")]
   pub(crate) fn reset_reorged(&self) {
     self.reorged.store(false, atomic::Ordering::Relaxed);
   }
 
   #[cfg(feature = "rollback")]
-  pub(crate) unsafe fn backup_at_init(&self) -> Result {
-    let height = self.height().unwrap().unwrap_or(Height(0)).n();
-    GLOBAL_SAVEPOINTS.get_or_init(|| VecDeque::new());
-    let wtx = self.begin_write()?;
-    let sp = wtx.savepoint()?;
-    GLOBAL_SAVEPOINTS
-      .get_mut()
-      .unwrap()
-      .push_back(HeightSavepoint(height, sp));
-    wtx.commit()?;
-    Ok(())
-  }
-
   pub(crate) fn restore_savepoint(&self, sp: &Savepoint) -> Result {
     let mut wtx = self.begin_write()?;
     wtx.restore_savepoint(sp)?;
@@ -703,7 +696,10 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_transaction_output_by_outpoint(&self, outpoint: OutPoint) -> Result<TxOut> {
+  pub(crate) fn get_transaction_output_by_outpoint(
+    &self,
+    outpoint: OutPoint,
+  ) -> Result<Option<TxOut>> {
     Self::transaction_output_by_outpoint(
       &self.database.begin_read()?.open_table(OUTPOINT_TO_ENTRY)?,
       outpoint,
@@ -718,7 +714,11 @@ impl Index {
     }
   }
 
-  pub(crate) fn get_transaction_with_retries(
+  pub(crate) fn get_transaction_with_retries(&self, txid: Txid) -> Result<Option<Transaction>> {
+    Self::get_transaction_retries(&self.client, txid)
+  }
+
+  pub(crate) fn get_transaction_retries(
     client: &Client,
     txid: Txid,
   ) -> Result<Option<Transaction>> {
@@ -772,6 +772,7 @@ impl Index {
     )
   }
 
+  #[allow(dead_code)]
   pub(crate) fn find(&self, sat: u64) -> Result<Option<SatPoint>> {
     self.require_sat_index("find")?;
 
@@ -868,6 +869,7 @@ impl Index {
     }
   }
 
+  #[allow(dead_code)]
   pub(crate) fn get_inscriptions(
     &self,
     n: Option<usize>,
@@ -1078,30 +1080,15 @@ impl Index {
     )
   }
 
-  pub(crate) fn get_number_by_inscription_id<'a>(
-    id_to_entry: &'a impl ReadableTable<&'static InscriptionIdValue, InscriptionEntryValue>,
-    inscription_id: InscriptionId,
-  ) -> Result<i64> {
-    Ok(
-      id_to_entry
-        .get(&inscription_id.store())?
-        .ok_or(anyhow!(
-          "failed to find inscription number for {}",
-          inscription_id
-        ))?
-        .value()
-        .2,
-    )
-  }
-
   pub(crate) fn transaction_output_by_outpoint(
     outpoint_to_entry: &impl ReadableTable<&'static OutPointValue, &'static [u8]>,
     outpoint: OutPoint,
-  ) -> Result<TxOut> {
-    outpoint_to_entry
-      .get(&outpoint.store())?
-      .ok_or(anyhow!("failed to find outpoint entry for {}", outpoint))
-      .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap())
+  ) -> Result<Option<TxOut>> {
+    Ok(
+      outpoint_to_entry
+        .get(&outpoint.store())?
+        .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap()),
+    )
   }
 
   pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<brc20::TokenInfo>> {
@@ -1236,10 +1223,14 @@ impl Index {
     Ok(res)
   }
 
-  pub(crate) fn brc30_all_tick_info(&self) -> Result<Vec<brc30::TickInfo>> {
+  pub(crate) fn brc30_all_tick_info(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<(Vec<brc30::TickInfo>, usize)> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
-    let all_tick = brc30_db.get_all_tick_info()?;
+    let all_tick = brc30_db.get_all_tick_info(start, limit)?;
     Ok(all_tick)
   }
 
@@ -1269,10 +1260,14 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn brc30_all_pool_info(&self) -> Result<Vec<brc30::PoolInfo>> {
+  pub(crate) fn brc30_all_pool_info(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<(Vec<brc30::PoolInfo>, usize)> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
-    let all_pool = brc30_db.get_all_poolinfo()?;
+    let all_pool = brc30_db.get_all_poolinfo(start, limit)?;
     Ok(all_pool)
   }
 
@@ -1412,6 +1407,8 @@ mod tests {
   use {
     super::*,
     bitcoin::secp256k1::rand::{self, RngCore},
+    std::ffi::OsString,
+    tempfile::TempDir,
   };
 
   struct ContextBuilder {
@@ -2780,7 +2777,6 @@ mod tests {
     for context in Context::configurations() {
       let mut entropy = [0; 16];
       rand::thread_rng().fill_bytes(&mut entropy);
-      let mnemonic = Mnemonic::from_entropy(&entropy).unwrap();
       context.rpc_server.mine_blocks(1);
       assert_regex_match!(
         context.index.get_unspent_outputs().unwrap_err().to_string(),

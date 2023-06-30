@@ -6,7 +6,6 @@ use crate::okx::protocol::brc30::params::{
 use crate::okx::protocol::brc30::util::{validate_amount, validate_pool_str};
 use crate::okx::protocol::brc30::{BRC30Error, Num};
 use serde::{Deserialize, Serialize};
-use serde_json::from_str;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
@@ -51,30 +50,6 @@ pub struct Deploy {
 }
 
 impl Deploy {
-  pub fn new(
-    pool_type: String,
-    pool_id: String,
-    stake: String,
-    earn: String,
-    earn_rate: String,
-    distribution_max: String,
-    total_supply: Option<String>,
-    only: Option<String>,
-    decimals: Option<String>,
-  ) -> Self {
-    Self {
-      pool_type,
-      pool_id,
-      stake,
-      earn,
-      earn_rate,
-      distribution_max,
-      total_supply,
-      only,
-      decimals,
-    }
-  }
-
   pub fn get_pool_type(&self) -> PoolType {
     match self.pool_type.as_str() {
       POOL_TYPE => PoolType::Pool,
@@ -101,10 +76,6 @@ impl Deploy {
 
   pub fn get_earn_id(&self) -> BRC30Tick {
     return BRC30Tick::from_str(self.earn.as_str()).unwrap();
-  }
-
-  pub fn get_distribution_max(&self) -> u128 {
-    from_str(self.distribution_max.as_str()).unwrap()
   }
 
   pub fn get_only(&self) -> bool {

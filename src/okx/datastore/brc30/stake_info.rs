@@ -86,8 +86,7 @@ impl StakeInfo {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::protocol::brc30::{BRC30Error, Num};
-  use serde::__private::de::IdentifierDeserializer;
+  use crate::okx::protocol::brc30::Num;
   use std::str::FromStr;
   // testcase: the 3 pools can represent all case
   // a        b           c

@@ -25,12 +25,20 @@ pub trait BRC30DataStoreReadOnly {
   // 3.3.3 BRC30_TICKINFO
   fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<TickInfo>, Self::Error>;
 
-  fn get_all_tick_info(&self) -> Result<Vec<TickInfo>, Self::Error>;
+  fn get_all_tick_info(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<(Vec<TickInfo>, usize), Self::Error>;
 
   // 3.3.4 BRC30_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error>;
 
-  fn get_all_poolinfo(&self) -> Result<Vec<PoolInfo>, Self::Error>;
+  fn get_all_poolinfo(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<(Vec<PoolInfo>, usize), Self::Error>;
 
   // 3.3.5 BRC30_USER_STAKEINFO
   fn get_user_stakeinfo(

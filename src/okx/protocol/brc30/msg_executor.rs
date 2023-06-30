@@ -1159,11 +1159,11 @@ mod tests {
     };
     brc20_data_store.insert_token_info(&token, &token_info);
 
-    let mut secondDeply = deploy.clone();
-    secondDeply.pool_id = "13395c5283#11".to_string();
-    secondDeply.stake = "orea".to_string();
-    secondDeply.distribution_max = "9000000".to_string();
-    secondDeply.earn_rate = "0.1".to_string();
+    let mut second_deply = deploy.clone();
+    second_deply.pool_id = "13395c5283#11".to_string();
+    second_deply.stake = "orea".to_string();
+    second_deply.distribution_max = "9000000".to_string();
+    second_deply.earn_rate = "0.1".to_string();
     let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
@@ -1620,12 +1620,12 @@ mod tests {
 
     //caculate tickid faile
     {
-      let mut secondDeply = deploy.clone();
-      secondDeply.total_supply = Some("20000000".to_string());
+      let mut second_deply = deploy.clone();
+      second_deply.total_supply = Some("20000000".to_string());
       let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(secondDeply.clone()),
+        BRC30Operation::Deploy(second_deply.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1637,7 +1637,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        secondDeply.clone(),
+        second_deply.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -1653,12 +1653,12 @@ mod tests {
         result
       );
 
-      let mut secondDeply = deploy.clone();
-      secondDeply.decimals = Some("17".to_string());
+      let mut second_deply = deploy.clone();
+      second_deply.decimals = Some("17".to_string());
       let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(secondDeply.clone()),
+        BRC30Operation::Deploy(second_deply.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1670,7 +1670,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        secondDeply.clone(),
+        second_deply.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -1686,11 +1686,11 @@ mod tests {
         result
       );
 
-      let mut secondDeply = deploy.clone();
+      let mut second_deply = deploy.clone();
       let mut msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(secondDeply.clone()),
+        BRC30Operation::Deploy(second_deply.clone()),
       );
       msg.from = ScriptKey::Address(
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
@@ -1707,7 +1707,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        secondDeply.clone(),
+        second_deply.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -1723,11 +1723,11 @@ mod tests {
         result
       );
 
-      let mut secondDeply = deploy.clone();
+      let mut second_deply = deploy.clone();
       let mut msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(secondDeply.clone()),
+        BRC30Operation::Deploy(second_deply.clone()),
       );
       msg.to = ScriptKey::Address(
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
@@ -1743,7 +1743,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        secondDeply.clone(),
+        second_deply.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {

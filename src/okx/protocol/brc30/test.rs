@@ -55,17 +55,17 @@ pub(crate) fn mock_deploy_msg(
 
   let tickid = hash::caculate_tick_id(earn, supply_128, dec, &from_script_key, &to_script_key);
   let pid = tickid.hex().to_string() + "#" + poll_number;
-  let msg = Deploy::new(
-    pool_type.to_string(),
-    pid,
-    stake.to_string(),
-    earn.to_string(),
-    earn_rate.to_string(),
-    dmax.to_string(),
-    Some(supply.to_string()),
+  let msg = Deploy {
+    pool_type: pool_type.to_string(),
+    pool_id: pid,
+    stake: stake.to_string(),
+    earn: earn.to_string(),
+    earn_rate: earn_rate.to_string(),
+    distribution_max: dmax.to_string(),
+    total_supply: Some(supply.to_string()),
+    decimals: Some(dec.to_string()),
     only,
-    Some(dec.to_string()),
-  );
+  };
 
   let execute_msg = mock_create_brc30_message(
     from_script_key,

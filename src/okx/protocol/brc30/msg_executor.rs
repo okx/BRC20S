@@ -1078,7 +1078,6 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
     let msg = mock_create_brc30_message(
-      inscruptionId,
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -1121,7 +1120,6 @@ mod tests {
     assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
 
     let msg = mock_create_brc30_message(
-      inscruptionId,
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -1172,7 +1170,6 @@ mod tests {
     secondDeply.distribution_max = "9000000".to_string();
     secondDeply.earn_rate = "0.1".to_string();
     let msg = mock_create_brc30_message(
-      inscruptionId,
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(secondDeply.clone()),
@@ -1238,7 +1235,6 @@ mod tests {
         .unwrap();
 
     let msg = mock_create_brc30_message(
-      inscruptionId,
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -1332,7 +1328,6 @@ mod tests {
     //pool already exist
     {
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(deploy.clone()),
@@ -1368,7 +1363,6 @@ mod tests {
       secondDeploy.stake = "ore1".to_string();
       secondDeploy.distribution_max = "8000000".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1411,7 +1405,6 @@ mod tests {
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1455,7 +1448,6 @@ mod tests {
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1494,7 +1486,6 @@ mod tests {
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1532,7 +1523,6 @@ mod tests {
       secondDeploy.distribution_max = "10000000".to_string();
       secondDeploy.only = Some("".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1571,7 +1561,6 @@ mod tests {
       secondDeploy.total_supply = Some("22000000".to_string());
       secondDeploy.only = Some("".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1641,7 +1630,6 @@ mod tests {
       let mut secondDeply = deploy.clone();
       secondDeply.total_supply = Some("20000000".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeply.clone()),
@@ -1675,7 +1663,6 @@ mod tests {
       let mut secondDeply = deploy.clone();
       secondDeply.decimals = Some("17".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeply.clone()),
@@ -1708,7 +1695,6 @@ mod tests {
 
       let mut secondDeply = deploy.clone();
       let mut msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeply.clone()),
@@ -1746,7 +1732,6 @@ mod tests {
 
       let mut secondDeply = deploy.clone();
       let mut msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeply.clone()),
@@ -1786,7 +1771,6 @@ mod tests {
       let mut err_pool_type = deploy.clone();
       err_pool_type.pool_type = "errtype".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pool_type.clone()),
@@ -1819,7 +1803,6 @@ mod tests {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "l8195197bc#1f".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1854,7 +1837,6 @@ mod tests {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "8195197bc#1f".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1889,7 +1871,6 @@ mod tests {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "13395c5283#lf".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1925,7 +1906,6 @@ mod tests {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c81195197bc#f".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1960,7 +1940,6 @@ mod tests {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "13395c5283$1f".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1995,7 +1974,6 @@ mod tests {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c819519#bc#df".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2030,7 +2008,6 @@ mod tests {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c819519#bc#1f".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2065,7 +2042,6 @@ mod tests {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "a8195197bc#1f".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2103,7 +2079,6 @@ mod tests {
       let mut err_stake = deploy.clone();
       err_stake.stake = "he".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2132,7 +2107,6 @@ mod tests {
       let mut err_stake = deploy.clone();
       err_stake.stake = "hehehh".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2161,7 +2135,6 @@ mod tests {
       let mut err_stake = deploy.clone();
       err_stake.stake = "test".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2190,7 +2163,6 @@ mod tests {
       let mut err_earn = deploy.clone();
       err_earn.earn = "tes".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2222,7 +2194,6 @@ mod tests {
       let mut err_earn = deploy.clone();
       err_earn.earn = "test".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2254,7 +2225,6 @@ mod tests {
       let mut err_earn = deploy.clone();
       err_earn.earn = "testt".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2286,7 +2256,6 @@ mod tests {
       let mut err_earn = deploy.clone();
       err_earn.earn = "testttt".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2318,7 +2287,6 @@ mod tests {
       let mut err_earn = deploy.clone();
       err_earn.stake = "13395c5283".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2355,7 +2323,6 @@ mod tests {
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_erate.clone()),
@@ -2384,7 +2351,6 @@ mod tests {
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "1l".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_erate.clone()),
@@ -2416,7 +2382,6 @@ mod tests {
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2445,7 +2410,6 @@ mod tests {
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "1l".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2474,7 +2438,6 @@ mod tests {
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "21000001".to_string();
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2512,7 +2475,6 @@ mod tests {
       let mut err_total = deploy.clone();
       err_total.total_supply = Some("".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_total.clone()),
@@ -2541,7 +2503,6 @@ mod tests {
       let mut err_dmax = deploy.clone();
       err_dmax.total_supply = Some("1l".to_string());
       let msg = mock_create_brc30_message(
-        inscruptionId,
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2626,7 +2587,6 @@ mod tests {
     }
 
     let msg = mock_create_brc30_message(
-      inscruptionId.clone(),
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -2675,7 +2635,6 @@ mod tests {
     };
 
     let msg = mock_create_brc30_message(
-      inscruptionId.clone(),
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stakeMsg.clone()),
@@ -2728,7 +2687,6 @@ mod tests {
       };
 
       let mut msg = mock_create_brc30_message(
-        inscruptionId.clone(),
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stakeMsg.clone()),
@@ -2845,7 +2803,6 @@ mod tests {
     }
 
     let msg = mock_create_brc30_message(
-      inscruptionId.clone(),
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -2894,7 +2851,6 @@ mod tests {
     };
 
     let msg = mock_create_brc30_message(
-      inscruptionId.clone(),
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stakeMsg.clone()),
@@ -2947,7 +2903,6 @@ mod tests {
       };
 
       let mut msg = mock_create_brc30_message(
-        inscruptionId.clone(),
         script.clone(),
         script.clone(),
         BRC30Operation::UnStake(unstakeMsg.clone()),
@@ -3065,7 +3020,6 @@ mod tests {
     }
 
     let msg = mock_create_brc30_message(
-      inscruptionId.clone(),
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -3114,7 +3068,6 @@ mod tests {
     };
 
     let msg = mock_create_brc30_message(
-      inscruptionId.clone(),
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stakeMsg.clone()),
@@ -3166,7 +3119,6 @@ mod tests {
         amount: "2000000".to_string(),
       };
       let mut msg = mock_create_brc30_message(
-        inscruptionId.clone(),
         script.clone(),
         script.clone(),
         BRC30Operation::PassiveUnStake(passive_unstakeMsg.clone()),

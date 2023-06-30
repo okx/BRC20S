@@ -8,7 +8,6 @@ pub(crate) mod resolve_manager;
 #[cfg(test)]
 #[macro_use]
 mod test;
-mod test;
 
 pub use self::protocol_manager::{BlockContext, ProtocolManager};
 use self::{

@@ -5,7 +5,7 @@ use crate::SatPoint;
 use bitcoin::Txid;
 
 pub mod error;
-mod hash;
+pub mod hash;
 pub mod msg_executor;
 pub mod msg_resolver;
 pub mod num;

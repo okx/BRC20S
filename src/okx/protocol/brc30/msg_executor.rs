@@ -1044,7 +1044,99 @@ mod tests {
   use crate::test::Hash;
   use bitcoin::Address;
   use redb::Database;
+  use std::cmp::min;
   use tempfile::NamedTempFile;
+
+  fn execute_for_test<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+    brc20_store: &'a M,
+    brc30_store: &'a N,
+    msg: &BRC30ExecutionMessage,
+    height: u64,
+  ) -> Result<Vec<BRC30Event>, BRC30Error> {
+    let context = BlockContext {
+      blockheight: height,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = match msg.clone().op {
+      BRC30Operation::Deploy(deploy) => {
+        process_deploy(context, brc20_store, brc30_store, msg, deploy)
+      }
+      BRC30Operation::Mint(mint) => {
+        match process_mint(context, brc20_store, brc30_store, msg, mint) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
+      BRC30Operation::Stake(stake) => {
+        match process_stake(context, brc20_store, brc30_store, msg, stake) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
+      BRC30Operation::UnStake(unstake) => {
+        match process_unstake(context, brc20_store, brc30_store, msg, unstake) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
+      BRC30Operation::PassiveUnStake(passive_unstake) => {
+        process_passive_unstake(context, brc20_store, brc30_store, msg, passive_unstake)
+      }
+      BRC30Operation::InscribeTransfer(inscribe_transfer) => {
+        match process_inscribe_transfer(context, brc20_store, brc30_store, msg, inscribe_transfer) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
+      BRC30Operation::Transfer => match process_transfer(context, brc20_store, brc30_store, msg) {
+        Ok(event) => Ok(vec![event]),
+        Err(e) => Err(e),
+      },
+    };
+
+    match result {
+      Ok(events) => Ok(events),
+      Err(Error::BRC30Error(e)) => Err(e),
+      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+    }
+  }
+
+  fn set_brc20_token_user<'a, M: BRC20DataStoreReadWrite>(
+    brc20_store: &'a M,
+    tick: &str,
+    addr: &ScriptKey,
+    balance: u128,
+    dec: u8,
+  ) -> Result<(), BRC30Error> {
+    let token = Tick::from_str(tick).unwrap();
+    let inscription_id =
+      InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
+    let token_info = TokenInfo {
+      tick: token.clone(),
+      inscription_id,
+      inscription_number: 0,
+      supply: 0_u128,
+      minted: 0_u128,
+      limit_per_mint: 0,
+      decimal: dec,
+      deploy_by: addr.clone(),
+      deployed_number: 0,
+      deployed_timestamp: 0,
+      latest_mint_number: 0,
+    };
+    brc20_store.insert_token_info(&token, &token_info);
+
+    let base = BIGDECIMAL_TEN.checked_powu(dec as u64)?;
+    let overall_balance = Num::from(balance).checked_mul(&base)?.checked_to_u128()?;
+    let balance = BRC20Banalce {
+      overall_balance,
+      transferable_balance: 0_u128,
+    };
+    brc20_store.update_token_balance(addr, &token.to_lowercase(), balance);
+    Ok(())
+  }
 
   #[test]
   fn test_process_deploy() {
@@ -3175,14 +3267,11 @@ mod tests {
       assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
     }
   }
-
   #[test]
   fn test_process_deploy_most() {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let mut inscription_id_to_inscription_entry =
-      wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
     let brc30_data_store = BRC30DataStore::new(&wtx);
@@ -3191,106 +3280,39 @@ mod tests {
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
     );
-    let context = BlockContext {
-      blockheight: 0,
-      blocktime: 1687245485,
-      network: Network::Bitcoin,
-    };
-    let result = process_deploy(
-      context,
-      &brc20_data_store,
-      &brc30_data_store,
-      &msg,
-      deploy.clone(),
-    );
-
-    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
-      Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
-    };
-
-    match result {
-      Ok(event) => {
-        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
-      }
-      Err(e) => {
-        assert_eq!("error", e.to_string())
-      }
-    }
-    let tick_id = deploy.get_tick_id();
-    let pid = deploy.get_pool_id();
-    let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let tickinfo = brc30_data_store
+      .get_tick_info(&deploy.get_tick_id())
+      .unwrap()
+      .unwrap();
+    let poolinfo = brc30_data_store
+      .get_pid_to_poolinfo(&deploy.get_pool_id())
+      .unwrap()
+      .unwrap();
 
     let expectTickINfo = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#01"]}"##;
     let expectPoolInfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
     assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
 
-    let context = BlockContext {
-      blockheight: 0,
-      blocktime: 1687245485,
-      network: Network::Bitcoin,
-    };
-    let result = process_deploy(
-      context,
-      &brc20_data_store,
-      &brc30_data_store,
-      &msg.clone(),
-      deploy.clone(),
-    );
+    {
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::PoolAlreadyExist(deploy.pool_id.clone())),
+        result
+      );
+    }
 
-    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
-      Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
-    };
-
-    assert_eq!(
-      Err(BRC30Error::PoolAlreadyExist(pid.as_str().to_string())),
-      result
-    );
-
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
-    let token_info = TokenInfo {
-      tick: token.clone(),
-      inscription_id: msg.inscription_id.clone(),
-      inscription_number: 0,
-      supply: 0,
-      minted: 0,
-      limit_per_mint: 0,
-      decimal: 0,
-      deploy_by: msg.from.clone(),
-      deployed_number: 0,
-      deployed_timestamp: 0,
-      latest_mint_number: 0,
-    };
-    brc20_data_store.insert_token_info(&token, &token_info);
+    let result = set_brc20_token_user(&brc20_data_store, "orea", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
 
     let (deploy, msg) = mock_deploy_msg(
       "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, addr, addr,
     );
-    let context = BlockContext {
-      blockheight: 0,
-      blocktime: 1687245485,
-      network: Network::Bitcoin,
-    };
-    let result = process_deploy(
-      context,
-      &brc20_data_store,
-      &brc30_data_store,
-      &msg,
-      deploy.clone(),
-    );
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
 
-    let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
-      Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
-    };
-
-    assert_ne!(true, result.is_err());
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
     let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();

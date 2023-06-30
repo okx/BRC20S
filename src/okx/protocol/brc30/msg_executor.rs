@@ -70,9 +70,9 @@ impl BRC30ExecutionMessage {
         Some(satpoint) => Some(ScriptKey::from_script(
           &ord_store
             .get_outpoint_to_txout(satpoint.outpoint)
-            .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
+            .map_err(|e| anyhow!("failed to get tx_out from state! error: {e}"))?
             .ok_or(anyhow!(
-              "failed to get txout! {} not found",
+              "failed to get tx out! {} not found",
               satpoint.outpoint
             ))?
             .script_pubkey,
@@ -83,9 +83,9 @@ impl BRC30ExecutionMessage {
       from: ScriptKey::from_script(
         &ord_store
           .get_outpoint_to_txout(msg.old_satpoint.outpoint)
-          .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
+          .map_err(|e| anyhow!("failed to get tx_out from state! error: {e}"))?
           .ok_or(anyhow!(
-            "failed to get txout! {} not found",
+            "failed to get tx out! {} not found",
             msg.old_satpoint.outpoint
           ))?
           .script_pubkey,
@@ -94,9 +94,9 @@ impl BRC30ExecutionMessage {
       to: ScriptKey::from_script(
         &ord_store
           .get_outpoint_to_txout(msg.new_satpoint.unwrap().outpoint)
-          .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
+          .map_err(|e| anyhow!("failed to get tx_out from state! error: {e}"))?
           .ok_or(anyhow!(
-            "failed to get txout! {} not found",
+            "failed to get tx out! {} not found",
             msg.new_satpoint.unwrap().outpoint
           ))?
           .script_pubkey,

@@ -37,14 +37,14 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
 impl<'db, 'a> OrdDataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
   // 3.3.1 OUTPOINT_TO_SCRIPT
 
-  fn set_outpoint_to_txout(&self, outpoint: OutPoint, txout: &TxOut) -> Result {
+  fn set_outpoint_to_txout(&self, outpoint: OutPoint, tx_out: &TxOut) -> Result {
     let mut value = [0; 36];
     outpoint
       .consensus_encode(&mut value.as_mut_slice())
       .unwrap();
 
     let mut entry = Vec::new();
-    txout.consensus_encode(&mut entry)?;
+    tx_out.consensus_encode(&mut entry)?;
     self
       .wtx
       .open_table(OUTPOINT_TO_ENTRY)?
@@ -69,18 +69,18 @@ mod tests {
     let brc30db = OrdDbReadWriter::new(&wtx);
 
     let outpoint1 = unbound_outpoint();
-    let txout = TxOut {
+    let tx_out = TxOut {
       value: 100,
       script_pubkey: bitcoin::Address::from_str("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
         .unwrap()
         .script_pubkey(),
     };
 
-    brc30db.set_outpoint_to_txout(outpoint1, &txout).unwrap();
+    brc30db.set_outpoint_to_txout(outpoint1, &tx_out).unwrap();
 
     assert_eq!(
       brc30db.get_outpoint_to_txout(outpoint1).unwrap().unwrap(),
-      txout
+      tx_out
     );
   }
 }

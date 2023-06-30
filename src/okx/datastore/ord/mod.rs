@@ -21,5 +21,5 @@ pub trait OrdDataStoreReadOnly {
 }
 
 pub trait OrdDataStoreReadWrite: OrdDataStoreReadOnly {
-  fn set_outpoint_to_txout(&self, outpoint: OutPoint, txout: &TxOut) -> Result;
+  fn set_outpoint_to_txout(&self, outpoint: OutPoint, tx_out: &TxOut) -> Result;
 }

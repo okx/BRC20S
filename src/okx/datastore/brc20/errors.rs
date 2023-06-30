@@ -52,4 +52,15 @@ pub enum BRC20Error {
   /// and should not happen under normal circumstances
   #[error("internal error: {0}")]
   InternalError(String),
+
+  // num error
+  #[error("{op} overflow: original: {org}, other: {other}")]
+  Overflow {
+    op: String,
+    org: String,
+    other: String,
+  },
+
+  #[error("invalid integer {0}")]
+  InvalidInteger(String),
 }

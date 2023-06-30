@@ -14,7 +14,7 @@ use crate::{
     },
     protocol::{
       brc20::{BRC20Message, BRC20Operation},
-      BlockContext,
+      utils, BlockContext,
     },
   },
   Result,
@@ -45,39 +45,13 @@ impl BRC20ExecutionMessage {
     Ok(Self {
       txid: msg.txid,
       inscription_id: msg.inscription_id,
-      inscription_number: ord_store
-        .get_number_by_inscription_id(msg.inscription_id)
-        .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
-        .ok_or(anyhow!(
-          "failed to get inscription number! {} not found",
-          msg.inscription_id
-        ))?,
+      inscription_number: utils::get_inscription_number_by_id(msg.inscription_id, ord_store)?,
       old_satpoint: msg.old_satpoint,
       new_satpoint: msg
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
-      from: ScriptKey::from_script(
-        &ord_store
-          .get_outpoint_to_txout(msg.old_satpoint.outpoint)
-          .map_err(|e| anyhow!("failed to get tx_out from state! error: {e}"))?
-          .ok_or(anyhow!(
-            "failed to get tx out! {} not found",
-            msg.old_satpoint.outpoint
-          ))?
-          .script_pubkey,
-        network,
-      ),
-      to: ScriptKey::from_script(
-        &ord_store
-          .get_outpoint_to_txout(msg.new_satpoint.unwrap().outpoint)
-          .map_err(|e| anyhow!("failed to get tx_out from state! error: {e}"))?
-          .ok_or(anyhow!(
-            "failed to get tx out! {} not found",
-            msg.new_satpoint.unwrap().outpoint
-          ))?
-          .script_pubkey,
-        network,
-      ),
+      from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
+      to: utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)?,
       op: msg.op.clone(),
     })
   }

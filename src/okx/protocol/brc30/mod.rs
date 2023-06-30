@@ -12,6 +12,9 @@ pub mod num;
 pub mod operation;
 pub mod params;
 mod util;
+#[cfg(test)]
+#[macro_use]
+mod test;
 
 pub use self::{
   error::{BRC30Error, Error},

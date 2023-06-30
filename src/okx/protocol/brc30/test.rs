@@ -1,14 +1,8 @@
-use crate::okx::datastore::brc30::Pid;
-use crate::okx::protocol::brc20::Num;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
-  crate::okx::protocol::brc30::deserialize_brc30_operation,
-  crate::okx::protocol::brc30::hash::caculate_tick_id,
-  crate::okx::protocol::brc30::operation::BRC30Operation,
-  crate::okx::protocol::brc30::BRC30ExecutionMessage, crate::okx::protocol::brc30::Deploy,
-  crate::SatPoint, bitcoin::Address, shadow_rs::new, std::str::FromStr,
+  crate::SatPoint, bitcoin::hashes::hex::ToHex, bitcoin::Address, shadow_rs::new,
+  std::str::FromStr,
 };
-
 pub(crate) fn mock_create_brc30_message(
   from: ScriptKey,
   to: ScriptKey,
@@ -41,7 +35,7 @@ pub(crate) fn mock_create_brc30_message(
 
 pub(crate) fn mock_deploy_msg(
   pool_type: &str,
-  poll_number: u8,
+  poll_number: &str, //must be hex len == 2, 00 ~ ff: like 01
   stake: &str,
   earn: &str,
   earn_rate: &str,
@@ -59,8 +53,8 @@ pub(crate) fn mock_deploy_msg(
   let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
   let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
 
-  let tickid = caculate_tick_id(earn, supply_128, dec, &from_script_key, &to_script_key);
-  let pid = tickid.hex().to_string() + &*poll_number.to_string();
+  let tickid = hash::caculate_tick_id(earn, supply_128, dec, &from_script_key, &to_script_key);
+  let pid = tickid.hex().to_string() + "#" + poll_number;
   let msg = Deploy::new(
     pool_type.to_string(),
     pid,

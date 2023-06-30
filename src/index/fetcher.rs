@@ -52,7 +52,6 @@ impl Fetcher {
     Ok(Fetcher { client, url, auth })
   }
 
-  #[allow(dead_code)]
   pub(crate) async fn get_transactions(&self, txids: Vec<Txid>) -> Result<Vec<Transaction>> {
     if txids.is_empty() {
       return Ok(Vec::new());

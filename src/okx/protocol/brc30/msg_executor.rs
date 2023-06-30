@@ -20,7 +20,7 @@ use crate::okx::{
       params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
       BRC30Error, BRC30Message, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
     },
-    BlockContext,
+    utils, BlockContext,
   },
   reward::reward,
 };
@@ -54,54 +54,20 @@ impl BRC30ExecutionMessage {
     Ok(Self {
       txid: msg.txid,
       inscription_id: msg.inscription_id,
-      inscription_number: ord_store
-        .get_number_by_inscription_id(msg.inscription_id)
-        .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
-        .ok_or(anyhow!(
-          "failed to get inscription number! {} not found",
-          msg.inscription_id
-        ))?,
+      inscription_number: utils::get_inscription_number_by_id(msg.inscription_id, ord_store)?,
       commit_input_satpoint: msg.commit_input_satpoint,
       old_satpoint: msg.old_satpoint,
       new_satpoint: msg
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
       commit_from: match msg.commit_input_satpoint {
-        Some(satpoint) => Some(ScriptKey::from_script(
-          &ord_store
-            .get_outpoint_to_txout(satpoint.outpoint)
-            .map_err(|e| anyhow!("failed to get tx_out from state! error: {e}"))?
-            .ok_or(anyhow!(
-              "failed to get tx out! {} not found",
-              satpoint.outpoint
-            ))?
-            .script_pubkey,
-          network,
-        )),
+        Some(satpoint) => Some(utils::get_script_key_on_satpoint(
+          satpoint, ord_store, network,
+        )?),
         None => None,
       },
-      from: ScriptKey::from_script(
-        &ord_store
-          .get_outpoint_to_txout(msg.old_satpoint.outpoint)
-          .map_err(|e| anyhow!("failed to get tx_out from state! error: {e}"))?
-          .ok_or(anyhow!(
-            "failed to get tx out! {} not found",
-            msg.old_satpoint.outpoint
-          ))?
-          .script_pubkey,
-        network,
-      ),
-      to: ScriptKey::from_script(
-        &ord_store
-          .get_outpoint_to_txout(msg.new_satpoint.unwrap().outpoint)
-          .map_err(|e| anyhow!("failed to get tx_out from state! error: {e}"))?
-          .ok_or(anyhow!(
-            "failed to get tx out! {} not found",
-            msg.new_satpoint.unwrap().outpoint
-          ))?
-          .script_pubkey,
-        network,
-      ),
+      from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
+      to: utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)?,
       op: msg.op.clone(),
     })
   }

@@ -88,7 +88,7 @@ fn get_commit_input_satpoint<'a, O: OrdDataStoreReadWrite>(
 ) -> Result<SatPoint> {
   let commit_transaction =
     &Index::get_transaction_retries(client, satpoint.outpoint.txid)?.ok_or(anyhow!(
-      "failed to fetch inscription commit transaction! {} not found",
+      "failed to BRC30 message commit transaction! error: {} not found",
       satpoint.outpoint.txid
     ))?;
 
@@ -122,7 +122,7 @@ fn get_commit_input_satpoint<'a, O: OrdDataStoreReadWrite>(
       tx_out.value
     } else {
       return Err(anyhow!(
-        "failed to get tx out! {} not found",
+        "failed to get tx out! error: {} not found",
         input.previous_output
       ));
     };

@@ -34,6 +34,7 @@ pub fn resolve_message<'a, O: OrdDataStoreReadOnly>(
       if op.inscription_id.txid != op.old_satpoint.outpoint.txid {
         return Ok(None);
       }
+      // TODO: add database table to store the BRC20Message of inscription id.
       match ord_store.get_number_by_inscription_id(op.inscription_id) {
         Ok(Some(inscription_number)) => {
           // Ignore negative number inscriptions.

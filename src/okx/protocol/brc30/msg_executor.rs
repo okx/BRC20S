@@ -3275,6 +3275,7 @@ mod tests {
     let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let tick_id = deploy.get_tick_id();
+    let tikc_id_str = tick_id.hex();
     let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let poolinfo = brc30_data_store
       .get_pid_to_poolinfo(&deploy.get_pool_id())
@@ -3294,22 +3295,12 @@ mod tests {
       );
 
       //brc30 stake can not deploy
-      let brc30_tick = tick_id.hex();
+      let brc30_tick = tikc_id_str.as_str();
       let (deploy, msg) = mock_deploy_msg(
-        "pool",
-        "02",
-        brc30_tick.as_str(),
-        "ordi2",
-        "10",
-        "12000000",
-        "21000000",
-        18,
-        true,
-        addr,
-        addr,
+        "pool", "02", brc30_tick, "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
       );
       let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
-      assert_eq!(Err(BRC30Error::StakeNoPermission(brc30_tick)), result);
+      assert_eq!(Err(BRC30Error::StakeNoPermission(tikc_id_str)), result);
       //btc stake can not deploy
       let (deploy, msg) = mock_deploy_msg(
         "pool", "02", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
@@ -3324,6 +3315,41 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "orea", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
 
+    {
+      //from is not equal to to
+      let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+      let (mut deploy, mut msg) = mock_deploy_msg(
+        "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, new_addr, addr,
+      );
+      deploy.pool_id = tick_id.hex() + "#02";
+      msg.op = BRC30Operation::Deploy(deploy);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::FromToNotEqual(
+          new_addr.to_string(),
+          addr.to_string()
+        )),
+        result
+      );
+
+      //adress is not equal to deployer
+      let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+      let (mut deploy, mut msg) = mock_deploy_msg(
+        "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, new_addr, new_addr,
+      );
+      deploy.pool_id = tick_id.hex() + "#02";
+      let pool_id = deploy.pool_id.clone();
+      msg.op = BRC30Operation::Deploy(deploy);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::DeployerNotEqual(
+          pool_id,
+          addr.to_string(),
+          new_addr.to_string()
+        )),
+        result
+      );
+    }
     let (deploy, msg) = mock_deploy_msg(
       "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, addr, addr,
     );

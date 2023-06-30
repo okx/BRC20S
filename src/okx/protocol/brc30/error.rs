@@ -95,7 +95,7 @@ pub enum BRC30Error {
   ExceedDmax(String, String),
 
   #[error("amount exceed limit: {0}")]
-  AmountExceedLimit(Num),
+  AmountExceedLimit(String),
 
   #[error("transferable inscriptionId not found: {0}")]
   TransferableNotFound(InscriptionId),

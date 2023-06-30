@@ -3,7 +3,7 @@ use crate::okx::{
     balance::{
       convert_amount_with_decimal, convert_amount_without_decimal,
       convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_stake_dec,
-      get_user_common_balance, stake_is_exist,
+      get_user_common_balance, stake_is_exist, tick_can_staked,
     },
     brc30::{
       BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent,
@@ -33,16 +33,16 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BRC30ExecutionMessage {
-  pub(self) txid: Txid,
-  pub(self) inscription_id: InscriptionId,
-  pub(self) inscription_number: i64,
-  pub(self) commit_input_satpoint: Option<SatPoint>,
-  pub(self) old_satpoint: SatPoint,
-  pub(self) new_satpoint: SatPoint,
-  pub(self) commit_from: Option<ScriptKey>,
-  pub(self) from: ScriptKey,
-  pub(self) to: ScriptKey,
-  pub(self) op: BRC30Operation,
+  pub(crate) txid: Txid,
+  pub(crate) inscription_id: InscriptionId,
+  pub(crate) inscription_number: i64,
+  pub(crate) commit_input_satpoint: Option<SatPoint>,
+  pub(crate) old_satpoint: SatPoint,
+  pub(crate) new_satpoint: SatPoint,
+  pub(crate) commit_from: Option<ScriptKey>,
+  pub(crate) from: ScriptKey,
+  pub(crate) to: ScriptKey,
+  pub(crate) op: BRC30Operation,
 }
 
 impl BRC30ExecutionMessage {
@@ -118,31 +118,6 @@ impl BRC30ExecutionMessage {
       from: msg.from.clone(),
       to: msg.to.clone(),
       op: msg.op.clone(),
-    }
-  }
-  pub fn new(
-    txid: &Txid,
-    inscription_id: &InscriptionId,
-    inscription_number: i64,
-    commit_input_satpoint: &Option<SatPoint>,
-    old_satpoint: &SatPoint,
-    new_satpoint: &SatPoint,
-    commit_from: &Option<ScriptKey>,
-    from: &ScriptKey,
-    to: &ScriptKey,
-    op: &BRC30Operation,
-  ) -> Self {
-    Self {
-      txid: txid.clone(),
-      inscription_id: inscription_id.clone(),
-      inscription_number: inscription_number.clone(),
-      commit_input_satpoint: commit_input_satpoint.clone(),
-      old_satpoint: old_satpoint.clone(),
-      new_satpoint: new_satpoint.clone(),
-      commit_from: commit_from.clone(),
-      from: from.clone(),
-      to: to.clone(),
-      op: op.clone(),
     }
   }
 }
@@ -262,6 +237,11 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
 
   let stake = deploy.get_stake_id();
 
+  if !tick_can_staked(&stake) {
+    return Err(Error::BRC30Error(BRC30Error::StakeNoPermission(
+      stake.to_string(),
+    )));
+  }
   //check stake
   if !stake_is_exist(&stake, brc30_store, brc20_store) {
     return Err(Error::BRC30Error(BRC30Error::StakeNotFound(
@@ -1042,6 +1022,7 @@ mod tests {
   use crate::okx::datastore::brc30::PledgedTick;
   use crate::okx::protocol::brc30::test::{mock_create_brc30_message, mock_deploy_msg};
   use crate::test::Hash;
+  use bech32::CheckBase32;
   use bitcoin::Address;
   use redb::Database;
   use std::cmp::min;
@@ -1150,7 +1131,7 @@ mod tests {
     let deploy = Deploy {
       pool_type: "pool".to_string(),
       pool_id: "13395c5283#1f".to_string(),
-      stake: "btc".to_string(),
+      stake: "btc1".to_string(),
       earn: "ordi1".to_string(),
       earn_rate: "10".to_string(),
       distribution_max: "12000000".to_string(),
@@ -1158,6 +1139,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
+
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
     let script = ScriptKey::from_address(addr1);
@@ -1169,6 +1151,8 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
     let context = BlockContext {
       blockheight: 0,
       blocktime: 1687245485,
@@ -1202,7 +1186,7 @@ mod tests {
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&poolinfo).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tickinfo).unwrap());
 
@@ -1304,7 +1288,7 @@ mod tests {
     let deploy = Deploy {
       pool_type: "pool".to_string(),
       pool_id: "13395c5283#1f".to_string(),
-      stake: "btc".to_string(),
+      stake: "btc1".to_string(),
       earn: "ordi1".to_string(),
       earn_rate: "10".to_string(),
       distribution_max: "12000000".to_string(),
@@ -1324,6 +1308,8 @@ mod tests {
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
     let context = BlockContext {
       blockheight: 0,
       blocktime: 1687245485,
@@ -1357,7 +1343,7 @@ mod tests {
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&poolinfo).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tickinfo).unwrap());
     //add brc20 tokeninfo
@@ -1695,7 +1681,7 @@ mod tests {
     let deploy = Deploy {
       pool_type: "pool".to_string(),
       pool_id: "13395c5283#1f".to_string(),
-      stake: "btc".to_string(),
+      stake: "btc1".to_string(),
       earn: "ordi1".to_string(),
       earn_rate: "10".to_string(),
       distribution_max: "12000000".to_string(),
@@ -1719,6 +1705,9 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(second_deply.clone()),
       );
+      let result =
+        set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+      assert_eq!(None, result);
       let context = BlockContext {
         blockheight: 0,
         blocktime: 1687245485,
@@ -3278,21 +3267,22 @@ mod tests {
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let (deploy, msg) = mock_deploy_msg(
-      "pool", "01", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+      "pool", "01", "btc1", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
     );
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
+
     let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
     assert_eq!(None, result.err());
-    let tickinfo = brc30_data_store
-      .get_tick_info(&deploy.get_tick_id())
-      .unwrap()
-      .unwrap();
+    let tick_id = deploy.get_tick_id();
+    let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let poolinfo = brc30_data_store
       .get_pid_to_poolinfo(&deploy.get_pool_id())
       .unwrap()
       .unwrap();
 
     let expectTickINfo = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#01"]}"##;
-    let expectPoolInfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expectPoolInfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
     assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
 
@@ -3300,6 +3290,33 @@ mod tests {
       let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::PoolAlreadyExist(deploy.pool_id.clone())),
+        result
+      );
+
+      //brc30 stake can not deploy
+      let brc30_tick = tick_id.hex();
+      let (deploy, msg) = mock_deploy_msg(
+        "pool",
+        "02",
+        brc30_tick.as_str(),
+        "ordi2",
+        "10",
+        "12000000",
+        "21000000",
+        18,
+        true,
+        addr,
+        addr,
+      );
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(Err(BRC30Error::StakeNoPermission(brc30_tick)), result);
+      //btc stake can not deploy
+      let (deploy, msg) = mock_deploy_msg(
+        "pool", "02", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+      );
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::StakeNoPermission("btc".to_string())),
         result
       );
     }

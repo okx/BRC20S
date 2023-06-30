@@ -18,18 +18,18 @@ pub(crate) fn mock_create_brc30_message(
   let new_satpoint =
     SatPoint::from_str("1111111111111111111111111111111111111111111111111111111111111111:2:1")
       .unwrap();
-  let msg = BRC30ExecutionMessage::new(
-    &txid,
-    &inscription_id,
-    0,
-    &None,
-    &old_satpoint,
-    &new_satpoint,
-    &Some(from.clone()),
-    &from,
-    &to,
-    &op,
-  );
+  let msg = BRC30ExecutionMessage {
+    txid,
+    inscription_id,
+    inscription_number: 0,
+    commit_input_satpoint: None,
+    old_satpoint,
+    new_satpoint,
+    commit_from: Some(from.clone()),
+    from: from.clone(),
+    to: to.clone(),
+    op,
+  };
   msg
 }
 

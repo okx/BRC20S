@@ -27,13 +27,14 @@ pub(crate) fn new_with_wtx<'db, 'a>(wtx: &'a WriteTransaction<'db>) -> OrdDbRead
 }
 
 impl<'db, 'a> OrdDbReader<'db, 'a> {
+  #[allow(dead_code)]
   pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
       wrapper: ReaderWrapper::Rtx(rtx),
     }
   }
 }
-
+#[allow(dead_code)]
 enum ReaderWrapper<'db, 'a> {
   Rtx(&'a ReadTransaction<'db>),
   Wtx(&'a WriteTransaction<'db>),

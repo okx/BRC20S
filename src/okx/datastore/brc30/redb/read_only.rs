@@ -3,12 +3,12 @@ use crate::okx::datastore::brc30::{
   BRC30DataStoreReadOnly, BRC30Receipt, Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo,
   StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
 };
+use bitcoin::hashes::Hash;
 use redb::{
   AccessGuard, Range, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
   StorageError, Table, TableDefinition, WriteTransaction,
 };
-use std::borrow::Borrow;
-use std::ops::RangeBounds;
+use std::{borrow::Borrow, ops::RangeBounds};
 
 pub struct BRC30DataStoreReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
@@ -373,6 +373,23 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .map_or(Vec::new(), |v| {
           bincode::deserialize::<Vec<BRC30Receipt>>(v.value()).unwrap()
         }),
+    )
+  }
+
+  fn get_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<bool>, Self::Error> {
+    let mut value = [0; 36];
+    let (txid, index) = value.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_inner());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+    Ok(
+      self
+        .wrapper
+        .open_table(BRC30_INSCRIBE_TRANSFER)?
+        .get(&value)?
+        .map(|v| v.value() != 0),
     )
   }
 }

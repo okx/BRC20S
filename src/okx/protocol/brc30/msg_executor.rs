@@ -898,6 +898,10 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
     )
     .map_err(|e| Error::LedgerError(e))?;
 
+  brc30_store
+    .insert_inscribe_transfer_inscription(msg.inscription_id)
+    .map_err(|e| Error::LedgerError(e))?;
+
   Ok(BRC30Event::InscribeTransfer(InscribeTransferEvent {
     tick_id,
     amt: amount,
@@ -981,6 +985,10 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 
   brc30_store
     .remove_transferable(&from_script_key, &transferable.tick_id, &msg.inscription_id)
+    .map_err(|e| Error::LedgerError(e))?;
+
+  brc30_store
+    .remove_inscribe_transfer_inscription(msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(BRC30Event::Transfer(TransferEvent {

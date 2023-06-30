@@ -1,23 +1,36 @@
 use super::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
   okx::{
-    datastore::{ord::operation::InscriptionOp, OrdDataStoreReadWrite},
+    datastore::{
+      ord::operation::InscriptionOp, BRC20DataStoreReadWrite, BRC30DataStoreReadWrite,
+      OrdDataStoreReadWrite,
+    },
     protocol::Message,
   },
   Inscription, Result,
 };
-use bitcoin::Transaction;
+use anyhow::anyhow;
+use bitcoin::{OutPoint, Transaction, TxOut};
 use bitcoincore_rpc::Client;
-pub struct MsgResolveManager<'a, O: OrdDataStoreReadWrite> {
+pub struct MsgResolveManager<
+  'a,
+  O: OrdDataStoreReadWrite,
+  N: BRC20DataStoreReadWrite,
+  M: BRC30DataStoreReadWrite,
+> {
   protocols: HashSet<ProtocolKind>,
   client: &'a Client,
   ord_store: &'a O,
+  brc20_store: &'a N,
+  brc30_store: &'a M,
 }
 
-impl<'a, O: OrdDataStoreReadWrite> MsgResolveManager<'a, O> {
-  pub fn new(client: &'a Client, ord_store: &'a O) -> Self {
+impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStoreReadWrite>
+  MsgResolveManager<'a, O, N, M>
+{
+  pub fn new(client: &'a Client, ord_store: &'a O, brc20_store: &'a N, brc30_store: &'a M) -> Self {
     let mut protocols: HashSet<ProtocolKind> = HashSet::new();
     protocols.insert(ProtocolKind::BRC20);
     protocols.insert(ProtocolKind::BRC30);
@@ -25,6 +38,8 @@ impl<'a, O: OrdDataStoreReadWrite> MsgResolveManager<'a, O> {
       protocols,
       client,
       ord_store,
+      brc20_store,
+      brc30_store,
     }
   }
 
@@ -39,6 +54,8 @@ impl<'a, O: OrdDataStoreReadWrite> MsgResolveManager<'a, O> {
       .into_iter()
       .map(|v| v.inscription)
       .collect();
+
+    let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
       // TODO: BTC transfer to BRC30 passive withdrawal.
 
@@ -57,7 +74,7 @@ impl<'a, O: OrdDataStoreReadWrite> MsgResolveManager<'a, O> {
         // Parse BRC20 message through inscription operation.
         if self.protocols.contains(&ProtocolKind::BRC20) {
           if let Some(msg) =
-            brc20::resolve_message(self.client, self.ord_store, &new_inscriptions, &operation)?
+            brc20::resolve_message(self.client, self.brc20_store, &new_inscriptions, &operation)?
               .map(Message::BRC20)
           {
             messages.push(msg);
@@ -67,15 +84,30 @@ impl<'a, O: OrdDataStoreReadWrite> MsgResolveManager<'a, O> {
 
         // Parse BRC30 message through inscription operation.
         if self.protocols.contains(&ProtocolKind::BRC30) {
-          if let Some(msg) =
-            brc30::resolve_message(self.client, self.ord_store, &new_inscriptions, &operation)?
-              .map(Message::BRC30)
+          if let Some(msg) = brc30::resolve_message(
+            self.client,
+            self.ord_store,
+            self.brc30_store,
+            &new_inscriptions,
+            &operation,
+            &mut outpoint_to_txout_cache,
+          )?
+          .map(Message::BRC30)
           {
             messages.push(msg);
             continue;
           }
         }
       }
+    }
+    for (outpoint, txout) in outpoint_to_txout_cache {
+      self
+        .ord_store
+        .set_outpoint_to_txout(outpoint, &txout)
+        .or(Err(anyhow!(
+          "failed to get tx out! error: {} not found",
+          outpoint
+        )))?;
     }
     Ok(messages)
   }

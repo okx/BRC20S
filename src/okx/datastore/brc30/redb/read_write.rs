@@ -1,10 +1,12 @@
 use super::*;
-use crate::okx::datastore::brc30::{
-  BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Receipt, Balance, InscriptionOperation,
-  Pid, PoolInfo, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
+use crate::{
+  okx::datastore::brc30::{
+    BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Receipt, Balance, InscriptionOperation,
+    Pid, PoolInfo, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
+  },
+  InscriptionId,
 };
-use crate::InscriptionId;
-use bitcoin::Txid;
+use bitcoin::{hashes::Hash, Txid};
 use redb::WriteTransaction;
 
 pub struct BRC30DataStore<'db, 'a> {
@@ -141,6 +143,13 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
 
   fn get_transaction_receipts(&self, tx_id: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transaction_receipts(tx_id)
+  }
+
+  fn get_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<bool>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_inscribe_transfer_inscription(inscription_id)
   }
 }
 
@@ -287,6 +296,38 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
       .wtx
       .open_table(BRC30_TRANSFERABLE_ASSETS)?
       .remove(script_tickid_inscriptionid_key(script_key, tick_id, inscription_id).as_str())?;
+    Ok(())
+  }
+
+  fn insert_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<(), Self::Error> {
+    let mut value = [0; 36];
+    let (txid, index) = value.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_inner());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+
+    self
+      .wtx
+      .open_table(BRC30_INSCRIBE_TRANSFER)?
+      .insert(&value, 1)?;
+    Ok(())
+  }
+
+  fn remove_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<(), Self::Error> {
+    let mut value = [0; 36];
+    let (txid, index) = value.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_inner());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+
+    self
+      .wtx
+      .open_table(BRC30_INSCRIBE_TRANSFER)?
+      .remove(&value)?;
     Ok(())
   }
 }

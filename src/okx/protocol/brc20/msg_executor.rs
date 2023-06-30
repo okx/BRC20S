@@ -344,6 +344,10 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
     .insert_transferable(&inscription.owner, &lower_tick, inscription.clone())
     .map_err(|e| Error::LedgerError(e))?;
 
+  brc20_store
+    .insert_inscribe_transfer_inscription(msg.inscription_id)
+    .map_err(|e| Error::LedgerError(e))?;
+
   Ok(BRC20Event::InscribeTransfer(InscripbeTransferEvent {
     tick: inscription.tick,
     amount: amt,
@@ -422,6 +426,10 @@ fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
 
   brc20_store
     .remove_transferable(&msg.from, &lower_tick, msg.inscription_id)
+    .map_err(|e| Error::LedgerError(e))?;
+
+  brc20_store
+    .remove_inscribe_transfer_inscription(msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(BRC20Event::Transfer(TransferEvent {

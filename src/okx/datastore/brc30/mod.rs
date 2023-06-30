@@ -101,6 +101,11 @@ pub trait BRC30DataStoreReadOnly {
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
   fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error>;
   fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error>;
+
+  fn get_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<bool>, Self::Error>;
 }
 
 pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
@@ -172,5 +177,15 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
     script: &ScriptKey,
     tick_id: &TickId,
     inscription_id: &InscriptionId,
+  ) -> Result<(), Self::Error>;
+
+  fn insert_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<(), Self::Error>;
+
+  fn remove_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
   ) -> Result<(), Self::Error>;
 }

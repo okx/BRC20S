@@ -42,6 +42,11 @@ pub trait BRC20DataStoreReadOnly {
     script: &ScriptKey,
     inscription_id: &InscriptionId,
   ) -> Result<Option<TransferableLog>, Self::Error>;
+
+  fn get_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<bool>, Self::Error>;
 }
 
 pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
@@ -81,6 +86,16 @@ pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
     &self,
     script: &ScriptKey,
     tick: &Tick,
+    inscription_id: InscriptionId,
+  ) -> Result<(), Self::Error>;
+
+  fn insert_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<(), Self::Error>;
+
+  fn remove_inscribe_transfer_inscription(
+    &self,
     inscription_id: InscriptionId,
   ) -> Result<(), Self::Error>;
 }

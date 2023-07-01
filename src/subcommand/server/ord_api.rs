@@ -216,9 +216,20 @@ fn simulate_index_ord_transaction(
 
     let offset = input_value;
 
-    input_value += index
-      .get_transaction_output_by_outpoint(tx_in.previous_output)
-      .map(|txout| txout.value)?;
+    input_value +=
+      if let Some(tx_out) = index.get_transaction_output_by_outpoint(tx_in.previous_output)? {
+        tx_out.value
+      } else if let Some(tx) = index.get_transaction_with_retries(tx_in.previous_output.txid)? {
+        tx.output
+          .get(usize::try_from(tx_in.previous_output.vout).unwrap())
+          .unwrap()
+          .value
+      } else {
+        return Err(anyhow!(
+          "can't get transaction output by outpoint: {}",
+          tx_in.previous_output
+        ));
+      };
 
     // go through all inscriptions in this input
     while let Some(inscription) = new_inscriptions.peek() {

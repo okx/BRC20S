@@ -61,6 +61,9 @@ pub enum BRC30Error {
   #[error("stake: {0} not found")]
   StakeNotFound(String),
 
+  #[error("tick: {0} has no permission staked")]
+  StakeNoPermission(String),
+
   #[error("illegal tick length '{0}'")]
   InvalidTickLen(String),
 
@@ -95,7 +98,7 @@ pub enum BRC30Error {
   ExceedDmax(String, String),
 
   #[error("amount exceed limit: {0}")]
-  AmountExceedLimit(String),
+  AmountExceedLimit(Num),
 
   #[error("transferable inscriptionId not found: {0}")]
   TransferableNotFound(InscriptionId),

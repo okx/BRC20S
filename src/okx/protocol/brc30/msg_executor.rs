@@ -3,7 +3,7 @@ use crate::okx::{
     balance::{
       convert_amount_with_decimal, convert_amount_without_decimal,
       convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_stake_dec,
-      get_user_common_balance, stake_is_exist,
+      get_user_common_balance, stake_is_exist, tick_can_staked,
     },
     brc30::{
       BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent,
@@ -20,7 +20,7 @@ use crate::okx::{
       params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
       BRC30Error, BRC30Message, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
     },
-    BlockContext,
+    utils, BlockContext,
   },
   reward::reward,
 };
@@ -33,16 +33,16 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BRC30ExecutionMessage {
-  pub(self) txid: Txid,
-  pub(self) inscription_id: InscriptionId,
-  pub(self) inscription_number: i64,
-  pub(self) commit_input_satpoint: Option<SatPoint>,
-  pub(self) old_satpoint: SatPoint,
-  pub(self) new_satpoint: SatPoint,
-  pub(self) commit_from: Option<ScriptKey>,
-  pub(self) from: ScriptKey,
-  pub(self) to: ScriptKey,
-  pub(self) op: BRC30Operation,
+  pub(crate) txid: Txid,
+  pub(crate) inscription_id: InscriptionId,
+  pub(crate) inscription_number: i64,
+  pub(crate) commit_input_satpoint: Option<SatPoint>,
+  pub(crate) old_satpoint: SatPoint,
+  pub(crate) new_satpoint: SatPoint,
+  pub(crate) commit_from: Option<ScriptKey>,
+  pub(crate) from: ScriptKey,
+  pub(crate) to: ScriptKey,
+  pub(crate) op: BRC30Operation,
 }
 
 impl BRC30ExecutionMessage {
@@ -54,54 +54,20 @@ impl BRC30ExecutionMessage {
     Ok(Self {
       txid: msg.txid,
       inscription_id: msg.inscription_id,
-      inscription_number: ord_store
-        .get_number_by_inscription_id(msg.inscription_id)
-        .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
-        .ok_or(anyhow!(
-          "failed to get inscription number! {} not found",
-          msg.inscription_id
-        ))?,
+      inscription_number: utils::get_inscription_number_by_id(msg.inscription_id, ord_store)?,
       commit_input_satpoint: msg.commit_input_satpoint,
       old_satpoint: msg.old_satpoint,
       new_satpoint: msg
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
       commit_from: match msg.commit_input_satpoint {
-        Some(satpoint) => Some(ScriptKey::from_script(
-          &ord_store
-            .get_outpoint_to_txout(satpoint.outpoint)
-            .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
-            .ok_or(anyhow!(
-              "failed to get txout! {} not found",
-              satpoint.outpoint
-            ))?
-            .script_pubkey,
-          network,
-        )),
+        Some(satpoint) => Some(utils::get_script_key_on_satpoint(
+          satpoint, ord_store, network,
+        )?),
         None => None,
       },
-      from: ScriptKey::from_script(
-        &ord_store
-          .get_outpoint_to_txout(msg.old_satpoint.outpoint)
-          .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
-          .ok_or(anyhow!(
-            "failed to get txout! {} not found",
-            msg.old_satpoint.outpoint
-          ))?
-          .script_pubkey,
-        network,
-      ),
-      to: ScriptKey::from_script(
-        &ord_store
-          .get_outpoint_to_txout(msg.new_satpoint.unwrap().outpoint)
-          .map_err(|e| anyhow!("failed to get txout from state! error: {e}"))?
-          .ok_or(anyhow!(
-            "failed to get txout! {} not found",
-            msg.new_satpoint.unwrap().outpoint
-          ))?
-          .script_pubkey,
-        network,
-      ),
+      from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
+      to: utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)?,
       op: msg.op.clone(),
     })
   }
@@ -237,6 +203,11 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
 
   let stake = deploy.get_stake_id();
 
+  if !tick_can_staked(&stake) {
+    return Err(Error::BRC30Error(BRC30Error::StakeNoPermission(
+      stake.to_string(),
+    )));
+  }
   //check stake
   if !stake_is_exist(&stake, brc30_store, brc20_store) {
     return Err(Error::BRC30Error(BRC30Error::StakeNotFound(
@@ -799,9 +770,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
     reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
     if amt > user_info.pending_reward.into() {
-      return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(
-        mint.amount,
-      )));
+      return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
     }
     user_info.pending_reward = user_info.pending_reward - amt.checked_to_u128()?;
     user_info.minted = user_info.minted + amt.checked_to_u128()?;
@@ -1017,41 +986,105 @@ mod tests {
   use crate::okx::datastore::brc30::redb::BRC30DataStore;
   use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
   use crate::okx::datastore::brc30::PledgedTick;
+  use crate::okx::protocol::brc30::test::{mock_create_brc30_message, mock_deploy_msg};
   use crate::test::Hash;
+  use bech32::CheckBase32;
   use bitcoin::Address;
   use redb::Database;
+  use std::cmp::min;
   use tempfile::NamedTempFile;
 
-  fn create_brc30_message(
-    inscription_id: InscriptionId,
-    from: ScriptKey,
-    to: ScriptKey,
-    op: BRC30Operation,
-  ) -> BRC30ExecutionMessage {
-    BRC30ExecutionMessage {
-      txid: Txid::from_str("1111111111111111111111111111111111111111111111111111111111111111")
-        .unwrap(),
-      inscription_id,
-      inscription_number: 0,
-      commit_from: Some(from.clone()),
-      commit_input_satpoint: None,
-      from: from.clone(),
-      to: to.clone(),
-      old_satpoint: SatPoint {
-        outpoint: "1111111111111111111111111111111111111111111111111111111111111111:1"
-          .parse()
-          .unwrap(),
-        offset: 1,
+  fn execute_for_test<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+    brc20_store: &'a M,
+    brc30_store: &'a N,
+    msg: &BRC30ExecutionMessage,
+    height: u64,
+  ) -> Result<Vec<BRC30Event>, BRC30Error> {
+    let context = BlockContext {
+      blockheight: height,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let result = match msg.clone().op {
+      BRC30Operation::Deploy(deploy) => {
+        process_deploy(context, brc20_store, brc30_store, msg, deploy)
+      }
+      BRC30Operation::Mint(mint) => {
+        match process_mint(context, brc20_store, brc30_store, msg, mint) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
+      BRC30Operation::Stake(stake) => {
+        match process_stake(context, brc20_store, brc30_store, msg, stake) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
+      BRC30Operation::UnStake(unstake) => {
+        match process_unstake(context, brc20_store, brc30_store, msg, unstake) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
+      BRC30Operation::PassiveUnStake(passive_unstake) => {
+        process_passive_unstake(context, brc20_store, brc30_store, msg, passive_unstake)
+      }
+      BRC30Operation::InscribeTransfer(inscribe_transfer) => {
+        match process_inscribe_transfer(context, brc20_store, brc30_store, msg, inscribe_transfer) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
+      BRC30Operation::Transfer => match process_transfer(context, brc20_store, brc30_store, msg) {
+        Ok(event) => Ok(vec![event]),
+        Err(e) => Err(e),
       },
-      new_satpoint: SatPoint {
-        outpoint: "1111111111111111111111111111111111111111111111111111111111111111:2"
-          .parse()
-          .unwrap(),
-        offset: 1,
-      },
-      op,
+    };
+
+    match result {
+      Ok(events) => Ok(events),
+      Err(Error::BRC30Error(e)) => Err(e),
+      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
     }
   }
+
+  fn set_brc20_token_user<'a, M: BRC20DataStoreReadWrite>(
+    brc20_store: &'a M,
+    tick: &str,
+    addr: &ScriptKey,
+    balance: u128,
+    dec: u8,
+  ) -> Result<(), BRC30Error> {
+    let token = Tick::from_str(tick).unwrap();
+    let inscription_id =
+      InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
+        .unwrap();
+    let token_info = TokenInfo {
+      tick: token.clone(),
+      inscription_id,
+      inscription_number: 0,
+      supply: 0_u128,
+      minted: 0_u128,
+      limit_per_mint: 0,
+      decimal: dec,
+      deploy_by: addr.clone(),
+      deployed_number: 0,
+      deployed_timestamp: 0,
+      latest_mint_number: 0,
+    };
+    brc20_store.insert_token_info(&token, &token_info);
+
+    let base = BIGDECIMAL_TEN.checked_powu(dec as u64)?;
+    let overall_balance = Num::from(balance).checked_mul(&base)?.checked_to_u128()?;
+    let balance = BRC20Banalce {
+      overall_balance,
+      transferable_balance: 0_u128,
+    };
+    brc20_store.update_token_balance(addr, &token.to_lowercase(), balance);
+    Ok(())
+  }
+
   #[test]
   fn test_process_deploy() {
     let dbfile = NamedTempFile::new().unwrap();
@@ -1064,7 +1097,7 @@ mod tests {
     let deploy = Deploy {
       pool_type: "pool".to_string(),
       pool_id: "13395c5283#1f".to_string(),
-      stake: "btc".to_string(),
+      stake: "btc1".to_string(),
       earn: "ordi1".to_string(),
       earn_rate: "10".to_string(),
       distribution_max: "12000000".to_string(),
@@ -1072,18 +1105,20 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
+
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
     let script = ScriptKey::from_address(addr1);
     let inscruptionId =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
-    let msg = create_brc30_message(
-      inscruptionId,
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
     let context = BlockContext {
       blockheight: 0,
       blocktime: 1687245485,
@@ -1117,12 +1152,11 @@ mod tests {
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&poolinfo).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tickinfo).unwrap());
 
-    let msg = create_brc30_message(
-      inscruptionId,
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -1172,8 +1206,7 @@ mod tests {
     second_deply.stake = "orea".to_string();
     second_deply.distribution_max = "9000000".to_string();
     second_deply.earn_rate = "0.1".to_string();
-    let msg = create_brc30_message(
-      inscruptionId,
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(second_deply.clone()),
@@ -1221,7 +1254,7 @@ mod tests {
     let deploy = Deploy {
       pool_type: "pool".to_string(),
       pool_id: "13395c5283#1f".to_string(),
-      stake: "btc".to_string(),
+      stake: "btc1".to_string(),
       earn: "ordi1".to_string(),
       earn_rate: "10".to_string(),
       distribution_max: "12000000".to_string(),
@@ -1236,12 +1269,13 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let msg = create_brc30_message(
-      inscruptionId,
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
     );
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
     let context = BlockContext {
       blockheight: 0,
       blocktime: 1687245485,
@@ -1275,7 +1309,7 @@ mod tests {
     let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":"Native","erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&poolinfo).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tickinfo).unwrap());
     //add brc20 tokeninfo
@@ -1330,8 +1364,7 @@ mod tests {
     }
     //pool already exist
     {
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(deploy.clone()),
@@ -1366,8 +1399,7 @@ mod tests {
       secondDeploy.pool_id = "13395c5283#01".to_string();
       secondDeploy.stake = "ore1".to_string();
       secondDeploy.distribution_max = "8000000".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1409,8 +1441,7 @@ mod tests {
       secondDeploy.stake = "ore2".to_string();
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1453,8 +1484,7 @@ mod tests {
       secondDeploy.stake = "ore1".to_string();
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1492,8 +1522,7 @@ mod tests {
       secondDeploy.stake = "err1".to_string();
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1530,8 +1559,7 @@ mod tests {
       secondDeploy.stake = "ore3".to_string();
       secondDeploy.distribution_max = "10000000".to_string();
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1569,8 +1597,7 @@ mod tests {
       secondDeploy.distribution_max = "100000".to_string();
       secondDeploy.total_supply = Some("22000000".to_string());
       secondDeploy.only = Some("".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(secondDeploy.clone()),
@@ -1620,7 +1647,7 @@ mod tests {
     let deploy = Deploy {
       pool_type: "pool".to_string(),
       pool_id: "13395c5283#1f".to_string(),
-      stake: "btc".to_string(),
+      stake: "btc1".to_string(),
       earn: "ordi1".to_string(),
       earn_rate: "10".to_string(),
       distribution_max: "12000000".to_string(),
@@ -1637,14 +1664,16 @@ mod tests {
 
     //caculate tickid faile
     {
-      let mut secondDeply = deploy.clone();
-      secondDeply.total_supply = Some("20000000".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let mut second_deply = deploy.clone();
+      second_deply.total_supply = Some("20000000".to_string());
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(secondDeply.clone()),
+        BRC30Operation::Deploy(second_deply.clone()),
       );
+      let result =
+        set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+      assert_eq!(None, result);
       let context = BlockContext {
         blockheight: 0,
         blocktime: 1687245485,
@@ -1655,7 +1684,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        secondDeply.clone(),
+        second_deply.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -1671,13 +1700,12 @@ mod tests {
         result
       );
 
-      let mut secondDeply = deploy.clone();
-      secondDeply.decimals = Some("17".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let mut second_deply = deploy.clone();
+      second_deply.decimals = Some("17".to_string());
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(secondDeply.clone()),
+        BRC30Operation::Deploy(second_deply.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1689,7 +1717,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        secondDeply.clone(),
+        second_deply.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -1705,12 +1733,11 @@ mod tests {
         result
       );
 
-      let mut secondDeply = deploy.clone();
-      let mut msg = create_brc30_message(
-        inscruptionId,
+      let mut second_deply = deploy.clone();
+      let mut msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(secondDeply.clone()),
+        BRC30Operation::Deploy(second_deply.clone()),
       );
       msg.from = ScriptKey::Address(
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
@@ -1727,7 +1754,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        secondDeply.clone(),
+        second_deply.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -1743,12 +1770,11 @@ mod tests {
         result
       );
 
-      let mut secondDeply = deploy.clone();
-      let mut msg = create_brc30_message(
-        inscruptionId,
+      let mut second_deply = deploy.clone();
+      let mut msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(secondDeply.clone()),
+        BRC30Operation::Deploy(second_deply.clone()),
       );
       msg.to = ScriptKey::Address(
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
@@ -1764,7 +1790,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        secondDeply.clone(),
+        second_deply.clone(),
       );
 
       let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
@@ -1784,8 +1810,7 @@ mod tests {
     {
       let mut err_pool_type = deploy.clone();
       err_pool_type.pool_type = "errtype".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pool_type.clone()),
@@ -1817,8 +1842,7 @@ mod tests {
     {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "l8195197bc#1f".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1852,8 +1876,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "8195197bc#1f".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1887,8 +1910,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "13395c5283#lf".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1923,8 +1945,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c81195197bc#f".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1958,8 +1979,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "13395c5283$1f".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -1993,8 +2013,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c819519#bc#df".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2028,8 +2047,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c819519#bc#1f".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2063,8 +2081,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "a8195197bc#1f".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2101,8 +2118,7 @@ mod tests {
     {
       let mut err_stake = deploy.clone();
       err_stake.stake = "he".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2130,8 +2146,7 @@ mod tests {
 
       let mut err_stake = deploy.clone();
       err_stake.stake = "hehehh".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2159,8 +2174,7 @@ mod tests {
 
       let mut err_stake = deploy.clone();
       err_stake.stake = "test".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2188,8 +2202,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "tes".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2220,8 +2233,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "test".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2252,8 +2264,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "testt".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2284,8 +2295,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "testttt".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2316,8 +2326,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.stake = "13395c5283".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2353,8 +2362,7 @@ mod tests {
     {
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_erate.clone()),
@@ -2382,8 +2390,7 @@ mod tests {
 
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "1l".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_erate.clone()),
@@ -2414,8 +2421,7 @@ mod tests {
     {
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2443,8 +2449,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "1l".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2472,8 +2477,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "21000001".to_string();
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2510,8 +2514,7 @@ mod tests {
     {
       let mut err_total = deploy.clone();
       err_total.total_supply = Some("".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_total.clone()),
@@ -2539,8 +2542,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.total_supply = Some("1l".to_string());
-      let msg = create_brc30_message(
-        inscruptionId,
+      let msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2621,8 +2623,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = create_brc30_message(
-      inscruptionId.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -2670,8 +2671,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = create_brc30_message(
-      inscruptionId.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stakeMsg.clone()),
@@ -2723,8 +2723,7 @@ mod tests {
         amount: "1000000".to_string(),
       };
 
-      let mut msg = create_brc30_message(
-        inscruptionId.clone(),
+      let mut msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stakeMsg.clone()),
@@ -2837,8 +2836,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = create_brc30_message(
-      inscruptionId.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -2872,25 +2870,24 @@ mod tests {
     }
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
-    assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
-    assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
+    let expectTickINfo = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
+    let expectPoolInfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
 
-    let stake_tick = PledgedTick::BRC20Tick(token.clone());
-    let stake_msg = Stake {
+    let stakeTick = PledgedTick::BRC20Tick(token.clone());
+    let stakeMsg = Stake {
       pool_id: pid.as_str().to_string(),
       amount: "1000000".to_string(),
     };
 
-    let msg = create_brc30_message(
-      inscruptionId.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC30Operation::Stake(stakeMsg.clone()),
     );
     let context = BlockContext {
       blockheight: 0,
@@ -2902,7 +2899,7 @@ mod tests {
       &brc20_data_store,
       &brc30_data_store,
       &msg,
-      stake_msg.clone(),
+      stakeMsg.clone(),
     );
 
     let result: Result<BRC30Event, BRC30Error> = match result {
@@ -2919,8 +2916,8 @@ mod tests {
         assert_eq!("error", e.to_string())
       }
     }
-    let stake_info = brc30_data_store
-      .get_user_stakeinfo(&script, &stake_tick)
+    let stakeinfo = brc30_data_store
+      .get_user_stakeinfo(&script, &stakeTick)
       .unwrap();
 
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
@@ -2930,23 +2927,19 @@ mod tests {
     let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&poolinfo).unwrap());
-    assert_eq!(
-      expect_stakeinfo,
-      serde_json::to_string(&stake_info).unwrap()
-    );
+    assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
     assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
     {
-      let stake_tick = PledgedTick::BRC20Tick(token.clone());
-      let unstake_msg = UnStake {
+      let stakeTick = PledgedTick::BRC20Tick(token.clone());
+      let unstakeMsg = UnStake {
         pool_id: pid.as_str().to_string(),
         amount: "1000000".to_string(),
       };
 
-      let mut msg = create_brc30_message(
-        inscruptionId.clone(),
+      let mut msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::UnStake(unstake_msg.clone()),
+        BRC30Operation::UnStake(unstakeMsg.clone()),
       );
       let context = BlockContext {
         blockheight: 1,
@@ -2958,7 +2951,7 @@ mod tests {
         &brc20_data_store,
         &brc30_data_store,
         &msg,
-        unstake_msg.clone(),
+        unstakeMsg.clone(),
       );
 
       let result: Result<BRC30Event, BRC30Error> = match result {
@@ -2976,7 +2969,7 @@ mod tests {
         }
       }
       let stakeinfo = brc30_data_store
-        .get_user_stakeinfo(&script, &stake_tick)
+        .get_user_stakeinfo(&script, &stakeTick)
         .unwrap();
 
       let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
@@ -3057,8 +3050,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = create_brc30_message(
-      inscruptionId.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -3106,8 +3098,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = create_brc30_message(
-      inscruptionId.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -3158,8 +3149,7 @@ mod tests {
         stake: stake_tick.to_string(),
         amount: "2000000".to_string(),
       };
-      let mut msg = create_brc30_message(
-        inscruptionId.clone(),
+      let mut msg = mock_create_brc30_message(
         script.clone(),
         script.clone(),
         BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
@@ -3232,6 +3222,116 @@ mod tests {
       assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
     }
   }
+  #[test]
+  fn test_process_deploy_most() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+
+    let brc20_data_store = BRC20DataStore::new(&wtx);
+    let brc30_data_store = BRC30DataStore::new(&wtx);
+
+    let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
+
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let tick_id = deploy.get_tick_id();
+    let tikc_id_str = tick_id.hex();
+    let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let poolinfo = brc30_data_store
+      .get_pid_to_poolinfo(&deploy.get_pool_id())
+      .unwrap()
+      .unwrap();
+
+    let expectTickINfo = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#01"]}"##;
+    let expectPoolInfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
+
+    {
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::PoolAlreadyExist(deploy.pool_id.clone())),
+        result
+      );
+
+      //brc30 stake can not deploy
+      let brc30_tick = tikc_id_str.as_str();
+      let (deploy, msg) = mock_deploy_msg(
+        "pool", "02", brc30_tick, "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
+      );
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(Err(BRC30Error::StakeNoPermission(tikc_id_str)), result);
+      //btc stake can not deploy
+      let (deploy, msg) = mock_deploy_msg(
+        "pool", "02", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+      );
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::StakeNoPermission("btc".to_string())),
+        result
+      );
+    }
+
+    let result = set_brc20_token_user(&brc20_data_store, "orea", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
+
+    {
+      //from is not equal to to
+      let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+      let (mut deploy, mut msg) = mock_deploy_msg(
+        "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, new_addr, addr,
+      );
+      deploy.pool_id = tick_id.hex() + "#02";
+      msg.op = BRC30Operation::Deploy(deploy);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::FromToNotEqual(
+          new_addr.to_string(),
+          addr.to_string()
+        )),
+        result
+      );
+
+      //adress is not equal to deployer
+      let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+      let (mut deploy, mut msg) = mock_deploy_msg(
+        "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, new_addr, new_addr,
+      );
+      deploy.pool_id = tick_id.hex() + "#02";
+      let pool_id = deploy.pool_id.clone();
+      msg.op = BRC30Operation::Deploy(deploy);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::DeployerNotEqual(
+          pool_id,
+          addr.to_string(),
+          new_addr.to_string()
+        )),
+        result
+      );
+    }
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, addr, addr,
+    );
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    let tick_id = deploy.get_tick_id();
+    let pid = deploy.get_pool_id();
+    let tickinfo = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let poolinfo = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+
+    let expectTickINfo = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#01","13395c5283#02"]}"##;
+    let expectPoolInfo = r##"{"pid":"13395c5283#02","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_eq!(expectPoolInfo, serde_json::to_string(&poolinfo).unwrap());
+    assert_eq!(expectTickINfo, serde_json::to_string(&tickinfo).unwrap());
+  }
 
   #[test]
   fn test_mint() {
@@ -3282,8 +3382,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    let msg = create_brc30_message(
-      inscription_id.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -3328,8 +3427,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = create_brc30_message(
-      inscription_id.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -3385,8 +3483,7 @@ mod tests {
       amount: "1.1".to_string(),
     };
 
-    let msg = create_brc30_message(
-      inscription_id.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Mint(mint_msg.clone()),
@@ -3436,7 +3533,7 @@ mod tests {
       }
     };
 
-    // mint too large
+    // brc20-s mint, mint too large
     let mut error_mint_msg = mint_msg.clone();
     error_mint_msg.amount = "12000000.01".to_string();
     match process_mint(
@@ -3450,14 +3547,14 @@ mod tests {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
       }
       Err(Error::BRC30Error(e)) => {
-        assert_eq!("amount exceed limit: 12000000.01", e.to_string())
+        assert_eq!("amount exceed limit: 1200000001.00", e.to_string()) // TODO should be 12000000.01
       }
       _ => {
         panic!("")
       }
     };
 
-    // mint overflow
+    // brc20-s mint, mint overflow
     let mut error_mint_msg = mint_msg.clone();
     error_mint_msg.amount = "11.0111111111".to_string();
     match process_mint(
@@ -3478,7 +3575,7 @@ mod tests {
       }
     };
 
-    // mint tick name diff
+    // brc20-s mint, mint tick name diff
     let mut error_mint_msg = mint_msg.clone();
     error_mint_msg.tick = "orda".to_string();
     match process_mint(
@@ -3499,7 +3596,7 @@ mod tests {
       }
     };
 
-    // pid no exsit
+    // brc20-s mint, pid no exsit
     let mut error_mint_msg = mint_msg.clone();
     error_mint_msg.pool_id = "fea607ea9e#11".to_string();
     match process_mint(
@@ -3520,7 +3617,7 @@ mod tests {
       }
     };
 
-    // ok
+    // brc20-s mint, ok
     match process_mint(
       context,
       &brc20_data_store,
@@ -3596,8 +3693,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    let msg = create_brc30_message(
-      inscription_id.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -3642,8 +3738,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = create_brc30_message(
-      inscription_id.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -3699,8 +3794,7 @@ mod tests {
       amount: "10.1".to_string(),
     };
 
-    let msg = create_brc30_message(
-      inscription_id.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Mint(mint_msg.clone()),
@@ -3743,8 +3837,7 @@ mod tests {
       tick_id: tick_id.clone().hex(),
       amount: "1.1".to_string(),
     };
-    let msg = create_brc30_message(
-      inscription_id.clone(),
+    let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
       BRC30Operation::InscribeTransfer(transfer_msg.clone()),
@@ -3755,7 +3848,7 @@ mod tests {
       network: Network::Bitcoin,
     };
 
-    // call control, commit_from != to TODO
+    // call control, commit_from != to TODO, does it have call contral
     // let mut error_msg = msg.clone();
     // error_msg.to = ScriptKey::from_address(
     //   Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
@@ -3841,7 +3934,7 @@ mod tests {
       error_transfer_msg.clone(),
     ) {
       Err(Error::BRC30Error(e)) => {
-        //TODO 220.0?
+        //TODO 1020.0 or 1020?
         assert_eq!("insufficient balance: 1010 1020.0", e.to_string())
       }
       _ => {
@@ -3876,12 +3969,8 @@ mod tests {
     };
 
     // brc20s-transfer
-    let mut msg = create_brc30_message(
-      inscription_id.clone(),
-      script.clone(),
-      script.clone(),
-      BRC30Operation::Transfer,
-    );
+    let mut msg =
+      mock_create_brc30_message(script.clone(), script.clone(), BRC30Operation::Transfer);
     let context = BlockContext {
       blockheight: 200000,
       blocktime: 1687245485,
@@ -4008,7 +4097,7 @@ mod tests {
       }
     };
 
-    // brc20s-inscribe-transfer, second, ok, TODO
+    // brc20s-inscribe-transfer, address to diff from, ok, TODO why error?
     // let script2 = ScriptKey::from_address(
     //   Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
     // );

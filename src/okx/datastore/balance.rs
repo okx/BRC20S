@@ -61,6 +61,7 @@ pub fn get_stake_dec<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
     PledgedTick::Unknown => 0_u8,
   }
 }
+
 pub fn stake_is_exist<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   token: &PledgedTick,
   brc30ledger: &'a L,
@@ -88,6 +89,15 @@ pub fn stake_is_exist<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite
         _ => false,
       }
     }
+    PledgedTick::Unknown => false,
+  }
+}
+
+pub fn tick_can_staked(token: &PledgedTick) -> bool {
+  match token {
+    PledgedTick::Native => false,
+    PledgedTick::BRC30Tick(_) => false,
+    PledgedTick::BRC20Tick(_) => true,
     PledgedTick::Unknown => false,
   }
 }

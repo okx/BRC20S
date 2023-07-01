@@ -18,7 +18,6 @@ pub fn caculate_tick_id(
   enc.input(from.to_string().as_bytes());
   enc.input(to.to_string().as_bytes());
   let hash = sha256::Hash::from_engine(enc).to_vec();
-  println!("hash:{}", hash.to_hex());
   TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT]).unwrap()
 }
 

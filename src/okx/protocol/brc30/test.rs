@@ -74,3 +74,69 @@ pub(crate) fn mock_deploy_msg(
   );
   (msg, execute_msg)
 }
+
+pub(crate) fn mock_stake_msg(
+  pid: &str,
+  amt: &str,
+  from: &str,
+  to: &str,
+) -> (Stake, BRC30ExecutionMessage) {
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+
+  let msg = Stake {
+    pool_id: pid.to_string(),
+    amount: amt.to_string(),
+  };
+
+  let execute_msg = mock_create_brc30_message(
+    from_script_key,
+    to_script_key,
+    BRC30Operation::Stake(msg.clone()),
+  );
+  (msg, execute_msg)
+}
+
+pub(crate) fn mock_unstake_msg(
+  pid: &str,
+  amt: &str,
+  from: &str,
+  to: &str,
+) -> (UnStake, BRC30ExecutionMessage) {
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+
+  let msg = UnStake {
+    pool_id: pid.to_string(),
+    amount: amt.to_string(),
+  };
+
+  let execute_msg = mock_create_brc30_message(
+    from_script_key,
+    to_script_key,
+    BRC30Operation::UnStake(msg.clone()),
+  );
+  (msg, execute_msg)
+}
+
+pub(crate) fn mock_passive_unstake_msg(
+  stake: &str,
+  amt: &str,
+  from: &str,
+  to: &str,
+) -> (PassiveUnStake, BRC30ExecutionMessage) {
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+
+  let msg = PassiveUnStake {
+    stake: stake.to_string(),
+    amount: amt.to_string(),
+  };
+
+  let execute_msg = mock_create_brc30_message(
+    from_script_key,
+    to_script_key,
+    BRC30Operation::PassiveUnStake(msg.clone()),
+  );
+  (msg, execute_msg)
+}

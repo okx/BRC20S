@@ -18,9 +18,9 @@ const FAST_QUERY_HEIGHT: u64 = 10;
 
 mod inscription_updater;
 
-pub struct BlockData {
-  pub header: BlockHeader,
-  pub txdata: Vec<(Transaction, Txid)>,
+pub(crate) struct BlockData {
+  pub(crate) header: BlockHeader,
+  pub(crate) txdata: Vec<(Transaction, Txid)>,
 }
 
 impl From<Block> for BlockData {
@@ -482,6 +482,7 @@ impl Updater {
       unbound_inscriptions,
       &mut tx_out_cache,
     )?;
+
     if self.index_sats {
       let mut sat_to_satpoint = wtx.open_table(SAT_TO_SATPOINT)?;
       let mut outpoint_to_sat_ranges = wtx.open_table(OUTPOINT_TO_SAT_RANGES)?;

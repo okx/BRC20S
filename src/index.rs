@@ -12,7 +12,7 @@ use once_cell::sync::OnceCell;
 
 use {
   self::{
-    entry::{BlockHashValue, Entry, InscriptionEntry, OutPointValue, SatPointValue, SatRange},
+    entry::{BlockHashValue, Entry, InscriptionIdValue, OutPointValue, SatPointValue, SatRange},
     updater::Updater,
   },
   super::*,
@@ -31,7 +31,7 @@ use {
 };
 
 pub(super) use self::{
-  entry::{InscriptionEntryValue, InscriptionIdValue},
+  entry::{InscriptionEntry, InscriptionEntryValue},
   updater::BlockData,
 };
 
@@ -167,13 +167,6 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
       Err(err) => Err(err.into()),
     }
   }
-}
-
-pub(crate) struct InscriptionAllData {
-  pub tx: Transaction,
-  pub entry: InscriptionEntry,
-  pub sat_point: SatPoint,
-  pub inscription: Inscription,
 }
 
 impl Index {
@@ -685,38 +678,6 @@ impl Index {
       Inscription::from_transaction(&tx)
         .get(inscription_id.index as usize)
         .map(|transaction_inscription| transaction_inscription.inscription.clone())
-    }))
-  }
-
-  pub(crate) fn get_inscription_all_data_by_id(
-    &self,
-    inscription_id: InscriptionId,
-  ) -> Result<Option<InscriptionAllData>> {
-    let entry = match self.get_inscription_entry(inscription_id)? {
-      Some(entry) => entry,
-      None => return Ok(None),
-    };
-    let tx = match self.get_transaction(inscription_id.txid)? {
-      Some(tx) => tx,
-      None => return Ok(None),
-    };
-    let inscription = match Inscription::from_transaction(&tx)
-      .get(usize::try_from(inscription_id.index).unwrap())
-    {
-      Some(transaction_inscription) => transaction_inscription.inscription.clone(),
-      None => return Ok(None),
-    };
-
-    let sat_point = match self.get_inscription_satpoint_by_id(inscription_id)? {
-      Some(sat_point) => sat_point,
-      None => return Ok(None),
-    };
-
-    Ok(Some(InscriptionAllData {
-      entry,
-      tx,
-      inscription,
-      sat_point,
     }))
   }
 

@@ -657,11 +657,15 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
   let stake_tick = passive_unstake.get_stake_tick();
   let stake_info = brc30_store
     .get_user_stakeinfo(&from_script_key, &stake_tick)
-    .map_err(|e| Error::LedgerError(e))?
-    .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(
-      Num::from(0_u128).to_string(),
-      Num::from(0_u128).to_string(),
-    )))?;
+    .map_err(|e| Error::LedgerError(e))?;
+  let stake_info = match stake_info {
+    Some(info) => info,
+    None => {
+      return Err(Error::BRC30Error(BRC30Error::StakeNotFound(
+        passive_unstake.stake.clone(),
+      )));
+    }
+  };
 
   let balance = get_user_common_balance(&from_script_key, &stake_tick, brc30_store, brc20_store);
   let staked_total =
@@ -991,8 +995,14 @@ mod tests {
   use crate::okx::datastore::brc20::{Balance as BRC20Banalce, Tick, TokenInfo};
   use crate::okx::datastore::brc30::redb::BRC30DataStore;
   use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
+  use crate::okx::datastore::brc30::BRC30Event::PassiveWithdraw;
   use crate::okx::datastore::brc30::PledgedTick;
-  use crate::okx::protocol::brc30::test::{mock_create_brc30_message, mock_deploy_msg};
+  use crate::okx::protocol::brc30::test::{
+    mock_create_brc30_message, mock_deploy_msg, mock_passive_unstake_msg, mock_stake_msg,
+    mock_unstake_msg,
+  };
+  use crate::test::Hash;
+  use bech32::CheckBase32;
   use bitcoin::Address;
   use redb::Database;
   use tempfile::NamedTempFile;
@@ -1086,6 +1096,48 @@ mod tests {
     };
     brc20_store.update_token_balance(addr, &token.to_lowercase(), balance);
     Ok(())
+  }
+
+  fn assert_stake_info<'a, M: BRC30DataStoreReadWrite>(
+    brc30_data_store: &'a M,
+    pid: &str,
+    from_script: &ScriptKey,
+    stake_tick: &PledgedTick,
+    expect_pool_info: &str,
+    expect_stake_info: &str,
+    expect_user_info: &str,
+  ) {
+    let temp_pid = Pid::from_str(pid).unwrap();
+    let stake_info = brc30_data_store
+      .get_user_stakeinfo(from_script, stake_tick)
+      .unwrap()
+      .unwrap();
+    let pool_info = brc30_data_store
+      .get_pid_to_poolinfo(&temp_pid)
+      .unwrap()
+      .unwrap();
+    let user_info = brc30_data_store
+      .get_pid_to_use_info(&from_script, &temp_pid)
+      .unwrap()
+      .unwrap();
+    println!(
+      "stake_info: {}\n",
+      serde_json::to_string(&stake_info).unwrap()
+    );
+    println!(
+      "user_info: {}\n",
+      serde_json::to_string(&user_info).unwrap()
+    );
+    println!(
+      "pool_info: {}\n",
+      serde_json::to_string(&pool_info).unwrap()
+    );
+    assert_eq!(serde_json::to_string(&pool_info).unwrap(), expect_pool_info);
+    assert_eq!(
+      serde_json::to_string(&stake_info).unwrap(),
+      expect_stake_info
+    );
+    assert_eq!(serde_json::to_string(&user_info).unwrap(), expect_user_info);
   }
 
   #[test]
@@ -3244,7 +3296,7 @@ mod tests {
     let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let tick_id = deploy.get_tick_id();
-    let tick_id_str = tick_id.hex();
+    let tikc_id_str = tick_id.hex();
     let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let pool_info = brc30_data_store
       .get_pid_to_poolinfo(&deploy.get_pool_id())
@@ -3264,12 +3316,12 @@ mod tests {
       );
 
       //brc30 stake can not deploy
-      let brc30_tick = tick_id_str.as_str();
-      let (_, msg) = mock_deploy_msg(
+      let brc30_tick = tikc_id_str.as_str();
+      let (deploy, msg) = mock_deploy_msg(
         "pool", "02", brc30_tick, "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
       );
       let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
-      assert_eq!(Err(BRC30Error::StakeNoPermission(tick_id_str)), result);
+      assert_eq!(Err(BRC30Error::StakeNoPermission(tikc_id_str)), result);
       //btc stake can not deploy
       let (_, msg) = mock_deploy_msg(
         "pool", "02", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
@@ -4141,5 +4193,872 @@ mod tests {
         panic!("")
       }
     };
+  }
+
+  #[test]
+  fn test_process_stake_most() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+
+    let brc20_data_store = BRC20DataStore::new(&wtx);
+    let brc30_data_store = BRC30DataStore::new(&wtx);
+
+    let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
+    let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let stake_tick = deploy.get_stake_id();
+    let from_script = msg.from.clone();
+    let to_script = msg.to.clone();
+
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let pid_only1 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let pid_only2 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
+    );
+    let pid_share1 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
+    );
+    let pid_share2 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    print!("only1{}", pid_only1.to_string());
+    print!("only2{}", pid_only2.to_string());
+    print!("share1{}", pid_share1.to_string());
+    print!("share2{}", pid_share2.to_string());
+    {
+      //pool is not exist
+      let (stake, msg) = mock_stake_msg("0000000001#11", "100", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::PoolNotExist("0000000001#11".to_string())),
+        result
+      );
+      //from is not equal to
+      let (stake, msg) = mock_stake_msg(pid_only1, "100", new_addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::FromToNotEqual(
+          new_addr.to_string(),
+          addr.to_string()
+        )),
+        result
+      );
+      //user balance < amount
+      let (stake, msg) = mock_stake_msg(pid_only1, "300", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::InsufficientBalance(
+          "300000000000000000000".to_string(),
+          "200000000000000000000".to_string(),
+        )),
+        result
+      );
+    }
+    //first stake to only pool
+    let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000]],"max_share":0,"total_only":50000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_only1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+    //first stake to share pool
+    let (stake, msg) = mock_stake_msg(pid_share1, "49", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":50000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+    {
+      let (stake, msg) = mock_stake_msg(pid_only2, "49", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(None, result.err());
+
+      let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(None, result.err());
+
+      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,49000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"##;
+      let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+      let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
+      assert_stake_info(
+        &brc30_data_store,
+        pid_share2,
+        &from_script,
+        &stake_tick,
+        expect_poolinfo,
+        expect_stakeinfo,
+        expect_userinfo,
+      );
+    }
+    //user has stake 2 only pool 2 share pool, then stake to only pool but can_stake < amount
+    let (stake, msg) = mock_stake_msg(pid_only2, "51.1", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(
+      Some(BRC30Error::InsufficientBalance(
+        "51100000000000000000".to_string(),
+        "51000000000000000000".to_string(),
+      )),
+      result.err()
+    );
+    //user has stake 2 only pool 2 share pool, then stake to share pool but can_stake < amount
+    let (stake, msg) = mock_stake_msg(pid_share2, "102", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(
+      Some(BRC30Error::InsufficientBalance(
+        "102000000000000000000".to_string(),
+        "51000000000000000000".to_string(),
+      )),
+      result.err()
+    );
+    //user has stake 2 only pool 2 share pool, then stake to only pool
+    let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    assert_eq!(None, result.err());
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,99000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":149000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":99000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":20204081632653061176,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":99000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":true}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_only2,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+    //user has stake 2 only pool 2 share pool, then stake to share pool
+    let (stake, msg) = mock_stake_msg(pid_share1, "2", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    assert_eq!(None, result.err());
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,51000000000000000000],["7737ed558e#01",true,99000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":51000000000000000000,"total_only":149000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":51000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":10408163265306122424,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":51000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+  }
+
+  #[test]
+  fn test_process_unstake_most() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+
+    let brc20_data_store = BRC20DataStore::new(&wtx);
+    let brc30_data_store = BRC30DataStore::new(&wtx);
+
+    let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
+    let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let stake_tick = deploy.get_stake_id();
+    let from_script = msg.from.clone();
+    let to_script = msg.to.clone();
+
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let pid_only1 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let pid_only2 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
+    );
+    let pid_share1 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
+    );
+    let pid_share2 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    print!("only1  :{}\n", pid_only1.to_string());
+    print!("only2  :{}\n", pid_only2.to_string());
+    print!("share1 :{}\n", pid_share1.to_string());
+    print!("share2 :{}\n", pid_share2.to_string());
+    {
+      //pool is not exist
+      let (stake, msg) = mock_unstake_msg("0000000001#11", "100", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::PoolNotExist("0000000001#11".to_string())),
+        result
+      );
+      //from is not equal to
+      let (stake, msg) = mock_unstake_msg(pid_only1, "100", new_addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::FromToNotEqual(
+          new_addr.to_string(),
+          addr.to_string()
+        )),
+        result
+      );
+      //user haven't stake
+      let (stake, msg) = mock_unstake_msg(pid_only1, "300", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::InsufficientBalance(
+          "0".to_string(),
+          "300000000000000000000".to_string(),
+        )),
+        result
+      );
+    }
+    //stake to only pool
+    let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    //unstake amt > stake amt
+    let (stake, msg) = mock_unstake_msg(pid_only1, "300", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(
+      Err(BRC30Error::InsufficientBalance(
+        "50000000000000000000".to_string(),
+        "300000000000000000000".to_string(),
+      )),
+      result
+    );
+
+    //unstake to only pool
+    let (stake, msg) = mock_unstake_msg(pid_only1, "1", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000]],"max_share":0,"total_only":49000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_only1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    //stake to share pool
+    let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    //unstake to share pool
+    let (stake, msg) = mock_unstake_msg(pid_share1, "1", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":49000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    {
+      let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(None, result.err());
+
+      let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(None, result.err());
+
+      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"##;
+      let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+      let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
+      assert_stake_info(
+        &brc30_data_store,
+        pid_share2,
+        &from_script,
+        &stake_tick,
+        expect_poolinfo,
+        expect_stakeinfo,
+        expect_userinfo,
+      );
+    }
+    //user has stake 2 only pool 2 share pool, then unstake from only pool
+    let (stake, msg) = mock_unstake_msg(pid_only2, "2", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_only2,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+    //user has stake 2 only pool 2 share pool, then unstake from share pool
+    let (stake, msg) = mock_unstake_msg(pid_share2, "2", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share2,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    //user has stake 2 only pool 2 share pool, then unstake from share pool to 0
+    let (stake, msg) = mock_unstake_msg(pid_share1, "49", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 2);
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"404081632653061224","last_update_block":2,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+  }
+
+  #[test]
+  fn test_process_passive_unstake_normal() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+
+    let brc20_data_store = BRC20DataStore::new(&wtx);
+    let brc30_data_store = BRC30DataStore::new(&wtx);
+
+    let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
+    let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let stake_tick = deploy.get_stake_id();
+    let from_script = msg.from.clone();
+    let to_script = msg.to.clone();
+
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let pid_only1 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let pid_only2 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
+    );
+    let pid_share1 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
+    );
+    let pid_share2 = deploy.pool_id.as_str();
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    print!("only1  :{}\n", pid_only1.to_string());
+    print!("only2  :{}\n", pid_only2.to_string());
+    print!("share1 :{}\n", pid_share1.to_string());
+    print!("share2 :{}\n", pid_share2.to_string());
+    {
+      //pool is not exist
+      let (stake, msg) = mock_passive_unstake_msg("0000000001", "100", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(
+        Err(BRC30Error::StakeNotFound("0000000001".to_string())),
+        result
+      );
+      //no stake then passive unstake
+      let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(Err(BRC30Error::StakeNotFound("btc1".to_string(),)), result);
+    }
+    //stake to only pool
+    let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    //sum - transfer > amt nothing do
+    //simluate transfer
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 50_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let (stake, msg) = mock_passive_unstake_msg("btc1", "200", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(Ok(vec![]), result);
+
+    //sum - transfer > amt passive unstake
+    //simluate transfer
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 10_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let (stake, msg) = mock_passive_unstake_msg("btc1", "190", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    assert_eq!(
+      Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
+        pid: Pid::from_str(pid_only1).unwrap(),
+        amt: 40000000000000000000
+      })]),
+      result
+    );
+
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,10000000000000000000]],"max_share":0,"total_only":10000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":10000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":2000000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":10000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_only1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    //from is not equal to
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 0_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, new_addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 2);
+    assert_eq!(
+      Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
+        pid: Pid::from_str(pid_only1).unwrap(),
+        amt: 10000000000000000000
+      })]),
+      result
+    );
+
+    let expect_stakeinfo =
+      r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
+    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"##;
+    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":true}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_only1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    //reset banalce
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
+
+    //stake to share pool
+    let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    //sum - transfer > amt nothing do
+    //simluate transfer
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 50_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let (stake, msg) = mock_passive_unstake_msg("btc1", "200", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    assert_eq!(Ok(vec![]), result);
+
+    //sum - transfer > amt passive unstake
+    //simluate transfer
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 10_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let (stake, msg) = mock_passive_unstake_msg("btc1", "190", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    assert_eq!(
+      Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
+        pid: Pid::from_str(pid_share1).unwrap(),
+        amt: 40000000000000000000
+      })]),
+      result
+    );
+
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["fb641f54a2#01",false,10000000000000000000]],"max_share":10000000000000000000,"total_only":0}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":10000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":2000000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":10000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    //from is not equal to
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 0_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, new_addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 2);
+    assert_eq!(
+      Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
+        pid: Pid::from_str(pid_share1).unwrap(),
+        amt: 10000000000000000000
+      })]),
+      result
+    );
+
+    let expect_stakeinfo =
+      r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+  }
+
+  fn prepare_env_for_test<'a, L: BRC20DataStoreReadWrite, K: BRC30DataStoreReadWrite>(
+    brc20_data_store: &'a L,
+    brc30_data_store: &'a K,
+    addr: &str,
+    stake: &str,
+    earn: &str,
+  ) -> Result<(Vec<(String, PledgedTick)>, ScriptKey), BRC30Error> {
+    let mut results: Vec<(String, PledgedTick)> = Vec::new();
+    let brc30_tick = format!("{}1", earn.to_string());
+    let (deploy, msg) = mock_deploy_msg(
+      "pool",
+      "01",
+      stake,
+      brc30_tick.as_str(),
+      "10",
+      "12000000",
+      "21000000",
+      18,
+      true,
+      addr,
+      addr,
+    );
+
+    let from_script = msg.from.clone();
+    let to_script = msg.to.clone();
+
+    let result = set_brc20_token_user(brc20_data_store, stake, &msg.from, 200_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let pid_only1 = deploy.pool_id.as_str();
+    let hehe = deploy.get_pool_id();
+
+    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let stake_tick_only1 = deploy.get_stake_id();
+    results.push((pid_only1.to_string(), stake_tick_only1.clone()));
+
+    let brc30_tick = format!("{}2", earn);
+    let (deploy, msg) = mock_deploy_msg(
+      "pool",
+      "01",
+      stake,
+      brc30_tick.as_str(),
+      "10",
+      "12000000",
+      "21000000",
+      18,
+      true,
+      addr,
+      addr,
+    );
+    let pid_only2 = deploy.pool_id.as_str();
+    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let stake_tick_only2 = deploy.get_stake_id();
+    results.push((pid_only2.to_string(), stake_tick_only2.clone()));
+
+    let brc30_tick = format!("{}3", earn);
+    let (deploy, msg) = mock_deploy_msg(
+      "pool",
+      "01",
+      stake,
+      brc30_tick.as_str(),
+      "10",
+      "12000000",
+      "21000000",
+      18,
+      false,
+      addr,
+      addr,
+    );
+    let pid_share1 = deploy.pool_id.as_str();
+    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let stake_tick_share1 = deploy.get_stake_id();
+    results.push((pid_share1.to_string(), stake_tick_share1.clone()));
+
+    let brc30_tick = format!("{}4", earn);
+    let (deploy, msg) = mock_deploy_msg(
+      "pool",
+      "01",
+      stake,
+      brc30_tick.as_str(),
+      "10",
+      "12000000",
+      "21000000",
+      18,
+      false,
+      addr,
+      addr,
+    );
+    let pid_share2 = deploy.pool_id.as_str();
+    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+    let stake_tick_share2 = deploy.get_stake_id();
+    results.push((pid_share2.to_string(), stake_tick_share2.clone()));
+
+    //stake to
+    let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
+    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
+    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
+    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
+    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    assert_eq!(None, result.err());
+
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["a2c6a6a614#01",true,50000000000000000000],["934a4f7aff#01",false,50000000000000000000],["83050baa2b#01",true,50000000000000000000],["92c3f0f4ab#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":100000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"a2c6a6a614#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_poolinfo = r##"{"pid":"a2c6a6a614#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_stake_info(
+      brc30_data_store,
+      pid_only1,
+      &from_script,
+      &stake_tick_only1,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    let expect_userinfo = r##"{"pid":"83050baa2b#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_poolinfo = r##"{"pid":"83050baa2b#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    assert_stake_info(
+      brc30_data_store,
+      pid_only2,
+      &from_script,
+      &stake_tick_only2,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    let expect_userinfo = r##"{"pid":"934a4f7aff#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_poolinfo = r##"{"pid":"934a4f7aff#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
+    assert_stake_info(
+      brc30_data_store,
+      pid_share1,
+      &from_script,
+      &stake_tick_share1,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    let expect_userinfo = r##"{"pid":"92c3f0f4ab#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_poolinfo = r##"{"pid":"92c3f0f4ab#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
+    assert_stake_info(
+      brc30_data_store,
+      pid_share2,
+      &from_script,
+      &stake_tick_share2,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    Ok((results, from_script))
+  }
+
+  #[test]
+  fn test_process_passive_unstake_most() {
+    // 1-only(50) 2-share(50) 3-only(50) 4-share(50)
+    {
+      let dbfile = NamedTempFile::new().unwrap();
+      let db = Database::create(dbfile.path()).unwrap();
+      let wtx = db.begin_write().unwrap();
+
+      let brc20_data_store = BRC20DataStore::new(&wtx);
+      let brc30_data_store = BRC30DataStore::new(&wtx);
+
+      let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
+
+      let stake = "btc1";
+      let result = prepare_env_for_test(&brc20_data_store, &brc30_data_store, addr, stake, "ord");
+      let (infos, from_script) = match result {
+        Ok(r) => r,
+        Err(e) => {
+          panic!("err:{}", e);
+        }
+      };
+
+      //withdraw 50
+      let result =
+        set_brc20_token_user(&brc20_data_store, stake, &from_script, 150_u128, 18_u8).err();
+      assert_eq!(None, result);
+      let (stake, msg) = mock_passive_unstake_msg(stake, "50", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+
+      // assert_eq!(
+      //   Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
+      //     pid: Pid::from_str("1111111111#11").unwrap(),
+      //     amt: 10000000000000000000
+      //   })]),
+      //   result
+      // );
+
+      // let expect_stakeinfo =
+      //   r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
+      // let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"##;
+      // let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":false}"##;
+      // assert_stake_info(
+      //   &brc30_data_store,
+      //   pid_share1,
+      //   &from_script,
+      //   &stake_tick,
+      //   expect_poolinfo,
+      //   expect_stakeinfo,
+      //   expect_userinfo,
+      // );
+    }
+    /*
+    {
+      let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(None, result.err());
+
+      let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      assert_eq!(None, result.err());
+
+      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"##;
+      let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+      let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
+      assert_stake_info(
+        &brc30_data_store,
+        pid_share2,
+        &from_script,
+        &stake_tick,
+        expect_poolinfo,
+        expect_stakeinfo,
+        expect_userinfo,
+      );
+    }
+    //user has stake 2 only pool 2 share pool, then unstake from only pool
+    let (stake, msg) = mock_unstake_msg(pid_only2, "2", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_only2,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+    //user has stake 2 only pool 2 share pool, then unstake from share pool
+    let (stake, msg) = mock_unstake_msg(pid_share2, "2", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share2,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );
+
+    //user has stake 2 only pool 2 share pool, then unstake from share pool to 0
+    let (stake, msg) = mock_unstake_msg(pid_share1, "49", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 2);
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"404081632653061224","last_update_block":2,"only":false}"##;
+    assert_stake_info(
+      &brc30_data_store,
+      pid_share1,
+      &from_script,
+      &stake_tick,
+      expect_poolinfo,
+      expect_stakeinfo,
+      expect_userinfo,
+    );*/
   }
 }

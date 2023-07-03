@@ -66,7 +66,7 @@ pub enum Operation {
   Transfer(Transfer),
 }
 
-pub fn deserialize_brc30_operation(
+pub(crate) fn deserialize_brc30_operation(
   inscription: &Inscription,
   action: &Action,
 ) -> Result<BRC30Operation> {

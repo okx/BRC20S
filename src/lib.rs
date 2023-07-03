@@ -65,6 +65,7 @@ use {
     thread,
     time::{Duration, Instant, SystemTime},
   },
+  sysinfo::{System, SystemExt},
   tokio::{runtime::Runtime, task},
 };
 

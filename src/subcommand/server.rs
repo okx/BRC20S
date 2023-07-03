@@ -287,8 +287,12 @@ impl Server {
 
       let router = Router::new()
         .route("/", get(Self::home))
-        .route("/block-count", get(Self::block_count))
         .route("/block/:query", get(Self::block))
+        .route("/blockcount", get(Self::block_count))
+        .route("/blockheight", get(Self::block_height))
+        .route("/blockhash", get(Self::block_hash))
+        .route("/blockhash/:height", get(Self::block_hash_from_height))
+        .route("/blocktime", get(Self::block_time))
         .route("/bounties", get(Self::bounties))
         .route("/clock", get(Self::clock))
         .route("/content/:inscription_id", get(Self::content))
@@ -441,7 +445,9 @@ impl Server {
     if !self.acme_domain.is_empty() {
       Ok(self.acme_domain.clone())
     } else {
-      Ok(vec![sys_info::hostname()?])
+      Ok(vec![System::new()
+        .host_name()
+        .ok_or(anyhow!("no hostname found"))?])
     }
   }
 
@@ -496,7 +502,7 @@ impl Server {
   }
 
   fn index_height(index: &Index) -> ServerResult<Height> {
-    index.height()?.ok_or_not_found(|| "genesis block")
+    index.block_height()?.ok_or_not_found(|| "genesis block")
   }
 
   async fn clock(Extension(index): Extension<Arc<Index>>) -> ServerResult<Response> {
@@ -523,7 +529,7 @@ impl Server {
       SatHtml {
         sat,
         satpoint,
-        blocktime: index.blocktime(sat.height())?,
+        blocktime: index.block_time(sat.height())?,
         inscription: index.get_inscription_id_by_sat(sat)?,
       }
       .page(page_config, index.has_sat_index()?),
@@ -822,6 +828,45 @@ impl Server {
     Ok(index.block_count()?.to_string())
   }
 
+  async fn block_height(Extension(index): Extension<Arc<Index>>) -> ServerResult<String> {
+    Ok(
+      index
+        .block_height()?
+        .ok_or_not_found(|| "blockheight")?
+        .to_string(),
+    )
+  }
+
+  async fn block_hash(Extension(index): Extension<Arc<Index>>) -> ServerResult<String> {
+    Ok(
+      index
+        .block_hash(None)?
+        .ok_or_not_found(|| "blockhash")?
+        .to_string(),
+    )
+  }
+
+  async fn block_hash_from_height(
+    Extension(index): Extension<Arc<Index>>,
+    Path(height): Path<u64>,
+  ) -> ServerResult<String> {
+    Ok(
+      index
+        .block_hash(Some(height))?
+        .ok_or_not_found(|| "blockhash")?
+        .to_string(),
+    )
+  }
+
+  async fn block_time(Extension(index): Extension<Arc<Index>>) -> ServerResult<String> {
+    Ok(
+      index
+        .block_time(index.block_height()?.ok_or_not_found(|| "blocktime")?)?
+        .unix_timestamp()
+        .to_string(),
+    )
+  }
+
   async fn input(
     Extension(page_config): Extension<Arc<PageConfig>>,
     Extension(index): Extension<Arc<Index>>,
@@ -889,7 +934,11 @@ impl Server {
     );
     headers.insert(
       header::CONTENT_SECURITY_POLICY,
-      HeaderValue::from_static("default-src 'unsafe-eval' 'unsafe-inline' data:"),
+      HeaderValue::from_static("default-src 'self' 'unsafe-eval' 'unsafe-inline' data: blob:"),
+    );
+    headers.append(
+      header::CONTENT_SECURITY_POLICY,
+      HeaderValue::from_static("default-src *:*/content/ *:*/blockheight *:*/blockhash *:*/blockhash/ *:*/blocktime 'unsafe-eval' 'unsafe-inline' data: blob:"),
     );
     headers.insert(
       header::CACHE_CONTROL,
@@ -1429,7 +1478,7 @@ mod tests {
     let (_, server) = parse_server_args("ord server");
     assert_eq!(
       server.acme_domains().unwrap(),
-      &[sys_info::hostname().unwrap()]
+      &[System::new().host_name().unwrap()]
     );
   }
 
@@ -1521,14 +1570,16 @@ mod tests {
   fn http_to_https_redirect_with_path() {
     TestServer::new_with_args(&[], &["--redirect-http-to-https", "--https"]).assert_redirect(
       "/sat/0",
-      &format!("https://{}/sat/0", sys_info::hostname().unwrap()),
+      &format!("https://{}/sat/0", System::new().host_name().unwrap()),
     );
   }
 
   #[test]
   fn http_to_https_redirect_with_empty() {
-    TestServer::new_with_args(&[], &["--redirect-http-to-https", "--https"])
-      .assert_redirect("/", &format!("https://{}/", sys_info::hostname().unwrap()));
+    TestServer::new_with_args(&[], &["--redirect-http-to-https", "--https"]).assert_redirect(
+      "/",
+      &format!("https://{}/", System::new().host_name().unwrap()),
+    );
   }
 
   #[test]
@@ -1540,17 +1591,70 @@ mod tests {
   fn block_count_endpoint() {
     let test_server = TestServer::new();
 
-    let response = test_server.get("/block-count");
+    let response = test_server.get("/blockcount");
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.text().unwrap(), "1");
 
     test_server.mine_blocks(1);
 
-    let response = test_server.get("/block-count");
+    let response = test_server.get("/blockcount");
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.text().unwrap(), "2");
+  }
+
+  #[test]
+  fn block_height_endpoint() {
+    let test_server = TestServer::new();
+
+    let response = test_server.get("/blockheight");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.text().unwrap(), "0");
+
+    test_server.mine_blocks(2);
+
+    let response = test_server.get("/blockheight");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.text().unwrap(), "2");
+  }
+
+  #[test]
+  fn block_hash_endpoint() {
+    let test_server = TestServer::new();
+
+    let response = test_server.get("/blockhash");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+      response.text().unwrap(),
+      "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+    );
+  }
+
+  #[test]
+  fn block_hash_from_height_endpoint() {
+    let test_server = TestServer::new();
+
+    let response = test_server.get("/blockhash/0");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+      response.text().unwrap(),
+      "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+    );
+  }
+
+  #[test]
+  fn block_time_endpoint() {
+    let test_server = TestServer::new();
+
+    let response = test_server.get("/blocktime");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.text().unwrap(), "1231006505");
   }
 
   #[test]
@@ -2346,7 +2450,7 @@ mod tests {
     server.assert_response_csp(
       format!("/preview/{}", InscriptionId::from(txid)),
       StatusCode::OK,
-      "default-src 'unsafe-eval' 'unsafe-inline' data:",
+      "default-src 'self' 'unsafe-eval' 'unsafe-inline' data: blob:",
       "hello",
     );
   }

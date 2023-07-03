@@ -10,7 +10,7 @@ use crate::{
 use anyhow::anyhow;
 use bitcoincore_rpc::Client;
 
-pub fn resolve_message<'a, O: OrdDataStoreReadWrite>(
+pub(crate) fn resolve_message<'a, O: OrdDataStoreReadWrite>(
   client: &Client,
   ord_store: &'a O,
   new_inscriptions: &Vec<Inscription>,

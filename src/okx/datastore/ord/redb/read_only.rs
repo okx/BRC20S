@@ -1,6 +1,6 @@
 use redb::{
-  AccessGuard, Error, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue, Table,
-  TableDefinition, WriteTransaction,
+  AccessGuard, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue, StorageError,
+  Table, TableDefinition, WriteTransaction,
 };
 use std::{borrow::Borrow, io};
 
@@ -57,7 +57,10 @@ enum TableWrapper<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> {
 }
 
 impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 'txn, K, V> {
-  fn get<'a>(&self, key: impl Borrow<K::SelfType<'a>>) -> Result<Option<AccessGuard<'_, V>>, Error>
+  fn get<'a>(
+    &self,
+    key: impl Borrow<K::SelfType<'a>>,
+  ) -> Result<Option<AccessGuard<'_, V>>, StorageError>
   where
     K: 'a,
   {

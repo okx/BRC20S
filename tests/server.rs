@@ -86,7 +86,7 @@ fn server_runs_with_rpc_user_and_pass_as_env_vars() {
   rpc_server.mine_blocks(1);
   thread::sleep(Duration::from_secs(1));
 
-  let response = reqwest::blocking::get(format!("http://127.0.0.1:{port}/block-count")).unwrap();
+  let response = reqwest::blocking::get(format!("http://127.0.0.1:{port}/blockcount")).unwrap();
   assert_eq!(response.status(), StatusCode::OK);
   assert_eq!(response.text().unwrap(), "2");
 
@@ -101,11 +101,11 @@ fn missing_credentials() {
     .rpc_server(&rpc_server)
     .expected_exit_code(1)
     .expected_stderr("error: no bitcoind rpc password specified\n")
-    .run();
+    .run_and_extract_stdout();
 
   CommandBuilder::new("--bitcoin-rpc-pass bar server")
     .rpc_server(&rpc_server)
     .expected_exit_code(1)
     .expected_stderr("error: no bitcoind rpc user specified\n")
-    .run();
+    .run_and_extract_stdout();
 }

@@ -96,7 +96,7 @@ mod tests {
   "inscription_number": 1,
   "old_satpoint": "1111111111111111111111111111111111111111111111111111111111111111:1:1",
   "new_satpoint": "2111111111111111111111111111111111111111111111111111111111111111:1:1",
-  "op": "deploy",
+  "op": "Deploy",
   "from": {
     "Address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
   },

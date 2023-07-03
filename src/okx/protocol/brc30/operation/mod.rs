@@ -157,13 +157,13 @@ mod tests {
     let json_str = format!(
       r##"{{
         "p": "brc20-s",
-        "op": "stake",
+        "op": "deposit",
         "pid": "pid",
         "amt": "amt"
       }}"##
     );
 
-    let reuslt = deserialize_brc30(&json_str);
+    let result = deserialize_brc30(&json_str);
 
     assert!(!deserialize_brc30(&json_str).is_err());
 
@@ -207,7 +207,7 @@ mod tests {
     let json_str = format!(
       r##"{{
         "p": "brc20-s",
-        "op": "unstake",
+        "op": "withdraw",
         "pid": "pid",
         "amt": "amt"
       }}"##
@@ -257,7 +257,7 @@ mod tests {
     let json_str = format!(
       r##"{{
         "p": "brc20-s",
-        "op": "stake",
+        "op": "deposit",
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"
@@ -364,7 +364,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc20-s","op":"stake","pid":"pool_id","amt":"12000"}"##
+            r##"{"p":"brc20-s","op":"deposit","pid":"pool_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),
@@ -409,7 +409,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc20-s","op":"unstake","pid":"pool_id","amt":"12000"}"##
+            r##"{"p":"brc20-s","op":"withdraw","pid":"pool_id","amt":"12000"}"##
               .as_bytes()
               .to_vec(),
           ),

@@ -75,11 +75,11 @@ mod tests {
       }}"##
     );
 
-    let reuslt = deserialize_brc30(&json_str);
+    let result = deserialize_brc30(&json_str);
 
     assert_eq!(
       deserialize_brc30(&json_str).unwrap_err(),
-      JSONError::ParseOperationJsonError("missing field `pid`".to_string())
+      JSONError::ParseOperationJsonError("missing field `tid`".to_string())
     );
   }
 

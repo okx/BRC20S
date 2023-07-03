@@ -1470,6 +1470,7 @@ mod tests {
   }
 
   struct Context {
+    #[allow(unused)]
     options: Options,
     rpc_server: test_bitcoincore_rpc::Handle,
     #[allow(unused)]

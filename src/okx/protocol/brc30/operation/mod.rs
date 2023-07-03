@@ -257,7 +257,7 @@ mod tests {
     let json_str = format!(
       r##"{{
         "p": "brc20-s",
-        "op": "stake",
+        "op": "deposit",
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"

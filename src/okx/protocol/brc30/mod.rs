@@ -18,12 +18,10 @@ mod test;
 pub use self::{
   error::{BRC30Error, Error},
   msg_executor::{execute, BRC30ExecutionMessage},
-  msg_resolver::resolve_message,
   num::Num,
-  operation::{
-    deserialize_brc30_operation, Deploy, Mint, Operation, PassiveUnStake, Stake, Transfer, UnStake,
-  },
+  operation::{Deploy, Mint, Operation, PassiveUnStake, Stake, Transfer, UnStake},
 };
+pub(crate) use self::{msg_resolver::resolve_message, operation::deserialize_brc30_operation};
 
 pub struct BRC30Message {
   pub txid: Txid,

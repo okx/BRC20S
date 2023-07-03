@@ -18,9 +18,9 @@ const FAST_QUERY_HEIGHT: u64 = 10;
 
 mod inscription_updater;
 
-pub struct BlockData {
-  pub header: BlockHeader,
-  pub txdata: Vec<(Transaction, Txid)>,
+pub(crate) struct BlockData {
+  pub(crate) header: BlockHeader,
+  pub(crate) txdata: Vec<(Transaction, Txid)>,
 }
 
 impl From<Block> for BlockData {
@@ -58,6 +58,7 @@ impl Updater {
       .range(0..)?
       .rev()
       .next()
+      .and_then(|result| result.ok())
       .map(|(height, _hash)| height.value() + 1)
       .unwrap_or(0);
 
@@ -187,6 +188,7 @@ impl Updater {
           .range(0..)?
           .rev()
           .next()
+          .and_then(|result| result.ok())
           .map(|(height, _hash)| height.value() + 1)
           .unwrap_or(0);
         if height != self.height {
@@ -449,8 +451,9 @@ impl Updater {
     let mut inscription_id_to_satpoint = wtx.open_table(INSCRIPTION_ID_TO_SATPOINT)?;
     let mut inscription_number_to_inscription_id =
       wtx.open_table(INSCRIPTION_NUMBER_TO_INSCRIPTION_ID)?;
-    let mut sat_to_inscription_id = wtx.open_table(SAT_TO_INSCRIPTION_ID)?;
-    let mut satpoint_to_inscription_id = wtx.open_table(SATPOINT_TO_INSCRIPTION_ID)?;
+    let mut reinscription_id_to_seq_num = wtx.open_table(REINSCRIPTION_ID_TO_SEQUENCE_NUMBER)?;
+    let mut sat_to_inscription_id = wtx.open_multimap_table(SAT_TO_INSCRIPTION_ID)?;
+    let mut satpoint_to_inscription_id = wtx.open_multimap_table(SATPOINT_TO_INSCRIPTION_ID)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
     let mut lost_sats = statistic_to_count
@@ -472,12 +475,14 @@ impl Updater {
       lost_sats,
       &mut inscription_number_to_inscription_id,
       &mut outpoint_to_entry,
+      &mut reinscription_id_to_seq_num,
       &mut sat_to_inscription_id,
       &mut satpoint_to_inscription_id,
       block.header.time,
       unbound_inscriptions,
       &mut tx_out_cache,
     )?;
+
     if self.index_sats {
       let mut sat_to_satpoint = wtx.open_table(SAT_TO_SATPOINT)?;
       let mut outpoint_to_sat_ranges = wtx.open_table(OUTPOINT_TO_SAT_RANGES)?;

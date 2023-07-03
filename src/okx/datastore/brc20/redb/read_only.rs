@@ -3,8 +3,8 @@ use crate::okx::datastore::brc20::{
   BRC20DataStoreReadOnly, BRC20Receipt, Balance, Tick, TokenInfo, TransferableLog,
 };
 use redb::{
-  AccessGuard, Error, RangeIter, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
-  Table, TableDefinition, WriteTransaction,
+  AccessGuard, Range, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
+  StorageError, Table, TableDefinition, WriteTransaction,
 };
 use std::borrow::Borrow;
 use std::ops::RangeBounds;
@@ -52,7 +52,10 @@ enum TableWrapper<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> {
 }
 
 impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 'txn, K, V> {
-  fn get<'a>(&self, key: impl Borrow<K::SelfType<'a>>) -> Result<Option<AccessGuard<'_, V>>, Error>
+  fn get<'a>(
+    &self,
+    key: impl Borrow<K::SelfType<'a>>,
+  ) -> Result<Option<AccessGuard<'_, V>>, StorageError>
   where
     K: 'a,
   {
@@ -65,7 +68,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   fn range<'a: 'b, 'b, KR>(
     &'a self,
     range: impl RangeBounds<KR> + 'b,
-  ) -> Result<RangeIter<'a, K, V>, Error>
+  ) -> Result<Range<'a, K, V>, StorageError>
   where
     K: 'a,
     KR: Borrow<K::SelfType<'b>> + 'b,
@@ -86,9 +89,11 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC20_BALANCES)?
         .range(min_script_tick_key(script_key).as_str()..max_script_tick_key(&script_key).as_str())?
-        .map(|(_, data)| {
-          let bal = bincode::deserialize::<StoreBalance>(data.value()).unwrap();
-          (bal.tick, bal.balance)
+        .flat_map(|result| {
+          result.map(|(_, data)| {
+            let bal = bincode::deserialize::<StoreBalance>(data.value()).unwrap();
+            (bal.tick, bal.balance)
+          })
         })
         .collect(),
     )
@@ -128,7 +133,9 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC20_TOKEN)?
         .range::<&str>(..)?
-        .map(|(_, data)| bincode::deserialize::<TokenInfo>(data.value()).unwrap())
+        .flat_map(|result| {
+          result.map(|(_, data)| bincode::deserialize::<TokenInfo>(data.value()).unwrap())
+        })
         .collect(),
     )
   }
@@ -151,7 +158,9 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC20_TRANSFERABLELOG)?
         .range(min_script_tick_key(script).as_str()..max_script_tick_key(script).as_str())?
-        .map(|(_, v)| bincode::deserialize::<Vec<TransferableLog>>(v.value()).unwrap())
+        .flat_map(|result| {
+          result.map(|(_, v)| bincode::deserialize::<Vec<TransferableLog>>(v.value()).unwrap())
+        })
         .flatten()
         .collect(),
     )

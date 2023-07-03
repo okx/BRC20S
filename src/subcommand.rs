@@ -5,8 +5,8 @@ mod server;
 
 #[derive(Debug, Parser)]
 pub(crate) enum Subcommand {
-  #[clap(about = "Update the index")]
-  Index,
+  #[clap(subcommand, about = "Index commands")]
+  Index(index::IndexSubcommand),
   #[clap(about = "Run the explorer server")]
   Server(server::Server),
 }
@@ -14,7 +14,7 @@ pub(crate) enum Subcommand {
 impl Subcommand {
   pub(crate) fn run(self, options: Options) -> Result {
     match self {
-      Self::Index => index::run(options),
+      Self::Index(index) => index.run(options),
       Self::Server(server) => {
         let index = Arc::new(Index::open(&options)?);
         let handle = axum_server::Handle::new();

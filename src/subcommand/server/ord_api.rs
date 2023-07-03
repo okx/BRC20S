@@ -1,7 +1,10 @@
 use super::{error::ApiError, types::ScriptPubkey, *};
-use crate::okx::datastore::{
-  ord::{Action, InscriptionOp},
-  ScriptKey,
+use crate::{
+  index::InscriptionEntry,
+  okx::datastore::{
+    ord::{Action, InscriptionOp},
+    ScriptKey,
+  },
 };
 use axum::Json;
 
@@ -51,8 +54,7 @@ enum Origin {
 }
 
 fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<OrdInscription> {
-  let inscription_data = index
-    .get_inscription_all_data_by_id(id)?
+  let inscription_data = get_inscription_all_data_by_id(index.clone(), id)?
     .ok_or_api_not_found(format!("inscriptionId not found {id}"))?;
   let location_outpoint = inscription_data.sat_point.outpoint;
   let owner = if inscription_data.tx.txid() != location_outpoint.txid {
@@ -334,4 +336,42 @@ fn simulate_index_ord_transaction(
   }));
 
   Ok(operations)
+}
+
+pub(crate) struct InscriptionAllData {
+  pub tx: Transaction,
+  pub entry: InscriptionEntry,
+  pub sat_point: SatPoint,
+  pub inscription: Inscription,
+}
+
+pub(crate) fn get_inscription_all_data_by_id(
+  index: Arc<Index>,
+  inscription_id: InscriptionId,
+) -> Result<Option<InscriptionAllData>> {
+  let entry = match index.get_inscription_entry(inscription_id)? {
+    Some(entry) => entry,
+    None => return Ok(None),
+  };
+  let tx = match index.get_transaction(inscription_id.txid)? {
+    Some(tx) => tx,
+    None => return Ok(None),
+  };
+  let inscription =
+    match Inscription::from_transaction(&tx).get(usize::try_from(inscription_id.index).unwrap()) {
+      Some(transaction_inscription) => transaction_inscription.inscription.clone(),
+      None => return Ok(None),
+    };
+
+  let sat_point = match index.get_inscription_satpoint_by_id(inscription_id)? {
+    Some(sat_point) => sat_point,
+    None => return Ok(None),
+  };
+
+  Ok(Some(InscriptionAllData {
+    entry,
+    tx,
+    inscription,
+    sat_point,
+  }))
 }

@@ -162,7 +162,7 @@ impl Updater {
           self.commit(wtx)?;
           uncommitted = 0;
           wtx = index.begin_write()?;
-          let sp = wtx.savepoint()?;
+          let sp = wtx.ephemeral_savepoint()?;
           unsafe {
             let savepoints = match GLOBAL_SAVEPOINTS.get_mut() {
               Some(point) => point,

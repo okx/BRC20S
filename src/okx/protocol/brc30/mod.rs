@@ -14,6 +14,7 @@ mod util;
 #[cfg(test)]
 #[macro_use]
 mod test;
+mod vesion;
 
 pub use self::{
   error::{BRC30Error, Error},

@@ -220,6 +220,7 @@ fn get_num_by_decimal(decimal: u8) -> Result<Num, BRC30Error> {
 }
 
 #[cfg(test)]
+#[allow(unused)]
 mod tests {
   use super::*;
   use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};

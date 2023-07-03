@@ -64,7 +64,7 @@ impl Entry for InscriptionEntry {
   }
 }
 
-pub(crate) type InscriptionIdValue = [u8; 36];
+pub(super) type InscriptionIdValue = [u8; 36];
 
 impl Entry for InscriptionId {
   type Value = InscriptionIdValue;

@@ -39,7 +39,7 @@ enum RawOperation {
   Transfer(Transfer),
 }
 
-pub fn deserialize_brc20_operation(
+pub(crate) fn deserialize_brc20_operation(
   inscription: &Inscription,
   action: &Action,
 ) -> Result<BRC20Operation> {

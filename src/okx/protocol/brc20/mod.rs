@@ -1,5 +1,8 @@
 use crate::{
-  okx::datastore::{brc20::BRC20OperationType, ScriptKey},
+  okx::datastore::{
+    brc20::{BRC20Error, BRC20OperationType},
+    ScriptKey,
+  },
   InscriptionId, Result, SatPoint,
 };
 use bitcoin::Txid;

@@ -115,4 +115,65 @@ mod tests {
       validate_amount(amt)
     );
   }
+
+  #[test]
+  fn test_validate_pool_str() {
+    assert_eq!(
+      validate_pool_str(""),
+      Err(BRC30Error::InvalidPoolId(
+        "".to_string(),
+        "pool id length is not 13".to_string(),
+      ))
+    );
+
+    assert_eq!(
+      validate_pool_str("123"),
+      Err(BRC30Error::InvalidPoolId(
+        "123".to_string(),
+        "pool id length is not 13".to_string(),
+      ))
+    );
+
+    assert_eq!(
+      validate_pool_str("fdsfasfdsfafdfsfadfs"),
+      Err(BRC30Error::InvalidPoolId(
+        "fdsfasfdsfafdfsfadfs".to_string(),
+        "pool id length is not 13".to_string(),
+      ))
+    );
+
+    assert_eq!(
+      validate_pool_str("1234567890001"),
+      Err(BRC30Error::InvalidPoolId(
+        "1234567890001".to_string(),
+        "pool id must contains '#'".to_string(),
+      ))
+    );
+
+    assert_eq!(
+      validate_pool_str("1234#67#89001"),
+      Err(BRC30Error::InvalidPoolId(
+        "1234#67#89001".to_string(),
+        "pool id must contains only one '#'".to_string(),
+      ))
+    );
+
+    assert_eq!(
+      validate_pool_str("1234#67890011"),
+      Err(BRC30Error::InvalidPoolId(
+        "1234#67890011".to_string(),
+        "the prefix of pool id must contains 10 letter identifier".to_string(),
+      ))
+    );
+
+    assert_eq!(
+      validate_pool_str("01234*6789#01"),
+      Err(BRC30Error::InvalidPoolId(
+        "01234*6789#01".to_string(),
+        "the prefix of pool id is not hex".to_string(),
+      ))
+    );
+
+    assert_eq!(validate_pool_str("1234567890#01"), Ok(()));
+  }
 }

@@ -3,7 +3,7 @@
 use {
   self::{command_builder::CommandBuilder, expected::Expected, test_server::TestServer},
   bip39::Mnemonic,
-  bitcoin::{blockdata::constants::COIN_VALUE, Network, OutPoint, Txid},
+  bitcoin::Txid,
   executable_path::executable_path,
   pretty_assertions::assert_eq as pretty_assert_eq,
   regex::Regex,
@@ -19,7 +19,6 @@ use {
     time::Duration,
   },
   tempfile::TempDir,
-  test_bitcoincore_rpc::Sent,
 };
 
 macro_rules! assert_regex_match {
@@ -36,37 +35,40 @@ macro_rules! assert_regex_match {
   };
 }
 
+#[allow(unused)]
 #[derive(Deserialize, Debug)]
 struct Inscribe {
-  #[allow(dead_code)]
   commit: Txid,
   inscription: String,
   reveal: Txid,
   fees: u64,
 }
 
+#[allow(unused)]
 fn inscribe(rpc_server: &test_bitcoincore_rpc::Handle) -> Inscribe {
   rpc_server.mine_blocks(1);
 
   let output = CommandBuilder::new("wallet inscribe --fee-rate 1 foo.txt")
     .write("foo.txt", "FOO")
     .rpc_server(rpc_server)
-    .output();
+    .run_and_check_output();
 
   rpc_server.mine_blocks(1);
 
   output
 }
 
+#[allow(unused)]
 #[derive(Deserialize)]
 struct Create {
   mnemonic: Mnemonic,
 }
 
+#[allow(unused)]
 fn create_wallet(rpc_server: &test_bitcoincore_rpc::Handle) {
   CommandBuilder::new(format!("--chain {} wallet create", rpc_server.network()))
     .rpc_server(rpc_server)
-    .output::<Create>();
+    .run_and_check_output::<Create>();
 }
 
 mod command_builder;

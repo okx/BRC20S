@@ -4,8 +4,8 @@ use crate::okx::datastore::brc30::{
   StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
 };
 use redb::{
-  AccessGuard, Error, RangeIter, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
-  Table, TableDefinition, WriteTransaction,
+  AccessGuard, Range, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
+  StorageError, Table, TableDefinition, WriteTransaction,
 };
 use std::borrow::Borrow;
 use std::ops::RangeBounds;
@@ -53,7 +53,10 @@ enum TableWrapper<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> {
 }
 
 impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 'txn, K, V> {
-  fn get<'a>(&self, key: impl Borrow<K::SelfType<'a>>) -> Result<Option<AccessGuard<'_, V>>, Error>
+  fn get<'a>(
+    &self,
+    key: impl Borrow<K::SelfType<'a>>,
+  ) -> Result<Option<AccessGuard<'_, V>>, StorageError>
   where
     K: 'a,
   {
@@ -66,7 +69,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   fn range<'a: 'b, 'b, KR>(
     &'a self,
     range: impl RangeBounds<KR> + 'b,
-  ) -> Result<RangeIter<'a, K, V>, Error>
+  ) -> Result<Range<'a, K, V>, StorageError>
   where
     K: 'a,
     KR: Borrow<K::SelfType<'b>> + 'b,
@@ -77,7 +80,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
     }
   }
 
-  fn len(&self) -> Result<usize, Error> {
+  fn len(&self) -> Result<u64, StorageError> {
     match self {
       Self::RtxTable(rtx_table) => rtx_table.len(),
       Self::WtxTable(wtx_table) => wtx_table.len(),
@@ -127,12 +130,14 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .range(TickId::min_hex().as_str()..TickId::max_hex().as_str())?
         .skip(start)
         .take(limit.unwrap_or(usize::MAX))
-        .map(|(_, data)| {
-          let tick_info = bincode::deserialize::<TickInfo>(data.value()).unwrap();
-          tick_info
+        .flat_map(|result| {
+          result.map(|(_, data)| {
+            let tick_info = bincode::deserialize::<TickInfo>(data.value()).unwrap();
+            tick_info
+          })
         })
         .collect(),
-      total,
+      usize::try_from(total).unwrap(),
     ));
   }
 
@@ -159,12 +164,14 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .range(Pid::min_hex().as_str()..Pid::max_hex().as_str())?
         .skip(start)
         .take(limit.unwrap_or(usize::MAX))
-        .map(|(_, data)| {
-          let pool = bincode::deserialize::<PoolInfo>(data.value()).unwrap();
-          pool
+        .flat_map(|result| {
+          result.map(|(_, data)| {
+            let pool = bincode::deserialize::<PoolInfo>(data.value()).unwrap();
+            pool
+          })
         })
         .collect(),
-      total,
+      usize::try_from(total).unwrap(),
     ));
   }
 
@@ -222,9 +229,11 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC30_TICKID_STAKE_TO_PID)?
         .range(min.as_str()..max.as_str())?
-        .map(|(_, data)| {
-          let pid = bincode::deserialize::<Pid>(data.value()).unwrap();
-          pid
+        .flat_map(|result| {
+          result.map(|(_, data)| {
+            let pid = bincode::deserialize::<Pid>(data.value()).unwrap();
+            pid
+          })
         })
         .collect(),
     )
@@ -237,9 +246,11 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC30_STAKE_TICKID_TO_PID)?
         .range(min_stake_tickid_key(pledged).as_str()..max_stake_tickid_key(pledged).as_str())?
-        .map(|(_, data)| {
-          let pid = bincode::deserialize::<Pid>(data.value()).unwrap();
-          pid
+        .flat_map(|result| {
+          result.map(|(_, data)| {
+            let pid = bincode::deserialize::<Pid>(data.value()).unwrap();
+            pid
+          })
         })
         .collect(),
     )
@@ -272,9 +283,11 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .range(
           min_script_tick_id_key(script_key).as_str()..max_script_tick_id_key(&script_key).as_str(),
         )?
-        .map(|(_, data)| {
-          let bal = bincode::deserialize::<Balance>(data.value()).unwrap();
-          (bal.tick_id, bal.clone())
+        .flat_map(|result| {
+          result.map(|(_, data)| {
+            let bal = bincode::deserialize::<Balance>(data.value()).unwrap();
+            (bal.tick_id, bal.clone())
+          })
         })
         .collect(),
     )
@@ -302,7 +315,9 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC30_TRANSFERABLE_ASSETS)?
         .range(min_script_tick_id_key(script).as_str()..max_script_tick_id_key(script).as_str())?
-        .map(|(_, v)| bincode::deserialize::<TransferableAsset>(v.value()).unwrap())
+        .flat_map(|result| {
+          result.map(|(_, v)| bincode::deserialize::<TransferableAsset>(v.value()).unwrap())
+        })
         .collect(),
     )
   }

@@ -45,7 +45,7 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     }
   }
 
-  pub fn index_block(
+  pub(crate) fn index_block(
     &self,
     context: BlockContext,
     block: &BlockData,

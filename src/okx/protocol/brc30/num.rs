@@ -203,6 +203,7 @@ impl<'de> Deserialize<'de> for Num {
   }
 }
 
+#[allow(unused)]
 #[cfg(test)]
 mod tests {
   use super::*;

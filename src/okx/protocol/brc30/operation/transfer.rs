@@ -15,6 +15,7 @@ pub struct Transfer {
   pub amount: String,
 }
 
+#[allow(unused)]
 #[cfg(test)]
 mod tests {
   use super::super::*;

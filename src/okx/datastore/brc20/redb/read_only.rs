@@ -1,6 +1,6 @@
 use super::*;
 use crate::okx::datastore::brc20::{
-  BRC20DataStoreReadOnly, BRC20Receipt, Balance, Tick, TokenInfo, TransferableLog,
+  BRC20DataStoreReadOnly, BRC20Receipt, Balance, Tick, TokenInfo, TransferInfo, TransferableLog,
 };
 use bitcoin::hashes::Hash;
 use redb::{
@@ -200,7 +200,7 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
   fn get_inscribe_transfer_inscription(
     &self,
     inscription_id: InscriptionId,
-  ) -> Result<Option<bool>, Self::Error> {
+  ) -> Result<Option<TransferInfo>, Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
     txid.copy_from_slice(inscription_id.txid.as_inner());
@@ -210,7 +210,7 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC20_INSCRIBE_TRANSFER)?
         .get(&value)?
-        .map(|v| v.value() != 0),
+        .map(|v| bincode::deserialize::<TransferInfo>(v.value()).unwrap()),
     )
   }
 }

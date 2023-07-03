@@ -1,4 +1,4 @@
-use super::BRC20Message;
+use super::*;
 use crate::{
   inscription::Inscription,
   okx::{
@@ -6,39 +6,38 @@ use crate::{
       brc20::BRC20DataStoreReadOnly,
       ord::{Action, InscriptionOp},
     },
-    protocol::brc20::deserialize_brc20_operation,
+    protocol::brc20::{deserialize_brc20_operation, BRC20Operation},
   },
-  Index, Result,
+  Result,
 };
 use anyhow::anyhow;
-use bitcoincore_rpc::Client;
 
-pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly>(
-  client: &Client,
+pub(crate) fn resolve_message<'a, N: BRC20DataStoreReadOnly>(
   brc20_store: &'a N,
   new_inscriptions: &Vec<Inscription>,
   op: &InscriptionOp,
 ) -> Result<Option<BRC20Message>> {
-  let inscription = match op.action {
+  let brc20_operation = match op.action {
     Action::New {
       cursed: false,
       unbound: false,
-    } => new_inscriptions
-      .get(usize::try_from(op.inscription_id.index).unwrap())
-      .unwrap()
-      .clone(),
+    } => {
+      match deserialize_brc20_operation(
+        new_inscriptions
+          .get(usize::try_from(op.inscription_id.index).unwrap())
+          .unwrap(),
+        &op.action,
+      ) {
+        Ok(brc20_operation) => brc20_operation,
+        _ => return Ok(None),
+      }
+    }
     Action::Transfer => match brc20_store.get_inscribe_transfer_inscription(op.inscription_id) {
-      Ok(Some(_)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
-        Inscription::from_transaction(
-          &Index::get_transaction_retries(client, op.inscription_id.txid)?.ok_or(anyhow!(
-            "failed to fetch transaction! {} not found",
-            op.inscription_id.txid
-          ))?,
-        )
-        .get(usize::try_from(op.inscription_id.index).unwrap())
-        .unwrap()
-        .inscription
-        .clone()
+      Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
+        BRC20Operation::Transfer(BRC20Transfer {
+          tick: transfer_info.tick.as_str().to_string(),
+          amount: transfer_info.amt.to_string(),
+        })
       }
       Err(e) => {
         return Err(anyhow!(
@@ -51,14 +50,11 @@ pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly>(
     _ => return Ok(None),
   };
 
-  match deserialize_brc20_operation(&inscription, &op.action) {
-    Ok(brc20_operation) => Ok(Some(BRC20Message {
-      txid: op.txid,
-      inscription_id: op.inscription_id,
-      old_satpoint: op.old_satpoint,
-      new_satpoint: op.new_satpoint,
-      op: brc20_operation,
-    })),
-    Err(_) => Ok(None),
-  }
+  Ok(Some(BRC20Message {
+    txid: op.txid,
+    inscription_id: op.inscription_id,
+    old_satpoint: op.old_satpoint,
+    new_satpoint: op.new_satpoint,
+    op: brc20_operation,
+  }))
 }

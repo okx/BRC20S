@@ -5,9 +5,12 @@ pub mod redb;
 mod stake_info;
 mod temp;
 mod tick;
+mod transfer;
 mod user_info;
 
-pub use self::{balance::*, event::*, pool_info::*, stake_info::*, temp::*, tick::*, user_info::*};
+pub use self::{
+  balance::*, event::*, pool_info::*, stake_info::*, temp::*, tick::*, transfer::*, user_info::*,
+};
 use crate::okx::datastore::ScriptKey;
 use crate::InscriptionId;
 use bitcoin::Txid;
@@ -105,7 +108,7 @@ pub trait BRC30DataStoreReadOnly {
   fn get_inscribe_transfer_inscription(
     &self,
     inscription_id: InscriptionId,
-  ) -> Result<Option<bool>, Self::Error>;
+  ) -> Result<Option<TransferInfo>, Self::Error>;
 }
 
 pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
@@ -182,6 +185,7 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
   fn insert_inscribe_transfer_inscription(
     &self,
     inscription_id: InscriptionId,
+    transfer_info: TransferInfo,
   ) -> Result<(), Self::Error>;
 
   fn remove_inscribe_transfer_inscription(

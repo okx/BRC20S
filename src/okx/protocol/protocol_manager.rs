@@ -6,7 +6,7 @@ use crate::{
     ord::{operation::InscriptionOp, OrdDataStoreReadWrite},
     BRC20DataStoreReadWrite,
   },
-  Result,
+  Instant, Result,
 };
 use bitcoin::Network;
 use bitcoincore_rpc::Client;
@@ -51,6 +51,7 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     block: &BlockData,
     operation: Vec<InscriptionOp>,
   ) -> Result {
+    let start = Instant::now();
     let mut messages_size = 0;
     let mut operations_peeker = operation.into_iter().peekable();
     // skip the coinbase transaction.
@@ -74,9 +75,10 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     }
 
     log::info!(
-      "Protocol Manager indexed block {} with {} messages.",
+      "Protocol Manager indexed block {} with {} messages in {} ms",
       context.blockheight,
-      messages_size
+      messages_size,
+      (Instant::now() - start).as_millis(),
     );
     Ok(())
   }

@@ -74,7 +74,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         // Parse BRC20 message through inscription operation.
         if self.protocols.contains(&ProtocolKind::BRC20) {
           if let Some(msg) =
-            brc20::resolve_message(self.client, self.brc20_store, &new_inscriptions, &operation)?
+            brc20::resolve_message(self.brc20_store, &new_inscriptions, &operation)?
               .map(Message::BRC20)
           {
             messages.push(msg);

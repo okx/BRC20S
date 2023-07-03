@@ -27,7 +27,7 @@ pub enum BRC30Operation {
   UnStake(UnStake),
   PassiveUnStake(PassiveUnStake),
   InscribeTransfer(Transfer),
-  Transfer,
+  Transfer(Transfer),
 }
 
 impl BRC30Operation {
@@ -39,7 +39,7 @@ impl BRC30Operation {
       BRC30Operation::UnStake(_) => BRC30OperationType::UnStake,
       BRC30Operation::PassiveUnStake(_) => BRC30OperationType::PassiveUnStake,
       BRC30Operation::InscribeTransfer(_) => BRC30OperationType::InscribeTransfer,
-      BRC30Operation::Transfer => BRC30OperationType::Transfer,
+      BRC30Operation::Transfer(_) => BRC30OperationType::Transfer,
     }
   }
 }
@@ -106,7 +106,7 @@ pub(crate) fn deserialize_brc30_operation(
       Operation::PassiveUnStake(_) => Err(JSONError::NotBRC30Json.into()),
     },
     Action::Transfer => match raw_operation {
-      Operation::Transfer(_) => Ok(BRC30Operation::Transfer),
+      Operation::Transfer(transfer) => Ok(BRC30Operation::Transfer(transfer)),
       _ => Err(JSONError::NotBRC30Json.into()),
     },
   }
@@ -465,7 +465,11 @@ mod tests {
         &Action::Transfer,
       )
       .unwrap(),
-      BRC30Operation::Transfer
+      BRC30Operation::Transfer(Transfer {
+        tick_id: "tick_id".to_string(),
+        tick: "abcd".to_string(),
+        amount: "12000".to_string()
+      })
     );
   }
 }

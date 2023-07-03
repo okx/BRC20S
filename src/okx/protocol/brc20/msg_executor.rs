@@ -8,7 +8,8 @@ use crate::{
     datastore::{
       brc20::{
         BRC20DataStoreReadWrite, BRC20Error, BRC20Event, BRC20Receipt, Balance, DeployEvent,
-        InscripbeTransferEvent, MintEvent, Tick, TokenInfo, TransferEvent, TransferableLog,
+        InscripbeTransferEvent, MintEvent, Tick, TokenInfo, TransferEvent, TransferInfo,
+        TransferableLog,
       },
       ord::OrdDataStoreReadOnly,
     },
@@ -337,7 +338,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
     inscription_id: msg.inscription_id,
     inscription_number: msg.inscription_number,
     amount: amt,
-    tick: token_info.tick,
+    tick: token_info.tick.clone(),
     owner: msg.to.clone(),
   };
   brc20_store
@@ -345,7 +346,13 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
     .map_err(|e| Error::LedgerError(e))?;
 
   brc20_store
-    .insert_inscribe_transfer_inscription(msg.inscription_id)
+    .insert_inscribe_transfer_inscription(
+      msg.inscription_id,
+      TransferInfo {
+        tick: token_info.tick,
+        amt,
+      },
+    )
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(BRC20Event::InscribeTransfer(InscripbeTransferEvent {

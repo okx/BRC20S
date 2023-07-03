@@ -5,11 +5,12 @@ pub mod redb;
 pub mod storage_balance;
 pub(super) mod tick;
 pub(super) mod token_info;
+pub(super) mod transfer;
 pub(super) mod transferable_log;
 
 pub use self::{
   balance::Balance, errors::BRC20Error, events::BRC20Receipt, events::*, tick::Tick,
-  token_info::TokenInfo, transferable_log::TransferableLog,
+  token_info::TokenInfo, transfer::TransferInfo, transferable_log::TransferableLog,
 };
 use super::ScriptKey;
 use crate::{InscriptionId, Result};
@@ -46,7 +47,7 @@ pub trait BRC20DataStoreReadOnly {
   fn get_inscribe_transfer_inscription(
     &self,
     inscription_id: InscriptionId,
-  ) -> Result<Option<bool>, Self::Error>;
+  ) -> Result<Option<TransferInfo>, Self::Error>;
 }
 
 pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
@@ -92,6 +93,7 @@ pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
   fn insert_inscribe_transfer_inscription(
     &self,
     inscription_id: InscriptionId,
+    transfer_info: TransferInfo,
   ) -> Result<(), Self::Error>;
 
   fn remove_inscribe_transfer_inscription(

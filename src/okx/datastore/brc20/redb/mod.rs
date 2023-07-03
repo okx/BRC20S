@@ -14,7 +14,7 @@ const BRC20_TOKEN: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_TO
 const BRC20_EVENTS: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_EVENTS");
 const BRC20_TRANSFERABLELOG: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC20_TRANSFERABLELOG");
-const BRC20_INSCRIBE_TRANSFER: TableDefinition<&[u8; 36], u8> =
+const BRC20_INSCRIBE_TRANSFER: TableDefinition<&[u8; 36], &[u8]> =
   TableDefinition::new("BRC20_INSCRIBE_TRANSFER");
 
 fn script_tick_key(script: &ScriptKey, tick: &Tick) -> String {

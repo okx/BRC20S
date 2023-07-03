@@ -2,7 +2,7 @@ use super::*;
 use crate::{
   okx::datastore::brc30::{
     BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Receipt, Balance, InscriptionOperation,
-    Pid, PoolInfo, StakeInfo, TickId, TickInfo, TransferableAsset, UserInfo,
+    Pid, PoolInfo, StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
   },
   InscriptionId,
 };
@@ -148,7 +148,7 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   fn get_inscribe_transfer_inscription(
     &self,
     inscription_id: InscriptionId,
-  ) -> Result<Option<bool>, Self::Error> {
+  ) -> Result<Option<TransferInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_inscribe_transfer_inscription(inscription_id)
   }
 }
@@ -302,16 +302,17 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   fn insert_inscribe_transfer_inscription(
     &self,
     inscription_id: InscriptionId,
+    transfer_info: TransferInfo,
   ) -> Result<(), Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
     txid.copy_from_slice(inscription_id.txid.as_inner());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
 
-    self
-      .wtx
-      .open_table(BRC30_INSCRIBE_TRANSFER)?
-      .insert(&value, 1)?;
+    self.wtx.open_table(BRC30_INSCRIBE_TRANSFER)?.insert(
+      &value,
+      bincode::serialize(&transfer_info).unwrap().as_slice(),
+    )?;
     Ok(())
   }
 

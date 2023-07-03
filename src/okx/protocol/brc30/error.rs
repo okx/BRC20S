@@ -1,6 +1,4 @@
-use crate::okx::protocol;
 use crate::InscriptionId;
-use protocol::brc30::num::Num;
 use serde::{Deserialize, Serialize};
 
 use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
@@ -38,7 +36,11 @@ pub enum JSONError {
 #[derive(Debug, Clone, PartialEq, thiserror::Error, Deserialize, Serialize)]
 pub enum BRC30Error {
   #[error("{op} overflow: original: {org}, other: {other}")]
-  Overflow { op: String, org: Num, other: Num },
+  Overflow {
+    op: String,
+    org: String,
+    other: String,
+  },
 
   #[error("in divsion the dived is zero")]
   DivedZero,
@@ -50,7 +52,7 @@ pub enum BRC30Error {
   InvalidErate(String),
 
   #[error("tick invalid supply {0}")]
-  InvalidSupply(Num),
+  InvalidSupply(String),
 
   #[error("tick: {0} has been existed")]
   DuplicateTick(String),
@@ -77,28 +79,28 @@ pub enum BRC30Error {
   DecimalsTooLarge(u8),
 
   #[error("invalid integer {0}")]
-  InvalidInteger(Num),
+  InvalidInteger(String),
 
   #[error("tick: {0} has been minted")]
   TickMinted(String),
 
   #[error("tick: {0} mint limit out of range {0}")]
-  MintLimitOutOfRange(String, Num),
+  MintLimitOutOfRange(String, String),
 
   #[error("zero amount not allowed")]
   InvalidZeroAmount,
 
   #[error("amount overflow: {0}")]
-  AmountOverflow(Num),
+  AmountOverflow(String),
 
   #[error("insufficient balance: {0} {1}")]
-  InsufficientBalance(Num, Num),
+  InsufficientBalance(String, String),
 
   #[error("dmax:{0} must be less than totoalsupply:{1}")]
   ExceedDmax(String, String),
 
   #[error("amount exceed limit: {0}")]
-  AmountExceedLimit(Num),
+  AmountExceedLimit(String),
 
   #[error("transferable inscriptionId not found: {0}")]
   TransferableNotFound(InscriptionId),

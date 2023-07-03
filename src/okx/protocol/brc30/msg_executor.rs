@@ -464,8 +464,8 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }
   if can_stake_balance.lt(&amount) {
     return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
-      amount.clone(),
-      can_stake_balance,
+      amount.clone().truncate_to_str().unwrap(),
+      can_stake_balance.to_string(),
     )));
   }
 
@@ -576,8 +576,8 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   let has_staked = Num::from(userinfo.staked);
   if has_staked.lt(&amount) {
     return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
-      has_staked.clone(),
-      amount.clone(),
+      has_staked.clone().to_string(),
+      amount.clone().truncate_to_str().unwrap(),
     )));
   }
 
@@ -598,8 +598,8 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .get_user_stakeinfo(&to_script_key, &stake_tick)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(
-      Num::from(amount.clone()),
-      Num::from(0_u128),
+      amount.clone().truncate_to_str().unwrap(),
+      0_u128.to_string(),
     )))?;
 
   //update pool_stakes
@@ -659,8 +659,8 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
     .get_user_stakeinfo(&from_script_key, &stake_tick)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(
-      Num::from(0_u128),
-      Num::from(0_u128),
+      Num::from(0_u128).to_string(),
+      Num::from(0_u128).to_string(),
     )))?;
 
   let balance = get_user_common_balance(&from_script_key, &stake_tick, brc30_store, brc20_store);
@@ -741,7 +741,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   // check amount
   let mut amt = Num::from_str(&mint.amount)?;
   if amt.scale() > tick_info.decimal as i64 {
-    return Err(Error::BRC30Error(BRC30Error::AmountOverflow(amt)));
+    return Err(Error::BRC30Error(BRC30Error::AmountOverflow(mint.amount)));
   }
   let base = BIGDECIMAL_TEN.checked_powu(tick_info.decimal as u64)?;
   amt = amt.checked_mul(&base)?;
@@ -770,7 +770,9 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
     reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
     if amt > user_info.pending_reward.into() {
-      return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(amt)));
+      return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(
+        amt.clone().truncate_to_str().unwrap(),
+      )));
     }
     user_info.pending_reward = user_info.pending_reward - amt.checked_to_u128()?;
     user_info.minted = user_info.minted + amt.checked_to_u128()?;
@@ -840,7 +842,9 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
   // check amount
   let mut amt = Num::from_str(&transfer.amount)?;
   if amt.scale() > tick_info.decimal as i64 {
-    return Err(Error::BRC30Error(BRC30Error::AmountOverflow(amt)));
+    return Err(Error::BRC30Error(BRC30Error::AmountOverflow(
+      transfer.amount,
+    )));
   }
   let base = BIGDECIMAL_TEN.checked_powu(tick_info.decimal as u64)?;
   amt = amt.checked_mul(&base)?;
@@ -859,7 +863,8 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
   let available = overall.checked_sub(&transferable)?;
   if available < amt {
     return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
-      available, amt,
+      available.clone().to_string(),
+      amt.clone().truncate_to_str().unwrap(),
     )));
   }
   balance.transferable_balance = transferable.checked_add(&amt)?.checked_to_u128()?;
@@ -3547,7 +3552,7 @@ mod tests {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
       }
       Err(Error::BRC30Error(e)) => {
-        assert_eq!("amount exceed limit: 1200000001.00", e.to_string()) // TODO should be 12000000.01
+        assert_eq!("amount exceed limit: 1200000001", e.to_string())
       }
       _ => {
         panic!("")
@@ -3848,26 +3853,6 @@ mod tests {
       network: Network::Bitcoin,
     };
 
-    // call control, commit_from != to TODO, does it have call contral
-    // let mut error_msg = msg.clone();
-    // error_msg.to = ScriptKey::from_address(
-    //   Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
-    // );
-    // match process_inscribe_transfer(
-    //   context,
-    //   &brc20_data_store,
-    //   &brc30_data_store,
-    //   &msg,
-    //   transfer_msg.clone(),
-    // ) {
-    //   Err(Error::BRC30Error(e)) => {
-    //     assert_eq!("from bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e must equal to to bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny", e.to_string())
-    //   }
-    //   _ => {
-    //     panic!("")
-    //   }
-    // };
-
     // brc20s-inscribe-transfer, invalid inscribe to coinbase
     let mut error_msg = msg.clone();
     error_msg.new_satpoint.outpoint.txid =
@@ -3934,8 +3919,7 @@ mod tests {
       error_transfer_msg.clone(),
     ) {
       Err(Error::BRC30Error(e)) => {
-        //TODO 1020.0 or 1020?
-        assert_eq!("insufficient balance: 1010 1020.0", e.to_string())
+        assert_eq!("insufficient balance: 1010 1020", e.to_string())
       }
       _ => {
         panic!("")
@@ -4097,72 +4081,73 @@ mod tests {
       }
     };
 
-    // brc20s-inscribe-transfer, address to diff from, ok, TODO why error?
-    // let script2 = ScriptKey::from_address(
-    //   Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
-    // );
-    // msg.to = script2.clone();
-    // match process_inscribe_transfer(
-    //   context,
-    //   &brc20_data_store,
-    //   &brc30_data_store,
-    //   &msg,
-    //   transfer_msg.clone(),
-    // ) {
-    //   Ok(event) => {
-    //     let balance = brc30_data_store
-    //       .get_balance(&script, &tick_id)
-    //       .unwrap()
-    //       .unwrap();
-    //     println!("{:?}", balance);
-    //     println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
-    //     assert_eq!(balance.transferable_balance, 110);
-    //     assert_eq!(balance.overall_balance, 1010);
-    //   }
-    //   Err(Error::BRC30Error(e)) => {
-    //     assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
-    //   }
-    //   _ => {
-    //     panic!("")
-    //   }
-    // };
-    //
-    // // normal, ok
-    // match process_transfer(context, &brc20_data_store, &brc30_data_store, &msg) {
-    //   Ok(event) => {
-    //     let balance = brc30_data_store
-    //       .get_balance(&script, &tick_id)
-    //       .unwrap()
-    //       .unwrap();
-    //     println!("{:?}", balance);
-    //     println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
-    //     assert_eq!(balance.transferable_balance, 110);
-    //     assert_eq!(balance.overall_balance, 900);
-    //
-    //     let balance2 = brc30_data_store
-    //       .get_balance(&script2, &tick_id)
-    //       .unwrap()
-    //       .unwrap();
-    //     println!("{:?}", balance2);
-    //     assert_eq!(balance.transferable_balance, 0);
-    //     assert_eq!(balance.overall_balance, 110);
-    //   }
-    //   Err(Error::BRC30Error(e)) => {
-    //     assert_eq!("invalid inscribe to coinbase", e.to_string())
-    //   }
-    //   _ => {
-    //     panic!("")
-    //   }
-    // };
-    //
-    // // normal, second
-    // match process_transfer(context, &brc20_data_store, &brc30_data_store, &msg) {
-    //   Err(Error::BRC30Error(e)) => {
-    //     assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
-    //   }
-    //   _ => {
-    //     panic!("")
-    //   }
-    // };
+    // brc20s-inscribe-transfer, address to diff from, ok
+    match process_inscribe_transfer(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      transfer_msg.clone(),
+    ) {
+      Ok(event) => {
+        let balance = brc30_data_store
+          .get_balance(&script, &tick_id)
+          .unwrap()
+          .unwrap();
+        println!("{:?}", balance);
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+        assert_eq!(balance.transferable_balance, 110);
+        assert_eq!(balance.overall_balance, 1010);
+      }
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
+    // normal, ok
+    let script2 = ScriptKey::from_address(
+      Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
+    );
+    let mut error_msg = msg.clone();
+    error_msg.to = script2.clone();
+    match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
+      Ok(event) => {
+        let balance = brc30_data_store
+          .get_balance(&script, &tick_id)
+          .unwrap()
+          .unwrap();
+        println!("{:?}", balance);
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+        assert_eq!(balance.transferable_balance, 0);
+        assert_eq!(balance.overall_balance, 900);
+
+        let balance2 = brc30_data_store
+          .get_balance(&script2, &tick_id)
+          .unwrap()
+          .unwrap();
+        println!("{:?}", balance2);
+        assert_eq!(balance2.transferable_balance, 0);
+        assert_eq!(balance2.overall_balance, 110);
+      }
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("invalid inscribe to coinbase", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
+    // normal, second
+    match process_transfer(context, &brc20_data_store, &brc30_data_store, &msg) {
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
   }
 }

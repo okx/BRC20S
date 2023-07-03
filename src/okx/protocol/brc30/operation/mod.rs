@@ -121,6 +121,7 @@ pub fn deserialize_brc30(s: &str) -> Result<Operation, JSONError> {
   Ok(serde_json::from_value(value).map_err(|e| JSONError::ParseOperationJsonError(e.to_string()))?)
 }
 
+#[allow(unused)]
 #[cfg(test)]
 mod tests {
   use super::*;

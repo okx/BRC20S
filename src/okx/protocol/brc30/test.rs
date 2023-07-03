@@ -1,7 +1,6 @@
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
-  crate::SatPoint, bitcoin::hashes::hex::ToHex, bitcoin::Address, shadow_rs::new,
-  std::str::FromStr,
+  crate::SatPoint, bitcoin::Address, std::str::FromStr,
 };
 pub(crate) fn mock_create_brc30_message(
   from: ScriptKey,

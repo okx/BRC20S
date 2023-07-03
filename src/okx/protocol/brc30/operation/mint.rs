@@ -124,7 +124,6 @@ mod tests {
       r##"{{
         "p": "brc20-s",
         "op": "mint",
-        "tid": "pid-1",
         "pid": "pid-2",
         "tick": "tick",
         "amt": "amt"
@@ -134,7 +133,7 @@ mod tests {
       deserialize_brc30(&json_str).unwrap(),
       Operation::Mint(Mint {
         tick: "tick".to_string(),
-        pool_id: "tid-2".to_string(),
+        pool_id: "pid-2".to_string(),
         amount: "amt".to_string(),
       })
     );

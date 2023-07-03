@@ -75,6 +75,7 @@ impl CommandBuilder {
     }
   }
 
+  #[allow(unused)]
   pub(crate) fn stderr_regex(self, expected_stderr: impl AsRef<str>) -> Self {
     Self {
       expected_stderr: Expected::regex(expected_stderr.as_ref()),

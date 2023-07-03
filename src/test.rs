@@ -73,12 +73,14 @@ pub(crate) fn address() -> Address {
     .unwrap()
 }
 
+#[allow(unused)]
 pub(crate) fn recipient() -> Address {
   "tb1q6en7qjxgw4ev8xwx94pzdry6a6ky7wlfeqzunz"
     .parse()
     .unwrap()
 }
 
+#[allow(unused)]
 pub(crate) fn change(n: u64) -> Address {
   match n {
     0 => "tb1qjsv26lap3ffssj6hfy8mzn0lg5vte6a42j75ww",
@@ -90,6 +92,7 @@ pub(crate) fn change(n: u64) -> Address {
   .unwrap()
 }
 
+#[allow(unused)]
 pub(crate) fn tx_in(previous_output: OutPoint) -> TxIn {
   TxIn {
     previous_output,

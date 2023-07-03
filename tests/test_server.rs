@@ -79,6 +79,7 @@ impl TestServer {
     assert_regex_match!(response.text().unwrap(), regex.as_ref());
   }
 
+  #[allow(unused)]
   pub(crate) fn request(&self, path: impl AsRef<str>) -> Response {
     let client = Client::new(&self.rpc_url, Auth::None).unwrap();
     let chain_block_count = client.get_block_count().unwrap() + 1;

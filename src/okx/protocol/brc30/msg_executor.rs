@@ -4264,8 +4264,8 @@ mod tests {
       let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::InsufficientBalance(
-          Num::from_str("300000000000000000000").unwrap(),
-          Num::from_str("200000000000000000000").unwrap(),
+          "300000000000000000000".to_string(),
+          "200000000000000000000".to_string(),
         )),
         result
       );
@@ -4331,8 +4331,8 @@ mod tests {
     let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
     assert_eq!(
       Some(BRC30Error::InsufficientBalance(
-        Num::from_str("51100000000000000000.0").unwrap(),
-        Num::from_str("51000000000000000000").unwrap(),
+        "51100000000000000000".to_string(),
+        "51000000000000000000".to_string(),
       )),
       result.err()
     );
@@ -4341,8 +4341,8 @@ mod tests {
     let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
     assert_eq!(
       Some(BRC30Error::InsufficientBalance(
-        Num::from_str("102000000000000000000").unwrap(),
-        Num::from_str("51000000000000000000").unwrap(),
+        "102000000000000000000".to_string(),
+        "51000000000000000000".to_string(),
       )),
       result.err()
     );
@@ -4449,8 +4449,8 @@ mod tests {
       let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::InsufficientBalance(
-          Num::from_str("0").unwrap(),
-          Num::from_str("300000000000000000000").unwrap(),
+          "0".to_string(),
+          "300000000000000000000".to_string(),
         )),
         result
       );
@@ -4465,8 +4465,8 @@ mod tests {
     let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
     assert_eq!(
       Err(BRC30Error::InsufficientBalance(
-        Num::from_str("50000000000000000000").unwrap(),
-        Num::from_str("300000000000000000000").unwrap(),
+        "50000000000000000000".to_string(),
+        "300000000000000000000".to_string(),
       )),
       result
     );

@@ -594,10 +594,19 @@ mod tests {
       total_only: 0,
     };
 
-    let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("f7c515d6b0").unwrap());
+    let pledged_tick_btc = PledgedTick::Native;
     let pid_btc = Pid::from_str("0000000000#03").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
+      pool_stakes: vec![(pid_btc.clone(), true, 123)],
+      max_share: 0,
+      total_only: 0,
+    };
+
+    let pledged_tick_unknown = PledgedTick::Unknown;
+    let pid_btc = Pid::from_str("0000000000#03").unwrap();
+    let stake_info_unknown = StakeInfo {
+      stake: pledged_tick_unknown.clone(),
       pool_stakes: vec![(pid_btc.clone(), true, 123)],
       max_share: 0,
       total_only: 0,
@@ -617,6 +626,10 @@ mod tests {
 
     brc30db
       .set_user_stakeinfo(&script, &pledged_tick_btc, &stake_info_btc)
+      .unwrap();
+
+    brc30db
+      .set_user_stakeinfo(&script, &pledged_tick_unknown, &stake_info_unknown)
       .unwrap();
 
     assert_eq!(
@@ -641,6 +654,14 @@ mod tests {
         .unwrap()
         .unwrap(),
       stake_info_btc
+    );
+
+    assert_eq!(
+      brc30db
+        .get_user_stakeinfo(&script, &pledged_tick_unknown)
+        .unwrap()
+        .unwrap(),
+      stake_info_unknown
     );
   }
 
@@ -971,8 +992,14 @@ mod tests {
     let tick2 = TickId::from_str("f7c515d6b2").unwrap();
     let tick3 = TickId::from_str("f7c515d6b3").unwrap();
 
-    let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("f7c515d600").unwrap());
-    let pid_btc = Pid::from_str("1234567892#01").unwrap();
+    let pledged_tick_30_1 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d600").unwrap());
+    let pid_30_1 = Pid::from_str("1234567892#01").unwrap();
+
+    let pledged_tick_btc = PledgedTick::Native;
+    let pid_btc = Pid::from_str("1234567892#02").unwrap();
+
+    let pledged_tick_unknown = PledgedTick::Unknown;
+    let pid_unknown = Pid::from_str("1234567892#03").unwrap();
 
     brc30db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_20, &pid_20)
@@ -981,7 +1008,15 @@ mod tests {
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_30, &pid_30)
       .unwrap();
     brc30db
+      .set_tickid_stake_to_pid(&tick1, &pledged_tick_30_1, &pid_30_1)
+      .unwrap();
+
+    brc30db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_btc, &pid_btc)
+      .unwrap();
+
+    brc30db
+      .set_tickid_stake_to_pid(&tick1, &pledged_tick_unknown, &pid_unknown)
       .unwrap();
 
     brc30db
@@ -991,7 +1026,7 @@ mod tests {
       .set_tickid_stake_to_pid(&tick2, &pledged_tick_30, &pid_30)
       .unwrap();
     brc30db
-      .set_tickid_stake_to_pid(&tick2, &pledged_tick_btc, &pid_btc)
+      .set_tickid_stake_to_pid(&tick2, &pledged_tick_30_1, &pid_30_1)
       .unwrap();
 
     brc30db
@@ -1001,7 +1036,7 @@ mod tests {
       .set_tickid_stake_to_pid(&tick3, &pledged_tick_30, &pid_30)
       .unwrap();
     brc30db
-      .set_tickid_stake_to_pid(&tick3, &pledged_tick_btc, &pid_btc)
+      .set_tickid_stake_to_pid(&tick3, &pledged_tick_30_1, &pid_30_1)
       .unwrap();
 
     assert_eq!(
@@ -1028,6 +1063,14 @@ mod tests {
 
     assert_eq!(
       brc30db
+        .get_tickid_stake_to_pid(&tick1, &pledged_tick_30_1)
+        .unwrap()
+        .unwrap(),
+      pid_30_1
+    );
+
+    assert_eq!(
+      brc30db
         .get_tickid_stake_to_pid(&tick1, &pledged_tick_btc)
         .unwrap()
         .unwrap(),
@@ -1035,8 +1078,22 @@ mod tests {
     );
 
     assert_eq!(
+      brc30db
+        .get_tickid_stake_to_pid(&tick1, &pledged_tick_unknown)
+        .unwrap()
+        .unwrap(),
+      pid_unknown
+    );
+
+    assert_eq!(
       brc30db.get_tickid_to_all_pid(&tick1).unwrap(),
-      vec![pid_20.clone(), pid_btc.clone(), pid_30.clone()]
+      vec![
+        pid_unknown.clone(),
+        pid_btc.clone(),
+        pid_20.clone(),
+        pid_30_1.clone(),
+        pid_30.clone(),
+      ]
     );
 
     assert_eq!(

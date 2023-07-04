@@ -1,73 +1,60 @@
-use super::BRC20Message;
+use super::*;
 use crate::{
   inscription::Inscription,
   okx::{
-    datastore::ord::{Action, InscriptionOp, OrdDataStoreReadOnly},
-    protocol::brc20::deserialize_brc20_operation,
+    datastore::{
+      brc20::BRC20DataStoreReadOnly,
+      ord::{Action, InscriptionOp},
+    },
+    protocol::brc20::{deserialize_brc20_operation, BRC20Operation},
   },
-  Index, Result,
+  Result,
 };
 use anyhow::anyhow;
-use bitcoincore_rpc::Client;
 
-pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly>(
-  client: &Client,
-  ord_store: &'a O,
+pub(crate) fn resolve_message<'a, N: BRC20DataStoreReadOnly>(
+  brc20_store: &'a N,
   new_inscriptions: &Vec<Inscription>,
   op: &InscriptionOp,
 ) -> Result<Option<BRC20Message>> {
-  // Ignore cursed and unbound inscriptions.
-  if op.inscription_id.index > 0 {
-    return Ok(None);
-  }
-
-  let inscription = match op.action {
+  let brc20_operation = match op.action {
     Action::New {
       cursed: false,
       unbound: false,
-    } => new_inscriptions
-      .get(usize::try_from(op.inscription_id.index).unwrap())
-      .unwrap()
-      .clone(),
-    Action::Transfer => {
-      // Ignored if the inscription is not the first transfer.
-      if op.inscription_id.txid != op.old_satpoint.outpoint.txid {
-        return Ok(None);
-      }
-      // TODO: add database table to store the BRC20Message of inscription id.
-      match ord_store.get_number_by_inscription_id(op.inscription_id) {
-        Ok(Some(inscription_number)) => {
-          // Ignore negative number inscriptions.
-          if inscription_number >= 0 {
-            Inscription::from_transaction(
-              &Index::get_transaction_retries(client, op.inscription_id.txid)?.ok_or(anyhow!(
-                "failed to fetch transaction! {} not found",
-                op.inscription_id.txid
-              ))?,
-            )
-            .get(usize::try_from(op.inscription_id.index).unwrap())
-            .unwrap()
-            .inscription
-            .clone()
-          } else {
-            return Ok(None);
-          }
-        }
+    } => {
+      match deserialize_brc20_operation(
+        new_inscriptions
+          .get(usize::try_from(op.inscription_id.index).unwrap())
+          .unwrap(),
+        &op.action,
+      ) {
+        Ok(brc20_operation) => brc20_operation,
         _ => return Ok(None),
       }
     }
+    Action::Transfer => match brc20_store.get_inscribe_transfer_inscription(op.inscription_id) {
+      Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
+        BRC20Operation::Transfer(BRC20Transfer {
+          tick: transfer_info.tick.as_str().to_string(),
+          amount: transfer_info.amt.to_string(),
+        })
+      }
+      Err(e) => {
+        return Err(anyhow!(
+          "failed to get inscribe transfer inscription for {}! error: {e}",
+          op.inscription_id,
+        ))
+      }
+      _ => return Ok(None),
+    },
     _ => return Ok(None),
   };
 
-  Ok(
-    deserialize_brc20_operation(&inscription, &op.action)
-      .map(|brc20_operation| BRC20Message {
-        txid: op.txid,
-        inscription_id: op.inscription_id,
-        old_satpoint: op.old_satpoint,
-        new_satpoint: op.new_satpoint,
-        op: brc20_operation,
-      })
-      .ok(),
-  )
+  Ok(Some(BRC20Message {
+    txid: op.txid,
+    inscription_id: op.inscription_id,
+    old_satpoint: op.old_satpoint,
+    new_satpoint: op.new_satpoint,
+    op: brc20_operation,
+  }))
 }

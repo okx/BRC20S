@@ -2,10 +2,8 @@ pub use self::{
   operation::{Action, InscriptionOp},
   redb::{OrdDbReadWriter, OrdDbReader},
 };
-use crate::InscriptionId;
-use crate::Result;
-use bitcoin::OutPoint;
-use bitcoin::TxOut;
+use crate::{InscriptionId, Result};
+use bitcoin::{OutPoint, TxOut};
 use std::fmt::{Debug, Display};
 pub mod operation;
 pub mod redb;
@@ -18,8 +16,18 @@ pub trait OrdDataStoreReadOnly {
   ) -> Result<Option<i64>, Self::Error>;
 
   fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>, Self::Error>;
+
+  //TODO:
+  // fn get_transaction_operations(&self, txid: &Txid) -> Result<Vec<InscriptionOp>, Self::Error>;
 }
 
 pub trait OrdDataStoreReadWrite: OrdDataStoreReadOnly {
-  fn set_outpoint_to_txout(&self, outpoint: OutPoint, tx_out: &TxOut) -> Result;
+  fn set_outpoint_to_txout(&self, outpoint: OutPoint, tx_out: &TxOut) -> Result<(), Self::Error>;
+
+  //TODO:
+  // fn save_transaction_operations(
+  //   &self,
+  //   txid: &Txid,
+  //   operations: &[InscriptionOp],
+  // ) -> Result<(), Self::Error>;
 }

@@ -8,7 +8,7 @@ use crate::okx::{
     brc30::{
       BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent,
       InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, StakeInfo, TickId,
-      TickInfo, TransferEvent, TransferableAsset, UserInfo, WithdrawEvent,
+      TickInfo, TransferEvent, TransferInfo, TransferableAsset, UserInfo, WithdrawEvent,
     },
     ord::OrdDataStoreReadOnly,
     BRC20DataStoreReadWrite, BRC30DataStoreReadWrite, ScriptKey,
@@ -18,6 +18,7 @@ use crate::okx::{
       hash::caculate_tick_id,
       operation::BRC30Operation,
       params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
+      vesion::{enable_version_by_key, Version, VERSION_KEY_ENABLE_SHARE},
       BRC30Error, BRC30Message, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
     },
     utils, BlockContext,
@@ -29,6 +30,7 @@ use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use bitcoin::{Network, Txid};
 use std::cmp;
+use std::collections::HashMap;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,6 +45,7 @@ pub struct BRC30ExecutionMessage {
   pub(crate) from: ScriptKey,
   pub(crate) to: ScriptKey,
   pub(crate) op: BRC30Operation,
+  pub(crate) version: HashMap<String, Version>,
 }
 
 impl BRC30ExecutionMessage {
@@ -69,6 +72,7 @@ impl BRC30ExecutionMessage {
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
       to: utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)?,
       op: msg.op.clone(),
+      version: HashMap::new(),
     })
   }
 
@@ -84,6 +88,7 @@ impl BRC30ExecutionMessage {
       from: msg.from.clone(),
       to: msg.to.clone(),
       op: msg.op.clone(),
+      version: msg.version.clone(),
     }
   }
 }
@@ -134,7 +139,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       process_inscribe_transfer(context, brc20_store, brc30_store, msg, transfer.clone())
         .map(|event| vec![event])
     }
-    BRC30Operation::Transfer => {
+    BRC30Operation::Transfer(_) => {
       process_transfer(context, brc20_store, brc30_store, msg).map(|event| vec![event])
     }
   };
@@ -200,13 +205,20 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   let tick_id = deploy.get_tick_id();
   let pid = deploy.get_pool_id();
   let ptype = deploy.get_pool_type();
-
+  let only = deploy.get_only();
   let stake = deploy.get_stake_id();
 
+  // temp disable
+  // btc and brc20-s can not be staked
   if !tick_can_staked(&stake) {
     return Err(Error::BRC30Error(BRC30Error::StakeNoPermission(
       stake.to_string(),
     )));
+  }
+
+  // share pool can not be deploy
+  if !only && !enable_version_by_key(&msg.version, VERSION_KEY_ENABLE_SHARE, context.blockheight) {
+    return Err(Error::BRC30Error(BRC30Error::ShareNoPermission()));
   }
   //check stake
   if !stake_is_exist(&stake, brc30_store, brc20_store) {
@@ -225,7 +237,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   }
 
   let erate: Num;
-  let only = deploy.get_only();
+
   let tick_name = deploy.get_earn_id();
   let dmax_str = deploy.distribution_max.as_str();
   let dmax: u128;
@@ -483,19 +495,12 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?;
 
   //update the stake_info of user
-  let mut is_exist_pool_stake = false;
-  for pool_stake in user_stakeinfo.pool_stakes.iter_mut() {
-    if pool_stake.0 == pool_id {
-      pool_stake.2 = userinfo.staked;
-      is_exist_pool_stake = true;
-      break;
-    }
-  }
-  if !is_exist_pool_stake {
-    user_stakeinfo
-      .pool_stakes
-      .push((pool_id.clone(), pool.only, userinfo.staked))
-  }
+  user_stakeinfo
+    .pool_stakes
+    .retain(|(pid, _, _)| *pid != pool_id);
+  user_stakeinfo
+    .pool_stakes
+    .insert(0, (pool_id.clone(), pool.only, userinfo.staked));
 
   if pool.only {
     user_stakeinfo.total_only = Num::from(user_stakeinfo.total_only)
@@ -893,6 +898,17 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
     )
     .map_err(|e| Error::LedgerError(e))?;
 
+  brc30_store
+    .insert_inscribe_transfer_inscription(
+      msg.inscription_id,
+      TransferInfo {
+        tick_id,
+        tick_name,
+        amt: amount,
+      },
+    )
+    .map_err(|e| Error::LedgerError(e))?;
+
   Ok(BRC30Event::InscribeTransfer(InscribeTransferEvent {
     tick_id,
     amt: amount,
@@ -978,6 +994,10 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .remove_transferable(&from_script_key, &transferable.tick_id, &msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
+  brc30_store
+    .remove_inscribe_transfer_inscription(msg.inscription_id)
+    .map_err(|e| Error::LedgerError(e))?;
+
   Ok(BRC30Event::Transfer(TransferEvent {
     tick_id: transferable.tick_id,
     amt: amt.checked_to_u128()?,
@@ -1049,7 +1069,8 @@ mod tests {
           Err(e) => Err(e),
         }
       }
-      BRC30Operation::Transfer => match process_transfer(context, brc20_store, brc30_store, msg) {
+      BRC30Operation::Transfer(_) => match process_transfer(context, brc20_store, brc30_store, msg)
+      {
         Ok(event) => Ok(vec![event]),
         Err(e) => Err(e),
       },
@@ -1108,10 +1129,13 @@ mod tests {
     expect_user_info: &str,
   ) {
     let temp_pid = Pid::from_str(pid).unwrap();
-    let stake_info = brc30_data_store
+    let mut stake_info = brc30_data_store
       .get_user_stakeinfo(from_script, stake_tick)
       .unwrap()
       .unwrap();
+    let pool_stakes: Vec<(Pid, bool, u128)> =
+      stake_info.pool_stakes.iter().rev().cloned().collect();
+    stake_info.pool_stakes = pool_stakes;
     let pool_info = brc30_data_store
       .get_pid_to_poolinfo(&temp_pid)
       .unwrap()
@@ -3998,7 +4022,11 @@ mod tests {
     };
 
     // brc20s-transfer
-    let msg = mock_create_brc30_message(script.clone(), script.clone(), BRC30Operation::Transfer);
+    let msg = mock_create_brc30_message(
+      script.clone(),
+      script.clone(),
+      BRC30Operation::Transfer(transfer_msg.clone()),
+    );
     let context = BlockContext {
       blockheight: 200000,
       blocktime: 1687245485,
@@ -4350,7 +4378,7 @@ mod tests {
     let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
     assert_eq!(None, result.err());
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,99000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":149000000000000000000}"##;
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000]],"max_share":50000000000000000000,"total_only":149000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":99000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":20204081632653061176,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":99000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":true}"##;
     assert_stake_info(
@@ -4366,7 +4394,7 @@ mod tests {
     let (stake, msg) = mock_stake_msg(pid_share1, "2", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
     assert_eq!(None, result.err());
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,51000000000000000000],["7737ed558e#01",true,99000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":51000000000000000000,"total_only":149000000000000000000}"##;
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000],["fb641f54a2#01",false,51000000000000000000]],"max_share":51000000000000000000,"total_only":149000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":51000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":10408163265306122424,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":51000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":false}"##;
     assert_stake_info(

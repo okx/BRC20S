@@ -1,7 +1,12 @@
+use crate::okx::protocol::brc30::vesion::VERSION_KEY_ENABLE_SHARE;
+use bech32::ToBase32;
+use std::collections::HashMap;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
-  crate::SatPoint, bitcoin::Address, std::str::FromStr,
+  crate::okx::protocol::brc30::vesion::Version, crate::SatPoint, bitcoin::Address,
+  std::str::FromStr,
 };
+
 pub(crate) fn mock_create_brc30_message(
   from: ScriptKey,
   to: ScriptKey,
@@ -17,6 +22,14 @@ pub(crate) fn mock_create_brc30_message(
   let new_satpoint =
     SatPoint::from_str("1111111111111111111111111111111111111111111111111111111111111111:2:1")
       .unwrap();
+  let mut version = HashMap::new();
+  version.insert(
+    VERSION_KEY_ENABLE_SHARE.to_string(),
+    Version {
+      name: VERSION_KEY_ENABLE_SHARE.to_string(),
+      start_height: 0,
+    },
+  );
   let msg = BRC30ExecutionMessage {
     txid,
     inscription_id,
@@ -28,6 +41,7 @@ pub(crate) fn mock_create_brc30_message(
     from: from.clone(),
     to: to.clone(),
     op,
+    version,
   };
   msg
 }

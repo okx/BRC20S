@@ -179,7 +179,7 @@ impl Updater {
         }
       }
 
-      if uncommitted == 5000 {
+      if uncommitted == 200 {
         self.commit(wtx)?;
         uncommitted = 0;
         wtx = index.begin_write()?;
@@ -392,6 +392,8 @@ impl Updater {
 
     let index_inscriptions = self.height >= index.first_inscription_height;
 
+    let mut fetching_outputs_count = 0;
+    let mut total_outputs_count = 0;
     if index_inscriptions {
       // Send all missing input outpoints to be fetched right away
       let txids = block
@@ -401,6 +403,7 @@ impl Updater {
         .collect::<HashSet<_>>();
       for (tx, _) in &block.txdata {
         for input in &tx.input {
+          total_outputs_count += 1u64;
           let prev_output = input.previous_output;
           // We don't need coinbase input value
           if prev_output.is_null() {
@@ -418,6 +421,7 @@ impl Updater {
           }
           // We don't know the value of this tx input. Send this outpoint to background thread to be fetched
           outpoint_sender.blocking_send(prev_output)?;
+          fetching_outputs_count += 1u64;
         }
       }
     }
@@ -431,10 +435,12 @@ impl Updater {
     let time = timestamp(block.header.time);
 
     log::info!(
-      "Block {} at {} with {} transactions…",
+      "Block {} at {} with {} transactions, fetching previous outputs {}/{}…",
       self.height,
       time,
-      block.txdata.len()
+      block.txdata.len(),
+      fetching_outputs_count,
+      total_outputs_count,
     );
 
     if let Some(prev_height) = self.height.checked_sub(1) {

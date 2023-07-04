@@ -6,7 +6,7 @@ use crate::{
     ord::{operation::InscriptionOp, OrdDataStoreReadWrite},
     BRC20DataStoreReadWrite,
   },
-  Result,
+  Instant, Result,
 };
 use bitcoin::Network;
 use bitcoincore_rpc::Client;
@@ -31,7 +31,7 @@ pub struct ProtocolManager<
   M: BRC30DataStoreReadWrite,
 > {
   call_man: CallManager<'a, O, P, M>,
-  resolve_man: MsgResolveManager<'a, O>,
+  resolve_man: MsgResolveManager<'a, O, P, M>,
 }
 
 impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStoreReadWrite>
@@ -40,7 +40,7 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
   // Need three datastore, and they're all in the same write transaction.
   pub fn new(client: &'a Client, ord_store: &'a O, brc20_store: &'a P, brc30_store: &'a M) -> Self {
     Self {
-      resolve_man: MsgResolveManager::new(client, ord_store),
+      resolve_man: MsgResolveManager::new(client, ord_store, brc20_store, brc30_store),
       call_man: CallManager::new(ord_store, brc20_store, brc30_store),
     }
   }
@@ -51,6 +51,8 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     block: &BlockData,
     operation: Vec<InscriptionOp>,
   ) -> Result {
+    let start = Instant::now();
+    let mut messages_size = 0;
     let mut operations_peeker = operation.into_iter().peekable();
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
@@ -65,10 +67,19 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
       }
 
       // Resolve and execute messages.
-      for msg in self.resolve_man.resolve_message(tx, tx_operations)? {
-        self.call_man.execute_message(context, &msg)?;
+      let messages = self.resolve_man.resolve_message(tx, tx_operations)?;
+      for msg in messages.iter() {
+        self.call_man.execute_message(context, msg)?;
       }
+      messages_size += messages.len();
     }
+
+    log::info!(
+      "Protocol Manager indexed block {} with {} messages in {} ms",
+      context.blockheight,
+      messages_size,
+      (Instant::now() - start).as_millis(),
+    );
     Ok(())
   }
 }

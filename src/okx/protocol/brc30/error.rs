@@ -66,6 +66,9 @@ pub enum BRC30Error {
   #[error("tick: {0} has no permission staked")]
   StakeNoPermission(String),
 
+  #[error("share pool can not deploy")]
+  ShareNoPermission(),
+
   #[error("illegal tick length '{0}'")]
   InvalidTickLen(String),
 

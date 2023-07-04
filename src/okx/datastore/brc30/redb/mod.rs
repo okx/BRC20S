@@ -27,6 +27,8 @@ const BRC30_TRANSFERABLE_ASSETS: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC30_TRANSFERABLE_ASSETS");
 const BRC30_TXID_TO_RECEIPTS: TableDefinition<&str, &[u8]> =
   TableDefinition::new("BRC30_TXID_TO_RECEIPTS");
+const BRC30_INSCRIBE_TRANSFER: TableDefinition<&[u8; 36], &[u8]> =
+  TableDefinition::new("BRC30_INSCRIBE_TRANSFER");
 
 fn script_tickid_key(script: &ScriptKey, tick_id: &TickId) -> String {
   format!("{}_{}", script.to_string(), tick_id.to_lowercase().hex())

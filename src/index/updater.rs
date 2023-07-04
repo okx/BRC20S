@@ -179,7 +179,7 @@ impl Updater {
         }
       }
 
-      if uncommitted == 5000 {
+      if uncommitted == 200 {
         self.commit(wtx)?;
         uncommitted = 0;
         wtx = index.begin_write()?;

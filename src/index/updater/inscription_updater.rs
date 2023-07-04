@@ -22,7 +22,7 @@ enum Origin {
 
 pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   flotsam: Vec<Flotsam>,
-  pub(super) operations: Vec<InscriptionOp>,
+  pub(super) operations: HashMap<Txid, Vec<InscriptionOp>>,
   height: u64,
   id_to_satpoint: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, &'static SatPointValue>,
   tx_out_receiver: &'a mut Receiver<TxOut>,
@@ -80,7 +80,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
     Ok(Self {
       flotsam: Vec::new(),
-      operations: Vec::new(),
+      operations: HashMap::new(),
       height,
       id_to_satpoint,
       tx_out_receiver,
@@ -463,25 +463,28 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     } else {
       new_satpoint.store()
     };
-
-    self.operations.push(InscriptionOp {
-      txid: flotsam.txid,
-      inscription_number: self
-        .id_to_entry
-        .get(&flotsam.inscription_id.store())?
-        .map(|entry| InscriptionEntry::load(entry.value()).number),
-      inscription_id: flotsam.inscription_id,
-      action: match flotsam.origin {
-        Origin::Old => Action::Transfer,
-        Origin::New {
-          fee: _,
-          cursed,
-          unbound,
-        } => Action::New { cursed, unbound },
-      },
-      old_satpoint: flotsam.old_satpoint,
-      new_satpoint: Some(Entry::load(satpoint)),
-    });
+    self
+      .operations
+      .entry(flotsam.txid)
+      .or_insert(Vec::new())
+      .push(InscriptionOp {
+        txid: flotsam.txid,
+        inscription_number: self
+          .id_to_entry
+          .get(&flotsam.inscription_id.store())?
+          .map(|entry| InscriptionEntry::load(entry.value()).number),
+        inscription_id: flotsam.inscription_id,
+        action: match flotsam.origin {
+          Origin::Old => Action::Transfer,
+          Origin::New {
+            fee: _,
+            cursed,
+            unbound,
+          } => Action::New { cursed, unbound },
+        },
+        old_satpoint: flotsam.old_satpoint,
+        new_satpoint: Some(Entry::load(satpoint)),
+      });
 
     self.satpoint_to_id.insert(&satpoint, &inscription_id)?;
     self.id_to_satpoint.insert(&inscription_id, &satpoint)?;

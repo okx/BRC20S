@@ -1100,6 +1100,21 @@ mod tests {
       brc30db.get_stake_to_all_pid(&pledged_tick_30).unwrap(),
       vec![pid_30.clone(), pid_30.clone(), pid_30.clone()]
     );
+
+    assert_eq!(
+      brc30db.get_stake_to_all_pid(&pledged_tick_btc).unwrap(),
+      vec![pid_btc.clone()]
+    );
+
+    assert_eq!(
+      brc30db.get_stake_to_all_pid(&pledged_tick_20).unwrap(),
+      vec![pid_20.clone(), pid_20.clone(), pid_20.clone()]
+    );
+
+    assert_eq!(
+      brc30db.get_stake_to_all_pid(&pledged_tick_unknown).unwrap(),
+      vec![pid_unknown.clone()]
+    );
   }
 
   #[test]

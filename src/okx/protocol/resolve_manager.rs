@@ -48,6 +48,12 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
     tx: &Transaction,
     operations: Vec<InscriptionOp>,
   ) -> Result<Vec<Message>> {
+    log::debug!(
+      "Resolve Manager indexed transaction {}, operations size: {}, data: {:?}",
+      tx.txid(),
+      operations.len(),
+      operations
+    );
     let mut messages = Vec::new();
     let mut operation_iter = operations.into_iter().peekable();
     let new_inscriptions = Inscription::from_transaction(tx)

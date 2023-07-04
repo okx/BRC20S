@@ -1,5 +1,4 @@
 use crate::okx::protocol::brc30::vesion::VERSION_KEY_ENABLE_SHARE;
-use bech32::ToBase32;
 use std::collections::HashMap;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,

@@ -487,6 +487,7 @@ impl Index {
     Ok(())
   }
 
+  #[allow(unused)]
   pub(crate) fn client(&self) -> &Client {
     &self.client
   }

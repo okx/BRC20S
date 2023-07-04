@@ -3818,6 +3818,11 @@ mod tests {
     let script = ScriptKey::from_address(
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap(),
     );
+
+    let script1 = ScriptKey::from_address(
+      Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
+    );
+
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -3841,7 +3846,8 @@ mod tests {
       overall_balance: 2000000000_u128,
       transferable_balance: 0_u128,
     };
-    let _ = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let _ = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance.clone());
+    let _ = brc20_data_store.update_token_balance(&script1, &token.to_lowercase(), balance.clone());
 
     // deploy brc20-s
     let deploy = Deploy {
@@ -3903,6 +3909,13 @@ mod tests {
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
     );
+
+    let msg1 = mock_create_brc30_message(
+      script1.clone(),
+      script1.clone(),
+      BRC30Operation::Stake(stake_msg.clone()),
+    );
+
     let context = BlockContext {
       blockheight: 0,
       blocktime: 1687245485,
@@ -3913,6 +3926,14 @@ mod tests {
       &brc20_data_store,
       &brc30_data_store,
       &msg,
+      stake_msg.clone(),
+    );
+
+    let result = process_stake(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg1,
       stake_msg.clone(),
     );
 
@@ -3938,7 +3959,7 @@ mod tests {
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stake_info = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
     let expect_user_info = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
 
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(
@@ -3957,6 +3978,11 @@ mod tests {
     let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
+      BRC30Operation::Mint(mint_msg.clone()),
+    );
+    let msg1 = mock_create_brc30_message(
+      script1.clone(),
+      script1.clone(),
       BRC30Operation::Mint(mint_msg.clone()),
     );
     let context = BlockContext {
@@ -3981,7 +4007,33 @@ mod tests {
         println!("{}", userinfo);
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
         assert_eq!(userinfo.minted, 1010);
-        assert_eq!(userinfo.pending_reward, 1199998990);
+        assert_eq!(userinfo.pending_reward, 599998990);
+      }
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
+    // mint script1 ok
+    match process_mint(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg1,
+      mint_msg.clone(),
+    ) {
+      Ok(event) => {
+        let userinfo = brc30_data_store
+          .get_pid_to_use_info(&script1, &pid)
+          .unwrap()
+          .unwrap();
+        println!("{}", userinfo);
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+        assert_eq!(userinfo.minted, 1010);
+        assert_eq!(userinfo.pending_reward, 599998990);
       }
       Err(Error::BRC30Error(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
@@ -4000,6 +4052,16 @@ mod tests {
     let msg = mock_create_brc30_message(
       script.clone(),
       script.clone(),
+      BRC30Operation::InscribeTransfer(transfer_msg.clone()),
+    );
+    let context = BlockContext {
+      blockheight: 200000,
+      blocktime: 1687245485,
+      network: Network::Bitcoin,
+    };
+    let msg1 = mock_create_brc30_message(
+      script1.clone(),
+      script1.clone(),
       BRC30Operation::InscribeTransfer(transfer_msg.clone()),
     );
     let context = BlockContext {
@@ -4107,6 +4169,32 @@ mod tests {
       }
     };
 
+    // brc20s-inscribe-transfer, ok
+    match process_inscribe_transfer(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg1,
+      transfer_msg.clone(),
+    ) {
+      Ok(event) => {
+        let balance = brc30_data_store
+          .get_balance(&script1, &tick_id)
+          .unwrap()
+          .unwrap();
+        println!("{:?}", balance);
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+        assert_eq!(balance.transferable_balance, 110);
+        assert_eq!(balance.overall_balance, 1010);
+      }
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
     // brc20s-transfer
     let msg = mock_create_brc30_message(
       script.clone(),
@@ -4122,7 +4210,7 @@ mod tests {
     // commit_from not self
     let mut error_msg = msg.clone();
     error_msg.from = ScriptKey::from_address(
-      Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
+      Address::from_str("bc1qzmh8f99f8ue8cy90a9xqflwtrhphg3sq76srhe").unwrap(),
     );
     match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
       Err(Error::BRC30Error(e)) => {
@@ -4256,6 +4344,14 @@ mod tests {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
         assert_eq!(balance.transferable_balance, 110);
         assert_eq!(balance.overall_balance, 1010);
+
+        let balance1 = brc30_data_store
+          .get_balance(&script1, &tick_id)
+          .unwrap()
+          .unwrap();
+        println!("{:?}", balance1);
+        assert_eq!(balance1.transferable_balance, 110);
+        assert_eq!(balance1.overall_balance, 1010);
       }
       Err(Error::BRC30Error(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
@@ -4266,11 +4362,8 @@ mod tests {
     };
 
     // normal, ok
-    let script2 = ScriptKey::from_address(
-      Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
-    );
     let mut error_msg = msg.clone();
-    error_msg.to = script2.clone();
+    error_msg.to = script1.clone();
     match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
       Ok(event) => {
         let balance = brc30_data_store
@@ -4282,13 +4375,13 @@ mod tests {
         assert_eq!(balance.transferable_balance, 0);
         assert_eq!(balance.overall_balance, 900);
 
-        let balance2 = brc30_data_store
-          .get_balance(&script2, &tick_id)
+        let balance1 = brc30_data_store
+          .get_balance(&script1, &tick_id)
           .unwrap()
           .unwrap();
-        println!("{:?}", balance2);
-        assert_eq!(balance2.transferable_balance, 0);
-        assert_eq!(balance2.overall_balance, 110);
+        println!("{:?}", balance1);
+        assert_eq!(balance1.transferable_balance, 110);
+        assert_eq!(balance1.overall_balance, 1120);
       }
       Err(Error::BRC30Error(e)) => {
         assert_eq!("invalid inscribe to coinbase", e.to_string())
@@ -4302,6 +4395,40 @@ mod tests {
     match process_transfer(context, &brc20_data_store, &brc30_data_store, &msg) {
       Err(Error::BRC30Error(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
+    // transferable.owner != from_script_key {
+    let transferable_assets = TransferableAsset {
+      inscription_id: msg.inscription_id,
+      amount: 100_u128,
+      tick_id,
+      owner: script.clone(),
+    };
+    brc30_data_store.set_transferable_assets(
+      &script1,
+      &tick_id,
+      &msg.inscription_id,
+      &transferable_assets,
+    );
+
+    brc30_data_store.insert_inscribe_transfer_inscription(
+      msg.inscription_id,
+      TransferInfo {
+        tick_id,
+        tick_name: BRC30Tick::from_str(transfer_msg.tick.as_str()).unwrap(),
+        amt: 100_u128,
+      },
+    );
+
+    let mut error_msg = msg.clone();
+    error_msg.from = script1.clone();
+    match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("transferable owner not match 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
       _ => {
         panic!("")

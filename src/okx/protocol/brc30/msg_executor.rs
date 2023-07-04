@@ -3565,7 +3565,7 @@ mod tests {
       BRC30Operation::Mint(mint_msg.clone()),
     );
     let context = BlockContext {
-      blockheight: 100000,
+      blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -3603,6 +3603,24 @@ mod tests {
     ) {
       Err(Error::BRC30Error(e)) => {
         assert_eq!("invalid inscribe to coinbase", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
+    // msg's commit_from is nil
+    let mut error_msg = msg.clone();
+    error_msg.commit_from = None;
+    match process_mint(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &error_msg,
+      mint_msg.clone(),
+    ) {
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("internal error: ", e.to_string())
       }
       _ => {
         panic!("")
@@ -3693,6 +3711,48 @@ mod tests {
       }
     };
 
+    // brc20-s mint, amount -1
+    let mut error_mint_msg = mint_msg.clone();
+    error_mint_msg.amount = "-1".to_string();
+    match process_mint(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      error_mint_msg.clone(),
+    ) {
+      Ok(event) => {
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+      }
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("invalid number: -1", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
+    // brc20-s mint, amount 0
+    let mut error_mint_msg = mint_msg.clone();
+    error_mint_msg.amount = "0".to_string();
+    match process_mint(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      error_mint_msg.clone(),
+    ) {
+      Ok(event) => {
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+      }
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("invalid number: 0", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
     // brc20-s mint, ok
     match process_mint(
       context,
@@ -3709,7 +3769,33 @@ mod tests {
         println!("{}", userinfo);
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
         assert_eq!(userinfo.minted, 110);
-        assert_eq!(userinfo.pending_reward, 1199999890);
+        assert_eq!(userinfo.pending_reward, 999890);
+      }
+      Err(Error::BRC30Error(e)) => {
+        assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
+      }
+      _ => {
+        panic!("")
+      }
+    };
+
+    // brc20-s mint, ok
+    match process_mint(
+      context,
+      &brc20_data_store,
+      &brc30_data_store,
+      &msg,
+      mint_msg.clone(),
+    ) {
+      Ok(event) => {
+        let userinfo = brc30_data_store
+          .get_pid_to_use_info(&script, &pid)
+          .unwrap()
+          .unwrap();
+        println!("{}", userinfo);
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+        assert_eq!(userinfo.minted, 220);
+        assert_eq!(userinfo.pending_reward, 999780);
       }
       Err(Error::BRC30Error(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())

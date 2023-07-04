@@ -643,3 +643,34 @@ pub(crate) async fn brc30_block_receipts(
     block: api_block_receipts,
   })))
 }
+
+// 3.4.12 /brc20s/stake/:address/:tick?tick_type=0
+pub(crate) async fn brc30_stake_info(
+  Extension(index): Extension<Arc<Index>>,
+  Path((address, tick)): Path<(String, String)>,
+) -> ApiResult<StakedInfo> {
+  log::debug!(
+    "rpc: get brc30_stake_info: tick:{}, address:{}",
+    tick,
+    address
+  );
+
+  if tick.as_bytes().len() != 4 {
+    return Err(ApiError::bad_request(brc20_api::ERR_TICK_LENGTH));
+  }
+  let tick = tick.to_lowercase();
+  let address: bitcoin::Address = address
+    .parse()
+    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+
+  let stake_info = index
+    .brc30_stake_info(&address, &PledgedTick::from_str(tick.as_str()))?
+    .ok_or_api_not_found("stake info not found")?;
+
+  log::debug!("rpc: get brc30_stake_info: {:?}", stake_info);
+
+  let mut result = StakedInfo::from(&stake_info);
+  result.tick = tick.to_string();
+
+  Ok(Json(ApiResponse::ok(result)))
+}

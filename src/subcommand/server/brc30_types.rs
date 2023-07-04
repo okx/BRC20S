@@ -618,6 +618,49 @@ pub struct UserReward {
   pub block_num: String,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StakedInfo {
+  #[serde(rename = "type")]
+  pub type_field: String,
+  pub tick: String,
+  #[serde(rename = "max_share")]
+  pub max_share: String,
+  #[serde(rename = "total_only")]
+  pub total_only: String,
+  #[serde(rename = "staked_pids")]
+  pub staked_pids: Vec<StakedPid>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StakedPid {
+  pub pid: String,
+  pub only: bool,
+  pub stake: String,
+}
+
+impl From<&brc30::StakeInfo> for StakedInfo {
+  fn from(stake: &brc30::StakeInfo) -> Self {
+    Self {
+      type_field: "BRC20".to_string(),
+      tick: "".to_string(),
+      max_share: stake.max_share.to_string(),
+      total_only: stake.total_only.to_string(),
+      staked_pids: stake
+        .pool_stakes
+        .iter()
+        .rev()
+        .map(|(a, b, c)| StakedPid {
+          pid: a.as_str().to_string(),
+          only: *b,
+          stake: c.to_string(),
+        })
+        .collect(),
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;

@@ -281,6 +281,10 @@ impl Server {
         .route(
           "/brc20s/block/:blockhash/receipts",
           get(brc30_api::brc30_block_receipts),
+        )
+        .route(
+          "/brc20s/stake/:address/:tick",
+          get(brc30_api::brc30_stake_info),
         );
 
       let api_router = Router::new().nest("/v1", api_v1_router);

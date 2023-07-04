@@ -90,6 +90,7 @@ impl CommandBuilder {
     }
   }
 
+  #[allow(unused)]
   pub(crate) fn temp_dir(self, tempdir: TempDir) -> Self {
     Self { tempdir, ..self }
   }
@@ -121,6 +122,7 @@ impl CommandBuilder {
     command
   }
 
+  #[allow(unused)]
   pub(crate) fn run_and_extract_file(self, path: impl AsRef<Path>) -> String {
     let output = self.command().output().unwrap();
     let stdout = str::from_utf8(&output.stdout).unwrap();

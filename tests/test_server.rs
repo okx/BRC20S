@@ -14,6 +14,7 @@ pub(crate) struct TestServer {
 }
 
 impl TestServer {
+  #[allow(unused)]
   pub(crate) fn spawn_with_args(rpc_server: &test_bitcoincore_rpc::Handle, args: &[&str]) -> Self {
     let tempdir = TempDir::new().unwrap();
     fs::write(tempdir.path().join(".cookie"), "foo:bar").unwrap();
@@ -59,6 +60,7 @@ impl TestServer {
     format!("http://127.0.0.1:{}", self.port).parse().unwrap()
   }
 
+  #[allow(unused)]
   pub(crate) fn assert_response_regex(&self, path: impl AsRef<str>, regex: impl AsRef<str>) {
     let client = Client::new(&self.rpc_url, Auth::None).unwrap();
     let chain_block_count = client.get_block_count().unwrap() + 1;

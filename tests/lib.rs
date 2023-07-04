@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use {
-  self::{command_builder::CommandBuilder, expected::Expected, test_server::TestServer},
+  self::{command_builder::CommandBuilder, expected::Expected},
   bip39::Mnemonic,
   bitcoin::Txid,
   executable_path::executable_path,
@@ -14,7 +14,7 @@ use {
     net::TcpListener,
     path::Path,
     process::{Child, Command, Stdio},
-    str::{self, FromStr},
+    str::{self},
     thread,
     time::Duration,
   },

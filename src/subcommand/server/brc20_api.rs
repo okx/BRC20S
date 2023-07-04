@@ -1,6 +1,9 @@
 use super::{error::ApiError, types::ScriptPubkey, *};
 use crate::okx::{
-  datastore::{brc20, ord::OrdDbReader, ScriptKey},
+  datastore::{
+    brc20::{self, redb::BRC20DataStoreReader},
+    ScriptKey,
+  },
   protocol::brc20 as brc20_protocol,
 };
 use axum::Json;
@@ -519,14 +522,9 @@ pub(super) fn get_operations_by_txid(
     .collect();
 
   let rtx = index.begin_read()?.0;
-  let ord_store = OrdDbReader::new(&rtx);
+  let brc20_store = BRC20DataStoreReader::new(&rtx);
   for operation in operations {
-    match brc20_protocol::resolve_message(
-      index.client(),
-      &ord_store,
-      &new_inscriptions,
-      &operation,
-    )? {
+    match brc20_protocol::resolve_message(&brc20_store, &new_inscriptions, &operation)? {
       None => continue,
       Some(msg) => brc20_operation_infos.push(InscriptionInfo {
         action: match msg.op {

@@ -5,9 +5,12 @@ pub mod redb;
 mod stake_info;
 mod temp;
 mod tick;
+mod transfer;
 mod user_info;
 
-pub use self::{balance::*, event::*, pool_info::*, stake_info::*, temp::*, tick::*, user_info::*};
+pub use self::{
+  balance::*, event::*, pool_info::*, stake_info::*, temp::*, tick::*, transfer::*, user_info::*,
+};
 use crate::okx::datastore::ScriptKey;
 use crate::InscriptionId;
 use bitcoin::Txid;
@@ -101,6 +104,11 @@ pub trait BRC30DataStoreReadOnly {
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
   fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error>;
   fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error>;
+
+  fn get_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<TransferInfo>, Self::Error>;
 }
 
 pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
@@ -172,5 +180,16 @@ pub trait BRC30DataStoreReadWrite: BRC30DataStoreReadOnly {
     script: &ScriptKey,
     tick_id: &TickId,
     inscription_id: &InscriptionId,
+  ) -> Result<(), Self::Error>;
+
+  fn insert_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+    transfer_info: TransferInfo,
+  ) -> Result<(), Self::Error>;
+
+  fn remove_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
   ) -> Result<(), Self::Error>;
 }

@@ -8,7 +8,7 @@ use crate::okx::{
     brc30::{
       BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent,
       InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, StakeInfo, TickId,
-      TickInfo, TransferEvent, TransferableAsset, UserInfo, WithdrawEvent,
+      TickInfo, TransferEvent, TransferInfo, TransferableAsset, UserInfo, WithdrawEvent,
     },
     ord::OrdDataStoreReadOnly,
     BRC20DataStoreReadWrite, BRC30DataStoreReadWrite, ScriptKey,
@@ -139,7 +139,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
       process_inscribe_transfer(context, brc20_store, brc30_store, msg, transfer.clone())
         .map(|event| vec![event])
     }
-    BRC30Operation::Transfer => {
+    BRC30Operation::Transfer(_) => {
       process_transfer(context, brc20_store, brc30_store, msg).map(|event| vec![event])
     }
   };
@@ -898,6 +898,17 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
     )
     .map_err(|e| Error::LedgerError(e))?;
 
+  brc30_store
+    .insert_inscribe_transfer_inscription(
+      msg.inscription_id,
+      TransferInfo {
+        tick_id,
+        tick_name,
+        amt: amount,
+      },
+    )
+    .map_err(|e| Error::LedgerError(e))?;
+
   Ok(BRC30Event::InscribeTransfer(InscribeTransferEvent {
     tick_id,
     amt: amount,
@@ -983,6 +994,10 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .remove_transferable(&from_script_key, &transferable.tick_id, &msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
+  brc30_store
+    .remove_inscribe_transfer_inscription(msg.inscription_id)
+    .map_err(|e| Error::LedgerError(e))?;
+
   Ok(BRC30Event::Transfer(TransferEvent {
     tick_id: transferable.tick_id,
     amt: amt.checked_to_u128()?,
@@ -1054,7 +1069,8 @@ mod tests {
           Err(e) => Err(e),
         }
       }
-      BRC30Operation::Transfer => match process_transfer(context, brc20_store, brc30_store, msg) {
+      BRC30Operation::Transfer(_) => match process_transfer(context, brc20_store, brc30_store, msg)
+      {
         Ok(event) => Ok(vec![event]),
         Err(e) => Err(e),
       },
@@ -4006,7 +4022,11 @@ mod tests {
     };
 
     // brc20s-transfer
-    let msg = mock_create_brc30_message(script.clone(), script.clone(), BRC30Operation::Transfer);
+    let msg = mock_create_brc30_message(
+      script.clone(),
+      script.clone(),
+      BRC30Operation::Transfer(transfer_msg.clone()),
+    );
     let context = BlockContext {
       blockheight: 200000,
       blocktime: 1687245485,

@@ -2,93 +2,88 @@ use super::*;
 use crate::{
   inscription::Inscription,
   okx::{
-    datastore::ord::{Action, InscriptionOp, OrdDataStoreReadWrite},
-    protocol::brc30::deserialize_brc30_operation,
+    datastore::{
+      brc30::BRC30DataStoreReadOnly,
+      ord::{Action, InscriptionOp, OrdDataStoreReadOnly},
+    },
+    protocol::brc30::{deserialize_brc30_operation, operation::Transfer},
   },
   Index, Result,
 };
 use anyhow::anyhow;
+use bitcoin::{OutPoint, TxOut};
 use bitcoincore_rpc::Client;
+use std::collections::HashMap;
 
-pub(crate) fn resolve_message<'a, O: OrdDataStoreReadWrite>(
+pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: BRC30DataStoreReadOnly>(
   client: &Client,
   ord_store: &'a O,
+  brc30_store: &'a M,
   new_inscriptions: &Vec<Inscription>,
   op: &InscriptionOp,
+  outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
 ) -> Result<Option<BRC30Message>> {
-  // Ignore cursed and unbound inscriptions.
-  if op.inscription_id.index > 0 {
-    return Ok(None);
-  }
-
-  let inscription = match op.action {
+  let brc20s_operation = match op.action {
     Action::New {
       cursed: false,
       unbound: false,
-    } => new_inscriptions
-      .get(usize::try_from(op.inscription_id.index).unwrap())
-      .unwrap()
-      .clone(),
-    Action::Transfer => {
-      // Ignored if the inscription is not the first transfer.
-      if op.inscription_id.txid != op.old_satpoint.outpoint.txid {
-        return Ok(None);
-      }
-      match ord_store.get_number_by_inscription_id(op.inscription_id) {
-        Ok(Some(inscription_number)) => {
-          // Ignore negative number inscriptions.
-          if inscription_number >= 0 {
-            Inscription::from_transaction(
-              &Index::get_transaction_retries(client, op.inscription_id.txid)?.ok_or(anyhow!(
-                "failed to fetch transaction! {} not found",
-                op.inscription_id.txid
-              ))?,
-            )
-            .get(usize::try_from(op.inscription_id.index).unwrap())
-            .unwrap()
-            .inscription
-            .clone()
-          } else {
-            return Ok(None);
-          }
-        }
+    } => {
+      match deserialize_brc30_operation(
+        new_inscriptions
+          .get(usize::try_from(op.inscription_id.index).unwrap())
+          .unwrap(),
+        &op.action,
+      ) {
+        Ok(brc20s_operation) => brc20s_operation,
         _ => return Ok(None),
       }
     }
+    Action::Transfer => match brc30_store.get_inscribe_transfer_inscription(op.inscription_id) {
+      Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
+        BRC30Operation::Transfer(Transfer {
+          tick_id: transfer_info.tick_id.hex(),
+          tick: transfer_info.tick_name.as_str().to_string(),
+          amount: transfer_info.amt.to_string(),
+        })
+      }
+      Err(e) => {
+        return Err(anyhow!(
+          "failed to get inscribe transfer inscription for {}! error: {e}",
+          op.inscription_id,
+        ))
+      }
+      _ => return Ok(None),
+    },
     _ => return Ok(None),
   };
 
-  if let Ok(brc30_operation) = deserialize_brc30_operation(&inscription, &op.action) {
-    let commit_input_satpoint = match op.action {
+  Ok(Some(BRC30Message {
+    txid: op.txid,
+    inscription_id: op.inscription_id,
+    old_satpoint: op.old_satpoint,
+    new_satpoint: op.new_satpoint,
+    commit_input_satpoint: match op.action {
       Action::New { .. } => Some(get_commit_input_satpoint(
         client,
         ord_store,
         op.old_satpoint,
+        outpoint_to_txout_cache,
       )?),
       Action::Transfer => None,
-    };
-
-    Ok(Some(BRC30Message {
-      txid: op.txid,
-      inscription_id: op.inscription_id,
-      old_satpoint: op.old_satpoint,
-      new_satpoint: op.new_satpoint,
-      commit_input_satpoint,
-      op: brc30_operation,
-    }))
-  } else {
-    Ok(None)
-  }
+    },
+    op: brc20s_operation,
+  }))
 }
 
-fn get_commit_input_satpoint<'a, O: OrdDataStoreReadWrite>(
+fn get_commit_input_satpoint<'a, O: OrdDataStoreReadOnly>(
   client: &Client,
   ord_store: &'a O,
   satpoint: SatPoint,
+  outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
 ) -> Result<SatPoint> {
   let commit_transaction =
     &Index::get_transaction_retries(client, satpoint.outpoint.txid)?.ok_or(anyhow!(
-      "failed to BRC30 message commit transaction! error: {} not found",
+      "failed to BRC20S message commit transaction! error: {} not found",
       satpoint.outpoint.txid
     ))?;
 
@@ -118,7 +113,7 @@ fn get_commit_input_satpoint<'a, O: OrdDataStoreReadWrite>(
           .clone()
       })
     {
-      ord_store.set_outpoint_to_txout(input.previous_output, &tx_out)?;
+      outpoint_to_txout_cache.insert(input.previous_output, tx_out.clone());
       tx_out.value
     } else {
       return Err(anyhow!(

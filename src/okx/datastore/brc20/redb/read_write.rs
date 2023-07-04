@@ -1,11 +1,13 @@
-use crate::okx::datastore::brc20::{
-  BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Receipt, Balance, Tick, TokenInfo,
-  TransferableLog,
+use crate::{
+  okx::datastore::brc20::{
+    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Receipt, Balance, Tick, TokenInfo,
+    TransferInfo, TransferableLog,
+  },
+  InscriptionId,
 };
 
 use super::*;
-use crate::InscriptionId;
-use bitcoin::Txid;
+use bitcoin::{hashes::Hash, Txid};
 use redb::WriteTransaction;
 
 pub struct BRC20DataStore<'db, 'a> {
@@ -63,6 +65,13 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStore<'db, 'a> {
     inscription_id: &InscriptionId,
   ) -> Result<Option<TransferableLog>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transferable_by_id(script, inscription_id)
+  }
+
+  fn get_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<TransferInfo>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_inscribe_transfer_inscription(inscription_id)
   }
 }
 
@@ -175,6 +184,39 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
         bincode::serialize(&logs).unwrap().as_slice(),
       )?;
     }
+    Ok(())
+  }
+
+  fn insert_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+    transfer_info: TransferInfo,
+  ) -> Result<(), Self::Error> {
+    let mut value = [0; 36];
+    let (txid, index) = value.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_inner());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+
+    self.wtx.open_table(BRC20_INSCRIBE_TRANSFER)?.insert(
+      &value,
+      bincode::serialize(&transfer_info).unwrap().as_slice(),
+    )?;
+    Ok(())
+  }
+
+  fn remove_inscribe_transfer_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<(), Self::Error> {
+    let mut value = [0; 36];
+    let (txid, index) = value.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_inner());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+
+    self
+      .wtx
+      .open_table(BRC20_INSCRIBE_TRANSFER)?
+      .remove(&value)?;
     Ok(())
   }
 }

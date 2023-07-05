@@ -3415,7 +3415,7 @@ mod tests {
 
       assert_eq!(
         Err(BRC30Error::InternalError(
-          "he number of stake pool is full".to_string()
+          "the number of stake pool is full".to_string()
         )),
         result
       );

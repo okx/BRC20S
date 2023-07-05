@@ -367,6 +367,32 @@ mod tests {
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
+      pool_id: "1234567890#1f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("a".to_string()),
+      total_supply: Some("21000000".to_string()),
+      only: Some("1".to_string()),
+    };
+    assert_eq!(true, deploy.validate_basic().is_err());
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
+      pool_id: "1234567890#1f".to_string(),
+      stake: "btc".to_string(),
+      earn: "ordi".to_string(),
+      earn_rate: "10".to_string(),
+      distribution_max: "12000000".to_string(),
+      decimals: Some("1".to_string()),
+      total_supply: Some("abc".to_string()),
+      only: Some("1".to_string()),
+    };
+    assert_eq!(true, deploy.validate_basic().is_err());
+
+    let deploy = Deploy {
+      pool_type: "pool".to_string(),
       pool_id: "a3668daeaa#&f".to_string(),
       stake: "btc".to_string(),
       earn: "ordi".to_string(),

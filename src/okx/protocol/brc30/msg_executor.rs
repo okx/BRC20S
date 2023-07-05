@@ -3046,6 +3046,47 @@ mod tests {
       assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
       assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
     }
+
+    // msg.new_satpoint.outpoint.txid != msg.txid
+    {
+      let stake_tick = PledgedTick::BRC20Tick(token.clone());
+      let stake_msg = Stake {
+        pool_id: pid.as_str().to_string(),
+        amount: "1000000".to_string(),
+      };
+
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Stake(stake_msg.clone()),
+      );
+      let inscription_id = InscriptionId::from_str(
+        "2111111111111111111111111111111111111111111111111111111111111111i1",
+      )
+      .unwrap();
+      msg.new_satpoint.outpoint.txid = inscription_id.txid.clone();
+
+      let context = BlockContext {
+        blockheight: 1,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_stake(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        stake_msg.clone(),
+      );
+
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      assert_eq!(Err(BRC30Error::InscribeToCoinbase), result);
+    }
   }
 
   #[test]

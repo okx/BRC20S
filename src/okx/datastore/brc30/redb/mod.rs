@@ -64,7 +64,7 @@ fn script_pledged_key(script: &ScriptKey, pledged_tick: &PledgedTick) -> String 
       pledged_key = tick_id.to_lowercase().hex();
     }
     PledgedTick::Unknown => {
-      pledged_key = "".to_string();
+      pledged_key = hex::encode("!@#$%").to_string();
     }
   }
 
@@ -84,7 +84,7 @@ fn stake_tickid_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
       pledged_key = tick_id.to_lowercase().hex();
     }
     PledgedTick::Unknown => {
-      pledged_key = "".to_string();
+      pledged_key = hex::encode("!@#$%").to_string();
     }
   }
 
@@ -108,7 +108,7 @@ fn tickid_stake_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
       pledged_key = tick_id.to_lowercase().hex();
     }
     PledgedTick::Unknown => {
-      pledged_key = "".to_string();
+      pledged_key = hex::encode("!@#$%").to_string();
     }
   }
 
@@ -156,7 +156,7 @@ fn min_stake_tickid_key(pledged: &PledgedTick) -> String {
       pledged_key = tick_id.to_lowercase().hex();
     }
     PledgedTick::Unknown => {
-      pledged_key = "".to_string();
+      pledged_key = hex::encode("!@#$%").to_string();
     }
   }
 
@@ -176,7 +176,7 @@ fn max_stake_tickid_key(pledged: &PledgedTick) -> String {
       pledged_key = tick_id.to_lowercase().hex();
     }
     PledgedTick::Unknown => {
-      pledged_key = "".to_string();
+      pledged_key = hex::encode("!@#$%").to_string();
     }
   }
 

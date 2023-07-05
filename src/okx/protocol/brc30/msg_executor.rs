@@ -3087,6 +3087,170 @@ mod tests {
 
       assert_eq!(Err(BRC30Error::InscribeToCoinbase), result);
     }
+
+    // stake msg validate_basic err
+    {
+      let stake_tick = PledgedTick::BRC20Tick(token.clone());
+      let stake_msg = Stake {
+        pool_id: pid.as_str().to_string(),
+        amount: "a".to_string(),
+      };
+
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Stake(stake_msg.clone()),
+      );
+
+      let context = BlockContext {
+        blockheight: 1,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_stake(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        stake_msg.clone(),
+      );
+
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      assert_eq!(Err(BRC30Error::InvalidNum("a".to_string())), result);
+    }
+
+    // from_script_key is none
+    {
+      let stake_tick = PledgedTick::BRC20Tick(token.clone());
+      let stake_msg = Stake {
+        pool_id: pid.as_str().to_string(),
+        amount: "1".to_string(),
+      };
+
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Stake(stake_msg.clone()),
+      );
+      msg.commit_from = None;
+
+      let context = BlockContext {
+        blockheight: 1,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_stake(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        stake_msg.clone(),
+      );
+
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      assert_eq!(Err(BRC30Error::InternalError("".to_string())), result);
+    }
+
+    // user stake is 0
+    {
+      let stake_tick = PledgedTick::BRC20Tick(token.clone());
+      let unstake_msg = UnStake {
+        pool_id: pid.as_str().to_string(),
+        amount: "2000000".to_string(),
+      };
+
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Stake(stake_msg.clone()),
+      );
+
+      let context = BlockContext {
+        blockheight: 2,
+        blocktime: 1687245486,
+        network: Network::Bitcoin,
+      };
+      let result = process_unstake(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        unstake_msg.clone(),
+      );
+
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      //stake again
+      let stake_tick = PledgedTick::BRC20Tick(token.clone());
+      let stake_msg = Stake {
+        pool_id: pid.as_str().to_string(),
+        amount: "2000000".to_string(),
+      };
+
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Stake(stake_msg.clone()),
+      );
+
+      let context = BlockContext {
+        blockheight: 3,
+        blocktime: 1687245486,
+        network: Network::Bitcoin,
+      };
+      let result = process_stake(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        stake_msg.clone(),
+      );
+
+      let result: Result<BRC30Event, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      let stakeinfo = brc30_data_store
+        .get_user_stakeinfo(&script, &stake_tick)
+        .unwrap();
+      let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
+      let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"##;
+      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":200000,"reward_debt":300000,"latest_updated_block":3}"##;
+      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":200000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"150000000000000","last_update_block":3,"only":true}"##;
+      println!(
+        "expect_poolinfo:{}",
+        serde_json::to_string(&pool_info).unwrap()
+      );
+      println!(
+        "expect_stakeinfo:{}",
+        serde_json::to_string(&stakeinfo).unwrap()
+      );
+      println!(
+        "expect_userinfo:{}",
+        serde_json::to_string(&userinfo).unwrap()
+      );
+
+      assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
+      assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
+      assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
+    }
   }
 
   #[test]

@@ -269,6 +269,7 @@ impl TickInfo {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use bitcoin::hashes::{sha256, Hash, HashEngine};
 
   #[test]
   fn test_tickid_compare_ignore_case() {
@@ -387,6 +388,39 @@ mod tests {
     assert_eq!(
       serde_json::from_str::<BRC30Tick>(r##""btc""##).unwrap(),
       BRC30Tick::from_str("btc").unwrap()
+    );
+  }
+
+  #[test]
+  fn test_tid_err() {
+    assert_eq!(
+      TickId::from_str("btc").unwrap_err(),
+      BRC30Error::InternalError("Odd number of digits".to_string())
+    );
+
+    assert_eq!(
+      TickId::from_str("12345678").unwrap_err(),
+      BRC30Error::InvalidTickLen("12345678".to_string())
+    );
+
+    let mut enc = sha256::Hash::engine();
+    enc.input("123".as_bytes());
+    let hash = sha256::Hash::from_engine(enc).to_vec();
+    assert_eq!(
+      TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT - 1]).unwrap_err(),
+      BRC30Error::InvalidTickLen("a665a459".to_string())
+    );
+
+    assert_eq!(
+      TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT + 1]).unwrap_err(),
+      BRC30Error::InvalidTickLen("a665a4592042".to_string())
+    );
+
+    assert_eq!(
+      TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT])
+        .unwrap()
+        .ne(&TickId::from_str("1234567890").unwrap()),
+      true
     );
   }
 }

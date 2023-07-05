@@ -1354,6 +1354,7 @@ mod tests {
       BRC30Operation::Deploy(deploy.clone()),
     );
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
+    let result = set_brc20_token_user(&brc20_data_store, "abc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let context = BlockContext {
       blockheight: 0,
@@ -1709,6 +1710,191 @@ mod tests {
       let expect_pool_info = r##"{"pid":"13395c5283#03","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore3"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":100000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
       assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
       assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
+    }
+
+    //msg.new_satpoint.outpoint.txid != msg.txid
+    {
+      let mut second_deploy = deploy.clone();
+      second_deploy.pool_id = "13395c5283#03".to_string();
+      second_deploy.stake = "ore3".to_string();
+      second_deploy.distribution_max = "100000".to_string();
+      second_deploy.total_supply = Some("22000000".to_string());
+      second_deploy.only = Some("".to_string());
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Deploy(second_deploy.clone()),
+      );
+      let inscription_id = InscriptionId::from_str(
+        "2111111111111111111111111111111111111111111111111111111111111111i1",
+      )
+      .unwrap();
+      msg.new_satpoint.outpoint.txid = inscription_id.txid.clone();
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        second_deploy.clone(),
+      );
+
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      assert_eq!(Err(BRC30Error::InscribeToCoinbase), result);
+    }
+
+    //match msg.commit_from is none
+    {
+      let mut second_deploy = deploy.clone();
+      second_deploy.pool_id = "13395c5283#03".to_string();
+      second_deploy.stake = "ore3".to_string();
+      second_deploy.distribution_max = "100000".to_string();
+      second_deploy.total_supply = Some("22000000".to_string());
+      second_deploy.only = Some("".to_string());
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Deploy(second_deploy.clone()),
+      );
+
+      msg.commit_from = None;
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        second_deploy.clone(),
+      );
+
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      assert_eq!(
+        Err(BRC30Error::InternalError(
+          "commit from script pubkey not exist".to_string(),
+        )),
+        result
+      );
+    }
+
+    //share pool can not be deploy
+    {
+      let mut second_deploy = deploy.clone();
+      second_deploy.pool_id = "13395c5283#03".to_string();
+      second_deploy.stake = "ore3".to_string();
+      second_deploy.distribution_max = "100000".to_string();
+      second_deploy.total_supply = Some("22000000".to_string());
+      second_deploy.only = Some("0".to_string());
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Deploy(second_deploy.clone()),
+      );
+
+      msg.version = HashMap::new();
+      let context = BlockContext {
+        blockheight: 0,
+        blocktime: 1687245485,
+        network: Network::Bitcoin,
+      };
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        second_deploy.clone(),
+      );
+
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      assert_eq!(Err(BRC30Error::ShareNoPermission()), result);
+    }
+
+    //temp_tick.name != tick_name
+    {
+      let mut second_deploy = deploy.clone();
+      second_deploy.pool_id = "13395c5283#05".to_string();
+      second_deploy.stake = "ore3".to_string();
+      second_deploy.distribution_max = "100000".to_string();
+      second_deploy.total_supply = Some("22000000".to_string());
+      second_deploy.earn = "ordie".to_string();
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Deploy(second_deploy.clone()),
+      );
+
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        second_deploy.clone(),
+      );
+
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      assert_eq!(
+        Err(BRC30Error::TickNameNotMatch("ordie".to_string())),
+        result
+      );
+    }
+
+    // decimal > MAX_DECIMAL_WIDTH
+    {
+      let mut second_deploy = deploy.clone();
+      second_deploy.pool_id = "13395c5284#05".to_string();
+      second_deploy.stake = "abc1".to_string();
+      second_deploy.decimals = Some("19".to_string());
+      second_deploy.distribution_max = "100000".to_string();
+      second_deploy.total_supply = Some("22000000".to_string());
+      second_deploy.earn = "ordi1".to_string();
+      let mut msg = mock_create_brc30_message(
+        script.clone(),
+        script.clone(),
+        BRC30Operation::Deploy(second_deploy.clone()),
+      );
+
+      let result = process_deploy(
+        context,
+        &brc20_data_store,
+        &brc30_data_store,
+        &msg,
+        second_deploy.clone(),
+      );
+
+      let result: Result<Vec<BRC30Event>, BRC30Error> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC30Error(e)) => Err(e),
+        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      };
+
+      assert_eq!(Err(BRC30Error::DecimalsTooLarge(19)), result);
     }
   }
 

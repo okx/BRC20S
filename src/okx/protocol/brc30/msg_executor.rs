@@ -126,7 +126,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
           }
         }
         Err(e) => {
-          log::error!("passive failed:{:?}", e.to_string());
+          log::debug!("execute passive failed: {:?}", e.to_string());
           is_save_receipt = false
         }
       };

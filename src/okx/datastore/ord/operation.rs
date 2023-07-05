@@ -2,7 +2,7 @@ use crate::{InscriptionId, SatPoint};
 use bitcoin::Txid;
 
 // collect the inscription operation.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct InscriptionOp {
   pub txid: Txid,
   pub action: Action,
@@ -13,7 +13,7 @@ pub struct InscriptionOp {
 }
 
 // the act of marking an inscription.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Action {
   New { cursed: bool, unbound: bool },
   Transfer,

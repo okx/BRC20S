@@ -1241,7 +1241,7 @@ mod tests {
       BRC30Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -1291,7 +1291,7 @@ mod tests {
       BRC30Operation::Deploy(second_deply.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -1316,7 +1316,7 @@ mod tests {
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#11"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#11","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_pool_info = r##"{"pid":"13395c5283#11","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
   }
@@ -2894,7 +2894,7 @@ mod tests {
       BRC30Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -2925,8 +2925,8 @@ mod tests {
     let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
+    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -2942,7 +2942,7 @@ mod tests {
       BRC30Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -2975,8 +2975,8 @@ mod tests {
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
+    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
@@ -2994,7 +2994,7 @@ mod tests {
         BRC30Operation::Stake(stake_msg.clone()),
       );
       let context = BlockContext {
-        blockheight: 1,
+        blockheight: 30,
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
@@ -3027,8 +3027,8 @@ mod tests {
       let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
       let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"##;
-      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":100000,"reward_debt":200000,"latest_updated_block":1}"##;
-      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":100000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"100000000000000","last_update_block":1,"only":true}"##;
+      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":1000000,"reward_debt":2000000,"latest_updated_block":30}"##;
+      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true}"##;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&pool_info).unwrap()
@@ -3176,7 +3176,7 @@ mod tests {
       );
 
       let context = BlockContext {
-        blockheight: 2,
+        blockheight: 30,
         blocktime: 1687245486,
         network: Network::Bitcoin,
       };
@@ -3208,7 +3208,7 @@ mod tests {
       );
 
       let context = BlockContext {
-        blockheight: 3,
+        blockheight: 30,
         blocktime: 1687245486,
         network: Network::Bitcoin,
       };
@@ -3232,8 +3232,8 @@ mod tests {
       let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
       let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"##;
-      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":200000,"reward_debt":300000,"latest_updated_block":3}"##;
-      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":200000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"150000000000000","last_update_block":3,"only":true}"##;
+      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":1000000,"reward_debt":2000000,"latest_updated_block":30}"##;
+      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true}"##;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&pool_info).unwrap()
@@ -3481,7 +3481,7 @@ mod tests {
       BRC30Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -3512,8 +3512,8 @@ mod tests {
     let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
+    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -3529,7 +3529,7 @@ mod tests {
       BRC30Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -3562,8 +3562,8 @@ mod tests {
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
+    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
@@ -3581,7 +3581,7 @@ mod tests {
         BRC30Operation::UnStake(unstake_msg.clone()),
       );
       let context = BlockContext {
-        blockheight: 1,
+        blockheight: 30,
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
@@ -3615,8 +3615,8 @@ mod tests {
       let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo =
         r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
-      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":100000,"reward_debt":0,"latest_updated_block":1}"##;
-      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":100000,"staked":0,"dmax":1200000000,"acc_reward_per_share":"100000000000000","last_update_block":1,"only":true}"##;
+      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":1000000,"reward_debt":0,"latest_updated_block":30}"##;
+      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":0,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true}"##;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&pool_info).unwrap()
@@ -3976,7 +3976,7 @@ mod tests {
       BRC30Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -4007,8 +4007,8 @@ mod tests {
     let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
+    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -4024,7 +4024,7 @@ mod tests {
       BRC30Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -4057,8 +4057,8 @@ mod tests {
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
+    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
@@ -4075,7 +4075,7 @@ mod tests {
         BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
-        blockheight: 1,
+        blockheight: 30,
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
@@ -4122,8 +4122,8 @@ mod tests {
       let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo =
         r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
-      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":100000,"reward_debt":0,"latest_updated_block":1}"##;
-      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":100000,"staked":0,"dmax":1200000000,"acc_reward_per_share":"100000000000000","last_update_block":1,"only":true}"##;
+      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":1000000,"reward_debt":0,"latest_updated_block":30}"##;
+      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":0,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true}"##;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&pool_info).unwrap()
@@ -4596,7 +4596,7 @@ mod tests {
     );
 
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -4637,7 +4637,7 @@ mod tests {
       BRC30Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -4670,8 +4670,8 @@ mod tests {
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stake_info = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
+    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
 
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(
@@ -4693,7 +4693,7 @@ mod tests {
       BRC30Operation::Mint(mint_msg.clone()),
     );
     let context = BlockContext {
-      blockheight: 10,
+      blockheight: 30,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -4996,7 +4996,7 @@ mod tests {
     );
 
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -5045,7 +5045,7 @@ mod tests {
     );
 
     let context = BlockContext {
-      blockheight: 0,
+      blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
@@ -5086,8 +5086,8 @@ mod tests {
     let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
     let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stake_info = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_user_info = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
+    let expect_user_info = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
+    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
 
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(

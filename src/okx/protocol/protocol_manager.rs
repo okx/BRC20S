@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::*;
 use crate::okx::datastore::BRC30DataStoreReadWrite;
 use crate::{
@@ -8,7 +10,7 @@ use crate::{
   },
   Instant, Result,
 };
-use bitcoin::Network;
+use bitcoin::{Network, Txid};
 use bitcoincore_rpc::Client;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -49,29 +51,20 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     &self,
     context: BlockContext,
     block: &BlockData,
-    operation: Vec<InscriptionOp>,
+    mut operations: HashMap<Txid, Vec<InscriptionOp>>,
   ) -> Result {
     let start = Instant::now();
     let mut messages_size = 0;
-    let mut operations_peeker = operation.into_iter().peekable();
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
-      let mut tx_operations: Vec<InscriptionOp> = Vec::new();
-
-      // Collect the inscription operations of this transaction.
-      while let Some(op) = operations_peeker.peek() {
-        if op.txid != *txid {
-          break;
+      if let Some(tx_operations) = operations.remove(txid) {
+        // Resolve and execute messages.
+        let messages = self.resolve_man.resolve_message(tx, tx_operations)?;
+        for msg in messages.iter() {
+          self.call_man.execute_message(context, msg)?;
         }
-        tx_operations.push(operations_peeker.next().unwrap());
+        messages_size += messages.len();
       }
-
-      // Resolve and execute messages.
-      let messages = self.resolve_man.resolve_message(tx, tx_operations)?;
-      for msg in messages.iter() {
-        self.call_man.execute_message(context, msg)?;
-      }
-      messages_size += messages.len();
     }
 
     log::info!(

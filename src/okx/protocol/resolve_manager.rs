@@ -12,6 +12,7 @@ use crate::{
   Inscription, Result,
 };
 use anyhow::anyhow;
+use bitcoin::hashes::Hash;
 use bitcoin::{OutPoint, Transaction, TxOut};
 use bitcoincore_rpc::Client;
 pub struct MsgResolveManager<
@@ -70,6 +71,13 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
           break;
         }
         let operation = operation_iter.next().unwrap();
+
+        // filter coinbase transactions
+        if let Some(point) = operation.new_satpoint {
+          if point.outpoint.txid.eq(&Hash::all_zeros()) {
+            continue;
+          }
+        }
 
         // Parse BRC20 message through inscription operation.
         if self.protocols.contains(&ProtocolKind::BRC20) {

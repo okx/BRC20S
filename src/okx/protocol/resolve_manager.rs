@@ -78,13 +78,6 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         }
         let operation = operation_iter.next().unwrap();
 
-        // filter coinbase transactions
-        if let Some(point) = operation.new_satpoint {
-          if point.outpoint.txid.eq(&Hash::all_zeros()) {
-            continue;
-          }
-        }
-
         // Parse BRC20 message through inscription operation.
         if self.protocols.contains(&ProtocolKind::BRC20) {
           if let Some(msg) =

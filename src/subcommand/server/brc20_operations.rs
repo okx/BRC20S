@@ -15,7 +15,7 @@ fn index_brc20_operations(
       return Ok(Vec::new());
     }
 
-    // requset previous transaction
+    // request previous transaction
     let prev_tx = index
       .get_transaction(tx_in.previous_output.txid)?
       .ok_or(anyhow!(format!(
@@ -27,34 +27,36 @@ fn index_brc20_operations(
       script_cache = prev_tx.output.get(0).unwrap().script_pubkey.clone();
     }
 
-    // collect the transfer operation if the previous is a inscribed transfer operation.
-    if let Some(Operation::Transfer(transfer)) = Inscription::from_transaction(&prev_tx)
-      .and_then(|v| deserialize_brc20_operation(v, true).ok())
-    {
-      let id = InscriptionId::from(tx_in.previous_output.txid);
-      operations.push((
-        input_value,
-        InscriptionInfo {
-          action: ActionType::Transfer,
-          inscription_number: index.get_inscription_entry(id)?.map(|v| v.number),
-          inscription_id: id.to_string(),
-          from: ScriptPubkey::from_script(
-            &prev_tx.output.get(0).unwrap().script_pubkey,
-            index.get_chain_network(),
-          ),
-          // set default and fill back later
-          to: ScriptPubkey::default(),
-          old_satpoint: SatPoint {
-            outpoint: tx_in.previous_output,
-            offset: 0,
-          }
-          .to_string(),
-          new_satpoint: None,
-          operation: Some(RawOperation::Brc20Operation(Brc20RawOperation::Transfer(
-            transfer.into(),
-          ))),
-        },
-      ))
+    if tx_in.previous_output.vout == 0 {
+      // collect the transfer operation if the previous is a inscribed transfer operation.
+      if let Some(Operation::Transfer(transfer)) = Inscription::from_transaction(&prev_tx)
+        .and_then(|v| deserialize_brc20_operation(v, true).ok())
+      {
+        let id = InscriptionId::from(tx_in.previous_output.txid);
+        operations.push((
+          input_value,
+          InscriptionInfo {
+            action: ActionType::Transfer,
+            inscription_number: index.get_inscription_entry(id)?.map(|v| v.number),
+            inscription_id: id.to_string(),
+            from: ScriptPubkey::from_script(
+              &prev_tx.output.get(0).unwrap().script_pubkey,
+              index.get_chain_network(),
+            ),
+            // set default and fill back later
+            to: ScriptPubkey::default(),
+            old_satpoint: SatPoint {
+              outpoint: tx_in.previous_output,
+              offset: 0,
+            }
+            .to_string(),
+            new_satpoint: None,
+            operation: Some(RawOperation::Brc20Operation(Brc20RawOperation::Transfer(
+              transfer.into(),
+            ))),
+          },
+        ))
+      }
     }
     input_value += prev_tx
       .output

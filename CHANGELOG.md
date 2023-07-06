@@ -1,5 +1,13 @@
 Changelog
 =========
+[0.7.1](https://github.com/okx/ord/releases/tag/0.7.1) - 2023-07-05
+---------------------------------------------------------------------
+### Fixed
+- Fix API inscription address field displays incorrectly.  (#79)
+- Fix API BRC20 message incorrect inscriptions. (#76)
+### Changed
+- Cancel support for the 32-bit target machine. (#77)
+- Update dependency versions. (#81)
 
 [0.7.0](https://github.com/okx/ord/releases/tag/0.7.0) - 2023-05-25
 ---------------------------------------------------------------------

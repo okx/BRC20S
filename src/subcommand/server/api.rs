@@ -589,6 +589,27 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
     .get_inscription_all_data_by_id(id)?
     .ok_or_api_not_found("inscription not found")?;
 
+  let owner = if inscription_data.tx.txid() != inscription_data.sat_point.outpoint.txid {
+    let tx = index
+      .get_transaction(inscription_data.sat_point.outpoint.txid)?
+      .ok_or_api_not_found("transaction not found")?;
+    brc20::ScriptKey::from_script(
+      &tx
+        .output
+        .get(usize::try_from(inscription_data.sat_point.outpoint.vout).unwrap())
+        .unwrap()
+        .script_pubkey,
+      index.get_chain_network(),
+    )
+    .into()
+  } else {
+    brc20::ScriptKey::from_script(
+      &inscription_data.tx.output[0].script_pubkey,
+      index.get_chain_network(),
+    )
+    .into()
+  };
+
   Ok(Json(ApiResponse::ok(OrdInscription {
     id: id.to_string(),
     number: inscription_data.entry.number,
@@ -597,11 +618,7 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
       .content_type()
       .map(|c| String::from(c)),
     content: inscription_data.inscription.body().map(|c| hex::encode(c)),
-    owner: brc20::ScriptKey::from_script(
-      &inscription_data.tx.output[0].script_pubkey,
-      index.get_chain_network(),
-    )
-    .into(),
+    owner,
     genesis_height: inscription_data.entry.height,
     location: inscription_data.sat_point.to_string(),
     sat: inscription_data.entry.sat.map(|s| s.0),

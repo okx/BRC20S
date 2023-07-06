@@ -33,7 +33,7 @@ pub struct BRC20ExecutionMessage {
   pub(self) old_satpoint: SatPoint,
   pub(self) new_satpoint: SatPoint,
   pub(self) from: ScriptKey,
-  pub(self) to: ScriptKey,
+  pub(self) to: Option<ScriptKey>,
   pub(self) op: BRC20Operation,
 }
 
@@ -52,7 +52,13 @@ impl BRC20ExecutionMessage {
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      to: utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)?,
+      to: if let Ok(to_script_key) =
+        utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)
+      {
+        Some(to_script_key)
+      } else {
+        None
+      },
       op: msg.op.clone(),
     })
   }
@@ -83,11 +89,7 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     new_satpoint: msg.new_satpoint,
     from: msg.from.clone(),
     // redirect receiver to sender if transfer to conibase.
-    to: if msg.new_satpoint.outpoint.txid != msg.txid {
-      msg.from.clone()
-    } else {
-      msg.to.clone()
-    },
+    to: msg.to.clone().map_or(msg.from.clone(), |v| v),
     op: msg.op.op_type(),
     result: match event {
       Ok(event) => Ok(event),
@@ -112,9 +114,7 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   deploy: BRC20Deploy,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC20Error(BRC20Error::InscribeToCoinbase));
-  }
+  let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = deploy.tick.parse::<Tick>()?;
   let lower_tick = tick.to_lowercase();
@@ -167,7 +167,7 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     supply,
     limit_per_mint: limit,
     minted: 0u128,
-    deploy_by: msg.to.clone(),
+    deploy_by: to_script_key,
     deployed_number: context.blockheight,
     latest_mint_number: context.blockheight,
     deployed_timestamp: context.blocktime,
@@ -192,9 +192,7 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   mint: BRC20Mint,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC20Error(BRC20Error::InscribeToCoinbase));
-  }
+  let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = mint.tick.parse::<Tick>()?;
   let lower_tick = tick.to_lowercase();
@@ -248,7 +246,7 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
 
   // get or initialize user balance.
   let mut balance = brc20_store
-    .get_balance(&msg.to, &lower_tick)
+    .get_balance(&to_script_key, &lower_tick)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(), |v| v);
 
@@ -259,7 +257,7 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
 
   // store to database.
   brc20_store
-    .update_token_balance(&msg.to, &lower_tick, balance)
+    .update_token_balance(&to_script_key, &lower_tick, balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   // update token minted.
@@ -283,9 +281,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
   transfer: BRC20Transfer,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC20Error(BRC20Error::InscribeToCoinbase));
-  }
+  let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = transfer.tick.parse::<Tick>()?;
   let lower_tick = tick.to_lowercase();
@@ -313,7 +309,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
   }
 
   let mut balance = brc20_store
-    .get_balance(&msg.to, &lower_tick)
+    .get_balance(&to_script_key, &lower_tick)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(), |v| v);
 
@@ -331,7 +327,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
 
   let amt = amt.checked_to_u128()?;
   brc20_store
-    .update_token_balance(&msg.to, &lower_tick, balance)
+    .update_token_balance(&to_script_key, &lower_tick, balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   let inscription = TransferableLog {
@@ -339,7 +335,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
     inscription_number: msg.inscription_number,
     amount: amt,
     tick: token_info.tick.clone(),
-    owner: msg.to.clone(),
+    owner: to_script_key,
   };
   brc20_store
     .insert_transferable(&inscription.owner, &lower_tick, inscription.clone())
@@ -409,13 +405,13 @@ fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   // redirect receiver to sender if transfer to conibase.
   let mut out_msg = None;
 
-  let to_script_key = if msg.new_satpoint.outpoint.txid != msg.txid {
+  let to_script_key = if let None = msg.to.clone().clone() {
     out_msg = Some(format!(
       "redirect receiver to sender, reason: transfer inscription to coinbase"
     ));
     msg.from.clone()
   } else {
-    msg.to.clone()
+    msg.to.clone().unwrap()
   };
 
   // update to key balance.

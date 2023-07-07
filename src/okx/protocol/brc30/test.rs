@@ -38,7 +38,7 @@ pub(crate) fn mock_create_brc30_message(
     new_satpoint,
     commit_from: Some(from.clone()),
     from: from.clone(),
-    to: to.clone(),
+    to: Some(to.clone()),
     op,
     version,
   };

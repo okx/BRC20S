@@ -28,6 +28,7 @@ use crate::okx::{
 use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
+use bitcoin::hashes::Hash;
 use bitcoin::{Network, Txid};
 use std::cmp;
 use std::collections::HashMap;
@@ -43,7 +44,7 @@ pub struct BRC30ExecutionMessage {
   pub(crate) new_satpoint: SatPoint,
   pub(crate) commit_from: Option<ScriptKey>,
   pub(crate) from: ScriptKey,
-  pub(crate) to: ScriptKey,
+  pub(crate) to: Option<ScriptKey>,
   pub(crate) op: BRC30Operation,
   pub(crate) version: HashMap<String, Version>,
 }
@@ -70,7 +71,15 @@ impl BRC30ExecutionMessage {
         None => None,
       },
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      to: utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)?,
+      to: if msg.new_satpoint.unwrap().outpoint.txid != Hash::all_zeros() {
+        Some(utils::get_script_key_on_satpoint(
+          msg.new_satpoint.unwrap(),
+          ord_store,
+          network,
+        )?)
+      } else {
+        None
+      },
       op: msg.op.clone(),
       version: HashMap::new(),
     })
@@ -154,11 +163,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     old_satpoint: msg.old_satpoint,
     new_satpoint: msg.new_satpoint,
     from: msg.from.clone(),
-    to: if msg.new_satpoint.outpoint.txid != msg.txid {
-      msg.from.clone()
-    } else {
-      msg.to.clone()
-    },
+    to: msg.to.clone().map_or(msg.from.clone(), |v| v),
     op: msg.op.op_type(),
     result: match event {
       Ok(event) => Ok(event),
@@ -182,16 +187,12 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   deploy: Deploy,
 ) -> Result<Vec<BRC30Event>, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
-  }
+  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
   let mut events = Vec::new();
   // inscription message basic availability check
   if let Some(iserr) = deploy.validate_basic().err() {
     return Err(Error::BRC30Error(iserr));
   }
-  //Prepare the data
-  let to_script_key = msg.to.clone();
 
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
@@ -389,15 +390,11 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   stake_msg: Stake,
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
-  }
+  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
   if let Some(err) = stake_msg.validate_basic().err() {
     return Err(Error::BRC30Error(err));
   }
   let pool_id = stake_msg.get_pool_id();
-
-  let to_script_key = msg.to.clone();
 
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
@@ -537,14 +534,11 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   unstake: UnStake,
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
-  }
+  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
   if let Some(err) = unstake.validate_basic().err() {
     return Err(Error::BRC30Error(err));
   }
   let pool_id = unstake.get_pool_id();
-  let to_script_key = msg.to.clone();
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
     None => {
@@ -657,7 +651,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
   // passive msg set from/commit_from/to = msg.from for passing unstake
   let mut passive_msg = BRC30ExecutionMessage::from(msg);
   passive_msg.commit_from = Some(msg.from.clone());
-  passive_msg.to = msg.from.clone();
+  passive_msg.to = Some(msg.from.clone());
 
   let stake_tick = passive_unstake.get_stake_tick();
   let stake_info = brc30_store
@@ -712,13 +706,10 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   mint: Mint,
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
-  }
+  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
   if let Some(iserr) = mint.validate_basic().err() {
     return Err(Error::BRC30Error(iserr));
   }
-  let to_script_key = msg.to.clone();
 
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
@@ -830,10 +821,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
   transfer: Transfer,
 ) -> Result<BRC30Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  if msg.new_satpoint.outpoint.txid != msg.txid {
-    return Err(Error::BRC30Error(BRC30Error::InscribeToCoinbase));
-  }
-  let to_script_key = msg.to.clone();
+  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
   // check tick
   let tick_id = TickId::from_str(transfer.tick_id.as_str())?;
   let tick_info = brc30_store
@@ -937,13 +925,13 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
 
   // redirect receiver to sender if transfer to conibase.
   let mut out_msg = None;
-  let to_script_key = if msg.new_satpoint.outpoint.txid != msg.txid {
+  let to_script_key = if None == msg.to.clone() {
     out_msg = Some(format!(
       "redirect receiver to sender, reason: transfer inscription to coinbase"
     ));
     msg.from.clone()
   } else {
-    msg.to.clone()
+    msg.to.clone().unwrap()
   };
 
   brc30_store
@@ -2041,10 +2029,10 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(second_deply.clone()),
       );
-      msg.to = ScriptKey::Address(
+      msg.to = Some(ScriptKey::Address(
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
           .unwrap(),
-      );
+      ));
       let context = BlockContext {
         blockheight: 0,
         blocktime: 1687245485,
@@ -4700,9 +4688,9 @@ mod tests {
 
     // call control, commit_from != to
     let mut error_msg = msg.clone();
-    error_msg.to = ScriptKey::from_address(
+    error_msg.to = Some(ScriptKey::from_address(
       Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
-    );
+    ));
     match process_mint(
       context,
       &brc20_data_store,
@@ -5491,7 +5479,7 @@ mod tests {
 
     // normal, ok
     let mut error_msg = msg.clone();
-    error_msg.to = script1.clone();
+    error_msg.to = Some(script1.clone());
     match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
       Ok(event) => {
         let balance = brc30_data_store
@@ -5580,7 +5568,7 @@ mod tests {
     );
     let stake_tick = deploy.get_stake_id();
     let from_script = msg.from.clone();
-    let to_script = msg.to.clone();
+    let to_script = msg.to.clone().unwrap();
 
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
@@ -5765,7 +5753,7 @@ mod tests {
     );
     let stake_tick = deploy.get_stake_id();
     let from_script = msg.from.clone();
-    let to_script = msg.to.clone();
+    let to_script = msg.to.clone().unwrap();
 
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
@@ -5962,7 +5950,7 @@ mod tests {
     );
     let stake_tick = deploy.get_stake_id();
     let from_script = msg.from.clone();
-    let to_script = msg.to.clone();
+    let to_script = msg.to.clone().unwrap();
 
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
@@ -6168,7 +6156,7 @@ mod tests {
     );
 
     let from_script = msg.from.clone();
-    let to_script = msg.to.clone();
+    let to_script = msg.to.clone().unwrap();
 
     let result = set_brc20_token_user(brc20_data_store, stake, &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);

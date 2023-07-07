@@ -23,6 +23,10 @@ pub(crate) fn resolve_message<'a, N: BRC20DataStoreReadOnly>(
       cursed: false,
       unbound: false,
     } => {
+      if op.new_satpoint.is_none() || op.new_satpoint.unwrap().outpoint.txid != op.txid {
+        log::debug!("BRC20 resolving filtered new inscription on coinbase tx");
+        return Ok(None);
+      }
       match deserialize_brc20_operation(
         new_inscriptions
           .get(usize::try_from(op.inscription_id.index).unwrap())

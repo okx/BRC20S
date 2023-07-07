@@ -1100,10 +1100,11 @@ mod tests {
     let base = BIGDECIMAL_TEN.checked_powu(dec as u64)?;
     let overall_balance = Num::from(balance).checked_mul(&base)?.checked_to_u128()?;
     let balance = BRC20Banalce {
+      tick: token.clone(),
       overall_balance,
       transferable_balance: 0_u128,
     };
-    brc20_store.update_token_balance(addr, &token.to_lowercase(), balance);
+    brc20_store.update_token_balance(addr, balance);
     Ok(())
   }
 
@@ -2865,10 +2866,11 @@ mod tests {
     };
     brc20_data_store.insert_token_info(&token, &token_info);
     let balance = BRC20Banalce {
+      tick: token.clone(),
       overall_balance: 3000000000_u128,
       transferable_balance: 0_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -3452,10 +3454,11 @@ mod tests {
     };
     brc20_data_store.insert_token_info(&token, &token_info);
     let balance = BRC20Banalce {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 1000000000_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -3666,10 +3669,11 @@ mod tests {
     };
     brc20_data_store.insert_token_info(&token, &token_info);
     let balance = BRC20Banalce {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 1000000000_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -3947,10 +3951,11 @@ mod tests {
     };
     brc20_data_store.insert_token_info(&token, &token_info);
     let balance = BRC20Banalce {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 1000000000_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -4070,10 +4075,11 @@ mod tests {
 
       //mock brc20 transfer
       let balance = BRC20Banalce {
+        tick: token.clone(),
         overall_balance: 0_u128,
         transferable_balance: 0_u128,
       };
-      let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+      let result = brc20_data_store.update_token_balance(&script, balance);
       match result {
         Err(error) => {
           panic!("update_token_balance err: {}", error)
@@ -4173,10 +4179,11 @@ mod tests {
     };
     brc20_data_store.insert_token_info(&token, &token_info);
     let balance = BRC20Banalce {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 1000000000_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -4296,10 +4303,11 @@ mod tests {
 
       //mock brc20 transfer
       let balance = BRC20Banalce {
+        tick: token.clone(),
         overall_balance: 0_u128,
         transferable_balance: 0_u128,
       };
-      let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+      let result = brc20_data_store.update_token_balance(&script, balance);
       match result {
         Err(error) => {
           panic!("update_token_balance err: {}", error)
@@ -4335,10 +4343,11 @@ mod tests {
 
       //mock brc20 transfer
       let balance = BRC20Banalce {
+        tick: token.clone(),
         overall_balance: 0_u128,
         transferable_balance: 0_u128,
       };
-      let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+      let result = brc20_data_store.update_token_balance(&script, balance);
       match result {
         Err(error) => {
           panic!("update_token_balance err: {}", error)
@@ -4389,10 +4398,11 @@ mod tests {
 
       //mock brc20 transfer
       let balance = BRC20Banalce {
+        tick: token.clone(),
         overall_balance: 0_u128,
         transferable_balance: 0_u128,
       };
-      let result = brc20_data_store.update_token_balance(&script1, &token.to_lowercase(), balance);
+      let result = brc20_data_store.update_token_balance(&script1, balance);
       match result {
         Err(error) => {
           panic!("update_token_balance err: {}", error)
@@ -4560,10 +4570,11 @@ mod tests {
     };
     let _ = brc20_data_store.insert_token_info(&token, &token_info);
     let balance = BRC20Banalce {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 0_u128,
     };
-    let _ = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let _ = brc20_data_store.update_token_balance(&script, balance);
 
     // deploy brc20-s
     let deploy = Deploy {
@@ -4959,11 +4970,12 @@ mod tests {
     };
     let _ = brc20_data_store.insert_token_info(&token, &token_info);
     let balance = BRC20Banalce {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 0_u128,
     };
-    let _ = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance.clone());
-    let _ = brc20_data_store.update_token_balance(&script1, &token.to_lowercase(), balance.clone());
+    let _ = brc20_data_store.update_token_balance(&script, balance.clone());
+    let _ = brc20_data_store.update_token_balance(&script1, balance.clone());
 
     // deploy brc20-s
     let deploy = Deploy {

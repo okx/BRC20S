@@ -1,7 +1,7 @@
 use super::*;
 use crate::InscriptionId;
 use serde::{Deserialize, Serialize};
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct TokenInfo {
   pub tick: Tick,
   pub inscription_id: InscriptionId,

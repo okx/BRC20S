@@ -2,14 +2,13 @@ pub(super) mod balance;
 pub(super) mod errors;
 pub(super) mod events;
 pub mod redb;
-pub mod storage_balance;
 pub(super) mod tick;
 pub(super) mod token_info;
 pub(super) mod transfer;
 pub(super) mod transferable_log;
 
 pub use self::{
-  balance::Balance, errors::BRC20Error, events::BRC20Receipt, events::*, tick::Tick,
+  balance::Balance, errors::BRC20Error, events::BRC20Receipt, events::*, tick::*,
   token_info::TokenInfo, transfer::TransferInfo, transferable_log::TransferableLog,
 };
 use super::ScriptKey;
@@ -20,7 +19,7 @@ use std::fmt::{Debug, Display};
 pub trait BRC20DataStoreReadOnly {
   type Error: Debug + Display;
 
-  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error>;
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error>;
   fn get_balance(
     &self,
     script_key: &ScriptKey,
@@ -54,7 +53,6 @@ pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
   fn update_token_balance(
     &self,
     script_key: &ScriptKey,
-    tick: &Tick,
     new_balance: Balance,
   ) -> Result<(), Self::Error>;
 

@@ -28,6 +28,7 @@ use crate::okx::{
 use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
+use bitcoin::hashes::Hash;
 use bitcoin::{Network, Txid};
 use std::cmp;
 use std::collections::HashMap;
@@ -70,12 +71,21 @@ impl BRC30ExecutionMessage {
         None => None,
       },
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      to: if let Ok(to_script_key) =
-        utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)
+      to: if msg.new_satpoint.is_some()
+        && msg
+          .new_satpoint
+          .unwrap()
+          .outpoint
+          .txid
+          .eq(&Hash::all_zeros())
       {
-        Some(to_script_key)
-      } else {
         None
+      } else {
+        Some(utils::get_script_key_on_satpoint(
+          msg.new_satpoint.unwrap(),
+          ord_store,
+          network,
+        )?)
       },
       op: msg.op.clone(),
       version: HashMap::new(),

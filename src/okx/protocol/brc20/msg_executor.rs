@@ -22,6 +22,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
+use bitcoin::hashes::Hash;
 use bitcoin::Network;
 use std::str::FromStr;
 
@@ -52,12 +53,21 @@ impl BRC20ExecutionMessage {
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      to: if let Ok(to_script_key) =
-        utils::get_script_key_on_satpoint(msg.new_satpoint.unwrap(), ord_store, network)
+      to: if msg.new_satpoint.is_some()
+        && msg
+          .new_satpoint
+          .unwrap()
+          .outpoint
+          .txid
+          .eq(&Hash::all_zeros())
       {
-        Some(to_script_key)
-      } else {
         None
+      } else {
+        Some(utils::get_script_key_on_satpoint(
+          msg.new_satpoint.unwrap(),
+          ord_store,
+          network,
+        )?)
       },
       op: msg.op.clone(),
     })

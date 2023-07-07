@@ -40,9 +40,23 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
   ProtocolManager<'a, O, P, M>
 {
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(client: &'a Client, ord_store: &'a O, brc20_store: &'a P, brc30_store: &'a M) -> Self {
+  pub fn new(
+    client: &'a Client,
+    ord_store: &'a O,
+    brc20_store: &'a P,
+    brc30_store: &'a M,
+    first_brc20_height: u64,
+    first_brc20s_height: u64,
+  ) -> Self {
     Self {
-      resolve_man: MsgResolveManager::new(client, ord_store, brc20_store, brc30_store),
+      resolve_man: MsgResolveManager::new(
+        client,
+        ord_store,
+        brc20_store,
+        brc30_store,
+        first_brc20_height,
+        first_brc20s_height,
+      ),
       call_man: CallManager::new(ord_store, brc20_store, brc30_store),
     }
   }
@@ -59,7 +73,9 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
     for (tx, txid) in block.txdata.iter().skip(1) {
       if let Some(tx_operations) = operations.remove(txid) {
         // Resolve and execute messages.
-        let messages = self.resolve_man.resolve_message(tx, tx_operations)?;
+        let messages = self
+          .resolve_man
+          .resolve_message(context, tx, tx_operations)?;
         for msg in messages.iter() {
           self.call_man.execute_message(context, msg)?;
         }

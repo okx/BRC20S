@@ -603,6 +603,8 @@ impl Updater {
       &OrdDbReadWriter::new(wtx),
       &BRC20DataStore::new(wtx),
       &BRC30DataStore::new(wtx),
+      index.options.first_brc20_height(),
+      index.options.first_brc20s_height(),
     )
     .index_block(
       BlockContext {

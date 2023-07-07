@@ -26,12 +26,21 @@ pub struct MsgResolveManager<
   ord_store: &'a O,
   brc20_store: &'a N,
   brc30_store: &'a M,
+  first_brc20_height: u64,
+  first_brc20s_height: u64,
 }
 
 impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStoreReadWrite>
   MsgResolveManager<'a, O, N, M>
 {
-  pub fn new(client: &'a Client, ord_store: &'a O, brc20_store: &'a N, brc30_store: &'a M) -> Self {
+  pub fn new(
+    client: &'a Client,
+    ord_store: &'a O,
+    brc20_store: &'a N,
+    brc30_store: &'a M,
+    first_brc20_height: u64,
+    first_brc20s_height: u64,
+  ) -> Self {
     let mut protocols: HashSet<ProtocolKind> = HashSet::new();
     protocols.insert(ProtocolKind::BRC20);
     protocols.insert(ProtocolKind::BRC30);
@@ -41,11 +50,14 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
       ord_store,
       brc20_store,
       brc30_store,
+      first_brc20_height,
+      first_brc20s_height,
     }
   }
 
   pub fn resolve_message(
     &self,
+    context: BlockContext,
     tx: &Transaction,
     operations: Vec<InscriptionOp>,
   ) -> Result<Vec<Message>> {
@@ -86,7 +98,9 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         }
 
         // Parse BRC20 message through inscription operation.
-        if self.protocols.contains(&ProtocolKind::BRC20) {
+        if self.protocols.contains(&ProtocolKind::BRC20)
+          && context.blockheight >= self.first_brc20_height
+        {
           if let Some(msg) =
             brc20::resolve_message(self.brc20_store, &new_inscriptions, &operation)?
               .map(Message::BRC20)
@@ -97,7 +111,9 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         }
 
         // Parse BRC30 message through inscription operation.
-        if self.protocols.contains(&ProtocolKind::BRC30) {
+        if self.protocols.contains(&ProtocolKind::BRC30)
+          && context.blockheight >= self.first_brc20s_height
+        {
           if let Some(msg) = brc30::resolve_message(
             self.client,
             self.ord_store,

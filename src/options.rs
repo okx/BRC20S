@@ -45,6 +45,13 @@ pub(crate) struct Options {
     help = "Don't look for inscriptions below <FIRST_INSCRIPTION_HEIGHT>."
   )]
   pub(crate) first_inscription_height: Option<u64>,
+  #[clap(long, help = "Don't prase BRC20 messages below <FIRST_BRC20S_HEIGHT>.")]
+  pub(crate) first_brc20_height: Option<u64>,
+  #[clap(
+    long,
+    help = "Don't prase BRC20S messages below <FIRST_BRC20S_HEIGHT>."
+  )]
+  pub(crate) first_brc20s_height: Option<u64>,
   #[clap(long, help = "Limit index to <HEIGHT_LIMIT> blocks.")]
   pub(crate) height_limit: Option<u64>,
   #[clap(long, help = "Use index at <INDEX>.")]
@@ -107,6 +114,30 @@ impl Options {
       self
         .first_inscription_height
         .unwrap_or_else(|| self.chain().first_inscription_height())
+    }
+  }
+
+  pub(crate) fn first_brc20_height(&self) -> u64 {
+    if self.chain() == Chain::Regtest {
+      self.first_brc20_height.unwrap_or(0)
+    } else if integration_test() {
+      0
+    } else {
+      self
+        .first_brc20_height
+        .unwrap_or_else(|| self.chain().first_brc20_height())
+    }
+  }
+
+  pub(crate) fn first_brc20s_height(&self) -> u64 {
+    if self.chain() == Chain::Regtest {
+      self.first_brc20s_height.unwrap_or(0)
+    } else if integration_test() {
+      0
+    } else {
+      self
+        .first_brc20s_height
+        .unwrap_or_else(|| self.chain().first_brc20s_height())
     }
   }
 

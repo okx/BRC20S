@@ -71,21 +71,14 @@ impl BRC30ExecutionMessage {
         None => None,
       },
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      to: if msg.new_satpoint.is_some()
-        && msg
-          .new_satpoint
-          .unwrap()
-          .outpoint
-          .txid
-          .eq(&Hash::all_zeros())
-      {
-        None
-      } else {
+      to: if msg.new_satpoint.unwrap().outpoint.txid != Hash::all_zeros() {
         Some(utils::get_script_key_on_satpoint(
           msg.new_satpoint.unwrap(),
           ord_store,
           network,
         )?)
+      } else {
+        None
       },
       op: msg.op.clone(),
       version: HashMap::new(),

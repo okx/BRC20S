@@ -22,7 +22,6 @@ use crate::{
 };
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
-use bitcoin::hashes::Hash;
 use bitcoin::Network;
 use std::str::FromStr;
 
@@ -53,7 +52,9 @@ impl BRC20ExecutionMessage {
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      to: if msg.new_satpoint.unwrap().outpoint.txid != Hash::all_zeros() {
+      // Only transfer operations will encounter the situation where new_satpoint.outpoint.txid != msg.txid.
+      // The engraving operation has been filtered out in the previous resolve_message step.
+      to: if msg.new_satpoint.unwrap().outpoint.txid == msg.txid {
         Some(utils::get_script_key_on_satpoint(
           msg.new_satpoint.unwrap(),
           ord_store,
@@ -408,7 +409,7 @@ fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   // redirect receiver to sender if transfer to conibase.
   let mut out_msg = None;
 
-  let to_script_key = if let None = msg.to.clone().clone() {
+  let to_script_key = if let None = msg.to.clone() {
     out_msg = Some(format!(
       "redirect receiver to sender, reason: transfer inscription to coinbase"
     ));

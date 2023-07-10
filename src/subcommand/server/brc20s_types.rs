@@ -4,7 +4,7 @@ use std::{convert::From, vec};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BRC30TickInfo {
+pub struct TickInfo {
   pub tick: Tick,
   pub inscription_id: String,
   pub inscription_number: u64,
@@ -17,7 +17,7 @@ pub struct BRC30TickInfo {
   pub deploy_blocktime: u64,
 }
 
-impl BRC30TickInfo {
+impl TickInfo {
   pub fn set_inscription_number(&mut self, inscription_number: u64) {
     self.inscription_number = inscription_number;
   }
@@ -27,7 +27,7 @@ impl BRC30TickInfo {
   }
 }
 
-impl From<&brc30::TickInfo> for BRC30TickInfo {
+impl From<&brc30::TickInfo> for TickInfo {
   fn from(tick_info: &brc30::TickInfo) -> Self {
     let tick = Tick {
       id: tick_info.tick_id.to_lowercase().hex(),
@@ -59,7 +59,7 @@ pub struct Tick {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AllBRC30TickInfo {
-  pub tokens: Vec<BRC30TickInfo>,
+  pub tokens: Vec<TickInfo>,
   pub total: usize,
 }
 

@@ -26,7 +26,7 @@ pub(crate) async fn brc30_all_tick_info(
           .unwrap()
           .unwrap();
 
-        let mut brc30_tick = BRC30TickInfo::from(tick_info);
+        let mut brc30_tick = TickInfo::from(tick_info);
         brc30_tick.set_deploy_blocktime(block.header.time as u64);
         brc30_tick.set_inscription_number(inscription_number.number as u64);
         brc30_tick
@@ -40,7 +40,7 @@ pub(crate) async fn brc30_all_tick_info(
 pub(crate) async fn brc30_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
-) -> ApiResult<BRC30TickInfo> {
+) -> ApiResult<TickInfo> {
   log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
 
   let tick_id = tick_id.to_lowercase();
@@ -75,7 +75,7 @@ pub(crate) async fn brc30_tick_info(
     .unwrap()
     .unwrap();
 
-  let mut brc30_tick = BRC30TickInfo::from(tick_info);
+  let mut brc30_tick = TickInfo::from(tick_info);
   brc30_tick.set_deploy_blocktime(block.header.time as u64);
   brc30_tick.set_inscription_number(inscription_number.number as u64);
 

@@ -2,7 +2,7 @@ use super::*;
 use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20::BRC20Event;
 use crate::okx::datastore::brc20s::{Event, PledgedTick};
-use crate::okx::datastore::DataStoreReadWrite;
+use crate::okx::datastore::BRC20SDataStoreReadWrite;
 use crate::okx::protocol::brc20::{BRC20ExecutionMessage, BRC20Message};
 use crate::okx::protocol::brc20s::operation::OperationStep;
 use crate::okx::protocol::brc20s::{BRC20SMessage, ExecutionMessage, PassiveUnStake};
@@ -15,14 +15,14 @@ pub struct CallManager<
   'a,
   O: OrdDataStoreReadWrite,
   N: BRC20DataStoreReadWrite,
-  M: DataStoreReadWrite,
+  M: BRC20SDataStoreReadWrite,
 > {
   ord_store: &'a O,
   brc20_store: &'a N,
   brc20s_store: &'a M,
 }
 
-impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadWrite>
+impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC20SDataStoreReadWrite>
   CallManager<'a, O, N, M>
 {
   pub fn new(ord_store: &'a O, brc20_store: &'a N, brc20s_store: &'a M) -> Self {

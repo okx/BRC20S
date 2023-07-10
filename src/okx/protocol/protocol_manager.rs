@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::*;
-use crate::okx::datastore::DataStoreReadWrite;
+use crate::okx::datastore::BRC20SDataStoreReadWrite;
 use crate::{
   index::BlockData,
   okx::datastore::{
@@ -30,13 +30,13 @@ pub struct ProtocolManager<
   'a,
   O: OrdDataStoreReadWrite,
   P: BRC20DataStoreReadWrite,
-  M: DataStoreReadWrite,
+  M: BRC20SDataStoreReadWrite,
 > {
   call_man: CallManager<'a, O, P, M>,
   resolve_man: MsgResolveManager<'a, O, P, M>,
 }
 
-impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: DataStoreReadWrite>
+impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC20SDataStoreReadWrite>
   ProtocolManager<'a, O, P, M>
 {
   // Need three datastore, and they're all in the same write transaction.

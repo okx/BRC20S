@@ -111,7 +111,7 @@ pub trait BRC20SDataStoreReadOnly {
   ) -> Result<Option<TransferInfo>, Self::Error>;
 }
 
-pub trait DataStoreReadWrite: BRC20SDataStoreReadOnly {
+pub trait BRC20SDataStoreReadWrite: BRC20SDataStoreReadOnly {
   // TXID_TO_INSCRIPTION_RECEIPTS
   fn set_txid_to_inscription_receipts(
     &self,

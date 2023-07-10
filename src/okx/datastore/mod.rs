@@ -5,6 +5,6 @@ pub mod ord;
 mod script_key;
 
 pub use self::{
-  brc20::BRC20DataStoreReadWrite, brc20s::DataStoreReadWrite, ord::OrdDataStoreReadWrite,
+  brc20::BRC20DataStoreReadWrite, brc20s::BRC20SDataStoreReadWrite, ord::OrdDataStoreReadWrite,
   script_key::ScriptKey,
 };

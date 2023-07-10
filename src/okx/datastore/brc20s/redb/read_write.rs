@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
   okx::datastore::brc20s::{
-    BRC20SDataStoreReadOnly, Balance, DataStoreReadWrite, InscriptionOperation, Pid, PoolInfo,
-    Receipt, StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
+    BRC20SDataStoreReadOnly, BRC20SDataStoreReadWrite, Balance, InscriptionOperation, Pid,
+    PoolInfo, Receipt, StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
   },
   InscriptionId,
 };
@@ -153,7 +153,7 @@ impl<'db, 'a> BRC20SDataStoreReadOnly for BRC20SDataStore<'db, 'a> {
   }
 }
 
-impl<'db, 'a> DataStoreReadWrite for BRC20SDataStore<'db, 'a> {
+impl<'db, 'a> BRC20SDataStoreReadWrite for BRC20SDataStore<'db, 'a> {
   // TXID_TO_INSCRIPTION_RECEIPTS
   fn set_txid_to_inscription_receipts(
     &self,
@@ -333,7 +333,9 @@ impl<'db, 'a> DataStoreReadWrite for BRC20SDataStore<'db, 'a> {
 mod tests {
   use super::*;
   use crate::okx::datastore::brc20;
-  use crate::okx::datastore::brc20s::{BRC20SDataStoreReadOnly, DataStoreReadWrite, OperationType};
+  use crate::okx::datastore::brc20s::{
+    BRC20SDataStoreReadOnly, BRC20SDataStoreReadWrite, OperationType,
+  };
   use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolType, Tick, TickId};
   use crate::okx::protocol::brc20s::BRC20SError;
   use crate::SatPoint;

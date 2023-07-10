@@ -8,7 +8,7 @@ pub mod unstake;
 use super::error::JSONError;
 use super::params::*;
 use crate::{
-  okx::datastore::{brc30::BRC30OperationType, ord::Action},
+  okx::datastore::{brc30::OperationType, ord::Action},
   Inscription, Result,
 };
 use serde::{Deserialize, Serialize};
@@ -31,15 +31,15 @@ pub enum BRC30Operation {
 }
 
 impl BRC30Operation {
-  pub fn op_type(&self) -> BRC30OperationType {
+  pub fn op_type(&self) -> OperationType {
     match self {
-      BRC30Operation::Deploy(_) => BRC30OperationType::Deploy,
-      BRC30Operation::Mint(_) => BRC30OperationType::Mint,
-      BRC30Operation::Stake(_) => BRC30OperationType::Stake,
-      BRC30Operation::UnStake(_) => BRC30OperationType::UnStake,
-      BRC30Operation::PassiveUnStake(_) => BRC30OperationType::PassiveUnStake,
-      BRC30Operation::InscribeTransfer(_) => BRC30OperationType::InscribeTransfer,
-      BRC30Operation::Transfer(_) => BRC30OperationType::Transfer,
+      BRC30Operation::Deploy(_) => OperationType::Deploy,
+      BRC30Operation::Mint(_) => OperationType::Mint,
+      BRC30Operation::Stake(_) => OperationType::Stake,
+      BRC30Operation::UnStake(_) => OperationType::UnStake,
+      BRC30Operation::PassiveUnStake(_) => OperationType::PassiveUnStake,
+      BRC30Operation::InscribeTransfer(_) => OperationType::InscribeTransfer,
+      BRC30Operation::Transfer(_) => OperationType::Transfer,
     }
   }
 }

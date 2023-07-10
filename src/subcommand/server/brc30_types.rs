@@ -278,16 +278,16 @@ pub enum OperationType {
   InscribeTransfer,
   Transfer,
 }
-impl From<brc30::BRC30OperationType> for OperationType {
-  fn from(op_type: brc30::BRC30OperationType) -> Self {
+impl From<brc30::OperationType> for OperationType {
+  fn from(op_type: brc30::OperationType) -> Self {
     match op_type {
-      brc30::BRC30OperationType::Deploy => Self::Deploy,
-      brc30::BRC30OperationType::Mint => Self::Mint,
-      brc30::BRC30OperationType::Stake => Self::Deposit,
-      brc30::BRC30OperationType::UnStake => Self::Withdraw,
-      brc30::BRC30OperationType::PassiveUnStake => Self::PassiveWithdraw,
-      brc30::BRC30OperationType::InscribeTransfer => Self::InscribeTransfer,
-      brc30::BRC30OperationType::Transfer => Self::Transfer,
+      brc30::OperationType::Deploy => Self::Deploy,
+      brc30::OperationType::Mint => Self::Mint,
+      brc30::OperationType::Stake => Self::Deposit,
+      brc30::OperationType::UnStake => Self::Withdraw,
+      brc30::OperationType::PassiveUnStake => Self::PassiveWithdraw,
+      brc30::OperationType::InscribeTransfer => Self::InscribeTransfer,
+      brc30::OperationType::Transfer => Self::Transfer,
     }
   }
 }
@@ -317,24 +317,24 @@ impl BRC30Receipt {
     let mut result = Self {
       op: receipt.op.clone().into(),
       inscription_number: match receipt.op {
-        brc30::BRC30OperationType::PassiveUnStake => None,
+        brc30::OperationType::PassiveUnStake => None,
         _ => Some(receipt.inscription_number),
       },
       inscription_id: match receipt.op {
-        brc30::BRC30OperationType::PassiveUnStake => None,
+        brc30::OperationType::PassiveUnStake => None,
         _ => Some(receipt.inscription_id),
       },
       old_satpoint: match receipt.op {
-        brc30::BRC30OperationType::PassiveUnStake => None,
+        brc30::OperationType::PassiveUnStake => None,
         _ => Some(receipt.old_satpoint),
       },
       new_satpoint: match receipt.op {
-        brc30::BRC30OperationType::PassiveUnStake => None,
+        brc30::OperationType::PassiveUnStake => None,
         _ => Some(receipt.new_satpoint),
       },
       from: receipt.from.clone().into(),
       to: match receipt.op {
-        brc30::BRC30OperationType::PassiveUnStake => None,
+        brc30::OperationType::PassiveUnStake => None,
         _ => Some(receipt.clone().to.into()),
       },
       valid: receipt.result.is_ok(),
@@ -676,7 +676,7 @@ mod tests {
         index: 0xFFFFFFFF,
       }),
       inscription_number: Some(10),
-      op: brc30::BRC30OperationType::Deploy.into(),
+      op: brc30::OperationType::Deploy.into(),
       old_satpoint: Some(
         SatPoint::from_str(
           "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",

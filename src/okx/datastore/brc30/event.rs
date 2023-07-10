@@ -5,7 +5,7 @@ use crate::{InscriptionId, SatPoint};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub enum BRC30OperationType {
+pub enum OperationType {
   Deploy,
   Mint,
   Stake,
@@ -21,7 +21,7 @@ pub struct BRC30Receipt {
   pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
-  pub op: BRC30OperationType,
+  pub op: OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
   pub result: Result<Vec<BRC30Event>, BRC30Error>,
@@ -120,7 +120,7 @@ mod tests {
         outpoint: Default::default(),
         offset: 0,
       },
-      op: BRC30OperationType::Deploy,
+      op: OperationType::Deploy,
       from: ScriptKey::Address(addr.clone()),
       to: ScriptKey::Address(addr.clone()),
       result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),

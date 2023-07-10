@@ -338,7 +338,7 @@ mod tests {
   use super::*;
   use crate::okx::datastore::brc20::Tick;
   use crate::okx::datastore::brc30::{
-    BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30OperationType,
+    BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, OperationType,
   };
   use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
   use crate::okx::protocol::brc30::BRC30Error;
@@ -878,7 +878,7 @@ mod tests {
           outpoint: Default::default(),
           offset: 0,
         },
-        op: BRC30OperationType::Transfer,
+        op: OperationType::Transfer,
         from: ScriptKey::Address(addr.clone()),
         to: ScriptKey::Address(addr.clone()),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
@@ -894,7 +894,7 @@ mod tests {
           outpoint: Default::default(),
           offset: 0,
         },
-        op: BRC30OperationType::Transfer,
+        op: OperationType::Transfer,
         from: ScriptKey::Address(addr.clone()),
         to: ScriptKey::Address(addr.clone()),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
@@ -910,7 +910,7 @@ mod tests {
           outpoint: Default::default(),
           offset: 0,
         },
-        op: BRC30OperationType::Transfer,
+        op: OperationType::Transfer,
         from: ScriptKey::Address(addr.clone()),
         to: ScriptKey::Address(addr.clone()),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),

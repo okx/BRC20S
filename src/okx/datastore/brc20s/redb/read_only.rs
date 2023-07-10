@@ -91,7 +91,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
 impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
-  //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS
+  // TXID_TO_INSCRIPTION_RECEIPTS
   fn get_txid_to_inscription_receipts(
     &self,
     txid: &Txid,
@@ -107,7 +107,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.3 BRC30_TICKINFO
+  // BRC30_TICKINFO
   fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<TickInfo>, Self::Error> {
     Ok(
       self
@@ -141,7 +141,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     ));
   }
 
-  // 3.3.4 BRC30_PID_TO_POOLINFO
+  // BRC30_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     Ok(
       self
@@ -175,7 +175,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     ));
   }
 
-  // 3.3.5 BRC30_USER_STAKEINFO
+  // BRC30_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,
     script_key: &ScriptKey,
@@ -190,7 +190,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.6 BRC30_PID_TO_USERINFO
+  // BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(
     &self,
     script_key: &ScriptKey,
@@ -205,7 +205,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
+  // BRC30_STAKE_TICKID_TO_PID
   fn get_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,
@@ -220,7 +220,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.7 get_tickid_to_all_pid
+  // get_tickid_to_all_pid
   fn get_tickid_to_all_pid(&self, tick_id: &TickId) -> Result<Vec<Pid>, Self::Error> {
     let min = min_tickid_stake_key(tick_id);
     let max = max_tickid_stake_key(tick_id);
@@ -239,7 +239,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.7 get_stake_to_all_pid
+  // get_stake_to_all_pid
   fn get_stake_to_all_pid(&self, pledged: &PledgedTick) -> Result<Vec<Pid>, Self::Error> {
     Ok(
       self
@@ -256,7 +256,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.8 BRC30_BALANCE
+  // BRC30_BALANCE
   fn get_balance(
     &self,
     script_key: &ScriptKey,
@@ -293,7 +293,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.9 BRC30_TRANSFERABLE_ASSETS
+  // BRC30_TRANSFERABLE_ASSETS
   fn get_transferable_asset(
     &self,
     script_key: &ScriptKey,
@@ -351,7 +351,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // 3.3.10 BRC30_TXID_TO_RECEIPTS
+  // BRC30_TXID_TO_RECEIPTS
   fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     Ok(
       self

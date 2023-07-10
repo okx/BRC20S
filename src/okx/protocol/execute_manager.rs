@@ -88,7 +88,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                 }
               }
               Err(e) => {
-                log::error!("brc30 receipt failed: {e}");
+                log::error!("brc20s receipt failed: {e}");
               }
             }
           }
@@ -128,7 +128,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                   }
                 }
                 Err(e) => {
-                  log::error!("brc30 receipt failed:{}", e);
+                  log::error!("brc20s receipt failed:{}", e);
                 }
               }
             }

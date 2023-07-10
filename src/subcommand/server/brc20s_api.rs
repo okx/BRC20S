@@ -2,7 +2,7 @@ use super::{brc20s_types::*, error::ApiError, *};
 use crate::okx::datastore::brc20s::{self, PledgedTick, Receipt, TickId};
 use axum::Json;
 
-// 3.4.1 /brc30/tick
+// brc20s/tick
 pub(crate) async fn brc30_all_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Query(page): Query<Pagination>,
@@ -36,7 +36,7 @@ pub(crate) async fn brc30_all_tick_info(
   })))
 }
 
-// 3.4.2 /brc30/tick/:tickId
+// brc20s/tick/:tickId
 pub(crate) async fn brc30_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
@@ -82,7 +82,7 @@ pub(crate) async fn brc30_tick_info(
   Ok(Json(ApiResponse::ok(brc30_tick)))
 }
 
-// 3.4.2 /brc30/tick/:tickId
+// /brc20s/tick/:tickId
 pub(crate) async fn brc30_debug_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
@@ -109,7 +109,7 @@ pub(crate) async fn brc30_debug_tick_info(
   Ok(Json(ApiResponse::ok(tick_info)))
 }
 
-// brc30/pool
+// brc20s/pool
 pub(crate) async fn brc30_all_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Query(page): Query<Pagination>,
@@ -156,7 +156,7 @@ pub(crate) async fn brc30_all_pool_info(
   })))
 }
 
-// 3.4.4 /brc30/pool/:pid
+// brc20s/pool/:pid
 pub(crate) async fn brc30_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Path(pid): Path<String>,
@@ -256,7 +256,7 @@ pub(crate) async fn brc30_debug_stake_info(
   Ok(Json(ApiResponse::ok(stake_info)))
 }
 
-// 3.4.5 /brc30/pool/:pid/address/:address/userinfo
+// brc20s/pool/:pid/address/:address/userinfo
 pub(crate) async fn brc30_userinfo(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
@@ -315,7 +315,7 @@ pub(crate) async fn brc30_user_pending_reward(
   })))
 }
 
-// 3.4.5 /brc30/debug/pool/:pid/address/:address/userinfo
+// brc20s/debug/pool/:pid/address/:address/userinfo
 pub(crate) async fn brc30_debug_userinfo(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
@@ -346,7 +346,7 @@ pub(crate) async fn brc30_debug_userinfo(
   Ok(Json(ApiResponse::ok(user_info)))
 }
 
-// 3.4.6 /brc30/debug/tick/:tickId/address/:address/balance
+// brc20s/debug/tick/:tickId/address/:address/balance
 pub(crate) async fn brc30_debug_balance(
   Extension(index): Extension<Arc<Index>>,
   Path((tick_id, address)): Path<(String, String)>,
@@ -380,7 +380,7 @@ pub(crate) async fn brc30_debug_balance(
   Ok(Json(ApiResponse::ok(balance)))
 }
 
-// 3.4.6 /brc30/tick/:tickId/address/:address/balance
+// brc20s/tick/:tickId/address/:address/balance
 pub(crate) async fn brc30_balance(
   Extension(index): Extension<Arc<Index>>,
   Path((tick_id, address)): Path<(String, String)>,
@@ -427,7 +427,7 @@ pub(crate) async fn brc30_balance(
   Ok(Json(ApiResponse::ok(balance_result)))
 }
 
-// 3.4.7 /brc30/address/:address/balance
+// brc20s/address/:address/balance
 pub(crate) async fn brc30_all_balance(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
@@ -465,7 +465,7 @@ pub(crate) async fn brc30_all_balance(
   })))
 }
 
-// 3.4.8 /brc30/tick/:tickId/address/:address/transferable
+// brc20s/tick/:tickId/address/:address/transferable
 pub(crate) async fn brc30_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path((tick_id, address)): Path<(String, String)>,
@@ -519,7 +519,7 @@ pub(crate) async fn brc30_transferable(
   })))
 }
 
-// 3.4.9 /brc30/address/:address/transferable
+// brc20s/address/:address/transferable
 pub(crate) async fn brc30_all_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
@@ -558,7 +558,7 @@ pub(crate) async fn brc30_all_transferable(
   })))
 }
 
-// 3.4.10 /brc30/tx/:txid/receipts
+// brc20s/tx/:txid/receipts
 pub(crate) async fn brc30_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
@@ -588,7 +588,7 @@ pub(crate) async fn brc30_txid_receipts(
   })))
 }
 
-//  /brc30/debug/tx/:txid/receipts
+// brc20s/debug/tx/:txid/receipts
 pub(crate) async fn brc30_debug_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
@@ -603,7 +603,7 @@ pub(crate) async fn brc30_debug_txid_receipts(
   Ok(Json(ApiResponse::ok(all_receipt)))
 }
 
-// 3.4.11 /brc30/block/:blockhash/receipts
+// brc20s/block/:blockhash/receipts
 pub(crate) async fn brc30_block_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,
@@ -644,7 +644,7 @@ pub(crate) async fn brc30_block_receipts(
   })))
 }
 
-// 3.4.12 /brc20s/stake/:address/:tick?tick_type=0
+// brc20s/stake/:address/:tick?tick_type=0
 pub(crate) async fn brc30_stake_info(
   Extension(index): Extension<Arc<Index>>,
   Path((address, tick)): Path<(String, String)>,

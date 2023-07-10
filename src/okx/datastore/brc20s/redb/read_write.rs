@@ -22,7 +22,7 @@ impl<'db, 'a> BRC30DataStore<'db, 'a> {
 impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   type Error = redb::Error;
 
-  //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS
+  // TXID_TO_INSCRIPTION_RECEIPTS
   fn get_txid_to_inscription_receipts(
     &self,
     txid: &Txid,
@@ -30,7 +30,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_txid_to_inscription_receipts(txid)
   }
 
-  // 3.3.3 BRC30_TICKINFO
+  // BRC30_TICKINFO
   fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<TickInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_tick_info(tick_id)
   }
@@ -43,7 +43,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_all_tick_info(start, limit)
   }
 
-  // 3.3.4 BRC30_PID_TO_POOLINFO
+  // BRC30_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_pid_to_poolinfo(pid)
   }
@@ -56,7 +56,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_all_poolinfo(start, limit)
   }
 
-  // 3.3.5 BRC30_USER_STAKEINFO
+  // BRC30_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,
     script_key: &ScriptKey,
@@ -65,7 +65,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_user_stakeinfo(script_key, pledged_tick)
   }
 
-  // 3.3.6 BRC30_PID_TO_USERINFO
+  // BRC30_PID_TO_USERINFO
   fn get_pid_to_use_info(
     &self,
     script_key: &ScriptKey,
@@ -74,7 +74,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_pid_to_use_info(script_key, pid)
   }
 
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID
+  // BRC30_STAKE_TICKID_TO_PID
   fn get_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,
@@ -83,17 +83,17 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_tickid_stake_to_pid(tick_id, pledged)
   }
 
-  // 3.3.7 get_tickid_to_all_pid
+  // get_tickid_to_all_pid
   fn get_tickid_to_all_pid(&self, tick_id: &TickId) -> Result<Vec<Pid>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_tickid_to_all_pid(tick_id)
   }
 
-  // 3.3.7 get_stake_to_all_pid
+  // get_stake_to_all_pid
   fn get_stake_to_all_pid(&self, pledged: &PledgedTick) -> Result<Vec<Pid>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_stake_to_all_pid(pledged)
   }
 
-  // 3.3.8 BRC30_BALANCE
+  // BRC30_BALANCE
   fn get_balance(
     &self,
     script_key: &ScriptKey,
@@ -106,7 +106,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_balances(script_key)
   }
 
-  // 3.3.9 BRC30_TRANSFERABLE_ASSETS
+  // BRC30_TRANSFERABLE_ASSETS
   fn get_transferable_asset(
     &self,
     script_key: &ScriptKey,
@@ -136,7 +136,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_transferable_by_id(script, inscription_id)
   }
 
-  // 3.3.10 BRC30_TXID_TO_RECEIPTS
+  // BRC30_TXID_TO_RECEIPTS
   fn get_txid_to_receipts(&self, tx_id: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_txid_to_receipts(tx_id)
   }
@@ -154,7 +154,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
 }
 
 impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
-  //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS
+  // TXID_TO_INSCRIPTION_RECEIPTS
   fn set_txid_to_inscription_receipts(
     &self,
     tx_id: &Txid,
@@ -169,7 +169,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.3 BRC30_TICKINFO
+  // BRC30_TICKINFO
   fn set_tick_info(&self, tick_id: &TickId, brc30_tick_info: &TickInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TICKINFO)?.insert(
       tick_id.to_lowercase().hex().as_str(),
@@ -178,7 +178,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.4 BRC30_PID_TO_POOLINFO
+  // BRC30_PID_TO_POOLINFO
   fn set_pid_to_poolinfo(&self, pid: &Pid, brc30_pool_info: &PoolInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_PID_TO_POOLINFO)?.insert(
       pid.to_lowercase().hex().as_str(),
@@ -187,7 +187,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.5 BRC30_USER_STAKEINFO
+  // BRC30_USER_STAKEINFO
   fn set_user_stakeinfo(
     &self,
     script_key: &ScriptKey,
@@ -201,7 +201,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.6 BRC30_PID_TO_USERINFO
+  // BRC30_PID_TO_USERINFO
   fn set_pid_to_use_info(
     &self,
     script_key: &ScriptKey,
@@ -215,7 +215,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.7 BRC30_STAKE_TICKID_TO_PID, BRC30_TICKID_STAKE_TO_PID
+  // BRC30_STAKE_TICKID_TO_PID, BRC30_TICKID_STAKE_TO_PID
   fn set_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,
@@ -234,7 +234,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.8 BRC30_BALANCE
+  // BRC30_BALANCE
   fn set_token_balance(
     &self,
     script_key: &ScriptKey,
@@ -248,7 +248,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.9 BRC30_TRANSFERABLE_ASSETS
+  // BRC30_TRANSFERABLE_ASSETS
   fn set_transferable_assets(
     &self,
     script_key: &ScriptKey,
@@ -263,7 +263,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
     Ok(())
   }
 
-  // 3.3.10 BRC30_TXID_TO_RECEIPTS
+  // BRC30_TXID_TO_RECEIPTS
   fn add_transaction_receipt(&self, tx_id: &Txid, receipt: &Receipt) -> Result<(), Self::Error> {
     let mut receipts = self.get_transaction_receipts(tx_id)?;
     receipts.push(receipt.clone());

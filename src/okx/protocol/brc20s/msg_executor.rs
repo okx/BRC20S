@@ -4440,7 +4440,7 @@ mod tests {
         result
       );
 
-      //brc30 stake can not deploy
+      //brc20s stake can not deploy
       let brc30_tick = tikc_id_str.as_str();
       let (deploy, msg) = mock_deploy_msg(
         "pool", "02", brc30_tick, "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,

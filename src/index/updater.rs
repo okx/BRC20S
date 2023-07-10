@@ -597,7 +597,7 @@ impl Updater {
 
     std::mem::drop(inscription_id_to_inscription_entry);
     std::mem::drop(outpoint_to_entry);
-    // Create a protocol manager to index the block of brc20, brc30 data.
+    // Create a protocol manager to index the block of brc20, brc20s data.
     ProtocolManager::new(
       &index.client,
       &OrdDbReadWriter::new(wtx),

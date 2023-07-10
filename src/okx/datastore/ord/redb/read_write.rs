@@ -35,7 +35,7 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
 }
 
 impl<'db, 'a> OrdDataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
-  // 3.3.1 OUTPOINT_TO_SCRIPT
+  // OUTPOINT_TO_SCRIPT
 
   fn set_outpoint_to_txout(&self, outpoint: OutPoint, tx_out: &TxOut) -> Result<(), Self::Error> {
     let mut value = [0; 36];

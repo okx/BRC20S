@@ -5,7 +5,7 @@ use crate::okx::datastore::brc20s::DataStoreReadOnly;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: DataStoreReadOnly> {
-  #[error("brc30 error: {0}")]
+  #[error("brc20s error: {0}")]
   BRC30Error(BRC30Error),
 
   #[error("ledger error: {0}")]
@@ -26,7 +26,7 @@ pub enum JSONError {
   #[error("invalid json string")]
   InvalidJson,
 
-  #[error("not brc30 json")]
+  #[error("not brc20s json")]
   NotBRC30Json,
 
   #[error("parse operation json error: {0}")]

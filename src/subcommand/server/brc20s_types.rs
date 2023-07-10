@@ -349,32 +349,34 @@ impl BRC30Receipt {
       let mut receipt_events = Vec::new();
       for event in events.into_iter() {
         receipt_events.push(match event {
-          brc20s::BRC30Event::DeployTick(deploy_tick) => {
+          brc20s::Event::DeployTick(deploy_tick) => {
             BRC30Event::DeployTick(DeployTickEvent::new(deploy_tick, receipt.to.clone().into()))
           }
-          brc20s::BRC30Event::DeployPool(deploy_pool) => BRC30Event::DeployPool(
-            DeployPoolEvent::new(deploy_pool, receipt.to.clone().into(), index.clone())?,
-          ),
-          brc20s::BRC30Event::Deposit(deposit) => {
+          brc20s::Event::DeployPool(deploy_pool) => BRC30Event::DeployPool(DeployPoolEvent::new(
+            deploy_pool,
+            receipt.to.clone().into(),
+            index.clone(),
+          )?),
+          brc20s::Event::Deposit(deposit) => {
             BRC30Event::Deposit(DepositEvent::new(deposit, receipt.to.clone().into()))
           }
-          brc20s::BRC30Event::Withdraw(withdraw) => {
+          brc20s::Event::Withdraw(withdraw) => {
             BRC30Event::Withdraw(WithdrawEvent::new(withdraw, receipt.to.clone().into()))
           }
-          brc20s::BRC30Event::PassiveWithdraw(passive_withdraw) => BRC30Event::PassiveWithdraw(
+          brc20s::Event::PassiveWithdraw(passive_withdraw) => BRC30Event::PassiveWithdraw(
             PassiveWithdrawEvent::new(passive_withdraw, receipt.from.clone().into()),
           ),
-          brc20s::BRC30Event::Mint(mint) => {
+          brc20s::Event::Mint(mint) => {
             BRC30Event::Mint(MintEvent::new(mint, receipt.to.clone().into()))
           }
-          brc20s::BRC30Event::InscribeTransfer(inscribe_transfer) => {
+          brc20s::Event::InscribeTransfer(inscribe_transfer) => {
             BRC30Event::InscribeTransfer(InscribeTransferEvent::new(
               inscribe_transfer,
               receipt.to.clone().into(),
               index.clone(),
             )?)
           }
-          brc20s::BRC30Event::Transfer(transfer) => BRC30Event::Transfer(TransferEvent::new(
+          brc20s::Event::Transfer(transfer) => BRC30Event::Transfer(TransferEvent::new(
             transfer,
             receipt.from.clone().into(),
             receipt.to.clone().into(),

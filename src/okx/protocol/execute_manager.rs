@@ -1,7 +1,7 @@
 use super::*;
 use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20::BRC20Event;
-use crate::okx::datastore::brc20s::{BRC30Event, PledgedTick};
+use crate::okx::datastore::brc20s::{Event, PledgedTick};
 use crate::okx::datastore::DataStoreReadWrite;
 use crate::okx::protocol::brc20::{BRC20ExecutionMessage, BRC20Message};
 use crate::okx::protocol::brc20s::operation::BRC30Operation;
@@ -100,7 +100,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
         match brc20s_receipt.result {
           Ok(events) => {
             let mut events = events.into_iter();
-            while let Some(BRC30Event::Transfer(brc20s_transfer)) = events.next() {
+            while let Some(Event::Transfer(brc20s_transfer)) = events.next() {
               let ptick = PledgedTick::BRC20STick(brc20s_transfer.tick_id.clone());
               match convert_pledged_tick_without_decimal(
                 &ptick,

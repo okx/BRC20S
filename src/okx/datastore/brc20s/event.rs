@@ -24,11 +24,11 @@ pub struct Receipt {
   pub op: OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
-  pub result: Result<Vec<BRC30Event>, BRC30Error>,
+  pub result: Result<Vec<Event>, BRC30Error>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub enum BRC30Event {
+pub enum Event {
   DeployTick(DeployTickEvent),
   DeployPool(DeployPoolEvent),
   Deposit(DepositEvent),

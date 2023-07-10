@@ -194,7 +194,7 @@ mod tests {
         r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##
       )
         .unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
         pool_id: "a3668daeaa#1f".to_string(),
         stake: "btc".to_string(),
@@ -223,7 +223,7 @@ mod tests {
     assert_eq!(
       deserialize_brc20s(r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000"}"##)
         .unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
         pool_id: "a3668daeaa#1f".to_string(),
         stake: "btc".to_string(),
@@ -240,7 +240,7 @@ mod tests {
     assert_eq!(
       deserialize_brc20s(r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","only":"1"}"##)
         .unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
         pool_id: "a3668daeaa#1f".to_string(),
         stake: "btc".to_string(),
@@ -256,7 +256,7 @@ mod tests {
     // loss all option
     assert_eq!(
       deserialize_brc20s(r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","total":"21000000","only":"1"}"##).unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
         pool_id: "a3668daeaa#1f".to_string(),
         stake: "btc".to_string(),
@@ -275,7 +275,7 @@ mod tests {
     let json_str = r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","dec":"20","total":"21000000","only":"1"}"##;
     assert_eq!(
       deserialize_brc20s(json_str).unwrap(),
-      Operation::Deploy(Deploy {
+      RawOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
         pool_id: "a3668daeaa#1f".to_string(),
         stake: "btc".to_string(),

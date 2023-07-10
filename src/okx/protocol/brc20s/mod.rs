@@ -1,5 +1,5 @@
 use crate::inscription_id::InscriptionId;
-use crate::okx::protocol::brc20s::operation::OperationStep;
+use crate::okx::protocol::brc20s::operation::Operation;
 use crate::SatPoint;
 use bitcoin::Txid;
 
@@ -18,9 +18,9 @@ mod vesion;
 
 pub use self::{
   error::{BRC20SError, Error},
-  msg_executor::{execute, ExecutionMessage},
+  msg_executor::{execute, BRC20SExecutionMessage},
   num::Num,
-  operation::{Deploy, Mint, Operation, PassiveUnStake, Stake, Transfer, UnStake},
+  operation::{Deploy, Mint, PassiveUnStake, RawOperation, Stake, Transfer, UnStake},
 };
 pub(crate) use self::{msg_resolver::resolve_message, operation::deserialize_brc20s_operation};
 
@@ -31,5 +31,5 @@ pub struct BRC20SMessage {
   pub commit_input_satpoint: Option<SatPoint>,
   pub old_satpoint: SatPoint,
   pub new_satpoint: Option<SatPoint>,
-  pub op: OperationStep,
+  pub op: Operation,
 }

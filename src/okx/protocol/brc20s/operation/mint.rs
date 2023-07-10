@@ -91,7 +91,7 @@ mod tests {
 
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
-      Operation::Mint(Mint {
+      RawOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "tid".to_string(),
         amount: "amt".to_string(),
@@ -131,7 +131,7 @@ mod tests {
     );
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
-      Operation::Mint(Mint {
+      RawOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "pid-2".to_string(),
         amount: "amt".to_string(),

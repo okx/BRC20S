@@ -56,7 +56,7 @@ mod tests {
 
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
-      Operation::Transfer(Transfer {
+      RawOperation::Transfer(Transfer {
         tick: "tick".to_string(),
         tick_id: "tid".to_string(),
         amount: "amt".to_string(),
@@ -97,7 +97,7 @@ mod tests {
     );
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
-      Operation::Transfer(Transfer {
+      RawOperation::Transfer(Transfer {
         tick: "tick-2".to_string(),
         tick_id: "tid".to_string(),
         amount: "amt".to_string(),

@@ -68,7 +68,7 @@ mod tests {
 
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
-      Operation::Stake(Stake {
+      RawOperation::Stake(Stake {
         pool_id: "pid".to_string(),
         amount: "amt".to_string(),
       })
@@ -106,7 +106,7 @@ mod tests {
     );
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
-      Operation::Stake(Stake {
+      RawOperation::Stake(Stake {
         pool_id: "pid-2".to_string(),
         amount: "amt".to_string(),
       })

@@ -12,3 +12,5 @@
 /tmp
 .vscode
 dev/data
+dev/_cache
+.env

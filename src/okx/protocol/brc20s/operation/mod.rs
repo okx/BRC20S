@@ -20,7 +20,7 @@ pub use self::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum BRC30Operation {
+pub enum BRC20SOperation {
   Deploy(Deploy),
   Mint(Mint),
   Stake(Stake),
@@ -30,16 +30,16 @@ pub enum BRC30Operation {
   Transfer(Transfer),
 }
 
-impl BRC30Operation {
+impl BRC20SOperation {
   pub fn op_type(&self) -> OperationType {
     match self {
-      BRC30Operation::Deploy(_) => OperationType::Deploy,
-      BRC30Operation::Mint(_) => OperationType::Mint,
-      BRC30Operation::Stake(_) => OperationType::Stake,
-      BRC30Operation::UnStake(_) => OperationType::UnStake,
-      BRC30Operation::PassiveUnStake(_) => OperationType::PassiveUnStake,
-      BRC30Operation::InscribeTransfer(_) => OperationType::InscribeTransfer,
-      BRC30Operation::Transfer(_) => OperationType::Transfer,
+      BRC20SOperation::Deploy(_) => OperationType::Deploy,
+      BRC20SOperation::Mint(_) => OperationType::Mint,
+      BRC20SOperation::Stake(_) => OperationType::Stake,
+      BRC20SOperation::UnStake(_) => OperationType::UnStake,
+      BRC20SOperation::PassiveUnStake(_) => OperationType::PassiveUnStake,
+      BRC20SOperation::InscribeTransfer(_) => OperationType::InscribeTransfer,
+      BRC20SOperation::Transfer(_) => OperationType::Transfer,
     }
   }
 }
@@ -69,7 +69,7 @@ pub enum Operation {
 pub(crate) fn deserialize_brc20s_operation(
   inscription: &Inscription,
   action: &Action,
-) -> Result<BRC30Operation> {
+) -> Result<BRC20SOperation> {
   let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
   if content_body.len() < 40 {
     return Err(JSONError::NotBRC30Json.into());
@@ -98,15 +98,15 @@ pub(crate) fn deserialize_brc20s_operation(
 
   match action {
     Action::New { .. } => match raw_operation {
-      Operation::Deploy(deploy) => Ok(BRC30Operation::Deploy(deploy)),
-      Operation::Stake(stake) => Ok(BRC30Operation::Stake(stake)),
-      Operation::UnStake(unstake) => Ok(BRC30Operation::UnStake(unstake)),
-      Operation::Mint(mint) => Ok(BRC30Operation::Mint(mint)),
-      Operation::Transfer(transfer) => Ok(BRC30Operation::InscribeTransfer(transfer)),
+      Operation::Deploy(deploy) => Ok(BRC20SOperation::Deploy(deploy)),
+      Operation::Stake(stake) => Ok(BRC20SOperation::Stake(stake)),
+      Operation::UnStake(unstake) => Ok(BRC20SOperation::UnStake(unstake)),
+      Operation::Mint(mint) => Ok(BRC20SOperation::Mint(mint)),
+      Operation::Transfer(transfer) => Ok(BRC20SOperation::InscribeTransfer(transfer)),
       Operation::PassiveUnStake(_) => Err(JSONError::NotBRC30Json.into()),
     },
     Action::Transfer => match raw_operation {
-      Operation::Transfer(transfer) => Ok(BRC30Operation::Transfer(transfer)),
+      Operation::Transfer(transfer) => Ok(BRC20SOperation::Transfer(transfer)),
       _ => Err(JSONError::NotBRC30Json.into()),
     },
   }
@@ -346,7 +346,7 @@ mod tests {
         &Action::New{cursed:false,unbound:false},
       )
       .unwrap(),
-      BRC30Operation::Deploy(Deploy {
+      BRC20SOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
         pool_id: "a3668daeaa#1f".to_string(),
         stake: "btc".to_string(),
@@ -375,7 +375,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC30Operation::Stake(Stake {
+      BRC20SOperation::Stake(Stake {
         pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
       })
@@ -397,7 +397,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC30Operation::Mint(Mint {
+      BRC20SOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
@@ -420,7 +420,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC30Operation::UnStake(UnStake {
+      BRC20SOperation::UnStake(UnStake {
         pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
       })
@@ -465,7 +465,7 @@ mod tests {
         &Action::Transfer,
       )
       .unwrap(),
-      BRC30Operation::Transfer(Transfer {
+      BRC20SOperation::Transfer(Transfer {
         tick_id: "tick_id".to_string(),
         tick: "abcd".to_string(),
         amount: "12000".to_string()

@@ -16,7 +16,7 @@ use crate::okx::{
   protocol::{
     brc20s::{
       hash::caculate_tick_id,
-      operation::BRC30Operation,
+      operation::BRC20SOperation,
       params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
       vesion::{enable_version_by_key, Version, VERSION_KEY_ENABLE_SHARE},
       BRC20SError, BRC20SMessage, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer,
@@ -45,7 +45,7 @@ pub struct BRC30ExecutionMessage {
   pub(crate) commit_from: Option<ScriptKey>,
   pub(crate) from: ScriptKey,
   pub(crate) to: Option<ScriptKey>,
-  pub(crate) op: BRC30Operation,
+  pub(crate) op: BRC20SOperation,
   pub(crate) version: HashMap<String, Version>,
 }
 
@@ -112,17 +112,17 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   log::debug!("BRC20S execute message: {:?}", msg);
   let mut is_save_receipt = true;
   let event = match &msg.op {
-    BRC30Operation::Deploy(deploy) => {
+    BRC20SOperation::Deploy(deploy) => {
       process_deploy(context, brc20_store, brc20s_store, msg, deploy.clone())
     }
-    BRC30Operation::Stake(stake) => {
+    BRC20SOperation::Stake(stake) => {
       process_stake(context, brc20_store, brc20s_store, msg, stake.clone()).map(|event| vec![event])
     }
-    BRC30Operation::UnStake(unstake) => {
+    BRC20SOperation::UnStake(unstake) => {
       process_unstake(context, brc20_store, brc20s_store, msg, unstake.clone())
         .map(|event| vec![event])
     }
-    BRC30Operation::PassiveUnStake(passive_unstake) => {
+    BRC20SOperation::PassiveUnStake(passive_unstake) => {
       let events = process_passive_unstake(
         context,
         brc20_store,
@@ -143,14 +143,14 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
       };
       events
     }
-    BRC30Operation::Mint(mint) => {
+    BRC20SOperation::Mint(mint) => {
       process_mint(context, brc20_store, brc20s_store, msg, mint.clone()).map(|event| vec![event])
     }
-    BRC30Operation::InscribeTransfer(transfer) => {
+    BRC20SOperation::InscribeTransfer(transfer) => {
       process_inscribe_transfer(context, brc20_store, brc20s_store, msg, transfer.clone())
         .map(|event| vec![event])
     }
-    BRC30Operation::Transfer(_) => {
+    BRC20SOperation::Transfer(_) => {
       process_transfer(context, brc20_store, brc20s_store, msg).map(|event| vec![event])
     }
   };
@@ -694,7 +694,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite
       pid.to_lowercase().as_str(),
       withdraw_stake.to_string().as_str(),
     );
-    passive_msg.op = BRC30Operation::UnStake(stake_msg.clone());
+    passive_msg.op = BRC20SOperation::UnStake(stake_msg.clone());
     process_unstake(context, brc20_store, brc20s_store, &passive_msg, stake_msg)?;
     events.push(Event::PassiveWithdraw(PassiveWithdrawEvent {
       pid: pid.clone(),
@@ -1036,38 +1036,38 @@ mod tests {
       network: Network::Bitcoin,
     };
     let result = match msg.clone().op {
-      BRC30Operation::Deploy(deploy) => {
+      BRC20SOperation::Deploy(deploy) => {
         process_deploy(context, brc20_store, brc20s_store, msg, deploy)
       }
-      BRC30Operation::Mint(mint) => {
+      BRC20SOperation::Mint(mint) => {
         match process_mint(context, brc20_store, brc20s_store, msg, mint) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
-      BRC30Operation::Stake(stake) => {
+      BRC20SOperation::Stake(stake) => {
         match process_stake(context, brc20_store, brc20s_store, msg, stake) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
-      BRC30Operation::UnStake(unstake) => {
+      BRC20SOperation::UnStake(unstake) => {
         match process_unstake(context, brc20_store, brc20s_store, msg, unstake) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
-      BRC30Operation::PassiveUnStake(passive_unstake) => {
+      BRC20SOperation::PassiveUnStake(passive_unstake) => {
         process_passive_unstake(context, brc20_store, brc20s_store, msg, passive_unstake)
       }
-      BRC30Operation::InscribeTransfer(inscribe_transfer) => {
+      BRC20SOperation::InscribeTransfer(inscribe_transfer) => {
         match process_inscribe_transfer(context, brc20_store, brc20s_store, msg, inscribe_transfer)
         {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
-      BRC30Operation::Transfer(_) => {
+      BRC20SOperation::Transfer(_) => {
         match process_transfer(context, brc20_store, brc20s_store, msg) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
@@ -1193,7 +1193,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
@@ -1240,7 +1240,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
       blockheight: 10,
@@ -1290,7 +1290,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(second_deply.clone()),
+      BRC20SOperation::Deploy(second_deply.clone()),
     );
     let context = BlockContext {
       blockheight: 20,
@@ -1356,7 +1356,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     let result = set_brc20_token_user(&brc20_data_store, "abc1", &msg.from, 200_u128, 18_u8).err();
@@ -1455,7 +1455,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(deploy.clone()),
+        BRC20SOperation::Deploy(deploy.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1490,7 +1490,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1535,7 +1535,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1581,7 +1581,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1619,7 +1619,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1656,7 +1656,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1694,7 +1694,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -1740,7 +1740,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
       msg.to = None;
       let context = BlockContext {
@@ -1776,7 +1776,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
 
       msg.commit_from = None;
@@ -1818,7 +1818,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
 
       msg.version = HashMap::new();
@@ -1855,7 +1855,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
 
       let result = process_deploy(
@@ -1890,7 +1890,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deploy.clone()),
+        BRC20SOperation::Deploy(second_deploy.clone()),
       );
 
       let result = process_deploy(
@@ -1947,7 +1947,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deply.clone()),
+        BRC20SOperation::Deploy(second_deply.clone()),
       );
       let result =
         set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
@@ -1983,7 +1983,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deply.clone()),
+        BRC20SOperation::Deploy(second_deply.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2015,7 +2015,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deply.clone()),
+        BRC20SOperation::Deploy(second_deply.clone()),
       );
       msg.from = ScriptKey::Address(
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
@@ -2052,7 +2052,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(second_deply.clone()),
+        BRC20SOperation::Deploy(second_deply.clone()),
       );
       msg.to = Some(ScriptKey::Address(
         Address::from_str("bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv")
@@ -2091,7 +2091,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pool_type.clone()),
+        BRC20SOperation::Deploy(err_pool_type.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2123,7 +2123,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pid.clone()),
+        BRC20SOperation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2157,7 +2157,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pid.clone()),
+        BRC20SOperation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2191,7 +2191,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pid.clone()),
+        BRC20SOperation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2226,7 +2226,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pid.clone()),
+        BRC20SOperation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2260,7 +2260,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pid.clone()),
+        BRC20SOperation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2294,7 +2294,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pid.clone()),
+        BRC20SOperation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2328,7 +2328,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pid.clone()),
+        BRC20SOperation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2362,7 +2362,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_pid.clone()),
+        BRC20SOperation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2399,7 +2399,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_stake.clone()),
+        BRC20SOperation::Deploy(err_stake.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2427,7 +2427,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_stake.clone()),
+        BRC20SOperation::Deploy(err_stake.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2455,7 +2455,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_stake.clone()),
+        BRC20SOperation::Deploy(err_stake.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2483,7 +2483,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_earn.clone()),
+        BRC20SOperation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2514,7 +2514,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_earn.clone()),
+        BRC20SOperation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2545,7 +2545,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_earn.clone()),
+        BRC20SOperation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2576,7 +2576,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_earn.clone()),
+        BRC20SOperation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2607,7 +2607,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_earn.clone()),
+        BRC20SOperation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2643,7 +2643,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_erate.clone()),
+        BRC20SOperation::Deploy(err_erate.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2671,7 +2671,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_erate.clone()),
+        BRC20SOperation::Deploy(err_erate.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2702,7 +2702,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_dmax.clone()),
+        BRC20SOperation::Deploy(err_dmax.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2730,7 +2730,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_dmax.clone()),
+        BRC20SOperation::Deploy(err_dmax.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2758,7 +2758,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_dmax.clone()),
+        BRC20SOperation::Deploy(err_dmax.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2795,7 +2795,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_total.clone()),
+        BRC20SOperation::Deploy(err_total.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2823,7 +2823,7 @@ mod tests {
       let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(err_dmax.clone()),
+        BRC20SOperation::Deploy(err_dmax.clone()),
       );
       let context = BlockContext {
         blockheight: 0,
@@ -2904,7 +2904,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
       blockheight: 10,
@@ -2955,7 +2955,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC20SOperation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 20,
@@ -3009,7 +3009,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Stake(stake_msg.clone()),
+        BRC20SOperation::Stake(stake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 30,
@@ -3078,7 +3078,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Stake(stake_msg.clone()),
+        BRC20SOperation::Stake(stake_msg.clone()),
       );
       msg.to = None;
 
@@ -3115,7 +3115,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Stake(stake_msg.clone()),
+        BRC20SOperation::Stake(stake_msg.clone()),
       );
 
       let context = BlockContext {
@@ -3151,7 +3151,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Stake(stake_msg.clone()),
+        BRC20SOperation::Stake(stake_msg.clone()),
       );
       msg.commit_from = None;
 
@@ -3188,7 +3188,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Stake(stake_msg.clone()),
+        BRC20SOperation::Stake(stake_msg.clone()),
       );
 
       let context = BlockContext {
@@ -3220,7 +3220,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Stake(stake_msg.clone()),
+        BRC20SOperation::Stake(stake_msg.clone()),
       );
 
       let context = BlockContext {
@@ -3295,11 +3295,11 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Deploy(deploy.clone()),
+        BRC20SOperation::Deploy(deploy.clone()),
       );
       deploy.pool_id = "e3f8d0e378#01".to_string();
       deploy.decimals = Some("8".to_string());
-      msg.op = BRC30Operation::Deploy(deploy.clone());
+      msg.op = BRC20SOperation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
         &brc20_data_store,
@@ -3309,7 +3309,7 @@ mod tests {
       );
       deploy.pool_id = "136bb1d966#01".to_string();
       deploy.decimals = Some("9".to_string());
-      msg.op = BRC30Operation::Deploy(deploy.clone());
+      msg.op = BRC20SOperation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
         &brc20_data_store,
@@ -3319,7 +3319,7 @@ mod tests {
       );
       deploy.pool_id = "6af92d18d6#01".to_string();
       deploy.decimals = Some("10".to_string());
-      msg.op = BRC30Operation::Deploy(deploy.clone());
+      msg.op = BRC20SOperation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
         &brc20_data_store,
@@ -3329,7 +3329,7 @@ mod tests {
       );
       deploy.pool_id = "d9fc11764c#01".to_string();
       deploy.decimals = Some("11".to_string());
-      msg.op = BRC30Operation::Deploy(deploy.clone());
+      msg.op = BRC20SOperation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
         &brc20_data_store,
@@ -3340,7 +3340,7 @@ mod tests {
 
       deploy.pool_id = "fa48a823af#01".to_string();
       deploy.decimals = Some("12".to_string());
-      msg.op = BRC30Operation::Deploy(deploy.clone());
+      msg.op = BRC20SOperation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
         &brc20_data_store,
@@ -3359,7 +3359,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::Stake(stake_msg.clone()),
+        BRC20SOperation::Stake(stake_msg.clone()),
       );
 
       let context = BlockContext {
@@ -3376,7 +3376,7 @@ mod tests {
       );
 
       stake_msg.pool_id = "e3f8d0e378#01".to_string();
-      msg.op = BRC30Operation::Stake(stake_msg.clone());
+      msg.op = BRC20SOperation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
         &brc20_data_store,
@@ -3386,7 +3386,7 @@ mod tests {
       );
 
       stake_msg.pool_id = "136bb1d966#01".to_string();
-      msg.op = BRC30Operation::Stake(stake_msg.clone());
+      msg.op = BRC20SOperation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
         &brc20_data_store,
@@ -3396,7 +3396,7 @@ mod tests {
       );
 
       stake_msg.pool_id = "6af92d18d6#01".to_string();
-      msg.op = BRC30Operation::Stake(stake_msg.clone());
+      msg.op = BRC20SOperation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
         &brc20_data_store,
@@ -3406,7 +3406,7 @@ mod tests {
       );
 
       stake_msg.pool_id = "d9fc11764c#01".to_string();
-      msg.op = BRC30Operation::Stake(stake_msg.clone());
+      msg.op = BRC20SOperation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
         &brc20_data_store,
@@ -3416,7 +3416,7 @@ mod tests {
       );
 
       stake_msg.pool_id = "fa48a823af#01".to_string();
-      msg.op = BRC30Operation::Stake(stake_msg.clone());
+      msg.op = BRC20SOperation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
         &brc20_data_store,
@@ -3496,7 +3496,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
       blockheight: 10,
@@ -3547,7 +3547,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC20SOperation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 20,
@@ -3601,7 +3601,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::UnStake(unstake_msg.clone()),
+        BRC20SOperation::UnStake(unstake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 30,
@@ -3717,7 +3717,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
       blockheight: 0,
@@ -3768,7 +3768,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC20SOperation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 0,
@@ -3822,7 +3822,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::UnStake(unstake_msg.clone()),
+        BRC20SOperation::UnStake(unstake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 1,
@@ -3848,7 +3848,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::UnStake(unstake_msg.clone()),
+        BRC20SOperation::UnStake(unstake_msg.clone()),
       );
       msg.to = None;
       let result = process_unstake(
@@ -3878,7 +3878,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::UnStake(unstake_msg.clone()),
+        BRC20SOperation::UnStake(unstake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 10,
@@ -3912,7 +3912,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::UnStake(unstake_msg.clone()),
+        BRC20SOperation::UnStake(unstake_msg.clone()),
       );
       msg.commit_from = None;
       let context = BlockContext {
@@ -3994,7 +3994,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
       blockheight: 10,
@@ -4045,7 +4045,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC20SOperation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 20,
@@ -4098,7 +4098,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
+        BRC20SOperation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 30,
@@ -4227,7 +4227,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
       blockheight: 0,
@@ -4278,7 +4278,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC20SOperation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 0,
@@ -4331,7 +4331,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
+        BRC20SOperation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 1,
@@ -4370,7 +4370,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
-        BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
+        BRC20SOperation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 1,
@@ -4424,7 +4424,7 @@ mod tests {
       let mut msg = mock_create_brc20s_message(
         script1.clone(),
         script1.clone(),
-        BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
+        BRC20SOperation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
         blockheight: 1,
@@ -4538,7 +4538,7 @@ mod tests {
         "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, new_addr, addr,
       );
       deploy.pool_id = tick_id.hex() + "#02";
-      msg.op = BRC30Operation::Deploy(deploy);
+      msg.op = BRC20SOperation::Deploy(deploy);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC20SError::FromToNotEqual(
@@ -4555,7 +4555,7 @@ mod tests {
       );
       deploy.pool_id = tick_id.hex() + "#02";
       let pool_id = deploy.pool_id.clone();
-      msg.op = BRC30Operation::Deploy(deploy);
+      msg.op = BRC20SOperation::Deploy(deploy);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC20SError::DeployerNotEqual(
@@ -4638,7 +4638,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
 
     let context = BlockContext {
@@ -4680,7 +4680,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC20SOperation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 20,
@@ -4738,7 +4738,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Mint(mint_msg.clone()),
+      BRC20SOperation::Mint(mint_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 30,
@@ -5039,7 +5039,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Deploy(deploy.clone()),
+      BRC20SOperation::Deploy(deploy.clone()),
     );
 
     let context = BlockContext {
@@ -5082,13 +5082,13 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC20SOperation::Stake(stake_msg.clone()),
     );
 
     let msg1 = mock_create_brc20s_message(
       script1.clone(),
       script1.clone(),
-      BRC30Operation::Stake(stake_msg.clone()),
+      BRC20SOperation::Stake(stake_msg.clone()),
     );
 
     let context = BlockContext {
@@ -5155,12 +5155,12 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Mint(mint_msg.clone()),
+      BRC20SOperation::Mint(mint_msg.clone()),
     );
     let msg1 = mock_create_brc20s_message(
       script1.clone(),
       script1.clone(),
-      BRC30Operation::Mint(mint_msg.clone()),
+      BRC20SOperation::Mint(mint_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 100000,
@@ -5229,7 +5229,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::InscribeTransfer(transfer_msg.clone()),
+      BRC20SOperation::InscribeTransfer(transfer_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 200000,
@@ -5239,7 +5239,7 @@ mod tests {
     let msg1 = mock_create_brc20s_message(
       script1.clone(),
       script1.clone(),
-      BRC30Operation::InscribeTransfer(transfer_msg.clone()),
+      BRC20SOperation::InscribeTransfer(transfer_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 200000,
@@ -5375,7 +5375,7 @@ mod tests {
     let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
-      BRC30Operation::Transfer(transfer_msg.clone()),
+      BRC20SOperation::Transfer(transfer_msg.clone()),
     );
     let context = BlockContext {
       blockheight: 200000,

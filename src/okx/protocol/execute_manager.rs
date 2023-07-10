@@ -4,7 +4,7 @@ use crate::okx::datastore::brc20::BRC20Event;
 use crate::okx::datastore::brc20s::{Event, PledgedTick};
 use crate::okx::datastore::DataStoreReadWrite;
 use crate::okx::protocol::brc20::{BRC20ExecutionMessage, BRC20Message};
-use crate::okx::protocol::brc20s::operation::BRC30Operation;
+use crate::okx::protocol::brc20s::operation::BRC20SOperation;
 use crate::okx::protocol::brc20s::{BRC20SMessage, BRC30ExecutionMessage, PassiveUnStake};
 use crate::{
   okx::datastore::{BRC20DataStoreReadWrite, OrdDataStoreReadWrite},
@@ -148,7 +148,7 @@ fn convert_brc20msg_to_brc30msg(msg: &BRC20Message, op: PassiveUnStake) -> BRC20
     commit_input_satpoint: None,
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
-    op: BRC30Operation::PassiveUnStake(op),
+    op: BRC20SOperation::PassiveUnStake(op),
   }
 }
 
@@ -159,6 +159,6 @@ fn convert_brc30msg_to_brc30msg(msg: &BRC20SMessage, op: PassiveUnStake) -> BRC2
     commit_input_satpoint: None,
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
-    op: BRC30Operation::PassiveUnStake(op),
+    op: BRC20SOperation::PassiveUnStake(op),
   }
 }

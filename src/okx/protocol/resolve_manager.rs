@@ -42,7 +42,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
   ) -> Self {
     let mut protocols: HashSet<ProtocolKind> = HashSet::new();
     protocols.insert(ProtocolKind::BRC20);
-    protocols.insert(ProtocolKind::BRC30);
+    protocols.insert(ProtocolKind::BRC20S);
     Self {
       protocols,
       client,
@@ -103,7 +103,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
         }
 
         // Parse BRC30 message through inscription operation.
-        if self.protocols.contains(&ProtocolKind::BRC30)
+        if self.protocols.contains(&ProtocolKind::BRC20S)
           && context.blockheight >= self.first_brc20s_height
         {
           if let Some(msg) = brc20s::resolve_message(
@@ -114,7 +114,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
             &operation,
             &mut outpoint_to_txout_cache,
           )?
-          .map(Message::BRC30)
+          .map(Message::BRC20S)
           {
             messages.push(msg);
             continue;

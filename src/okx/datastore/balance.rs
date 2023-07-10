@@ -39,19 +39,19 @@ pub fn get_user_common_balance<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadW
 
 pub fn get_stake_dec<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   token: &PledgedTick,
-  brc30ledger: &'a L,
-  brc20ledger: &'a M,
+  brc20s_ledger: &'a L,
+  brc20_ledger: &'a M,
 ) -> u8 {
   match token {
     PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
-    PledgedTick::BRC20STick(tickid) => match brc30ledger.get_tick_info(&tickid) {
+    PledgedTick::BRC20STick(tickid) => match brc20s_ledger.get_tick_info(&tickid) {
       Ok(info) => match info {
         Some(info) => info.decimal,
         None => 0_u8,
       },
       Err(_) => 0_u8,
     },
-    PledgedTick::BRC20Tick(tick) => match brc20ledger.get_token_info(tick) {
+    PledgedTick::BRC20Tick(tick) => match brc20_ledger.get_token_info(tick) {
       Ok(info) => match info {
         Some(info) => info.decimal,
         None => 0_u8,
@@ -119,7 +119,7 @@ pub fn tick_can_staked(token: &PledgedTick) -> bool {
 pub fn convert_pledged_tick_with_decimal<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   tick: &PledgedTick,
   amount: &str,
-  brc30ledger: &'a L,
+  brc20s_ledger: &'a L,
   brc20ledger: &'a M,
 ) -> Result<Num, Error<L>> {
   match tick {
@@ -134,7 +134,7 @@ pub fn convert_pledged_tick_with_decimal<'a, L: DataStoreReadWrite, M: BRC20Data
       convert_amount_with_decimal(amount, token.decimal)
     }
     PledgedTick::BRC20STick(tickid) => {
-      let tick = brc30ledger
+      let tick = brc20s_ledger
         .get_tick_info(tickid)
         .map_err(|e| Error::LedgerError(e))?
         .ok_or(BRC30Error::TickNotFound(tickid.to_lowercase().hex()))?;

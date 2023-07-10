@@ -22,7 +22,7 @@ pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>
   new_inscriptions: &Vec<Inscription>,
   op: &InscriptionOp,
   outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
-) -> Result<Option<BRC30Message>> {
+) -> Result<Option<BRC20SMessage>> {
   log::debug!("BRC20S resolving the message from {:?}", op);
   let brc20s_operation = match op.action {
     Action::New {
@@ -61,7 +61,7 @@ pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>
     },
     _ => return Ok(None),
   };
-  let msg = BRC30Message {
+  let msg = BRC20SMessage {
     txid: op.txid,
     inscription_id: op.inscription_id,
     old_satpoint: op.old_satpoint,

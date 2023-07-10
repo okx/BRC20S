@@ -23,7 +23,7 @@ pub struct BlockContext {
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum ProtocolKind {
   BRC20,
-  BRC30,
+  BRC20S,
 }
 
 pub struct ProtocolManager<

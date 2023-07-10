@@ -1,4 +1,4 @@
-use super::{brc30_types::*, error::ApiError, *};
+use super::{brc20s_types::*, error::ApiError, *};
 use crate::okx::datastore::brc30::{self, PledgedTick, Receipt, TickId};
 use axum::Json;
 
@@ -572,7 +572,7 @@ pub(crate) async fn brc30_txid_receipts(
 
   let mut receipts = Vec::new();
   for receipt in all_receipt.iter() {
-    match brc30_types::BRC30Receipt::from(receipt, index.clone()) {
+    match brc20s_types::BRC30Receipt::from(receipt, index.clone()) {
       Ok(receipt) => {
         receipts.push(receipt);
       }
@@ -622,7 +622,7 @@ pub(crate) async fn brc30_block_receipts(
   for (txid, tx_receipts) in block_receipts.iter() {
     let mut api_tx_receipts = Vec::new();
     for receipt in tx_receipts.iter() {
-      match brc30_types::BRC30Receipt::from(receipt, index.clone()) {
+      match brc20s_types::BRC30Receipt::from(receipt, index.clone()) {
         Ok(receipt) => {
           api_tx_receipts.push(receipt);
         }

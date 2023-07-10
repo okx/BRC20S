@@ -1,12 +1,12 @@
 use crate::okx::datastore::brc20::balance::Balance as BRC20Balance;
 use crate::okx::datastore::brc20::BRC20DataStoreReadWrite;
-use crate::okx::datastore::brc30::Balance as BRC30Balance;
-use crate::okx::datastore::brc30::{BRC30DataStoreReadWrite, PledgedTick};
+use crate::okx::datastore::brc20s::Balance as BRC30Balance;
+use crate::okx::datastore::brc20s::{BRC30DataStoreReadWrite, PledgedTick};
 use crate::okx::datastore::ScriptKey;
-use crate::okx::protocol::brc30::params::{
+use crate::okx::protocol::brc20s::params::{
   BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, NATIVE_TOKEN_DECIMAL,
 };
-use crate::okx::protocol::brc30::{BRC30Error, Error, Num};
+use crate::okx::protocol::brc20s::{BRC30Error, Error, Num};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;

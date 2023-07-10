@@ -1,5 +1,5 @@
-use crate::okx::datastore::brc30::{PoolInfo, PoolType, UserInfo};
-use crate::okx::protocol::brc30::{params::BIGDECIMAL_TEN, BRC30Error, Num};
+use crate::okx::datastore::brc20s::{PoolInfo, PoolType, UserInfo};
+use crate::okx::protocol::brc20s::{params::BIGDECIMAL_TEN, BRC30Error, Num};
 use std::str::FromStr;
 
 const PER_SHARE_MULTIPLIER: u8 = 18;
@@ -223,7 +223,7 @@ fn get_num_by_decimal(decimal: u8) -> Result<Num, BRC30Error> {
 #[allow(unused)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
+  use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
   use crate::InscriptionId;
   use std::str::FromStr;
 

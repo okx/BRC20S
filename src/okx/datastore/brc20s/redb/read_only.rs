@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::brc30::{
+use crate::okx::datastore::brc20s::{
   Balance, DataStoreReadOnly, InscriptionOperation, Pid, PledgedTick, PoolInfo, Receipt, StakeInfo,
   TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
 };

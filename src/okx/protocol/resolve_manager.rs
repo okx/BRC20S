@@ -106,7 +106,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         if self.protocols.contains(&ProtocolKind::BRC30)
           && context.blockheight >= self.first_brc20s_height
         {
-          if let Some(msg) = brc30::resolve_message(
+          if let Some(msg) = brc20s::resolve_message(
             self.client,
             self.ord_store,
             self.brc30_store,

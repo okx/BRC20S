@@ -1,6 +1,6 @@
-use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolType, Tick, TickId};
+use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolType, Tick, TickId};
 use crate::okx::datastore::ScriptKey;
-use crate::okx::protocol::brc30::BRC30Error;
+use crate::okx::protocol::brc20s::BRC30Error;
 use crate::{InscriptionId, SatPoint};
 use serde::{Deserialize, Serialize};
 

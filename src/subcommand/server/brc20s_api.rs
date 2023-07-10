@@ -1,5 +1,5 @@
 use super::{brc20s_types::*, error::ApiError, *};
-use crate::okx::datastore::brc30::{self, PledgedTick, Receipt, TickId};
+use crate::okx::datastore::brc20s::{self, PledgedTick, Receipt, TickId};
 use axum::Json;
 
 // 3.4.1 /brc30/tick
@@ -61,7 +61,7 @@ pub(crate) async fn brc30_tick_info(
 
   log::debug!("rpc: get brc30_tick_info: {:?} {:?}", tick_id, tick_info);
 
-  if tick_info.tick_id != brc30::TickId::from_str(&tick_id).unwrap() {
+  if tick_info.tick_id != brc20s::TickId::from_str(&tick_id).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -86,7 +86,7 @@ pub(crate) async fn brc30_tick_info(
 pub(crate) async fn brc30_debug_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
-) -> ApiResult<brc30::TickInfo> {
+) -> ApiResult<brc20s::TickInfo> {
   log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
   let tick_id = tick_id.to_lowercase();
   match TickId::from_str(tick_id.as_str()) {
@@ -102,7 +102,7 @@ pub(crate) async fn brc30_debug_tick_info(
 
   log::debug!("rpc: get brc30_tick_info: {:?} {:?}", tick_id, tick_info);
 
-  if tick_info.tick_id != brc30::TickId::from_str(&tick_id).unwrap() {
+  if tick_info.tick_id != brc20s::TickId::from_str(&tick_id).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -178,7 +178,7 @@ pub(crate) async fn brc30_pool_info(
     pool_info
   );
 
-  if pool_info.pid != brc30::Pid::from_str(&pid).unwrap() {
+  if pool_info.pid != brc20s::Pid::from_str(&pid).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -216,7 +216,7 @@ pub(crate) async fn brc30_pool_info(
 pub(crate) async fn brc30_debug_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Path(pid): Path<String>,
-) -> ApiResult<brc30::PoolInfo> {
+) -> ApiResult<brc20s::PoolInfo> {
   log::debug!("rpc: get brc30_pool_info: {}", pid);
 
   if pid.as_bytes().len() != 13 {
@@ -240,7 +240,7 @@ pub(crate) async fn brc30_debug_pool_info(
 pub(crate) async fn brc30_debug_stake_info(
   Extension(index): Extension<Arc<Index>>,
   Path((address, tick)): Path<(String, String)>,
-) -> ApiResult<brc30::StakeInfo> {
+) -> ApiResult<brc20s::StakeInfo> {
   log::debug!("rpc: get brc30_pool_info: {},{}", address, tick);
 
   let address: bitcoin::Address = address
@@ -280,7 +280,7 @@ pub(crate) async fn brc30_userinfo(
     user_info
   );
 
-  if user_info.pid != brc30::Pid::from_str(&pid).unwrap() {
+  if user_info.pid != brc20s::Pid::from_str(&pid).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -319,7 +319,7 @@ pub(crate) async fn brc30_user_pending_reward(
 pub(crate) async fn brc30_debug_userinfo(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
-) -> ApiResult<brc30::UserInfo> {
+) -> ApiResult<brc20s::UserInfo> {
   log::debug!("rpc: get brc30_userinfo: {}, {}", pid, address);
 
   if pid.as_bytes().len() != 13 {
@@ -339,7 +339,7 @@ pub(crate) async fn brc30_debug_userinfo(
     user_info
   );
 
-  if user_info.pid != brc30::Pid::from_str(&pid).unwrap() {
+  if user_info.pid != brc20s::Pid::from_str(&pid).unwrap() {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -350,7 +350,7 @@ pub(crate) async fn brc30_debug_userinfo(
 pub(crate) async fn brc30_debug_balance(
   Extension(index): Extension<Arc<Index>>,
   Path((tick_id, address)): Path<(String, String)>,
-) -> ApiResult<brc30::Balance> {
+) -> ApiResult<brc20s::Balance> {
   log::debug!(
     "rpc: get brc30_balance: tickId:{}, address:{}",
     tick_id,

@@ -3,10 +3,10 @@ use crate::{
   inscription::Inscription,
   okx::{
     datastore::{
-      brc30::DataStoreReadOnly,
+      brc20s::DataStoreReadOnly,
       ord::{Action, InscriptionOp, OrdDataStoreReadOnly},
     },
-    protocol::brc30::{deserialize_brc30_operation, operation::Transfer},
+    protocol::brc20s::{deserialize_brc30_operation, operation::Transfer},
   },
   Index, Result,
 };

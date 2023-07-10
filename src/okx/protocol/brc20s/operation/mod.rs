@@ -8,7 +8,7 @@ pub mod unstake;
 use super::error::JSONError;
 use super::params::*;
 use crate::{
-  okx::datastore::{brc30::OperationType, ord::Action},
+  okx::datastore::{brc20s::OperationType, ord::Action},
   Inscription, Result,
 };
 use serde::{Deserialize, Serialize};

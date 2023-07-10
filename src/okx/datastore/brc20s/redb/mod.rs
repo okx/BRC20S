@@ -3,7 +3,7 @@ mod read_write;
 
 pub use self::{read_only::DataStoreReader, read_write::BRC30DataStore};
 
-use crate::okx::datastore::brc30::{Pid, PledgedTick, TickId};
+use crate::okx::datastore::brc20s::{Pid, PledgedTick, TickId};
 use crate::okx::datastore::ScriptKey;
 use crate::InscriptionId;
 use bitcoin::Txid;

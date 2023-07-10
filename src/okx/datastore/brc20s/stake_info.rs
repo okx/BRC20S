@@ -1,7 +1,7 @@
 use super::*;
-use crate::okx::datastore::brc30::PledgedTick;
-use crate::okx::protocol::brc30::params::ZERO_NUM;
-use crate::okx::protocol::brc30::{BRC30Error, Num};
+use crate::okx::datastore::brc20s::PledgedTick;
+use crate::okx::protocol::brc20s::params::ZERO_NUM;
+use crate::okx::protocol::brc20s::{BRC30Error, Num};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -86,7 +86,7 @@ impl StakeInfo {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::protocol::brc30::Num;
+  use crate::okx::protocol::brc20s::Num;
   use std::str::FromStr;
   // testcase: the 3 pools can represent all case
   // a        b           c

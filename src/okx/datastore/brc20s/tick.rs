@@ -1,14 +1,14 @@
 use crate::okx::datastore::brc20;
 use crate::okx::datastore::ScriptKey;
-use crate::okx::protocol::brc30::params::{
+use crate::okx::protocol::brc20s::params::{
   NATIVE_TOKEN, TICK_BYTE_COUNT, TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT,
   TICK_ID_STR_COUNT,
 };
-use crate::okx::protocol::brc30::BRC30Error;
+use crate::okx::protocol::brc20s::BRC30Error;
 use crate::InscriptionId;
 use std::mem;
 
-use crate::okx::datastore::brc30::Pid;
+use crate::okx::datastore::brc20s::Pid;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 

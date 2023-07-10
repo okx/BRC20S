@@ -1,5 +1,5 @@
 use super::{types::ScriptPubkey, *};
-use crate::okx::datastore::brc30;
+use crate::okx::datastore::brc20s;
 use std::{convert::From, vec};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -27,8 +27,8 @@ impl TickInfo {
   }
 }
 
-impl From<&brc30::TickInfo> for TickInfo {
-  fn from(tick_info: &brc30::TickInfo) -> Self {
+impl From<&brc20s::TickInfo> for TickInfo {
+  fn from(tick_info: &brc20s::TickInfo) -> Self {
     let tick = Tick {
       id: tick_info.tick_id.to_lowercase().hex(),
       name: tick_info.name.as_str().to_string(),
@@ -102,8 +102,8 @@ impl BRC30Pool {
   }
 }
 
-impl From<&brc30::PoolInfo> for BRC30Pool {
-  fn from(pool_info: &brc30::PoolInfo) -> Self {
+impl From<&brc20s::PoolInfo> for BRC30Pool {
+  fn from(pool_info: &brc20s::PoolInfo) -> Self {
     let stake = Stake {
       type_field: pool_info.stake.to_type(),
       tick: pool_info.stake.to_string(),
@@ -169,8 +169,8 @@ pub struct UserInfo {
   pub latest_update_block: u64,
 }
 
-impl From<&brc30::UserInfo> for UserInfo {
-  fn from(user_info: &brc30::UserInfo) -> Self {
+impl From<&brc20s::UserInfo> for UserInfo {
+  fn from(user_info: &brc20s::UserInfo) -> Self {
     Self {
       pid: user_info.pid.as_str().to_string(),
       staked: user_info.staked.to_string(),
@@ -196,8 +196,8 @@ impl BRC30Balance {
   }
 }
 
-impl From<&brc30::Balance> for BRC30Balance {
-  fn from(balance: &brc30::Balance) -> Self {
+impl From<&brc20s::Balance> for BRC30Balance {
+  fn from(balance: &brc20s::Balance) -> Self {
     let tick = Tick {
       id: balance.tick_id.to_lowercase().hex(),
       name: "".to_string(),
@@ -243,8 +243,8 @@ impl BRC30Inscription {
   }
 }
 
-impl From<&brc30::TransferableAsset> for BRC30Inscription {
-  fn from(asset: &brc30::TransferableAsset) -> Self {
+impl From<&brc20s::TransferableAsset> for BRC30Inscription {
+  fn from(asset: &brc20s::TransferableAsset) -> Self {
     let tick = Tick {
       id: asset.tick_id.to_lowercase().hex(),
       name: "".to_string(),
@@ -278,16 +278,16 @@ pub enum OperationType {
   InscribeTransfer,
   Transfer,
 }
-impl From<brc30::OperationType> for OperationType {
-  fn from(op_type: brc30::OperationType) -> Self {
+impl From<brc20s::OperationType> for OperationType {
+  fn from(op_type: brc20s::OperationType) -> Self {
     match op_type {
-      brc30::OperationType::Deploy => Self::Deploy,
-      brc30::OperationType::Mint => Self::Mint,
-      brc30::OperationType::Stake => Self::Deposit,
-      brc30::OperationType::UnStake => Self::Withdraw,
-      brc30::OperationType::PassiveUnStake => Self::PassiveWithdraw,
-      brc30::OperationType::InscribeTransfer => Self::InscribeTransfer,
-      brc30::OperationType::Transfer => Self::Transfer,
+      brc20s::OperationType::Deploy => Self::Deploy,
+      brc20s::OperationType::Mint => Self::Mint,
+      brc20s::OperationType::Stake => Self::Deposit,
+      brc20s::OperationType::UnStake => Self::Withdraw,
+      brc20s::OperationType::PassiveUnStake => Self::PassiveWithdraw,
+      brc20s::OperationType::InscribeTransfer => Self::InscribeTransfer,
+      brc20s::OperationType::Transfer => Self::Transfer,
     }
   }
 }
@@ -313,28 +313,28 @@ pub struct BRC30Receipt {
 }
 
 impl BRC30Receipt {
-  pub(super) fn from(receipt: &brc30::Receipt, index: Arc<Index>) -> Result<Self> {
+  pub(super) fn from(receipt: &brc20s::Receipt, index: Arc<Index>) -> Result<Self> {
     let mut result = Self {
       op: receipt.op.clone().into(),
       inscription_number: match receipt.op {
-        brc30::OperationType::PassiveUnStake => None,
+        brc20s::OperationType::PassiveUnStake => None,
         _ => Some(receipt.inscription_number),
       },
       inscription_id: match receipt.op {
-        brc30::OperationType::PassiveUnStake => None,
+        brc20s::OperationType::PassiveUnStake => None,
         _ => Some(receipt.inscription_id),
       },
       old_satpoint: match receipt.op {
-        brc30::OperationType::PassiveUnStake => None,
+        brc20s::OperationType::PassiveUnStake => None,
         _ => Some(receipt.old_satpoint),
       },
       new_satpoint: match receipt.op {
-        brc30::OperationType::PassiveUnStake => None,
+        brc20s::OperationType::PassiveUnStake => None,
         _ => Some(receipt.new_satpoint),
       },
       from: receipt.from.clone().into(),
       to: match receipt.op {
-        brc30::OperationType::PassiveUnStake => None,
+        brc20s::OperationType::PassiveUnStake => None,
         _ => Some(receipt.clone().to.into()),
       },
       valid: receipt.result.is_ok(),
@@ -349,32 +349,32 @@ impl BRC30Receipt {
       let mut receipt_events = Vec::new();
       for event in events.into_iter() {
         receipt_events.push(match event {
-          brc30::BRC30Event::DeployTick(deploy_tick) => {
+          brc20s::BRC30Event::DeployTick(deploy_tick) => {
             BRC30Event::DeployTick(DeployTickEvent::new(deploy_tick, receipt.to.clone().into()))
           }
-          brc30::BRC30Event::DeployPool(deploy_pool) => BRC30Event::DeployPool(
+          brc20s::BRC30Event::DeployPool(deploy_pool) => BRC30Event::DeployPool(
             DeployPoolEvent::new(deploy_pool, receipt.to.clone().into(), index.clone())?,
           ),
-          brc30::BRC30Event::Deposit(deposit) => {
+          brc20s::BRC30Event::Deposit(deposit) => {
             BRC30Event::Deposit(DepositEvent::new(deposit, receipt.to.clone().into()))
           }
-          brc30::BRC30Event::Withdraw(withdraw) => {
+          brc20s::BRC30Event::Withdraw(withdraw) => {
             BRC30Event::Withdraw(WithdrawEvent::new(withdraw, receipt.to.clone().into()))
           }
-          brc30::BRC30Event::PassiveWithdraw(passive_withdraw) => BRC30Event::PassiveWithdraw(
+          brc20s::BRC30Event::PassiveWithdraw(passive_withdraw) => BRC30Event::PassiveWithdraw(
             PassiveWithdrawEvent::new(passive_withdraw, receipt.from.clone().into()),
           ),
-          brc30::BRC30Event::Mint(mint) => {
+          brc20s::BRC30Event::Mint(mint) => {
             BRC30Event::Mint(MintEvent::new(mint, receipt.to.clone().into()))
           }
-          brc30::BRC30Event::InscribeTransfer(inscribe_transfer) => {
+          brc20s::BRC30Event::InscribeTransfer(inscribe_transfer) => {
             BRC30Event::InscribeTransfer(InscribeTransferEvent::new(
               inscribe_transfer,
               receipt.to.clone().into(),
               index.clone(),
             )?)
           }
-          brc30::BRC30Event::Transfer(transfer) => BRC30Event::Transfer(TransferEvent::new(
+          brc20s::BRC30Event::Transfer(transfer) => BRC30Event::Transfer(TransferEvent::new(
             transfer,
             receipt.from.clone().into(),
             receipt.to.clone().into(),
@@ -412,7 +412,7 @@ pub struct DeployTickEvent {
 }
 
 impl DeployTickEvent {
-  pub(super) fn new(event: brc30::DeployTickEvent, deployer: ScriptPubkey) -> Self {
+  pub(super) fn new(event: brc20s::DeployTickEvent, deployer: ScriptPubkey) -> Self {
     Self {
       tick: Tick {
         id: event.tick_id.to_lowercase().hex(),
@@ -440,7 +440,7 @@ pub struct DeployPoolEvent {
 
 impl DeployPoolEvent {
   pub(super) fn new(
-    event: brc30::DeployPoolEvent,
+    event: brc20s::DeployPoolEvent,
     deployer: ScriptPubkey,
     index: Arc<Index>,
   ) -> Result<Self> {
@@ -477,7 +477,7 @@ pub struct DepositEvent {
 }
 
 impl DepositEvent {
-  pub(super) fn new(event: brc30::DepositEvent, owner: ScriptPubkey) -> Self {
+  pub(super) fn new(event: brc20s::DepositEvent, owner: ScriptPubkey) -> Self {
     Self {
       pid: event.pid.as_str().to_string(),
       amount: event.amt.to_string(),
@@ -495,7 +495,7 @@ pub struct WithdrawEvent {
 }
 
 impl WithdrawEvent {
-  pub(super) fn new(event: brc30::WithdrawEvent, owner: ScriptPubkey) -> Self {
+  pub(super) fn new(event: brc20s::WithdrawEvent, owner: ScriptPubkey) -> Self {
     Self {
       pid: event.pid.as_str().to_string(),
       amount: event.amt.to_string(),
@@ -513,7 +513,7 @@ pub struct PassiveWithdrawEvent {
 }
 
 impl PassiveWithdrawEvent {
-  pub(super) fn new(event: brc30::PassiveWithdrawEvent, owner: ScriptPubkey) -> Self {
+  pub(super) fn new(event: brc20s::PassiveWithdrawEvent, owner: ScriptPubkey) -> Self {
     Self {
       pid: event.pid.as_str().to_string(),
       amount: event.amt.to_string(),
@@ -531,7 +531,7 @@ pub struct MintEvent {
 }
 
 impl MintEvent {
-  pub(super) fn new(event: brc30::MintEvent, owner: ScriptPubkey) -> Self {
+  pub(super) fn new(event: brc20s::MintEvent, owner: ScriptPubkey) -> Self {
     Self {
       pid: event.pid.as_str().to_string(),
       amount: event.amt.to_string(),
@@ -550,7 +550,7 @@ pub struct InscribeTransferEvent {
 
 impl InscribeTransferEvent {
   pub(super) fn new(
-    event: brc30::InscribeTransferEvent,
+    event: brc20s::InscribeTransferEvent,
     owner: ScriptPubkey,
     index: Arc<Index>,
   ) -> Result<Self> {
@@ -582,7 +582,7 @@ pub struct TransferEvent {
 
 impl TransferEvent {
   pub(super) fn new(
-    event: brc30::TransferEvent,
+    event: brc20s::TransferEvent,
     from: ScriptPubkey,
     to: ScriptPubkey,
     index: Arc<Index>,
@@ -640,8 +640,8 @@ pub struct StakedPid {
   pub stake: String,
 }
 
-impl From<&brc30::StakeInfo> for StakedInfo {
-  fn from(stake: &brc30::StakeInfo) -> Self {
+impl From<&brc20s::StakeInfo> for StakedInfo {
+  fn from(stake: &brc20s::StakeInfo) -> Self {
     Self {
       type_field: "BRC20".to_string(),
       tick: "".to_string(),
@@ -676,7 +676,7 @@ mod tests {
         index: 0xFFFFFFFF,
       }),
       inscription_number: Some(10),
-      op: brc30::OperationType::Deploy.into(),
+      op: brc20s::OperationType::Deploy.into(),
       old_satpoint: Some(
         SatPoint::from_str(
           "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
@@ -726,8 +726,8 @@ mod tests {
         BRC30Event::DeployPool(DeployPoolEvent {
           pid: "aabbccddee#1f".to_string(),
           stake: Stake {
-            type_field: brc30::PledgedTick::BRC30Tick(
-              brc30::TickId::from_str("aabbccddee").unwrap(),
+            type_field: brc20s::PledgedTick::BRC30Tick(
+              brc20s::TickId::from_str("aabbccddee").unwrap(),
             )
             .to_type(),
             tick: "aabbccddee".to_string(),

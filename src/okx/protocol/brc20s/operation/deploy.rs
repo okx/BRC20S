@@ -1,10 +1,10 @@
 use crate::okx::datastore::brc20;
-use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolType, Tick, TickId};
-use crate::okx::protocol::brc30::params::{
+use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolType, Tick, TickId};
+use crate::okx::protocol::brc20s::params::{
   FIXED_TYPE, NATIVE_TOKEN, POOL_TYPE, TICK_BYTE_COUNT, TICK_ID_STR_COUNT,
 };
-use crate::okx::protocol::brc30::util::{validate_amount, validate_pool_str};
-use crate::okx::protocol::brc30::{BRC30Error, Num};
+use crate::okx::protocol::brc20s::util::{validate_amount, validate_pool_str};
+use crate::okx::protocol::brc20s::{BRC30Error, Num};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 

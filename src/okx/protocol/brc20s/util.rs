@@ -1,6 +1,6 @@
-use crate::okx::protocol::brc30::params::{PID_BYTE_COUNT, TICK_ID_BYTE_COUNT};
-use crate::okx::protocol::brc30::BRC30Error;
-use crate::okx::protocol::brc30::Num;
+use crate::okx::protocol::brc20s::params::{PID_BYTE_COUNT, TICK_ID_BYTE_COUNT};
+use crate::okx::protocol::brc20s::BRC30Error;
+use crate::okx::protocol::brc20s::Num;
 use std::str::FromStr;
 
 pub fn validate_pool_str(s: &str) -> Result<(), BRC30Error> {

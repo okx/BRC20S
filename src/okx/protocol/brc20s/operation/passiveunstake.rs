@@ -1,7 +1,7 @@
 use crate::okx::datastore::brc20;
-use crate::okx::datastore::brc30::{PledgedTick, TickId};
-use crate::okx::protocol::brc30::params::{NATIVE_TOKEN, TICK_BYTE_COUNT, TICK_ID_STR_COUNT};
-use crate::okx::protocol::brc30::{BRC30Error, Num};
+use crate::okx::datastore::brc20s::{PledgedTick, TickId};
+use crate::okx::protocol::brc20s::params::{NATIVE_TOKEN, TICK_BYTE_COUNT, TICK_ID_STR_COUNT};
+use crate::okx::protocol::brc20s::{BRC30Error, Num};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 

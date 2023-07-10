@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-  okx::datastore::brc30::{
+  okx::datastore::brc20s::{
     BRC30DataStoreReadWrite, Balance, DataStoreReadOnly, InscriptionOperation, Pid, PoolInfo,
     Receipt, StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
   },
@@ -333,9 +333,9 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
 mod tests {
   use super::*;
   use crate::okx::datastore::brc20;
-  use crate::okx::datastore::brc30::{BRC30DataStoreReadWrite, DataStoreReadOnly, OperationType};
-  use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolType, Tick, TickId};
-  use crate::okx::protocol::brc30::BRC30Error;
+  use crate::okx::datastore::brc20s::{BRC30DataStoreReadWrite, DataStoreReadOnly, OperationType};
+  use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolType, Tick, TickId};
+  use crate::okx::protocol::brc20s::BRC30Error;
   use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;

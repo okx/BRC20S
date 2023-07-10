@@ -1,10 +1,10 @@
 use crate::okx::{
   datastore::{
     brc20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
-    brc30::{self, redb::DataStoreReader, DataStoreReadOnly},
+    brc20s::{self, redb::DataStoreReader, DataStoreReadOnly},
     ScriptKey,
   },
-  protocol::brc30::params::NATIVE_TOKEN_DECIMAL,
+  protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
   reward::reward,
 };
 #[cfg(feature = "rollback")]
@@ -40,7 +40,7 @@ mod fetcher;
 mod rtx;
 mod updater;
 
-use crate::okx::datastore::brc30::PledgedTick;
+use crate::okx::datastore::brc20s::PledgedTick;
 #[cfg(feature = "rollback")]
 use redb::Savepoint;
 
@@ -1289,31 +1289,31 @@ impl Index {
     &self,
     start: usize,
     limit: Option<usize>,
-  ) -> Result<(Vec<brc30::TickInfo>, usize)> {
+  ) -> Result<(Vec<brc20s::TickInfo>, usize)> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
     let all_tick = brc30_db.get_all_tick_info(start, limit)?;
     Ok(all_tick)
   }
 
-  pub(crate) fn brc20s_tick_info(&self, tick_id: &String) -> Result<Option<brc30::TickInfo>> {
+  pub(crate) fn brc20s_tick_info(&self, tick_id: &String) -> Result<Option<brc20s::TickInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
-    let info = brc30_db.get_tick_info(&brc30::TickId::from_str(tick_id)?)?;
+    let info = brc30_db.get_tick_info(&brc20s::TickId::from_str(tick_id)?)?;
     Ok(info)
   }
 
-  pub(crate) fn brc20s_pool_info(&self, pid: &String) -> Result<Option<brc30::PoolInfo>> {
+  pub(crate) fn brc20s_pool_info(&self, pid: &String) -> Result<Option<brc20s::PoolInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
-    let info = brc30_db.get_pid_to_poolinfo(&brc30::Pid::from_str(pid)?)?;
+    let info = brc30_db.get_pid_to_poolinfo(&brc20s::Pid::from_str(pid)?)?;
     Ok(info)
   }
   pub(crate) fn brc20s_stake_info(
     &self,
     address: &bitcoin::Address,
     pledged_tick: &PledgedTick,
-  ) -> Result<Option<brc30::StakeInfo>> {
+  ) -> Result<Option<brc20s::StakeInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
 
@@ -1326,7 +1326,7 @@ impl Index {
     &self,
     start: usize,
     limit: Option<usize>,
-  ) -> Result<(Vec<brc30::PoolInfo>, usize)> {
+  ) -> Result<(Vec<brc20s::PoolInfo>, usize)> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
     let all_pool = brc30_db.get_all_poolinfo(start, limit)?;
@@ -1337,12 +1337,12 @@ impl Index {
     &self,
     pid: &String,
     address: &bitcoin::Address,
-  ) -> Result<Option<brc30::UserInfo>> {
+  ) -> Result<Option<brc20s::UserInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_pid_to_use_info(
       &ScriptKey::from_address(address.clone()),
-      &brc30::Pid::from_str(pid)?,
+      &brc20s::Pid::from_str(pid)?,
     )?;
     Ok(info)
   }
@@ -1357,10 +1357,10 @@ impl Index {
     let brc20_db = BRC20DataStoreReader::new(&wtx);
     let user_info = brc30_db.get_pid_to_use_info(
       &ScriptKey::from_address(address.clone()),
-      &brc30::Pid::from_str(pid)?,
+      &brc20s::Pid::from_str(pid)?,
     )?;
 
-    let pool_info = brc30_db.get_pid_to_poolinfo(&brc30::Pid::from_str(pid)?)?;
+    let pool_info = brc30_db.get_pid_to_poolinfo(&brc20s::Pid::from_str(pid)?)?;
 
     let dec = match pool_info.clone().unwrap().stake {
       PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
@@ -1385,12 +1385,12 @@ impl Index {
     &self,
     tick_id: &String,
     address: &bitcoin::Address,
-  ) -> Result<Option<brc30::Balance>> {
+  ) -> Result<Option<brc20s::Balance>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_balance(
       &ScriptKey::from_address(address.clone()),
-      &brc30::TickId::from_str(tick_id)?,
+      &brc20s::TickId::from_str(tick_id)?,
     )?;
     Ok(info)
   }
@@ -1398,7 +1398,7 @@ impl Index {
   pub(crate) fn brc20s_all_balance(
     &self,
     address: &bitcoin::Address,
-  ) -> Result<Vec<(brc30::TickId, brc30::Balance)>> {
+  ) -> Result<Vec<(brc20s::TickId, brc20s::Balance)>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
     let all_balance = brc30_db.get_balances(&ScriptKey::from_address(address.clone()))?;
@@ -1409,13 +1409,13 @@ impl Index {
     &self,
     tick_id: &String,
     address: &bitcoin::Address,
-  ) -> Result<Vec<brc30::TransferableAsset>> {
+  ) -> Result<Vec<brc20s::TransferableAsset>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
 
     let result = brc30_db.get_transferable_by_tickid(
       &ScriptKey::from_address(address.clone()),
-      &brc30::TickId::from_str(tick_id)?,
+      &brc20s::TickId::from_str(tick_id)?,
     )?;
     Ok(result)
   }
@@ -1423,14 +1423,14 @@ impl Index {
   pub(crate) fn brc20s_all_transferable(
     &self,
     address: &bitcoin::Address,
-  ) -> Result<Vec<brc30::TransferableAsset>> {
+  ) -> Result<Vec<brc20s::TransferableAsset>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
     Ok(info)
   }
 
-  pub(crate) fn brc20s_txid_receipts(&self, txid: &Txid) -> Result<Vec<brc30::Receipt>> {
+  pub(crate) fn brc20s_txid_receipts(&self, txid: &Txid) -> Result<Vec<brc20s::Receipt>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_txid_to_receipts(&txid)?;
@@ -1440,7 +1440,7 @@ impl Index {
   pub(crate) fn brc20s_block_receipts(
     &self,
     hash: &BlockHash,
-  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc30::Receipt>)>>> {
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20s::Receipt>)>>> {
     let parsed_height = self.height()?;
     if parsed_height.is_none() {
       return Ok(None);

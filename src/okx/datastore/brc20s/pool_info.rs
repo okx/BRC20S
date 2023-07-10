@@ -1,6 +1,6 @@
 use super::*;
-use crate::okx::datastore::brc30::PledgedTick;
-use crate::okx::protocol::brc30::{params::PID_BYTE_COUNT, BRC30Error};
+use crate::okx::datastore::brc20s::PledgedTick;
+use crate::okx::protocol::brc20s::{params::PID_BYTE_COUNT, BRC30Error};
 use crate::InscriptionId;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;

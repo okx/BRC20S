@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::brc30::pool_info::Pid;
+use crate::okx::datastore::brc20s::pool_info::Pid;
 
 use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]

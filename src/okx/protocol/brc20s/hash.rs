@@ -1,6 +1,6 @@
-use crate::okx::datastore::brc30::TickId;
+use crate::okx::datastore::brc20s::TickId;
 use crate::okx::datastore::ScriptKey;
-use crate::okx::protocol::brc30::params::TICK_ID_BYTE_COUNT;
+use crate::okx::protocol::brc20s::params::TICK_ID_BYTE_COUNT;
 use bitcoin::hashes::{sha256, Hash, HashEngine};
 
 pub fn caculate_tick_id(

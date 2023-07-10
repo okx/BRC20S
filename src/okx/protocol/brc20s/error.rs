@@ -1,7 +1,7 @@
 use crate::InscriptionId;
 use serde::{Deserialize, Serialize};
 
-use crate::okx::datastore::brc30::DataStoreReadOnly;
+use crate::okx::datastore::brc20s::DataStoreReadOnly;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: DataStoreReadOnly> {

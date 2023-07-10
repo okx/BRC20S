@@ -1,11 +1,11 @@
 use super::*;
 use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20::BRC20Event;
-use crate::okx::datastore::brc30::{BRC30Event, PledgedTick};
+use crate::okx::datastore::brc20s::{BRC30Event, PledgedTick};
 use crate::okx::datastore::BRC30DataStoreReadWrite;
 use crate::okx::protocol::brc20::{BRC20ExecutionMessage, BRC20Message};
-use crate::okx::protocol::brc30::operation::BRC30Operation;
-use crate::okx::protocol::brc30::{BRC30ExecutionMessage, BRC30Message, PassiveUnStake};
+use crate::okx::protocol::brc20s::operation::BRC30Operation;
+use crate::okx::protocol::brc20s::{BRC30ExecutionMessage, BRC30Message, PassiveUnStake};
 use crate::{
   okx::datastore::{BRC20DataStoreReadWrite, OrdDataStoreReadWrite},
   Result,
@@ -43,7 +43,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         &BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20))?,
-      Message::BRC30(msg) => brc30::execute(
+      Message::BRC30(msg) => brc20s::execute(
         context,
         self.brc20_store,
         self.brc30_store,
@@ -75,7 +75,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                 };
                 if let Message::BRC20(old_brc20_msg) = msg {
                   let passive_msg = convert_brc20msg_to_brc30msg(old_brc20_msg, passive_unstake);
-                  brc30::execute(
+                  brc20s::execute(
                     context,
                     self.brc20_store,
                     self.brc30_store,
@@ -115,7 +115,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
                   };
                   if let Message::BRC30(old_brc30_msg) = msg {
                     let passive_msg = convert_brc30msg_to_brc30msg(old_brc30_msg, passive_unstake);
-                    brc30::execute(
+                    brc20s::execute(
                       context,
                       self.brc20_store,
                       self.brc30_store,

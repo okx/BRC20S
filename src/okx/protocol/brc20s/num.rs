@@ -1,5 +1,5 @@
-use crate::okx::protocol::brc30::params::MAX_DECIMAL_WIDTH;
-use crate::okx::protocol::brc30::BRC30Error;
+use crate::okx::protocol::brc20s::params::MAX_DECIMAL_WIDTH;
+use crate::okx::protocol::brc20s::BRC30Error;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
 use bigdecimal::{BigDecimal, One, Signed, ToPrimitive, Zero};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -207,7 +207,7 @@ impl<'de> Deserialize<'de> for Num {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::protocol::brc30::params::BIGDECIMAL_TEN;
+  use crate::okx::protocol::brc20s::params::BIGDECIMAL_TEN;
   use bigdecimal::FromPrimitive;
 
   #[test]

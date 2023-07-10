@@ -1451,6 +1451,11 @@ impl Index {
       return Ok(None);
     }
 
+    // TODO: Handle it temporarily and delete it later
+    if let Err(_) = self.brc30_all_tick_info(0, None) {
+      return Ok(Some(vec![]));
+    }
+
     let mut result = Vec::new();
     for tx_id in &block.tx {
       let tx_events = self.brc30_txid_receipts(tx_id)?;

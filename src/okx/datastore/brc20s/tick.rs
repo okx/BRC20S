@@ -125,7 +125,7 @@ impl PartialEq for Tick {
 
 impl Tick {
   pub fn as_str(&self) -> &str {
-    // NOTE: BRC30Tick comes from &str by from_str,
+    // NOTE: Tick comes from &str by from_str,
     // so it could be calling unwrap when convert to str
     std::str::from_utf8(self.0.as_slice()).unwrap()
   }

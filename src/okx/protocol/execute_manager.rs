@@ -74,7 +74,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
                   amount: amt.to_string(),
                 };
                 if let Message::BRC20(old_brc20_msg) = msg {
-                  let passive_msg = convert_brc20msg_to_brc30msg(old_brc20_msg, passive_unstake);
+                  let passive_msg = convert_msg_brc20_to_brc20s(old_brc20_msg, passive_unstake);
                   brc20s::execute(
                     context,
                     self.brc20_store,
@@ -110,7 +110,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
                     amount: amt.to_string(),
                   };
                   if let Message::BRC20S(old_brc20s_msg) = msg {
-                    let passive_msg = convert_brc20s_msg(old_brc20s_msg, passive_unstake);
+                    let passive_msg = convert_msg_brc20s(old_brc20s_msg, passive_unstake);
                     brc20s::execute(
                       context,
                       self.brc20_store,
@@ -137,7 +137,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
   }
 }
 
-fn convert_brc20msg_to_brc30msg(msg: &BRC20Message, op: PassiveUnStake) -> BRC20SMessage {
+fn convert_msg_brc20_to_brc20s(msg: &BRC20Message, op: PassiveUnStake) -> BRC20SMessage {
   BRC20SMessage {
     txid: msg.txid.clone(),
     inscription_id: msg.inscription_id.clone(),
@@ -148,7 +148,7 @@ fn convert_brc20msg_to_brc30msg(msg: &BRC20Message, op: PassiveUnStake) -> BRC20
   }
 }
 
-fn convert_brc20s_msg(msg: &BRC20SMessage, op: PassiveUnStake) -> BRC20SMessage {
+fn convert_msg_brc20s(msg: &BRC20SMessage, op: PassiveUnStake) -> BRC20SMessage {
   BRC20SMessage {
     txid: msg.txid.clone(),
     inscription_id: msg.inscription_id.clone(),

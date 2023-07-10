@@ -331,7 +331,7 @@ mod tests {
   }
 
   #[test]
-  fn test_ignore_non_transfer_brc30() {
+  fn test_ignore_non_transfer_brc20s() {
     let content_type = "text/plain;charset=utf-8".as_bytes().to_vec();
     assert_eq!(
       deserialize_brc20s_operation(

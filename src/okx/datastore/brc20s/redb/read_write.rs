@@ -9,17 +9,17 @@ use crate::{
 use bitcoin::{hashes::Hash, Txid};
 use redb::WriteTransaction;
 
-pub struct BRC30DataStore<'db, 'a> {
+pub struct DataStore<'db, 'a> {
   wtx: &'a WriteTransaction<'db>,
 }
 
-impl<'db, 'a> BRC30DataStore<'db, 'a> {
+impl<'db, 'a> DataStore<'db, 'a> {
   pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
     Self { wtx }
   }
 }
 
-impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
   type Error = redb::Error;
 
   // TXID_TO_INSCRIPTION_RECEIPTS
@@ -153,7 +153,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   }
 }
 
-impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
+impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
   // TXID_TO_INSCRIPTION_RECEIPTS
   fn set_txid_to_inscription_receipts(
     &self,
@@ -347,7 +347,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -413,7 +413,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
@@ -448,7 +448,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
@@ -568,7 +568,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("0000000000#01").unwrap();
@@ -664,7 +664,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
@@ -779,7 +779,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let pid = Pid::from_str("1234567890#01").unwrap();
     let user_info = UserInfo {
@@ -811,7 +811,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let script_key =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
@@ -851,7 +851,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
@@ -921,7 +921,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
@@ -974,7 +974,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
@@ -1116,7 +1116,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = BRC30DataStore::new(&wtx);
+    let brc30db = DataStore::new(&wtx);
 
     let script_key1 = ScriptKey::from_address(
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap(),

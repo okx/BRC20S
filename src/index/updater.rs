@@ -1,5 +1,5 @@
 use crate::okx::datastore::{
-  brc20::redb::BRC20DataStore, brc20s::redb::BRC30DataStore, ord::OrdDbReadWriter,
+  brc20::redb::BRC20DataStore, brc20s::redb::DataStore, ord::OrdDbReadWriter,
 };
 use {
   self::inscription_updater::InscriptionUpdater,
@@ -602,7 +602,7 @@ impl Updater {
       &index.client,
       &OrdDbReadWriter::new(wtx),
       &BRC20DataStore::new(wtx),
-      &BRC30DataStore::new(wtx),
+      &DataStore::new(wtx),
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
     )

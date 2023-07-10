@@ -332,7 +332,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::brc20::Tick;
+  use crate::okx::datastore::brc20;
   use crate::okx::datastore::brc30::{
     BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, OperationType,
   };
@@ -572,7 +572,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc30db = BRC30DataStore::new(&wtx);
 
-    let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
+    let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("0000000000#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
@@ -925,7 +925,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc30db = BRC30DataStore::new(&wtx);
 
-    let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
+    let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
@@ -978,7 +978,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc30db = BRC30DataStore::new(&wtx);
 
-    let pledged_tick_20 = PledgedTick::BRC20Tick(Tick::from_str("tk20").unwrap());
+    let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
 
     let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());

@@ -1,4 +1,4 @@
-use crate::okx::datastore::brc20::Tick;
+use crate::okx::datastore::brc20;
 use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc30::params::{
   NATIVE_TOKEN, TICK_BYTE_COUNT, TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT,
@@ -177,7 +177,7 @@ impl<'de> Deserialize<'de> for BRC30Tick {
 pub enum PledgedTick {
   Unknown,
   Native,
-  BRC20Tick(Tick),
+  BRC20Tick(brc20::Tick),
   BRC30Tick(TickId),
 }
 
@@ -213,7 +213,7 @@ impl PledgedTick {
     match str {
       NATIVE_TOKEN => PledgedTick::Native,
       _ => match str.len() {
-        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(Tick::from_str(str).unwrap()),
+        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(brc20::Tick::from_str(str).unwrap()),
         TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(str).unwrap()),
         _ => PledgedTick::Unknown,
       },

@@ -1,4 +1,4 @@
-use crate::okx::datastore::brc20::Tick;
+use crate::okx::datastore::brc20;
 use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
 use crate::okx::protocol::brc30::params::{
   FIXED_TYPE, NATIVE_TOKEN, POOL_TYPE, TICK_BYTE_COUNT, TICK_ID_STR_COUNT,
@@ -67,7 +67,7 @@ impl Deploy {
     match stake {
       NATIVE_TOKEN => PledgedTick::Native,
       _ => match self.stake.len() {
-        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(Tick::from_str(stake).unwrap()),
+        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(brc20::Tick::from_str(stake).unwrap()),
         TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(stake).unwrap()),
         _ => PledgedTick::Unknown,
       },

@@ -75,9 +75,9 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
 
     let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
-      // TODO: BTC transfer to BRC30 passive withdrawal.
+      // TODO: BTC transfer to BRC20S passive withdrawal.
 
-      // if self.protocols.contains(&ProtocolKind::BRC30) {
+      // if self.protocols.contains(&ProtocolKind::BRC20S) {
       //   messages.push(BTC::resolve_message(txid, block_height, block_time, tx));
       // }
 
@@ -102,7 +102,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
           }
         }
 
-        // Parse BRC30 message through inscription operation.
+        // Parse BRC20S message through inscription operation.
         if self.protocols.contains(&ProtocolKind::BRC20S)
           && context.blockheight >= self.first_brc20s_height
         {

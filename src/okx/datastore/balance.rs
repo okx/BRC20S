@@ -106,13 +106,13 @@ pub fn convert_pledged_tick_with_decimal<'a, L: DataStoreReadWrite, M: BRC20Data
   tick: &PledgedTick,
   amount: &str,
   brc20s_ledger: &'a L,
-  brc20ledger: &'a M,
+  brc20_ledger: &'a M,
 ) -> Result<Num, Error<L>> {
   match tick {
     PledgedTick::Unknown => Err(Error::BRC20SError(BRC20SError::UnknownStakeType)),
     PledgedTick::Native => convert_amount_with_decimal(amount, NATIVE_TOKEN_DECIMAL),
     PledgedTick::BRC20Tick(tick) => {
-      let token = brc20ledger
+      let token = brc20_ledger
         .get_token_info(tick)
         .map_err(|e| Error::Others(anyhow!("brc20_query failed:{}", e)))?
         .ok_or(BRC20SError::TickNotFound(tick.hex()))?;
@@ -166,14 +166,14 @@ pub fn convert_pledged_tick_without_decimal<
 >(
   tick: &PledgedTick,
   amount: u128,
-  brc30ledger: &'a L,
-  brc20ledger: &'a M,
+  brc20s_ledger: &'a L,
+  brc20_ledger: &'a M,
 ) -> Result<Num, Error<L>> {
   match tick {
     PledgedTick::Unknown => Err(Error::BRC20SError(BRC20SError::UnknownStakeType)),
     PledgedTick::Native => convert_amount_without_decimal(amount, NATIVE_TOKEN_DECIMAL),
     PledgedTick::BRC20Tick(tick) => {
-      let token = brc20ledger
+      let token = brc20_ledger
         .get_token_info(tick)
         .map_err(|e| Error::Others(anyhow!("brc20_query failed:{}", e)))?
         .ok_or(BRC20SError::TickNotFound(tick.hex()))?;
@@ -181,7 +181,7 @@ pub fn convert_pledged_tick_without_decimal<
       convert_amount_without_decimal(amount, token.decimal)
     }
     PledgedTick::BRC20STick(tickid) => {
-      let tick = brc30ledger
+      let tick = brc20s_ledger
         .get_tick_info(tickid)
         .map_err(|e| Error::LedgerError(e))?
         .ok_or(BRC20SError::TickNotFound(tickid.to_lowercase().hex()))?;

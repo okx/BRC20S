@@ -72,7 +72,7 @@ pub(crate) fn deserialize_brc20s_operation(
 ) -> Result<BRC20SOperation> {
   let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
   if content_body.len() < 40 {
-    return Err(JSONError::NotBRC30Json.into());
+    return Err(JSONError::NotBRC20SJson.into());
   }
 
   let content_type = inscription
@@ -103,11 +103,11 @@ pub(crate) fn deserialize_brc20s_operation(
       Operation::UnStake(unstake) => Ok(BRC20SOperation::UnStake(unstake)),
       Operation::Mint(mint) => Ok(BRC20SOperation::Mint(mint)),
       Operation::Transfer(transfer) => Ok(BRC20SOperation::InscribeTransfer(transfer)),
-      Operation::PassiveUnStake(_) => Err(JSONError::NotBRC30Json.into()),
+      Operation::PassiveUnStake(_) => Err(JSONError::NotBRC20SJson.into()),
     },
     Action::Transfer => match raw_operation {
       Operation::Transfer(transfer) => Ok(BRC20SOperation::Transfer(transfer)),
-      _ => Err(JSONError::NotBRC30Json.into()),
+      _ => Err(JSONError::NotBRC20SJson.into()),
     },
   }
 }
@@ -115,7 +115,7 @@ pub(crate) fn deserialize_brc20s_operation(
 pub fn deserialize_brc20s(s: &str) -> Result<Operation, JSONError> {
   let value: Value = serde_json::from_str(s).map_err(|_| JSONError::InvalidJson)?;
   if value.get("p") != Some(&json!(PROTOCOL_LITERAL)) {
-    return Err(JSONError::NotBRC30Json);
+    return Err(JSONError::NotBRC20SJson);
   }
 
   Ok(serde_json::from_value(value).map_err(|e| JSONError::ParseOperationJsonError(e.to_string()))?)
@@ -273,7 +273,7 @@ mod tests {
   }
 
   #[test]
-  fn test_json_non_brc30() {
+  fn test_json_non_brc20s() {
     let json_str = format!(
       r##"{{
         "p": "brc-40",
@@ -282,7 +282,7 @@ mod tests {
         "amt": "amt"
       }}"##
     );
-    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC30Json))
+    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC20SJson))
   }
 
   #[test]
@@ -310,7 +310,7 @@ mod tests {
       }}"##
     );
 
-    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC30Json));
+    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC20SJson));
 
     let json_str1 = format!(
       r##"{{

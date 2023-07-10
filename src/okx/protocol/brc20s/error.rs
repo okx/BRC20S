@@ -27,7 +27,7 @@ pub enum JSONError {
   InvalidJson,
 
   #[error("not brc20s json")]
-  NotBRC30Json,
+  NotBRC20SJson,
 
   #[error("parse operation json error: {0}")]
   ParseOperationJsonError(String),

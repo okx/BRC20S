@@ -153,7 +153,7 @@ pub struct Earn {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AllBRC30PoolInfo {
+pub struct AllPoolInfo {
   pub tokens: Vec<Pool>,
   pub total: usize,
 }

@@ -113,11 +113,11 @@ pub(crate) async fn brc20s_debug_tick_info(
 pub(crate) async fn brc20s_all_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Query(page): Query<Pagination>,
-) -> ApiResult<AllBRC30PoolInfo> {
+) -> ApiResult<AllPoolInfo> {
   log::debug!("rpc: get brc20s_all_pool_info");
   let (all_pool_info, total) = index.brc20s_all_pool_info(page.start.unwrap_or(0), page.limit)?;
   log::debug!("rpc: get brc20s_all_pool_info: {:?}", all_pool_info);
-  Ok(Json(ApiResponse::ok(AllBRC30PoolInfo {
+  Ok(Json(ApiResponse::ok(AllPoolInfo {
     tokens: all_pool_info
       .iter()
       .map(|pool| {

@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
   okx::datastore::brc30::{
-    BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, Balance, InscriptionOperation, Pid, PoolInfo,
+    BRC30DataStoreReadWrite, Balance, DataStoreReadOnly, InscriptionOperation, Pid, PoolInfo,
     Receipt, StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
   },
   InscriptionId,
@@ -19,7 +19,7 @@ impl<'db, 'a> BRC30DataStore<'db, 'a> {
   }
 }
 
-impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   type Error = redb::Error;
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS
@@ -333,9 +333,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
 mod tests {
   use super::*;
   use crate::okx::datastore::brc20;
-  use crate::okx::datastore::brc30::{
-    BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, OperationType,
-  };
+  use crate::okx::datastore::brc30::{BRC30DataStoreReadWrite, DataStoreReadOnly, OperationType};
   use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolType, Tick, TickId};
   use crate::okx::protocol::brc30::BRC30Error;
   use crate::SatPoint;

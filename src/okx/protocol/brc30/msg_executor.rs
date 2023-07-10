@@ -1004,8 +1004,8 @@ mod tests {
   use crate::okx::datastore::brc20::redb::BRC20DataStore;
   use crate::okx::datastore::brc20::{Balance as BRC20Banalce, TokenInfo};
   use crate::okx::datastore::brc30::redb::BRC30DataStore;
-  use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
   use crate::okx::datastore::brc30::BRC30Event::PassiveWithdraw;
+  use crate::okx::datastore::brc30::DataStoreReadOnly;
   use crate::okx::datastore::brc30::PledgedTick;
   use crate::okx::protocol::brc30::test::{
     mock_create_brc30_message, mock_deploy_msg, mock_passive_unstake_msg, mock_stake_msg,

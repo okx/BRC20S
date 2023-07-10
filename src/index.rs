@@ -1,7 +1,7 @@
 use crate::okx::{
   datastore::{
     brc20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
-    brc30::{self, redb::BRC30DataStoreReader, BRC30DataStoreReadOnly},
+    brc30::{self, redb::DataStoreReader, DataStoreReadOnly},
     ScriptKey,
   },
   protocol::brc30::params::NATIVE_TOKEN_DECIMAL,
@@ -1285,61 +1285,61 @@ impl Index {
     Ok(res)
   }
 
-  pub(crate) fn brc30_all_tick_info(
+  pub(crate) fn brc20s_all_tick_info(
     &self,
     start: usize,
     limit: Option<usize>,
   ) -> Result<(Vec<brc30::TickInfo>, usize)> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let all_tick = brc30_db.get_all_tick_info(start, limit)?;
     Ok(all_tick)
   }
 
-  pub(crate) fn brc30_tick_info(&self, tick_id: &String) -> Result<Option<brc30::TickInfo>> {
+  pub(crate) fn brc20s_tick_info(&self, tick_id: &String) -> Result<Option<brc30::TickInfo>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_tick_info(&brc30::TickId::from_str(tick_id)?)?;
     Ok(info)
   }
 
-  pub(crate) fn brc30_pool_info(&self, pid: &String) -> Result<Option<brc30::PoolInfo>> {
+  pub(crate) fn brc20s_pool_info(&self, pid: &String) -> Result<Option<brc30::PoolInfo>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_pid_to_poolinfo(&brc30::Pid::from_str(pid)?)?;
     Ok(info)
   }
-  pub(crate) fn brc30_stake_info(
+  pub(crate) fn brc20s_stake_info(
     &self,
     address: &bitcoin::Address,
     pledged_tick: &PledgedTick,
   ) -> Result<Option<brc30::StakeInfo>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
 
     let info =
       brc30_db.get_user_stakeinfo(&ScriptKey::from_address(address.clone()), pledged_tick)?;
     Ok(info)
   }
 
-  pub(crate) fn brc30_all_pool_info(
+  pub(crate) fn brc20s_all_pool_info(
     &self,
     start: usize,
     limit: Option<usize>,
   ) -> Result<(Vec<brc30::PoolInfo>, usize)> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let all_pool = brc30_db.get_all_poolinfo(start, limit)?;
     Ok(all_pool)
   }
 
-  pub(crate) fn brc30_user_info(
+  pub(crate) fn brc20s_user_info(
     &self,
     pid: &String,
     address: &bitcoin::Address,
   ) -> Result<Option<brc30::UserInfo>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_pid_to_use_info(
       &ScriptKey::from_address(address.clone()),
       &brc30::Pid::from_str(pid)?,
@@ -1347,13 +1347,13 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn brc30_user_pending_reward(
+  pub(crate) fn brc20s_user_pending_reward(
     &self,
     pid: &String,
     address: &bitcoin::Address,
   ) -> Result<(Option<String>, Option<String>)> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let brc20_db = BRC20DataStoreReader::new(&wtx);
     let user_info = brc30_db.get_pid_to_use_info(
       &ScriptKey::from_address(address.clone()),
@@ -1381,13 +1381,13 @@ impl Index {
     Ok((Some(result.to_string()), Some(block.to_string())))
   }
 
-  pub(crate) fn brc30_balance(
+  pub(crate) fn brc20s_balance(
     &self,
     tick_id: &String,
     address: &bitcoin::Address,
   ) -> Result<Option<brc30::Balance>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_balance(
       &ScriptKey::from_address(address.clone()),
       &brc30::TickId::from_str(tick_id)?,
@@ -1395,23 +1395,23 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn brc30_all_balance(
+  pub(crate) fn brc20s_all_balance(
     &self,
     address: &bitcoin::Address,
   ) -> Result<Vec<(brc30::TickId, brc30::Balance)>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let all_balance = brc30_db.get_balances(&ScriptKey::from_address(address.clone()))?;
     Ok(all_balance)
   }
 
-  pub(crate) fn brc30_tickid_transferable(
+  pub(crate) fn brc20s_tickid_transferable(
     &self,
     tick_id: &String,
     address: &bitcoin::Address,
   ) -> Result<Vec<brc30::TransferableAsset>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
 
     let result = brc30_db.get_transferable_by_tickid(
       &ScriptKey::from_address(address.clone()),
@@ -1420,24 +1420,24 @@ impl Index {
     Ok(result)
   }
 
-  pub(crate) fn brc30_all_transferable(
+  pub(crate) fn brc20s_all_transferable(
     &self,
     address: &bitcoin::Address,
   ) -> Result<Vec<brc30::TransferableAsset>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
     Ok(info)
   }
 
-  pub(crate) fn brc30_txid_receipts(&self, txid: &Txid) -> Result<Vec<brc30::Receipt>> {
+  pub(crate) fn brc20s_txid_receipts(&self, txid: &Txid) -> Result<Vec<brc30::Receipt>> {
     let wtx = self.database.begin_read().unwrap();
-    let brc30_db = BRC30DataStoreReader::new(&wtx);
+    let brc30_db = DataStoreReader::new(&wtx);
     let info = brc30_db.get_txid_to_receipts(&txid)?;
     Ok(info)
   }
 
-  pub(crate) fn brc30_block_receipts(
+  pub(crate) fn brc20s_block_receipts(
     &self,
     hash: &BlockHash,
   ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc30::Receipt>)>>> {
@@ -1453,7 +1453,7 @@ impl Index {
 
     let mut result = Vec::new();
     for tx_id in &block.tx {
-      let tx_events = self.brc30_txid_receipts(tx_id)?;
+      let tx_events = self.brc20s_txid_receipts(tx_id)?;
       if tx_events.len() == 0 {
         continue;
       }

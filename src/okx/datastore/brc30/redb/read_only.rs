@@ -1,7 +1,7 @@
 use super::*;
 use crate::okx::datastore::brc30::{
-  BRC30DataStoreReadOnly, Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo, Receipt,
-  StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
+  Balance, DataStoreReadOnly, InscriptionOperation, Pid, PledgedTick, PoolInfo, Receipt, StakeInfo,
+  TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
 };
 use bitcoin::hashes::Hash;
 use redb::{
@@ -10,19 +10,19 @@ use redb::{
 };
 use std::{borrow::Borrow, ops::RangeBounds};
 
-pub struct BRC30DataStoreReader<'db, 'a> {
+pub struct DataStoreReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }
 
 pub(in crate::okx) fn new_with_wtx<'db, 'a>(
   wtx: &'a WriteTransaction<'db>,
-) -> BRC30DataStoreReader<'db, 'a> {
-  BRC30DataStoreReader {
+) -> DataStoreReader<'db, 'a> {
+  DataStoreReader {
     wrapper: ReaderWrapper::Wtx(wtx),
   }
 }
 
-impl<'db, 'a> BRC30DataStoreReader<'db, 'a> {
+impl<'db, 'a> DataStoreReader<'db, 'a> {
   pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
       wrapper: ReaderWrapper::Rtx(rtx),
@@ -88,7 +88,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
   //3.3.2 TXID_TO_INSCRIPTION_RECEIPTS

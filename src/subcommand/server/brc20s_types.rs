@@ -446,7 +446,7 @@ impl DeployPoolEvent {
   ) -> Result<Self> {
     let parts: Vec<&str> = event.pid.as_str().split("#").collect();
     let tick_info = index
-      .brc30_tick_info(&parts[0].to_string())?
+      .brc20s_tick_info(&parts[0].to_string())?
       .ok_or(anyhow!("tick not found, pid: {}", event.pid.as_str()))?;
 
     Ok(Self {
@@ -555,7 +555,7 @@ impl InscribeTransferEvent {
     index: Arc<Index>,
   ) -> Result<Self> {
     let tick_info = index
-      .brc30_tick_info(&event.tick_id.hex())?
+      .brc20s_tick_info(&event.tick_id.hex())?
       .ok_or(anyhow!("tick not found, tid: {}", event.tick_id.hex()))?;
 
     Ok(Self {
@@ -588,7 +588,7 @@ impl TransferEvent {
     index: Arc<Index>,
   ) -> Result<Self> {
     let tick_info = index
-      .brc30_tick_info(&event.tick_id.hex())?
+      .brc20s_tick_info(&event.tick_id.hex())?
       .ok_or(anyhow!("tick not found, tid: {}", event.tick_id.hex()))?;
     Ok(Self {
       tick: Tick {

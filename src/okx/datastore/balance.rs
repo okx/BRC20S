@@ -1,6 +1,6 @@
-use crate::okx::datastore::brc20::balance::Balance as BRC20Balance;
+use crate::okx::datastore::brc20;
 use crate::okx::datastore::brc20::BRC20DataStoreReadWrite;
-use crate::okx::datastore::brc20s::Balance as BRC30Balance;
+use crate::okx::datastore::brc20s;
 use crate::okx::datastore::brc20s::{BRC30DataStoreReadWrite, PledgedTick};
 use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc20s::params::{
@@ -14,22 +14,22 @@ use std::str::FromStr;
 pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   script: &ScriptKey,
   token: &PledgedTick,
-  brc30ledger: &'a L,
-  brc20ledger: &'a M,
+  brc20s_ledger: &'a L,
+  brc20_ledger: &'a M,
 ) -> Num {
   match token {
     PledgedTick::Native => Num::from(0_u128),
     PledgedTick::BRC30Tick(tickid) => {
-      let balance = match brc30ledger.get_balance(&script, tickid) {
-        Ok(Some(brc30_balance)) => brc30_balance,
-        _ => BRC30Balance::default(tickid),
+      let balance = match brc20s_ledger.get_balance(&script, tickid) {
+        Ok(Some(brc20s_balance)) => brc20s_balance,
+        _ => brc20s::Balance::default(tickid),
       };
       Num::from(balance.overall_balance)
     }
     PledgedTick::BRC20Tick(tick) => {
-      let balance = match brc20ledger.get_balance(&script, tick) {
+      let balance = match brc20_ledger.get_balance(&script, tick) {
         Ok(Some(brc20_balance)) => brc20_balance,
-        _ => BRC20Balance::new(),
+        _ => brc20::Balance::new(),
       };
       Num::from(balance.overall_balance)
     }

@@ -499,7 +499,7 @@ pub(crate) async fn brc20s_transferable(
     inscriptions: all_transfer
       .iter()
       .map(|asset| {
-        let mut inscription = Inscription::from(asset);
+        let mut inscription = brc20s_types::Inscription::from(asset);
 
         let tick_info = &index
           .brc20s_tick_info(&asset.tick_id.hex().to_string())
@@ -538,7 +538,7 @@ pub(crate) async fn brc20s_all_transferable(
     inscriptions: all
       .iter()
       .map(|asset| {
-        let mut inscription = Inscription::from(asset);
+        let mut inscription = brc20s_types::Inscription::from(asset);
 
         let tick_info = &index
           .brc20s_tick_info(&asset.tick_id.hex().to_string())

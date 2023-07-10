@@ -1701,7 +1701,7 @@ mod tests {
       assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
     }
 
-    //msg.new_satpoint.outpoint.txid != msg.txid
+    //invalid inscribe to coinbase
     {
       let mut second_deploy = deploy.clone();
       second_deploy.pool_id = "13395c5283#03".to_string();
@@ -1714,11 +1714,7 @@ mod tests {
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
       );
-      let inscription_id = InscriptionId::from_str(
-        "2111111111111111111111111111111111111111111111111111111111111111i1",
-      )
-      .unwrap();
-      msg.new_satpoint.outpoint.txid = inscription_id.txid.clone();
+      msg.to = None;
       let context = BlockContext {
         blockheight: 0,
         blocktime: 1687245485,
@@ -3036,7 +3032,7 @@ mod tests {
       assert_eq!(expect_userinfo, serde_json::to_string(&userinfo).unwrap());
     }
 
-    // msg.new_satpoint.outpoint.txid != msg.txid
+    // invalid inscribe to coinbase
     {
       let stake_tick = PledgedTick::BRC20Tick(token.clone());
       let stake_msg = Stake {
@@ -3049,11 +3045,7 @@ mod tests {
         script.clone(),
         BRC30Operation::Stake(stake_msg.clone()),
       );
-      let inscription_id = InscriptionId::from_str(
-        "2111111111111111111111111111111111111111111111111111111111111111i1",
-      )
-      .unwrap();
-      msg.new_satpoint.outpoint.txid = inscription_id.txid.clone();
+      msg.to = None;
 
       let context = BlockContext {
         blockheight: 1,
@@ -3797,7 +3789,7 @@ mod tests {
       );
     }
 
-    //msg.new_satpoint.outpoint.txid != msg.txid
+    //invalid inscribe to coinbase
     {
       let mut stake_tick = PledgedTick::BRC20Tick(token.clone());
       let unstake_msg = UnStake {
@@ -3809,16 +3801,7 @@ mod tests {
         script.clone(),
         BRC30Operation::UnStake(unstake_msg.clone()),
       );
-      let inscription_id = InscriptionId::from_str(
-        "2111111111111111111111111111111111111111111111111111111111111111i1",
-      )
-      .unwrap();
-      msg.new_satpoint.outpoint.txid = inscription_id.txid.clone();
-      let context = BlockContext {
-        blockheight: 10,
-        blocktime: 1687245485,
-        network: Network::Bitcoin,
-      };
+      msg.to = None;
       let result = process_unstake(
         context,
         &brc20_data_store,
@@ -4709,8 +4692,7 @@ mod tests {
 
     // invalid inscribe to coinbase
     let mut error_msg = msg.clone();
-    error_msg.new_satpoint.outpoint.txid =
-      Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111").unwrap();
+    error_msg.to = None;
     match process_mint(
       context,
       &brc20_data_store,
@@ -5189,8 +5171,7 @@ mod tests {
 
     // brc20s-inscribe-transfer, invalid inscribe to coinbase
     let mut error_msg = msg.clone();
-    error_msg.new_satpoint.outpoint.txid =
-      Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111").unwrap();
+    error_msg.to = None;
     match process_inscribe_transfer(
       context,
       &brc20_data_store,

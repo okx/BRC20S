@@ -1,5 +1,5 @@
 use crate::inscription_id::InscriptionId;
-use crate::okx::protocol::brc20s::operation::BRC20SOperation;
+use crate::okx::protocol::brc20s::operation::OperationStep;
 use crate::SatPoint;
 use bitcoin::Txid;
 
@@ -31,5 +31,5 @@ pub struct BRC20SMessage {
   pub commit_input_satpoint: Option<SatPoint>,
   pub old_satpoint: SatPoint,
   pub new_satpoint: Option<SatPoint>,
-  pub op: BRC20SOperation,
+  pub op: OperationStep,
 }

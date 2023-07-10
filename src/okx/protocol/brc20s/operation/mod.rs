@@ -20,7 +20,7 @@ pub use self::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum BRC20SOperation {
+pub enum OperationStep {
   Deploy(Deploy),
   Mint(Mint),
   Stake(Stake),
@@ -30,16 +30,16 @@ pub enum BRC20SOperation {
   Transfer(Transfer),
 }
 
-impl BRC20SOperation {
+impl OperationStep {
   pub fn op_type(&self) -> OperationType {
     match self {
-      BRC20SOperation::Deploy(_) => OperationType::Deploy,
-      BRC20SOperation::Mint(_) => OperationType::Mint,
-      BRC20SOperation::Stake(_) => OperationType::Stake,
-      BRC20SOperation::UnStake(_) => OperationType::UnStake,
-      BRC20SOperation::PassiveUnStake(_) => OperationType::PassiveUnStake,
-      BRC20SOperation::InscribeTransfer(_) => OperationType::InscribeTransfer,
-      BRC20SOperation::Transfer(_) => OperationType::Transfer,
+      OperationStep::Deploy(_) => OperationType::Deploy,
+      OperationStep::Mint(_) => OperationType::Mint,
+      OperationStep::Stake(_) => OperationType::Stake,
+      OperationStep::UnStake(_) => OperationType::UnStake,
+      OperationStep::PassiveUnStake(_) => OperationType::PassiveUnStake,
+      OperationStep::InscribeTransfer(_) => OperationType::InscribeTransfer,
+      OperationStep::Transfer(_) => OperationType::Transfer,
     }
   }
 }
@@ -69,7 +69,7 @@ pub enum Operation {
 pub(crate) fn deserialize_brc20s_operation(
   inscription: &Inscription,
   action: &Action,
-) -> Result<BRC20SOperation> {
+) -> Result<OperationStep> {
   let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
   if content_body.len() < 40 {
     return Err(JSONError::NotBRC20SJson.into());
@@ -98,15 +98,15 @@ pub(crate) fn deserialize_brc20s_operation(
 
   match action {
     Action::New { .. } => match raw_operation {
-      Operation::Deploy(deploy) => Ok(BRC20SOperation::Deploy(deploy)),
-      Operation::Stake(stake) => Ok(BRC20SOperation::Stake(stake)),
-      Operation::UnStake(unstake) => Ok(BRC20SOperation::UnStake(unstake)),
-      Operation::Mint(mint) => Ok(BRC20SOperation::Mint(mint)),
-      Operation::Transfer(transfer) => Ok(BRC20SOperation::InscribeTransfer(transfer)),
+      Operation::Deploy(deploy) => Ok(OperationStep::Deploy(deploy)),
+      Operation::Stake(stake) => Ok(OperationStep::Stake(stake)),
+      Operation::UnStake(unstake) => Ok(OperationStep::UnStake(unstake)),
+      Operation::Mint(mint) => Ok(OperationStep::Mint(mint)),
+      Operation::Transfer(transfer) => Ok(OperationStep::InscribeTransfer(transfer)),
       Operation::PassiveUnStake(_) => Err(JSONError::NotBRC20SJson.into()),
     },
     Action::Transfer => match raw_operation {
-      Operation::Transfer(transfer) => Ok(BRC20SOperation::Transfer(transfer)),
+      Operation::Transfer(transfer) => Ok(OperationStep::Transfer(transfer)),
       _ => Err(JSONError::NotBRC20SJson.into()),
     },
   }
@@ -346,7 +346,7 @@ mod tests {
         &Action::New{cursed:false,unbound:false},
       )
       .unwrap(),
-      BRC20SOperation::Deploy(Deploy {
+      OperationStep::Deploy(Deploy {
         pool_type: "pool".to_string(),
         pool_id: "a3668daeaa#1f".to_string(),
         stake: "btc".to_string(),
@@ -375,7 +375,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC20SOperation::Stake(Stake {
+      OperationStep::Stake(Stake {
         pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
       })
@@ -397,7 +397,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC20SOperation::Mint(Mint {
+      OperationStep::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
@@ -420,7 +420,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC20SOperation::UnStake(UnStake {
+      OperationStep::UnStake(UnStake {
         pool_id: "pool_id".to_string(),
         amount: "12000".to_string()
       })
@@ -465,7 +465,7 @@ mod tests {
         &Action::Transfer,
       )
       .unwrap(),
-      BRC20SOperation::Transfer(Transfer {
+      OperationStep::Transfer(Transfer {
         tick_id: "tick_id".to_string(),
         tick: "abcd".to_string(),
         amount: "12000".to_string()

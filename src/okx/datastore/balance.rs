@@ -64,13 +64,13 @@ pub fn get_stake_dec<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
 
 pub fn stake_is_exist<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   token: &PledgedTick,
-  brc30ledger: &'a L,
-  brc20ledger: &'a M,
+  brc20s_ledger: &'a L,
+  brc20_ledger: &'a M,
 ) -> bool {
   match token {
     PledgedTick::Native => true,
     PledgedTick::BRC20STick(tickid) => {
-      let tickinfo = brc30ledger.get_tick_info(&tickid);
+      let tickinfo = brc20s_ledger.get_tick_info(&tickid);
       match tickinfo {
         Ok(info) => match info {
           Some(_) => true,
@@ -80,7 +80,7 @@ pub fn stake_is_exist<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
       }
     }
     PledgedTick::BRC20Tick(tick) => {
-      let tokeninfo = brc20ledger.get_token_info(&tick);
+      let tokeninfo = brc20_ledger.get_token_info(&tick);
       match tokeninfo {
         Ok(info) => match info {
           Some(_) => true,

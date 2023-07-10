@@ -347,7 +347,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -370,18 +370,18 @@ mod tests {
       overall_balance: 100,
       transferable_balance: 30,
     };
-    brc30db
+    brc20s_db
       .set_token_balance(&script, &tick1, expect_balance1.clone())
       .unwrap();
-    brc30db
+    brc20s_db
       .set_token_balance(&script, &tick2, expect_balance2.clone())
       .unwrap();
-    brc30db
+    brc20s_db
       .set_token_balance(&script, &tick3, expect_balance3.clone())
       .unwrap();
 
     assert_eq!(
-      brc30db.get_balance(&script, &tick1).unwrap().unwrap(),
+      brc20s_db.get_balance(&script, &tick1).unwrap().unwrap(),
       expect_balance1
     );
 
@@ -393,11 +393,11 @@ mod tests {
       overall_balance: 100,
       transferable_balance: 30,
     };
-    brc30db
+    brc20s_db
       .set_token_balance(&script2, &tick2, expect_balance22.clone())
       .unwrap();
 
-    let mut all_balances = brc30db.get_balances(&script).unwrap();
+    let mut all_balances = brc20s_db.get_balances(&script).unwrap();
     all_balances.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
     let mut expect = vec![
       (tick2, expect_balance2),
@@ -413,7 +413,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
@@ -433,12 +433,12 @@ mod tests {
       },
     ];
 
-    brc30db
+    brc20s_db
       .set_txid_to_inscription_receipts(&txid, &op_vec)
       .unwrap();
 
     assert_eq!(
-      brc30db.get_txid_to_inscription_receipts(&txid).unwrap(),
+      brc20s_db.get_txid_to_inscription_receipts(&txid).unwrap(),
       op_vec
     );
   }
@@ -448,7 +448,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
@@ -482,19 +482,19 @@ mod tests {
     let mut pool_info_5 = pool_info_1.clone();
     pool_info_5.pid = pid_5.clone();
 
-    brc30db.set_pid_to_poolinfo(&pid_1, &pool_info_1).unwrap();
-    brc30db.set_pid_to_poolinfo(&pid_2, &pool_info_2).unwrap();
-    brc30db.set_pid_to_poolinfo(&pid_3, &pool_info_3).unwrap();
-    brc30db.set_pid_to_poolinfo(&pid_4, &pool_info_4).unwrap();
-    brc30db.set_pid_to_poolinfo(&pid_5, &pool_info_5).unwrap();
+    brc20s_db.set_pid_to_poolinfo(&pid_1, &pool_info_1).unwrap();
+    brc20s_db.set_pid_to_poolinfo(&pid_2, &pool_info_2).unwrap();
+    brc20s_db.set_pid_to_poolinfo(&pid_3, &pool_info_3).unwrap();
+    brc20s_db.set_pid_to_poolinfo(&pid_4, &pool_info_4).unwrap();
+    brc20s_db.set_pid_to_poolinfo(&pid_5, &pool_info_5).unwrap();
 
     assert_eq!(
-      brc30db.get_pid_to_poolinfo(&pid_1).unwrap().unwrap(),
+      brc20s_db.get_pid_to_poolinfo(&pid_1).unwrap().unwrap(),
       pool_info_1
     );
 
     assert_eq!(
-      brc30db.get_all_poolinfo(0, None).unwrap(),
+      brc20s_db.get_all_poolinfo(0, None).unwrap(),
       (
         vec![
           pool_info_1.clone(),
@@ -507,7 +507,7 @@ mod tests {
       )
     );
     assert_eq!(
-      brc30db.get_all_poolinfo(0, Some(3)).unwrap(),
+      brc20s_db.get_all_poolinfo(0, Some(3)).unwrap(),
       (
         vec![
           pool_info_1.clone(),
@@ -519,21 +519,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db.get_all_poolinfo(0, Some(5)).unwrap(),
-      (
-        vec![
-          pool_info_1.clone(),
-          pool_info_2.clone(),
-          pool_info_3.clone(),
-          pool_info_4.clone(),
-          pool_info_5.clone()
-        ],
-        5
-      )
-    );
-
-    assert_eq!(
-      brc30db.get_all_poolinfo(0, Some(9)).unwrap(),
+      brc20s_db.get_all_poolinfo(0, Some(5)).unwrap(),
       (
         vec![
           pool_info_1.clone(),
@@ -547,16 +533,30 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db.get_all_poolinfo(3, Some(1)).unwrap(),
+      brc20s_db.get_all_poolinfo(0, Some(9)).unwrap(),
+      (
+        vec![
+          pool_info_1.clone(),
+          pool_info_2.clone(),
+          pool_info_3.clone(),
+          pool_info_4.clone(),
+          pool_info_5.clone()
+        ],
+        5
+      )
+    );
+
+    assert_eq!(
+      brc20s_db.get_all_poolinfo(3, Some(1)).unwrap(),
       (vec![pool_info_4.clone()], 5)
     );
 
     assert_eq!(
-      brc30db.get_all_poolinfo(3, Some(9)).unwrap(),
+      brc20s_db.get_all_poolinfo(3, Some(9)).unwrap(),
       (vec![pool_info_4.clone(), pool_info_5.clone()], 5)
     );
 
-    assert_eq!(brc30db.get_all_poolinfo(5, Some(9)).unwrap(), (vec![], 5));
+    assert_eq!(brc20s_db.get_all_poolinfo(5, Some(9)).unwrap(), (vec![], 5));
   }
 
   #[test]
@@ -568,7 +568,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("0000000000#01").unwrap();
@@ -606,28 +606,28 @@ mod tests {
       total_only: 0,
     };
 
-    brc30db
+    brc20s_db
       .set_user_stakeinfo(&script, &pledged_tick_20, &stake_info_20)
       .unwrap();
 
-    brc30db
+    brc20s_db
       .set_user_stakeinfo(&script, &pledged_tick_20, &stake_info_30)
       .unwrap();
 
-    brc30db
+    brc20s_db
       .set_user_stakeinfo(&script, &pledged_tick_30, &stake_info_btc)
       .unwrap();
 
-    brc30db
+    brc20s_db
       .set_user_stakeinfo(&script, &pledged_tick_btc, &stake_info_btc)
       .unwrap();
 
-    brc30db
+    brc20s_db
       .set_user_stakeinfo(&script, &pledged_tick_unknown, &stake_info_unknown)
       .unwrap();
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_user_stakeinfo(&script, &pledged_tick_20)
         .unwrap()
         .unwrap(),
@@ -635,7 +635,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_user_stakeinfo(&script, &pledged_tick_30)
         .unwrap()
         .unwrap(),
@@ -643,7 +643,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_user_stakeinfo(&script, &pledged_tick_btc)
         .unwrap()
         .unwrap(),
@@ -651,7 +651,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_user_stakeinfo(&script, &pledged_tick_unknown)
         .unwrap()
         .unwrap(),
@@ -664,7 +664,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
@@ -701,19 +701,19 @@ mod tests {
     let mut tick_info5 = tick_info1.clone();
     tick_info5.decimal = 5;
 
-    brc30db.set_tick_info(&tick_id_1, &tick_info1).unwrap();
-    brc30db.set_tick_info(&tick_id_2, &tick_info2).unwrap();
-    brc30db.set_tick_info(&tick_id_3, &tick_info3).unwrap();
-    brc30db.set_tick_info(&tick_id_4, &tick_info4).unwrap();
-    brc30db.set_tick_info(&tick_id_5, &tick_info5).unwrap();
+    brc20s_db.set_tick_info(&tick_id_1, &tick_info1).unwrap();
+    brc20s_db.set_tick_info(&tick_id_2, &tick_info2).unwrap();
+    brc20s_db.set_tick_info(&tick_id_3, &tick_info3).unwrap();
+    brc20s_db.set_tick_info(&tick_id_4, &tick_info4).unwrap();
+    brc20s_db.set_tick_info(&tick_id_5, &tick_info5).unwrap();
 
     assert_eq!(
-      brc30db.get_tick_info(&tick_id_1).unwrap().unwrap(),
+      brc20s_db.get_tick_info(&tick_id_1).unwrap().unwrap(),
       tick_info1.clone()
     );
 
     assert_eq!(
-      brc30db.get_all_tick_info(0, None).unwrap(),
+      brc20s_db.get_all_tick_info(0, None).unwrap(),
       (
         vec![
           tick_info1.clone(),
@@ -726,7 +726,7 @@ mod tests {
       )
     );
     assert_eq!(
-      brc30db.get_all_tick_info(0, Some(3)).unwrap(),
+      brc20s_db.get_all_tick_info(0, Some(3)).unwrap(),
       (
         vec![tick_info1.clone(), tick_info2.clone(), tick_info3.clone(),],
         5
@@ -734,7 +734,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db.get_all_tick_info(0, Some(5)).unwrap(),
+      brc20s_db.get_all_tick_info(0, Some(5)).unwrap(),
       (
         vec![
           tick_info1.clone(),
@@ -748,7 +748,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db.get_all_tick_info(0, Some(9)).unwrap(),
+      brc20s_db.get_all_tick_info(0, Some(9)).unwrap(),
       (
         vec![
           tick_info1.clone(),
@@ -762,16 +762,19 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db.get_all_tick_info(3, Some(1)).unwrap(),
+      brc20s_db.get_all_tick_info(3, Some(1)).unwrap(),
       (vec![tick_info4.clone()], 5)
     );
 
     assert_eq!(
-      brc30db.get_all_tick_info(3, Some(9)).unwrap(),
+      brc20s_db.get_all_tick_info(3, Some(9)).unwrap(),
       (vec![tick_info4.clone(), tick_info5.clone()], 5)
     );
 
-    assert_eq!(brc30db.get_all_tick_info(5, Some(9)).unwrap(), (vec![], 5));
+    assert_eq!(
+      brc20s_db.get_all_tick_info(5, Some(9)).unwrap(),
+      (vec![], 5)
+    );
   }
 
   #[test]
@@ -779,7 +782,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let pid = Pid::from_str("1234567890#01").unwrap();
     let user_info = UserInfo {
@@ -793,12 +796,12 @@ mod tests {
     let script_key =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
 
-    brc30db
+    brc20s_db
       .set_pid_to_use_info(&script_key, &pid, &user_info)
       .unwrap();
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_pid_to_use_info(&script_key, &pid)
         .unwrap()
         .unwrap(),
@@ -811,7 +814,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let script_key =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
@@ -826,7 +829,7 @@ mod tests {
       owner: script_key.clone(),
     };
 
-    brc30db
+    brc20s_db
       .set_transferable_assets(
         &script_key,
         &tick_id,
@@ -836,7 +839,7 @@ mod tests {
       .unwrap();
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_transferable_asset(&script_key, &tick_id, &inscription_id)
         .unwrap()
         .unwrap(),
@@ -851,7 +854,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
@@ -911,9 +914,9 @@ mod tests {
       },
     ];
 
-    brc30db.save_transaction_receipts(&txid, &op_vec).unwrap();
+    brc20s_db.save_transaction_receipts(&txid, &op_vec).unwrap();
 
-    assert_eq!(brc30db.get_txid_to_receipts(&txid).unwrap(), op_vec);
+    assert_eq!(brc20s_db.get_txid_to_receipts(&txid).unwrap(), op_vec);
   }
 
   #[test]
@@ -921,7 +924,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
@@ -936,32 +939,32 @@ mod tests {
     let pledged_tick_btc = PledgedTick::BRC20STick(TickId::from_str("f7c515d600").unwrap());
     let pid_btc = Pid::from_str("1234567890#01").unwrap();
 
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_20, &pid_20)
       .unwrap();
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick2, &pledged_tick_30, &pid_30)
       .unwrap();
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick3, &pledged_tick_btc, &pid_btc)
       .unwrap();
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick1, &pledged_tick_20)
         .unwrap()
         .unwrap(),
       pid_20
     );
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick2, &pledged_tick_30)
         .unwrap()
         .unwrap(),
       pid_30
     );
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick3, &pledged_tick_btc)
         .unwrap()
         .unwrap(),
@@ -974,7 +977,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
@@ -995,60 +998,60 @@ mod tests {
     let pledged_tick_unknown = PledgedTick::Unknown;
     let pid_unknown = Pid::from_str("1234567892#03").unwrap();
 
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_20, &pid_20)
       .unwrap();
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_30, &pid_30)
       .unwrap();
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_30_1, &pid_30_1)
       .unwrap();
 
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_btc, &pid_btc)
       .unwrap();
 
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick1, &pledged_tick_unknown, &pid_unknown)
       .unwrap();
 
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick2, &pledged_tick_20, &pid_20)
       .unwrap();
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick2, &pledged_tick_30, &pid_30)
       .unwrap();
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick2, &pledged_tick_30_1, &pid_30_1)
       .unwrap();
 
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick3, &pledged_tick_20, &pid_20)
       .unwrap();
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick3, &pledged_tick_30, &pid_30)
       .unwrap();
-    brc30db
+    brc20s_db
       .set_tickid_stake_to_pid(&tick3, &pledged_tick_30_1, &pid_30_1)
       .unwrap();
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick1, &pledged_tick_20)
         .unwrap()
         .unwrap(),
       pid_20
     );
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick2, &pledged_tick_30)
         .unwrap()
         .unwrap(),
       pid_30
     );
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick1, &pledged_tick_30)
         .unwrap()
         .unwrap(),
@@ -1056,7 +1059,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick1, &pledged_tick_30_1)
         .unwrap()
         .unwrap(),
@@ -1064,7 +1067,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick1, &pledged_tick_btc)
         .unwrap()
         .unwrap(),
@@ -1072,7 +1075,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_tickid_stake_to_pid(&tick1, &pledged_tick_unknown)
         .unwrap()
         .unwrap(),
@@ -1080,7 +1083,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db.get_tickid_to_all_pid(&tick1).unwrap(),
+      brc20s_db.get_tickid_to_all_pid(&tick1).unwrap(),
       vec![
         pid_unknown.clone(),
         pid_btc.clone(),
@@ -1091,22 +1094,24 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db.get_stake_to_all_pid(&pledged_tick_30).unwrap(),
+      brc20s_db.get_stake_to_all_pid(&pledged_tick_30).unwrap(),
       vec![pid_30.clone(), pid_30.clone(), pid_30.clone()]
     );
 
     assert_eq!(
-      brc30db.get_stake_to_all_pid(&pledged_tick_btc).unwrap(),
+      brc20s_db.get_stake_to_all_pid(&pledged_tick_btc).unwrap(),
       vec![pid_btc.clone()]
     );
 
     assert_eq!(
-      brc30db.get_stake_to_all_pid(&pledged_tick_20).unwrap(),
+      brc20s_db.get_stake_to_all_pid(&pledged_tick_20).unwrap(),
       vec![pid_20.clone(), pid_20.clone(), pid_20.clone()]
     );
 
     assert_eq!(
-      brc30db.get_stake_to_all_pid(&pledged_tick_unknown).unwrap(),
+      brc20s_db
+        .get_stake_to_all_pid(&pledged_tick_unknown)
+        .unwrap(),
       vec![pid_unknown.clone()]
     );
   }
@@ -1116,7 +1121,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = DataStore::new(&wtx);
+    let brc20s_db = DataStore::new(&wtx);
 
     let script_key1 = ScriptKey::from_address(
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap(),
@@ -1132,7 +1137,7 @@ mod tests {
       owner: script_key1.clone(),
     };
 
-    brc30db
+    brc20s_db
       .set_transferable_assets(
         &script_key1,
         &tick_id1,
@@ -1142,7 +1147,7 @@ mod tests {
       .unwrap();
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_transferable_asset(&script_key1, &tick_id1, &inscription_id1)
         .unwrap()
         .unwrap(),
@@ -1160,7 +1165,7 @@ mod tests {
       owner: script_key1.clone(),
     };
 
-    brc30db
+    brc20s_db
       .set_transferable_assets(
         &script_key1,
         &tick_id2,
@@ -1170,7 +1175,7 @@ mod tests {
       .unwrap();
 
     assert_eq!(
-      brc30db
+      brc20s_db
         .get_transferable_asset(&script_key1, &tick_id2, &inscription_id2)
         .unwrap()
         .unwrap(),
@@ -1178,7 +1183,7 @@ mod tests {
     );
 
     assert_eq!(
-      brc30db.get_transferable(&script_key1).unwrap(),
+      brc20s_db.get_transferable(&script_key1).unwrap(),
       vec![transferable_asset1.clone(), transferable_asset2.clone()]
     );
   }

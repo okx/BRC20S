@@ -11,24 +11,24 @@ use redb::TableDefinition;
 
 const TXID_TO_INSCRIPTION_RECEIPTS: TableDefinition<&str, &[u8]> =
   TableDefinition::new("TXID_TO_INSCRIPTION_RECEIPTS");
-const BRC30_TICKINFO: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC30_TICKINFO");
-const BRC30_PID_TO_POOLINFO: TableDefinition<&str, &[u8]> =
-  TableDefinition::new("BRC30_PID_TO_POOLINFO");
-const BRC30_USER_STAKEINFO: TableDefinition<&str, &[u8]> =
-  TableDefinition::new("BRC30_USER_STAKEINFO");
-const BRC30_PID_TO_USERINFO: TableDefinition<&str, &[u8]> =
-  TableDefinition::new("BRC30_PID_TO_USERINFO");
-const BRC30_STAKE_TICKID_TO_PID: TableDefinition<&str, &[u8]> =
-  TableDefinition::new("BRC30_STAKE_TICKID_TO_PID");
-const BRC30_TICKID_STAKE_TO_PID: TableDefinition<&str, &[u8]> =
-  TableDefinition::new("BRC30_TICKID_STAKE_TO_PID");
-const BRC30_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC30_BALANCE");
-const BRC30_TRANSFERABLE_ASSETS: TableDefinition<&str, &[u8]> =
-  TableDefinition::new("BRC30_TRANSFERABLE_ASSETS");
-const BRC30_TXID_TO_RECEIPTS: TableDefinition<&str, &[u8]> =
-  TableDefinition::new("BRC30_TXID_TO_RECEIPTS");
-const BRC30_INSCRIBE_TRANSFER: TableDefinition<&[u8; 36], &[u8]> =
-  TableDefinition::new("BRC30_INSCRIBE_TRANSFER");
+const BRC20S_TICKINFO: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20S_TICKINFO");
+const BRC20S_PID_TO_POOLINFO: TableDefinition<&str, &[u8]> =
+  TableDefinition::new("BRC20S_PID_TO_POOLINFO");
+const BRC20S_USER_STAKEINFO: TableDefinition<&str, &[u8]> =
+  TableDefinition::new("BRC20S_USER_STAKEINFO");
+const BRC20S_PID_TO_USERINFO: TableDefinition<&str, &[u8]> =
+  TableDefinition::new("BRC20S_PID_TO_USERINFO");
+const BRC20S_STAKE_TICKID_TO_PID: TableDefinition<&str, &[u8]> =
+  TableDefinition::new("BRC20S_STAKE_TICKID_TO_PID");
+const BRC20S_TICKID_STAKE_TO_PID: TableDefinition<&str, &[u8]> =
+  TableDefinition::new("BRC20S_TICKID_STAKE_TO_PID");
+const BRC20S_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20S_BALANCE");
+const BRC20S_TRANSFERABLE_ASSETS: TableDefinition<&str, &[u8]> =
+  TableDefinition::new("BRC20S_TRANSFERABLE_ASSETS");
+const BRC20S_TXID_TO_RECEIPTS: TableDefinition<&str, &[u8]> =
+  TableDefinition::new("BRC20S_TXID_TO_RECEIPTS");
+const BRC20S_INSCRIBE_TRANSFER: TableDefinition<&[u8; 36], &[u8]> =
+  TableDefinition::new("BRC20S_INSCRIBE_TRANSFER");
 
 fn script_tickid_key(script: &ScriptKey, tick_id: &TickId) -> String {
   format!("{}_{}", script.to_string(), tick_id.to_lowercase().hex())

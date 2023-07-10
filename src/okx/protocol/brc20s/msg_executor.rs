@@ -11,7 +11,7 @@ use crate::okx::{
       TransferEvent, TransferInfo, TransferableAsset, UserInfo, WithdrawEvent,
     },
     ord::OrdDataStoreReadOnly,
-    BRC20DataStoreReadWrite, BRC30DataStoreReadWrite, ScriptKey,
+    BRC20DataStoreReadWrite, DataStoreReadWrite, ScriptKey,
   },
   protocol::{
     brc20s::{
@@ -102,7 +102,7 @@ impl BRC30ExecutionMessage {
     }
   }
 }
-pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
@@ -180,7 +180,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   Ok(Some(receipt))
 }
 
-pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
@@ -383,7 +383,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
   Ok(events)
 }
 
-fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
@@ -527,7 +527,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }));
 }
 
-fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
@@ -637,7 +637,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }));
 }
 
-fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
@@ -699,7 +699,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
 
   Ok(events)
 }
-fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc30_store: &'a N,
@@ -814,7 +814,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   }))
 }
 
-fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   _context: BlockContext,
   _brc20_store: &'a M,
   brc30_store: &'a N,
@@ -904,7 +904,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
   }))
 }
 
-fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   _context: BlockContext,
   _brc20_store: &'a M,
   brc30_store: &'a N,
@@ -1017,7 +1017,7 @@ mod tests {
   use redb::Database;
   use tempfile::NamedTempFile;
 
-  fn execute_for_test<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
+  fn execute_for_test<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     brc20_store: &'a M,
     brc30_store: &'a N,
     msg: &BRC30ExecutionMessage,
@@ -1109,7 +1109,7 @@ mod tests {
     Ok(())
   }
 
-  fn assert_stake_info<'a, M: BRC30DataStoreReadWrite>(
+  fn assert_stake_info<'a, M: DataStoreReadWrite>(
     brc30_data_store: &'a M,
     pid: &str,
     from_script: &ScriptKey,
@@ -6115,7 +6115,7 @@ mod tests {
     );
   }
 
-  fn prepare_env_for_test<'a, L: BRC20DataStoreReadWrite, K: BRC30DataStoreReadWrite>(
+  fn prepare_env_for_test<'a, L: BRC20DataStoreReadWrite, K: DataStoreReadWrite>(
     brc20_data_store: &'a L,
     brc30_data_store: &'a K,
     addr: &str,

@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
   okx::datastore::brc20s::{
-    BRC30DataStoreReadWrite, Balance, DataStoreReadOnly, InscriptionOperation, Pid, PoolInfo,
-    Receipt, StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
+    Balance, DataStoreReadOnly, DataStoreReadWrite, InscriptionOperation, Pid, PoolInfo, Receipt,
+    StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
   },
   InscriptionId,
 };
@@ -30,7 +30,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_txid_to_inscription_receipts(txid)
   }
 
-  // BRC30_TICKINFO
+  // BRC20S_TICKINFO
   fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<TickInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_tick_info(tick_id)
   }
@@ -43,7 +43,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_all_tick_info(start, limit)
   }
 
-  // BRC30_PID_TO_POOLINFO
+  // BRC20S_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_pid_to_poolinfo(pid)
   }
@@ -56,7 +56,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_all_poolinfo(start, limit)
   }
 
-  // BRC30_USER_STAKEINFO
+  // BRC20S_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,
     script_key: &ScriptKey,
@@ -65,7 +65,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_user_stakeinfo(script_key, pledged_tick)
   }
 
-  // BRC30_PID_TO_USERINFO
+  // BRC20S_PID_TO_USERINFO
   fn get_pid_to_use_info(
     &self,
     script_key: &ScriptKey,
@@ -74,7 +74,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_pid_to_use_info(script_key, pid)
   }
 
-  // BRC30_STAKE_TICKID_TO_PID
+  // BRC20S_STAKE_TICKID_TO_PID
   fn get_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,
@@ -93,7 +93,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_stake_to_all_pid(pledged)
   }
 
-  // BRC30_BALANCE
+  // BRC20S_BALANCE
   fn get_balance(
     &self,
     script_key: &ScriptKey,
@@ -106,7 +106,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_balances(script_key)
   }
 
-  // BRC30_TRANSFERABLE_ASSETS
+  // BRC20S_TRANSFERABLE_ASSETS
   fn get_transferable_asset(
     &self,
     script_key: &ScriptKey,
@@ -136,7 +136,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_transferable_by_id(script, inscription_id)
   }
 
-  // BRC30_TXID_TO_RECEIPTS
+  // BRC20S_TXID_TO_RECEIPTS
   fn get_txid_to_receipts(&self, tx_id: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_txid_to_receipts(tx_id)
   }
@@ -153,7 +153,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
   }
 }
 
-impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
+impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   // TXID_TO_INSCRIPTION_RECEIPTS
   fn set_txid_to_inscription_receipts(
     &self,
@@ -169,86 +169,86 @@ impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
     Ok(())
   }
 
-  // BRC30_TICKINFO
+  // BRC20S_TICKINFO
   fn set_tick_info(&self, tick_id: &TickId, brc30_tick_info: &TickInfo) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_TICKINFO)?.insert(
+    self.wtx.open_table(BRC20S_TICKINFO)?.insert(
       tick_id.to_lowercase().hex().as_str(),
       bincode::serialize(brc30_tick_info).unwrap().as_slice(),
     )?;
     Ok(())
   }
 
-  // BRC30_PID_TO_POOLINFO
+  // BRC20S_PID_TO_POOLINFO
   fn set_pid_to_poolinfo(&self, pid: &Pid, brc30_pool_info: &PoolInfo) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_PID_TO_POOLINFO)?.insert(
+    self.wtx.open_table(BRC20S_PID_TO_POOLINFO)?.insert(
       pid.to_lowercase().hex().as_str(),
       bincode::serialize(brc30_pool_info).unwrap().as_slice(),
     )?;
     Ok(())
   }
 
-  // BRC30_USER_STAKEINFO
+  // BRC20S_USER_STAKEINFO
   fn set_user_stakeinfo(
     &self,
     script_key: &ScriptKey,
     pledged_tick: &PledgedTick,
     stake_info: &StakeInfo,
   ) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_USER_STAKEINFO)?.insert(
+    self.wtx.open_table(BRC20S_USER_STAKEINFO)?.insert(
       script_pledged_key(script_key, pledged_tick).as_str(),
       bincode::serialize(stake_info).unwrap().as_slice(),
     )?;
     Ok(())
   }
 
-  // BRC30_PID_TO_USERINFO
+  // BRC20S_PID_TO_USERINFO
   fn set_pid_to_use_info(
     &self,
     script_key: &ScriptKey,
     pid: &Pid,
     user_info: &UserInfo,
   ) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_PID_TO_USERINFO)?.insert(
+    self.wtx.open_table(BRC20S_PID_TO_USERINFO)?.insert(
       script_pid_key(&script_key, &pid).as_str(),
       bincode::serialize(user_info).unwrap().as_slice(),
     )?;
     Ok(())
   }
 
-  // BRC30_STAKE_TICKID_TO_PID, BRC30_TICKID_STAKE_TO_PID
+  // BRC20S_STAKE_TICKID_TO_PID, BRC20S_TICKID_STAKE_TO_PID
   fn set_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,
     pledged: &PledgedTick,
     pid: &Pid,
   ) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_STAKE_TICKID_TO_PID)?.insert(
+    self.wtx.open_table(BRC20S_STAKE_TICKID_TO_PID)?.insert(
       stake_tickid_key(pledged, tick_id).as_str(),
       bincode::serialize(pid).unwrap().as_slice(),
     )?;
 
-    self.wtx.open_table(BRC30_TICKID_STAKE_TO_PID)?.insert(
+    self.wtx.open_table(BRC20S_TICKID_STAKE_TO_PID)?.insert(
       tickid_stake_key(pledged, tick_id).as_str(),
       bincode::serialize(pid).unwrap().as_slice(),
     )?;
     Ok(())
   }
 
-  // BRC30_BALANCE
+  // BRC20S_BALANCE
   fn set_token_balance(
     &self,
     script_key: &ScriptKey,
     tick_id: &TickId,
     balance: Balance,
   ) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_BALANCES)?.insert(
+    self.wtx.open_table(BRC20S_BALANCES)?.insert(
       script_tickid_key(script_key, tick_id).as_str(),
       bincode::serialize(&balance).unwrap().as_slice(),
     )?;
     Ok(())
   }
 
-  // BRC30_TRANSFERABLE_ASSETS
+  // BRC20S_TRANSFERABLE_ASSETS
   fn set_transferable_assets(
     &self,
     script_key: &ScriptKey,
@@ -256,14 +256,14 @@ impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
     inscription_id: &InscriptionId,
     transferable_asset: &TransferableAsset,
   ) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_TRANSFERABLE_ASSETS)?.insert(
+    self.wtx.open_table(BRC20S_TRANSFERABLE_ASSETS)?.insert(
       script_tickid_inscriptionid_key(script_key, tick_id, inscription_id).as_str(),
       bincode::serialize(transferable_asset).unwrap().as_slice(),
     )?;
     Ok(())
   }
 
-  // BRC30_TXID_TO_RECEIPTS
+  // BRC20S_TXID_TO_RECEIPTS
   fn add_transaction_receipt(&self, tx_id: &Txid, receipt: &Receipt) -> Result<(), Self::Error> {
     let mut receipts = self.get_transaction_receipts(tx_id)?;
     receipts.push(receipt.clone());
@@ -275,7 +275,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
     tx_id: &Txid,
     receipts: &[Receipt],
   ) -> Result<(), Self::Error> {
-    self.wtx.open_table(BRC30_TXID_TO_RECEIPTS)?.insert(
+    self.wtx.open_table(BRC20S_TXID_TO_RECEIPTS)?.insert(
       tx_id.to_string().as_str(),
       bincode::serialize(receipts).unwrap().as_slice(),
     )?;
@@ -290,7 +290,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     self
       .wtx
-      .open_table(BRC30_TRANSFERABLE_ASSETS)?
+      .open_table(BRC20S_TRANSFERABLE_ASSETS)?
       .remove(script_tickid_inscriptionid_key(script_key, tick_id, inscription_id).as_str())?;
     Ok(())
   }
@@ -305,7 +305,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
     txid.copy_from_slice(inscription_id.txid.as_inner());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
 
-    self.wtx.open_table(BRC30_INSCRIBE_TRANSFER)?.insert(
+    self.wtx.open_table(BRC20S_INSCRIBE_TRANSFER)?.insert(
       &value,
       bincode::serialize(&transfer_info).unwrap().as_slice(),
     )?;
@@ -323,7 +323,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
 
     self
       .wtx
-      .open_table(BRC30_INSCRIBE_TRANSFER)?
+      .open_table(BRC20S_INSCRIBE_TRANSFER)?
       .remove(&value)?;
     Ok(())
   }
@@ -333,7 +333,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for DataStore<'db, 'a> {
 mod tests {
   use super::*;
   use crate::okx::datastore::brc20;
-  use crate::okx::datastore::brc20s::{BRC30DataStoreReadWrite, DataStoreReadOnly, OperationType};
+  use crate::okx::datastore::brc20s::{DataStoreReadOnly, DataStoreReadWrite, OperationType};
   use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolType, Tick, TickId};
   use crate::okx::protocol::brc20s::BRC30Error;
   use crate::SatPoint;

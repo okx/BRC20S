@@ -107,12 +107,12 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // BRC30_TICKINFO
+  // BRC20S_TICKINFO
   fn get_tick_info(&self, tick_id: &TickId) -> Result<Option<TickInfo>, Self::Error> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_TICKINFO)?
+        .open_table(BRC20S_TICKINFO)?
         .get(tick_id.to_lowercase().hex().as_str())?
         .map(|v| bincode::deserialize::<TickInfo>(v.value()).unwrap()),
     )
@@ -123,7 +123,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     start: usize,
     limit: Option<usize>,
   ) -> Result<(Vec<TickInfo>, usize), Self::Error> {
-    let table = self.wrapper.open_table(BRC30_TICKINFO)?;
+    let table = self.wrapper.open_table(BRC20S_TICKINFO)?;
     let total = table.len()?;
     return Ok((
       table
@@ -141,12 +141,12 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     ));
   }
 
-  // BRC30_PID_TO_POOLINFO
+  // BRC20S_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_PID_TO_POOLINFO)?
+        .open_table(BRC20S_PID_TO_POOLINFO)?
         .get(pid.to_lowercase().hex().as_str())?
         .map(|v| bincode::deserialize::<PoolInfo>(v.value()).unwrap()),
     )
@@ -157,7 +157,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     start: usize,
     limit: Option<usize>,
   ) -> Result<(Vec<PoolInfo>, usize), Self::Error> {
-    let table = self.wrapper.open_table(BRC30_PID_TO_POOLINFO)?;
+    let table = self.wrapper.open_table(BRC20S_PID_TO_POOLINFO)?;
     let total = table.len()?;
     return Ok((
       table
@@ -175,7 +175,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     ));
   }
 
-  // BRC30_USER_STAKEINFO
+  // BRC20S_USER_STAKEINFO
   fn get_user_stakeinfo(
     &self,
     script_key: &ScriptKey,
@@ -184,13 +184,13 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_USER_STAKEINFO)?
+        .open_table(BRC20S_USER_STAKEINFO)?
         .get(script_pledged_key(script_key, pledged_tick).as_str())?
         .map(|v| bincode::deserialize::<StakeInfo>(v.value()).unwrap()),
     )
   }
 
-  // BRC30_PID_TO_USERINFO
+  // BRC20S_PID_TO_USERINFO
   fn get_pid_to_use_info(
     &self,
     script_key: &ScriptKey,
@@ -199,13 +199,13 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_PID_TO_USERINFO)?
+        .open_table(BRC20S_PID_TO_USERINFO)?
         .get(script_pid_key(&script_key, &pid).as_str())?
         .map(|v| bincode::deserialize::<UserInfo>(v.value()).unwrap()),
     )
   }
 
-  // BRC30_STAKE_TICKID_TO_PID
+  // BRC20S_STAKE_TICKID_TO_PID
   fn get_tickid_stake_to_pid(
     &self,
     tick_id: &TickId,
@@ -214,7 +214,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_STAKE_TICKID_TO_PID)?
+        .open_table(BRC20S_STAKE_TICKID_TO_PID)?
         .get(stake_tickid_key(pledged, tick_id).as_str())?
         .map(|v| bincode::deserialize::<Pid>(v.value()).unwrap()),
     )
@@ -227,7 +227,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_TICKID_STAKE_TO_PID)?
+        .open_table(BRC20S_TICKID_STAKE_TO_PID)?
         .range(min.as_str()..max.as_str())?
         .flat_map(|result| {
           result.map(|(_, data)| {
@@ -244,7 +244,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_STAKE_TICKID_TO_PID)?
+        .open_table(BRC20S_STAKE_TICKID_TO_PID)?
         .range(min_stake_tickid_key(pledged).as_str()..max_stake_tickid_key(pledged).as_str())?
         .flat_map(|result| {
           result.map(|(_, data)| {
@@ -256,7 +256,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // BRC30_BALANCE
+  // BRC20S_BALANCE
   fn get_balance(
     &self,
     script_key: &ScriptKey,
@@ -265,7 +265,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_BALANCES)?
+        .open_table(BRC20S_BALANCES)?
         .get(script_tickid_key(script_key, tick_id).as_str())?
         .map(|v| {
           let bal = bincode::deserialize::<Balance>(v.value()).unwrap();
@@ -279,7 +279,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_BALANCES)?
+        .open_table(BRC20S_BALANCES)?
         .range(
           min_script_tick_id_key(script_key).as_str()..max_script_tick_id_key(&script_key).as_str(),
         )?
@@ -293,7 +293,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // BRC30_TRANSFERABLE_ASSETS
+  // BRC20S_TRANSFERABLE_ASSETS
   fn get_transferable_asset(
     &self,
     script_key: &ScriptKey,
@@ -303,7 +303,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_TRANSFERABLE_ASSETS)?
+        .open_table(BRC20S_TRANSFERABLE_ASSETS)?
         .get(script_tickid_inscriptionid_key(script_key, tick_id, inscription_id).as_str())?
         .map(|v| bincode::deserialize::<TransferableAsset>(v.value()).unwrap()),
     )
@@ -313,7 +313,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_TRANSFERABLE_ASSETS)?
+        .open_table(BRC20S_TRANSFERABLE_ASSETS)?
         .range(min_script_tick_id_key(script).as_str()..max_script_tick_id_key(script).as_str())?
         .flat_map(|result| {
           result.map(|(_, v)| bincode::deserialize::<TransferableAsset>(v.value()).unwrap())
@@ -351,12 +351,12 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
-  // BRC30_TXID_TO_RECEIPTS
+  // BRC20S_TXID_TO_RECEIPTS
   fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_TXID_TO_RECEIPTS)?
+        .open_table(BRC20S_TXID_TO_RECEIPTS)?
         .get(txid.to_string().as_str())?
         .map_or(Vec::new(), |v| {
           bincode::deserialize::<Vec<Receipt>>(v.value()).unwrap()
@@ -368,7 +368,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_TXID_TO_RECEIPTS)?
+        .open_table(BRC20S_TXID_TO_RECEIPTS)?
         .get(tx_id.to_string().as_str())?
         .map_or(Vec::new(), |v| {
           bincode::deserialize::<Vec<Receipt>>(v.value()).unwrap()
@@ -387,7 +387,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     Ok(
       self
         .wrapper
-        .open_table(BRC30_INSCRIBE_TRANSFER)?
+        .open_table(BRC20S_INSCRIBE_TRANSFER)?
         .get(&value)?
         .map(|v| bincode::deserialize::<TransferInfo>(v.value()).unwrap()),
     )

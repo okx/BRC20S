@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{
   okx::{
     datastore::{
-      ord::operation::InscriptionOp, BRC20DataStoreReadWrite, BRC30DataStoreReadWrite,
+      ord::operation::InscriptionOp, BRC20DataStoreReadWrite, DataStoreReadWrite,
       OrdDataStoreReadWrite,
     },
     protocol::Message,
@@ -18,7 +18,7 @@ pub struct MsgResolveManager<
   'a,
   O: OrdDataStoreReadWrite,
   N: BRC20DataStoreReadWrite,
-  M: BRC30DataStoreReadWrite,
+  M: DataStoreReadWrite,
 > {
   protocols: HashSet<ProtocolKind>,
   client: &'a Client,
@@ -29,7 +29,7 @@ pub struct MsgResolveManager<
   first_brc20s_height: u64,
 }
 
-impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStoreReadWrite>
+impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadWrite>
   MsgResolveManager<'a, O, N, M>
 {
   pub fn new(

@@ -23,7 +23,7 @@ impl PassiveUnStake {
       NATIVE_TOKEN => PledgedTick::Native,
       _ => match self.stake.len() {
         TICK_BYTE_COUNT => PledgedTick::BRC20Tick(brc20::Tick::from_str(stake).unwrap()),
-        TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(stake).unwrap()),
+        TICK_ID_STR_COUNT => PledgedTick::BRC20STick(TickId::from_str(stake).unwrap()),
         _ => PledgedTick::Unknown,
       },
     }

@@ -101,7 +101,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
           Ok(events) => {
             let mut events = events.into_iter();
             while let Some(BRC30Event::Transfer(brc30_transfer)) = events.next() {
-              let ptick = PledgedTick::BRC30Tick(brc30_transfer.tick_id.clone());
+              let ptick = PledgedTick::BRC20STick(brc30_transfer.tick_id.clone());
               match convert_pledged_tick_without_decimal(
                 &ptick,
                 brc30_transfer.amt,

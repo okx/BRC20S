@@ -726,7 +726,7 @@ mod tests {
         BRC30Event::DeployPool(DeployPoolEvent {
           pid: "aabbccddee#1f".to_string(),
           stake: Stake {
-            type_field: brc20s::PledgedTick::BRC30Tick(
+            type_field: brc20s::PledgedTick::BRC20STick(
               brc20s::TickId::from_str("aabbccddee").unwrap(),
             )
             .to_type(),

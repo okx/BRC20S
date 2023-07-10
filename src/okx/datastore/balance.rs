@@ -19,7 +19,7 @@ pub fn get_user_common_balance<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStore
 ) -> Num {
   match token {
     PledgedTick::Native => Num::from(0_u128),
-    PledgedTick::BRC30Tick(tickid) => {
+    PledgedTick::BRC20STick(tickid) => {
       let balance = match brc20s_ledger.get_balance(&script, tickid) {
         Ok(Some(brc20s_balance)) => brc20s_balance,
         _ => brc20s::Balance::default(tickid),
@@ -44,7 +44,7 @@ pub fn get_stake_dec<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite>
 ) -> u8 {
   match token {
     PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
-    PledgedTick::BRC30Tick(tickid) => match brc30ledger.get_tick_info(&tickid) {
+    PledgedTick::BRC20STick(tickid) => match brc30ledger.get_tick_info(&tickid) {
       Ok(info) => match info {
         Some(info) => info.decimal,
         None => 0_u8,
@@ -69,7 +69,7 @@ pub fn stake_is_exist<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite
 ) -> bool {
   match token {
     PledgedTick::Native => true,
-    PledgedTick::BRC30Tick(tickid) => {
+    PledgedTick::BRC20STick(tickid) => {
       let tickinfo = brc30ledger.get_tick_info(&tickid);
       match tickinfo {
         Ok(info) => match info {
@@ -96,7 +96,7 @@ pub fn stake_is_exist<'a, L: BRC30DataStoreReadWrite, M: BRC20DataStoreReadWrite
 pub fn tick_can_staked(token: &PledgedTick) -> bool {
   match token {
     PledgedTick::Native => false,
-    PledgedTick::BRC30Tick(_) => false,
+    PledgedTick::BRC20STick(_) => false,
     PledgedTick::BRC20Tick(_) => true,
     PledgedTick::Unknown => false,
   }
@@ -137,7 +137,7 @@ pub fn convert_pledged_tick_with_decimal<
 
       convert_amount_with_decimal(amount, token.decimal)
     }
-    PledgedTick::BRC30Tick(tickid) => {
+    PledgedTick::BRC20STick(tickid) => {
       let tick = brc30ledger
         .get_tick_info(tickid)
         .map_err(|e| Error::LedgerError(e))?
@@ -198,7 +198,7 @@ pub fn convert_pledged_tick_without_decimal<
 
       convert_amount_without_decimal(amount, token.decimal)
     }
-    PledgedTick::BRC30Tick(tickid) => {
+    PledgedTick::BRC20STick(tickid) => {
       let tick = brc30ledger
         .get_tick_info(tickid)
         .map_err(|e| Error::LedgerError(e))?

@@ -178,7 +178,7 @@ pub enum PledgedTick {
   Unknown,
   Native,
   BRC20Tick(brc20::Tick),
-  BRC30Tick(TickId),
+  BRC20STick(TickId),
 }
 
 impl PledgedTick {
@@ -196,7 +196,7 @@ impl PledgedTick {
       PledgedTick::Unknown => "Unknown".to_string(),
       PledgedTick::Native => NATIVE_TOKEN.to_string(),
       PledgedTick::BRC20Tick(tick) => tick.as_str().to_string(),
-      PledgedTick::BRC30Tick(tickid) => tickid.to_lowercase().hex(),
+      PledgedTick::BRC20STick(tickid) => tickid.to_lowercase().hex(),
     }
   }
 
@@ -205,7 +205,7 @@ impl PledgedTick {
       PledgedTick::Unknown => "Unknown".to_string(),
       PledgedTick::Native => NATIVE_TOKEN.to_uppercase().to_string(),
       PledgedTick::BRC20Tick(_) => "BRC20".to_string(),
-      PledgedTick::BRC30Tick(_) => "BRC20-S".to_string(),
+      PledgedTick::BRC20STick(_) => "BRC20-S".to_string(),
     }
   }
 
@@ -214,7 +214,7 @@ impl PledgedTick {
       NATIVE_TOKEN => PledgedTick::Native,
       _ => match str.len() {
         TICK_BYTE_COUNT => PledgedTick::BRC20Tick(brc20::Tick::from_str(str).unwrap()),
-        TICK_ID_STR_COUNT => PledgedTick::BRC30Tick(TickId::from_str(str).unwrap()),
+        TICK_ID_STR_COUNT => PledgedTick::BRC20STick(TickId::from_str(str).unwrap()),
         _ => PledgedTick::Unknown,
       },
     }

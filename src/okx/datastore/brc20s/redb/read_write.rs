@@ -579,7 +579,7 @@ mod tests {
       total_only: 0,
     };
 
-    let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
+    let pledged_tick_30 = PledgedTick::BRC20STick(TickId::from_str("f7c515d630").unwrap());
     let pid_30 = Pid::from_str("0000000000#02").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
@@ -926,14 +926,14 @@ mod tests {
     let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
 
-    let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
+    let pledged_tick_30 = PledgedTick::BRC20STick(TickId::from_str("f7c515d630").unwrap());
     let pid_30 = Pid::from_str("1234567891#01").unwrap();
 
     let tick1 = TickId::from_str("f7c515d6b1").unwrap();
     let tick2 = TickId::from_str("f7c515d6b2").unwrap();
     let tick3 = TickId::from_str("f7c515d6b3").unwrap();
 
-    let pledged_tick_btc = PledgedTick::BRC30Tick(TickId::from_str("f7c515d600").unwrap());
+    let pledged_tick_btc = PledgedTick::BRC20STick(TickId::from_str("f7c515d600").unwrap());
     let pid_btc = Pid::from_str("1234567890#01").unwrap();
 
     brc30db
@@ -979,14 +979,14 @@ mod tests {
     let pledged_tick_20 = PledgedTick::BRC20Tick(brc20::Tick::from_str("tk20").unwrap());
     let pid_20 = Pid::from_str("1234567890#01").unwrap();
 
-    let pledged_tick_30 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d630").unwrap());
+    let pledged_tick_30 = PledgedTick::BRC20STick(TickId::from_str("f7c515d630").unwrap());
     let pid_30 = Pid::from_str("1234567891#01").unwrap();
 
     let tick1 = TickId::from_str("f7c515d6b1").unwrap();
     let tick2 = TickId::from_str("f7c515d6b2").unwrap();
     let tick3 = TickId::from_str("f7c515d6b3").unwrap();
 
-    let pledged_tick_30_1 = PledgedTick::BRC30Tick(TickId::from_str("f7c515d600").unwrap());
+    let pledged_tick_30_1 = PledgedTick::BRC20STick(TickId::from_str("f7c515d600").unwrap());
     let pid_30_1 = Pid::from_str("1234567892#01").unwrap();
 
     let pledged_tick_btc = PledgedTick::Native;

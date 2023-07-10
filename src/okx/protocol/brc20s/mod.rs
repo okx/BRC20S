@@ -22,7 +22,7 @@ pub use self::{
   num::Num,
   operation::{Deploy, Mint, Operation, PassiveUnStake, Stake, Transfer, UnStake},
 };
-pub(crate) use self::{msg_resolver::resolve_message, operation::deserialize_brc30_operation};
+pub(crate) use self::{msg_resolver::resolve_message, operation::deserialize_brc20s_operation};
 
 #[derive(Debug, Clone)]
 pub struct BRC30Message {

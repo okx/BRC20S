@@ -24,7 +24,7 @@ pub struct MsgResolveManager<
   client: &'a Client,
   ord_store: &'a O,
   brc20_store: &'a N,
-  brc30_store: &'a M,
+  brc20s_store: &'a M,
   first_brc20_height: u64,
   first_brc20s_height: u64,
 }
@@ -36,7 +36,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
     client: &'a Client,
     ord_store: &'a O,
     brc20_store: &'a N,
-    brc30_store: &'a M,
+    brc20s_store: &'a M,
     first_brc20_height: u64,
     first_brc20s_height: u64,
   ) -> Self {
@@ -48,7 +48,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
       client,
       ord_store,
       brc20_store,
-      brc30_store,
+      brc20s_store,
       first_brc20_height,
       first_brc20s_height,
     }
@@ -109,7 +109,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
           if let Some(msg) = brc20s::resolve_message(
             self.client,
             self.ord_store,
-            self.brc30_store,
+            self.brc20s_store,
             &new_inscriptions,
             &operation,
             &mut outpoint_to_txout_cache,

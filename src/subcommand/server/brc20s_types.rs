@@ -669,7 +669,7 @@ mod tests {
   use std::str::FromStr;
 
   #[test]
-  fn serialize_brc30_receipts() {
+  fn serialize_brc20s_receipts() {
     let receipt = BRC30Receipt {
       inscription_id: Some(InscriptionId {
         txid: txid(1),

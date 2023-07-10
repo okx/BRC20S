@@ -66,7 +66,7 @@ pub enum Operation {
   Transfer(Transfer),
 }
 
-pub(crate) fn deserialize_brc30_operation(
+pub(crate) fn deserialize_brc20s_operation(
   inscription: &Inscription,
   action: &Action,
 ) -> Result<BRC30Operation> {
@@ -334,7 +334,7 @@ mod tests {
   fn test_ignore_non_transfer_brc30() {
     let content_type = "text/plain;charset=utf-8".as_bytes().to_vec();
     assert_eq!(
-      deserialize_brc30_operation(
+      deserialize_brc20s_operation(
         &Inscription::new(
           Some(content_type.clone()),
           Some(
@@ -360,7 +360,7 @@ mod tests {
     );
 
     assert_eq!(
-      deserialize_brc30_operation(
+      deserialize_brc20s_operation(
         &Inscription::new(
           Some(content_type.clone()),
           Some(
@@ -382,7 +382,7 @@ mod tests {
     );
 
     assert_eq!(
-      deserialize_brc30_operation(
+      deserialize_brc20s_operation(
         &Inscription::new(
           Some(content_type.clone()),
           Some(
@@ -405,7 +405,7 @@ mod tests {
     );
 
     assert_eq!(
-      deserialize_brc30_operation(
+      deserialize_brc20s_operation(
         &Inscription::new(
           Some(content_type.clone()),
           Some(
@@ -426,7 +426,7 @@ mod tests {
       })
     );
 
-    assert!(deserialize_brc30_operation(
+    assert!(deserialize_brc20s_operation(
       &Inscription::new(
         Some(content_type.clone()),
         Some(
@@ -439,7 +439,7 @@ mod tests {
     )
     .is_err());
 
-    assert!(deserialize_brc30_operation(
+    assert!(deserialize_brc20s_operation(
       &Inscription::new(
         Some(content_type.clone()),
         Some(
@@ -453,7 +453,7 @@ mod tests {
     .is_err());
 
     assert_eq!(
-      deserialize_brc30_operation(
+      deserialize_brc20s_operation(
         &Inscription::new(
           Some(content_type.clone()),
           Some(

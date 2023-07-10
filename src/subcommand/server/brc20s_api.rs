@@ -7,10 +7,10 @@ pub(crate) async fn brc20s_all_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Query(page): Query<Pagination>,
 ) -> ApiResult<AllBRC30TickInfo> {
-  log::debug!("rpc: get brc30_all_tick_info");
+  log::debug!("rpc: get brc20s_all_tick_info");
 
   let (all_tick_info, total) = index.brc20s_all_tick_info(page.start.unwrap_or(0), page.limit)?;
-  log::debug!("rpc: get brc30_all_tick_info: {:?}", all_tick_info);
+  log::debug!("rpc: get brc20s_all_tick_info: {:?}", all_tick_info);
 
   Ok(Json(ApiResponse::ok(AllBRC30TickInfo {
     tokens: all_tick_info
@@ -26,10 +26,10 @@ pub(crate) async fn brc20s_all_tick_info(
           .unwrap()
           .unwrap();
 
-        let mut brc30_tick = TickInfo::from(tick_info);
-        brc30_tick.set_deploy_blocktime(block.header.time as u64);
-        brc30_tick.set_inscription_number(inscription_number.number as u64);
-        brc30_tick
+        let mut brc20s_tick = TickInfo::from(tick_info);
+        brc20s_tick.set_deploy_blocktime(block.header.time as u64);
+        brc20s_tick.set_inscription_number(inscription_number.number as u64);
+        brc20s_tick
       })
       .collect(),
     total,
@@ -41,7 +41,7 @@ pub(crate) async fn brc20s_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
 ) -> ApiResult<TickInfo> {
-  log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
+  log::debug!("rpc: get brc20s_tick_info: {}", tick_id.to_string());
 
   let tick_id = tick_id.to_lowercase();
   if tick_id.as_bytes().len() != 10 {
@@ -59,7 +59,7 @@ pub(crate) async fn brc20s_tick_info(
     .brc20s_tick_info(&tick_id)?
     .ok_or_api_not_found("tick not found")?;
 
-  log::debug!("rpc: get brc30_tick_info: {:?} {:?}", tick_id, tick_info);
+  log::debug!("rpc: get brc20s_tick_info: {:?} {:?}", tick_id, tick_info);
 
   if tick_info.tick_id != brc20s::TickId::from_str(&tick_id).unwrap() {
     return Err(ApiError::internal("db: not match"));
@@ -75,11 +75,11 @@ pub(crate) async fn brc20s_tick_info(
     .unwrap()
     .unwrap();
 
-  let mut brc30_tick = TickInfo::from(tick_info);
-  brc30_tick.set_deploy_blocktime(block.header.time as u64);
-  brc30_tick.set_inscription_number(inscription_number.number as u64);
+  let mut brc20s_tick = TickInfo::from(tick_info);
+  brc20s_tick.set_deploy_blocktime(block.header.time as u64);
+  brc20s_tick.set_inscription_number(inscription_number.number as u64);
 
-  Ok(Json(ApiResponse::ok(brc30_tick)))
+  Ok(Json(ApiResponse::ok(brc20s_tick)))
 }
 
 // /brc20s/tick/:tickId
@@ -87,7 +87,7 @@ pub(crate) async fn brc20s_debug_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
 ) -> ApiResult<brc20s::TickInfo> {
-  log::debug!("rpc: get brc30_tick_info: {}", tick_id.to_string());
+  log::debug!("rpc: get brc20s_tick_info: {}", tick_id.to_string());
   let tick_id = tick_id.to_lowercase();
   match TickId::from_str(tick_id.as_str()) {
     Ok(_) => {}
@@ -100,7 +100,7 @@ pub(crate) async fn brc20s_debug_tick_info(
     .brc20s_tick_info(&tick_id)?
     .ok_or_api_not_found("tick not found")?;
 
-  log::debug!("rpc: get brc30_tick_info: {:?} {:?}", tick_id, tick_info);
+  log::debug!("rpc: get brc20s_tick_info: {:?} {:?}", tick_id, tick_info);
 
   if tick_info.tick_id != brc20s::TickId::from_str(&tick_id).unwrap() {
     return Err(ApiError::internal("db: not match"));
@@ -114,9 +114,9 @@ pub(crate) async fn brc20s_all_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Query(page): Query<Pagination>,
 ) -> ApiResult<AllBRC30PoolInfo> {
-  log::debug!("rpc: get brc30_all_pool_info");
+  log::debug!("rpc: get brc20s_all_pool_info");
   let (all_pool_info, total) = index.brc20s_all_pool_info(page.start.unwrap_or(0), page.limit)?;
-  log::debug!("rpc: get brc30_all_pool_info: {:?}", all_pool_info);
+  log::debug!("rpc: get brc20s_all_pool_info: {:?}", all_pool_info);
   Ok(Json(ApiResponse::ok(AllBRC30PoolInfo {
     tokens: all_pool_info
       .iter()
@@ -161,7 +161,7 @@ pub(crate) async fn brc20s_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Path(pid): Path<String>,
 ) -> ApiResult<BRC30Pool> {
-  log::debug!("rpc: get brc30_pool_info: {}", pid);
+  log::debug!("rpc: get brc20s_pool_info: {}", pid);
 
   if pid.as_bytes().len() != 13 {
     return Err(ApiError::bad_request("pid length must 13."));
@@ -173,7 +173,7 @@ pub(crate) async fn brc20s_pool_info(
     .ok_or_api_not_found("pool not found")?;
 
   log::debug!(
-    "rpc: get brc30_pool_info: {:?} {:?}",
+    "rpc: get brc20s_pool_info: {:?} {:?}",
     pid.as_str(),
     pool_info
   );
@@ -217,7 +217,7 @@ pub(crate) async fn brc20s_debug_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Path(pid): Path<String>,
 ) -> ApiResult<brc20s::PoolInfo> {
-  log::debug!("rpc: get brc30_pool_info: {}", pid);
+  log::debug!("rpc: get brc20s_pool_info: {}", pid);
 
   if pid.as_bytes().len() != 13 {
     return Err(ApiError::bad_request("pid length must 13."));
@@ -229,7 +229,7 @@ pub(crate) async fn brc20s_debug_pool_info(
     .ok_or_api_not_found("pool not found")?;
 
   log::debug!(
-    "rpc: get brc30_pool_info: {:?} {:?}",
+    "rpc: get brc20s_pool_info: {:?} {:?}",
     pid.as_str(),
     pool_info
   );
@@ -241,7 +241,7 @@ pub(crate) async fn brc20s_debug_stake_info(
   Extension(index): Extension<Arc<Index>>,
   Path((address, tick)): Path<(String, String)>,
 ) -> ApiResult<brc20s::StakeInfo> {
-  log::debug!("rpc: get brc30_pool_info: {},{}", address, tick);
+  log::debug!("rpc: get brc20s_pool_info: {},{}", address, tick);
 
   let address: bitcoin::Address = address
     .parse()
@@ -251,7 +251,7 @@ pub(crate) async fn brc20s_debug_stake_info(
     .brc20s_stake_info(&address, &PledgedTick::from_str(tick.as_str()))?
     .ok_or_api_not_found("stake not found")?;
 
-  log::debug!("rpc: get brc30_pool_info: {:?}", stake_info);
+  log::debug!("rpc: get brc20s_pool_info: {:?}", stake_info);
 
   Ok(Json(ApiResponse::ok(stake_info)))
 }
@@ -261,7 +261,7 @@ pub(crate) async fn brc20s_userinfo(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
 ) -> ApiResult<UserInfo> {
-  log::debug!("rpc: get brc30_userinfo: {}, {}", pid, address);
+  log::debug!("rpc: get brc20s_userinfo: {}, {}", pid, address);
 
   if pid.as_bytes().len() != 13 {
     return Err(ApiError::bad_request("pid length must 13."));
@@ -275,7 +275,7 @@ pub(crate) async fn brc20s_userinfo(
     .ok_or_api_not_found("user not found")?;
 
   log::debug!(
-    "rpc: get brc30_userinfo: {:?} {:?}",
+    "rpc: get brc20s_userinfo: {:?} {:?}",
     pid.as_str(),
     user_info
   );
@@ -291,7 +291,7 @@ pub(crate) async fn brc20s_user_pending_reward(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
 ) -> ApiResult<UserReward> {
-  log::debug!("rpc: get brc30_user_reward: {}, {}", pid, address);
+  log::debug!("rpc: get brc20s_user_reward: {}, {}", pid, address);
 
   if pid.as_bytes().len() != 13 {
     return Err(ApiError::bad_request("pid length must 13."));
@@ -303,7 +303,7 @@ pub(crate) async fn brc20s_user_pending_reward(
   let (user_reward, block) = &index.brc20s_user_pending_reward(&pid, &address)?;
 
   log::debug!(
-    "rpc: get brc30_user_reward: {:?}, {:?}, {:?}",
+    "rpc: get brc20s_user_reward: {:?}, {:?}, {:?}",
     pid.as_str(),
     user_reward,
     block,
@@ -320,7 +320,7 @@ pub(crate) async fn brc20s_debug_userinfo(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
 ) -> ApiResult<brc20s::UserInfo> {
-  log::debug!("rpc: get brc30_userinfo: {}, {}", pid, address);
+  log::debug!("rpc: get brc20s_userinfo: {}, {}", pid, address);
 
   if pid.as_bytes().len() != 13 {
     return Err(ApiError::bad_request("pid length must 13."));
@@ -334,7 +334,7 @@ pub(crate) async fn brc20s_debug_userinfo(
     .ok_or_api_not_found("user not found")?;
 
   log::debug!(
-    "rpc: get brc30_userinfo: {:?} {:?}",
+    "rpc: get brc20s_userinfo: {:?} {:?}",
     pid.as_str(),
     user_info
   );
@@ -352,7 +352,7 @@ pub(crate) async fn brc20s_debug_balance(
   Path((tick_id, address)): Path<(String, String)>,
 ) -> ApiResult<brc20s::Balance> {
   log::debug!(
-    "rpc: get brc30_balance: tickId:{}, address:{}",
+    "rpc: get brc20s_balance: tickId:{}, address:{}",
     tick_id,
     address
   );
@@ -372,7 +372,7 @@ pub(crate) async fn brc20s_debug_balance(
     .ok_or_api_not_found("balance not found")?;
 
   log::debug!(
-    "rpc: get brc30_userinfo: {:?} {:?}",
+    "rpc: get brc20s_userinfo: {:?} {:?}",
     tick_id.as_str(),
     balance
   );
@@ -386,7 +386,7 @@ pub(crate) async fn brc20s_balance(
   Path((tick_id, address)): Path<(String, String)>,
 ) -> ApiResult<BRC30Balance> {
   log::debug!(
-    "rpc: get brc30_balance: tickId:{}, address:{}",
+    "rpc: get brc20s_balance: tickId:{}, address:{}",
     tick_id,
     address
   );
@@ -419,7 +419,7 @@ pub(crate) async fn brc20s_balance(
 
   balance_result.set_tick_name(tick_info.name.as_str().to_string());
   log::debug!(
-    "rpc: get brc30_userinfo: {:?} {:?}",
+    "rpc: get brc20s_userinfo: {:?} {:?}",
     tick_id.as_str(),
     balance_result
   );
@@ -432,7 +432,7 @@ pub(crate) async fn brc20s_all_balance(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
 ) -> ApiResult<AllBRC30Balance> {
-  log::debug!("rpc: get brc30_all_balance: {}", address);
+  log::debug!("rpc: get brc20s_all_balance: {}", address);
 
   let address: bitcoin::Address = address
     .parse()
@@ -440,7 +440,7 @@ pub(crate) async fn brc20s_all_balance(
 
   let all_balance = index.brc20s_all_balance(&address)?;
 
-  log::debug!("rpc: get brc30_all_balance: {} {:?}", address, all_balance);
+  log::debug!("rpc: get brc20s_all_balance: {} {:?}", address, all_balance);
 
   Ok(Json(ApiResponse::ok(AllBRC30Balance {
     balance: all_balance
@@ -455,7 +455,7 @@ pub(crate) async fn brc20s_all_balance(
 
         balance_result.set_tick_name(tick_info.name.as_str().to_string());
         log::debug!(
-          "rpc: get brc30_userinfo: {:?} {:?}",
+          "rpc: get brc20s_userinfo: {:?} {:?}",
           tick_id,
           balance_result
         );
@@ -470,7 +470,7 @@ pub(crate) async fn brc20s_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path((tick_id, address)): Path<(String, String)>,
 ) -> ApiResult<Transferable> {
-  log::debug!("rpc: get brc30_transferable: {},{}", tick_id, address);
+  log::debug!("rpc: get brc20s_transferable: {},{}", tick_id, address);
 
   let tick_id = tick_id.to_lowercase();
   if tick_id.as_bytes().len() != 10 {
@@ -490,7 +490,7 @@ pub(crate) async fn brc20s_transferable(
   let all_transfer = &index.brc20s_tickid_transferable(&tick_id, &address)?;
 
   log::debug!(
-    "rpc: get brc30_transferable: {:?} {:?}",
+    "rpc: get brc20s_transferable: {:?} {:?}",
     tick_id.as_str(),
     all_transfer
   );
@@ -524,7 +524,7 @@ pub(crate) async fn brc20s_all_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
 ) -> ApiResult<Transferable> {
-  log::debug!("rpc: get brc30_all_transferable: {}", address);
+  log::debug!("rpc: get brc20s_all_transferable: {}", address);
 
   let address: bitcoin::Address = address
     .parse()
@@ -532,7 +532,7 @@ pub(crate) async fn brc20s_all_transferable(
 
   let all = index.brc20s_all_transferable(&address)?;
 
-  log::debug!("rpc: get brc30_all_transferable: {} {:?}", address, all);
+  log::debug!("rpc: get brc20s_all_transferable: {} {:?}", address, all);
 
   Ok(Json(ApiResponse::ok(Transferable {
     inscriptions: all
@@ -563,12 +563,12 @@ pub(crate) async fn brc20s_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
 ) -> ApiResult<TxReceipts> {
-  log::debug!("rpc: get brc30_txid_receipts: {}", txid);
+  log::debug!("rpc: get brc20s_txid_receipts: {}", txid);
   let txid = Txid::from_str(&txid).unwrap();
 
   let all_receipt = index.brc20s_txid_receipts(&txid)?;
 
-  log::debug!("rpc: get brc30_txid_receipts: {:?}", all_receipt);
+  log::debug!("rpc: get brc20s_txid_receipts: {:?}", all_receipt);
 
   let mut receipts = Vec::new();
   for receipt in all_receipt.iter() {
@@ -593,12 +593,12 @@ pub(crate) async fn brc20s_debug_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
 ) -> ApiResult<Vec<Receipt>> {
-  log::debug!("rpc: get brc30_txid_receipts: {}", txid);
+  log::debug!("rpc: get brc20s_txid_receipts: {}", txid);
   let txid = Txid::from_str(&txid).unwrap();
 
   let all_receipt = index.brc20s_txid_receipts(&txid)?;
 
-  log::debug!("rpc: get brc30_txid_receipts: {:?}", all_receipt);
+  log::debug!("rpc: get brc20s_txid_receipts: {:?}", all_receipt);
 
   Ok(Json(ApiResponse::ok(all_receipt)))
 }
@@ -608,7 +608,7 @@ pub(crate) async fn brc20s_block_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,
 ) -> ApiResult<BRC30BlockReceipts> {
-  log::debug!("rpc: get brc30_block_receipts: {}", block_hash);
+  log::debug!("rpc: get brc20s_block_receipts: {}", block_hash);
 
   let hash =
     bitcoin::BlockHash::from_str(&block_hash).map_err(|e| ApiError::bad_request(e.to_string()))?;
@@ -616,7 +616,7 @@ pub(crate) async fn brc20s_block_receipts(
     .brc20s_block_receipts(&hash)?
     .ok_or_api_not_found("block receipts not found")?;
 
-  log::debug!("rpc: get brc30_block_receipts: {:?}", block_receipts);
+  log::debug!("rpc: get brc20s_block_receipts: {:?}", block_receipts);
 
   let mut api_block_receipts = Vec::new();
   for (txid, tx_receipts) in block_receipts.iter() {
@@ -650,7 +650,7 @@ pub(crate) async fn brc20s_stake_info(
   Path((address, tick)): Path<(String, String)>,
 ) -> ApiResult<StakedInfo> {
   log::debug!(
-    "rpc: get brc30_stake_info: tick:{}, address:{}",
+    "rpc: get brc20s_stake_info: tick:{}, address:{}",
     tick,
     address
   );
@@ -667,7 +667,7 @@ pub(crate) async fn brc20s_stake_info(
     .brc20s_stake_info(&address, &PledgedTick::from_str(tick.as_str()))?
     .ok_or_api_not_found("stake not found")?;
 
-  log::debug!("rpc: get brc30_stake_info: {:?}", stake_info);
+  log::debug!("rpc: get brc20s_stake_info: {:?}", stake_info);
 
   let mut result = StakedInfo::from(&stake_info);
   result.tick = tick.to_string();

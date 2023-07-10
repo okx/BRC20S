@@ -6,7 +6,7 @@ pub(crate) use {
   std::str::FromStr,
 };
 
-pub(crate) fn mock_create_brc30_message(
+pub(crate) fn mock_create_brc20s_message(
   from: ScriptKey,
   to: ScriptKey,
   op: BRC30Operation,
@@ -79,7 +79,7 @@ pub(crate) fn mock_deploy_msg(
     only,
   };
 
-  let execute_msg = mock_create_brc30_message(
+  let execute_msg = mock_create_brc20s_message(
     from_script_key,
     to_script_key,
     BRC30Operation::Deploy(msg.clone()),
@@ -101,7 +101,7 @@ pub(crate) fn mock_stake_msg(
     amount: amt.to_string(),
   };
 
-  let execute_msg = mock_create_brc30_message(
+  let execute_msg = mock_create_brc20s_message(
     from_script_key,
     to_script_key,
     BRC30Operation::Stake(msg.clone()),
@@ -123,7 +123,7 @@ pub(crate) fn mock_unstake_msg(
     amount: amt.to_string(),
   };
 
-  let execute_msg = mock_create_brc30_message(
+  let execute_msg = mock_create_brc20s_message(
     from_script_key,
     to_script_key,
     BRC30Operation::UnStake(msg.clone()),
@@ -145,7 +145,7 @@ pub(crate) fn mock_passive_unstake_msg(
     amount: amt.to_string(),
   };
 
-  let execute_msg = mock_create_brc30_message(
+  let execute_msg = mock_create_brc20s_message(
     from_script_key,
     to_script_key,
     BRC30Operation::PassiveUnStake(msg.clone()),

@@ -6,7 +6,7 @@ use crate::{
       brc20s::DataStoreReadOnly,
       ord::{Action, InscriptionOp, OrdDataStoreReadOnly},
     },
-    protocol::brc20s::{deserialize_brc30_operation, operation::Transfer},
+    protocol::brc20s::{deserialize_brc20s_operation, operation::Transfer},
   },
   Index, Result,
 };
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>(
   client: &Client,
   ord_store: &'a O,
-  brc30_store: &'a M,
+  brc20s_store: &'a M,
   new_inscriptions: &Vec<Inscription>,
   op: &InscriptionOp,
   outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
@@ -33,7 +33,7 @@ pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>
         log::debug!("BRC20S resolving filtered new inscription on coinbase tx");
         return Ok(None);
       }
-      match deserialize_brc30_operation(
+      match deserialize_brc20s_operation(
         new_inscriptions
           .get(usize::try_from(op.inscription_id.index).unwrap())
           .unwrap(),
@@ -43,7 +43,7 @@ pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>
         _ => return Ok(None),
       }
     }
-    Action::Transfer => match brc30_store.get_inscribe_transfer_inscription(op.inscription_id) {
+    Action::Transfer => match brc20s_store.get_inscribe_transfer_inscription(op.inscription_id) {
       Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
         BRC30Operation::Transfer(Transfer {
           tick_id: transfer_info.tick_id.hex(),

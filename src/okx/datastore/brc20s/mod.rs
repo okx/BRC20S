@@ -120,10 +120,11 @@ pub trait DataStoreReadWrite: DataStoreReadOnly {
   ) -> Result<(), Self::Error>;
 
   // BRC20S_TICKINFO
-  fn set_tick_info(&self, tick_id: &TickId, brc30_tick_info: &TickInfo) -> Result<(), Self::Error>;
+  fn set_tick_info(&self, tick_id: &TickId, brc20s_tick_info: &TickInfo)
+    -> Result<(), Self::Error>;
 
   // BRC20S_PID_TO_POOLINFO
-  fn set_pid_to_poolinfo(&self, pid: &Pid, brc30_pool_info: &PoolInfo) -> Result<(), Self::Error>;
+  fn set_pid_to_poolinfo(&self, pid: &Pid, brc20s_pool_info: &PoolInfo) -> Result<(), Self::Error>;
 
   // BRC20S_USER_STAKEINFO
   fn set_user_stakeinfo(

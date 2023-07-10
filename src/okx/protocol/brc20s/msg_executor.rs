@@ -105,27 +105,27 @@ impl BRC30ExecutionMessage {
 pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
-  brc30_store: &'a N,
+  brc20s_store: &'a N,
   msg: &BRC30ExecutionMessage,
 ) -> Result<Option<Receipt>> {
   log::debug!("BRC20S execute message: {:?}", msg);
   let mut is_save_receipt = true;
   let event = match &msg.op {
     BRC30Operation::Deploy(deploy) => {
-      process_deploy(context, brc20_store, brc30_store, msg, deploy.clone())
+      process_deploy(context, brc20_store, brc20s_store, msg, deploy.clone())
     }
     BRC30Operation::Stake(stake) => {
-      process_stake(context, brc20_store, brc30_store, msg, stake.clone()).map(|event| vec![event])
+      process_stake(context, brc20_store, brc20s_store, msg, stake.clone()).map(|event| vec![event])
     }
     BRC30Operation::UnStake(unstake) => {
-      process_unstake(context, brc20_store, brc30_store, msg, unstake.clone())
+      process_unstake(context, brc20_store, brc20s_store, msg, unstake.clone())
         .map(|event| vec![event])
     }
     BRC30Operation::PassiveUnStake(passive_unstake) => {
       let events = process_passive_unstake(
         context,
         brc20_store,
-        brc30_store,
+        brc20s_store,
         msg,
         passive_unstake.clone(),
       );
@@ -143,14 +143,14 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
       events
     }
     BRC30Operation::Mint(mint) => {
-      process_mint(context, brc20_store, brc30_store, msg, mint.clone()).map(|event| vec![event])
+      process_mint(context, brc20_store, brc20s_store, msg, mint.clone()).map(|event| vec![event])
     }
     BRC30Operation::InscribeTransfer(transfer) => {
-      process_inscribe_transfer(context, brc20_store, brc30_store, msg, transfer.clone())
+      process_inscribe_transfer(context, brc20_store, brc20s_store, msg, transfer.clone())
         .map(|event| vec![event])
     }
     BRC30Operation::Transfer(_) => {
-      process_transfer(context, brc20_store, brc30_store, msg).map(|event| vec![event])
+      process_transfer(context, brc20_store, brc20s_store, msg).map(|event| vec![event])
     }
   };
 
@@ -174,7 +174,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   };
 
   log::debug!("BRC20S message receipt: {:?}", receipt);
-  brc30_store
+  brc20s_store
     .add_transaction_receipt(&msg.txid, &receipt)
     .map_err(|e| anyhow!("failed to set transaction receipts to state! error: {e}"))?;
   Ok(Some(receipt))
@@ -183,7 +183,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
 pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
-  brc30_store: &'a N,
+  brc20s_store: &'a N,
   msg: &BRC30ExecutionMessage,
   deploy: Deploy,
 ) -> Result<Vec<BRC30Event>, Error<N>> {
@@ -223,13 +223,13 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     return Err(Error::BRC30Error(BRC30Error::ShareNoPermission()));
   }
   //check stake
-  if !stake_is_exist(&stake, brc30_store, brc20_store) {
+  if !stake_is_exist(&stake, brc20s_store, brc20_store) {
     return Err(Error::BRC30Error(BRC30Error::StakeNotFound(
       stake.to_string(),
     )));
   }
   // check pool is exist, if true return error
-  if let Some(_) = brc30_store
+  if let Some(_) = brc20s_store
     .get_pid_to_poolinfo(&pid)
     .map_err(|e| Error::LedgerError(e))?
   {
@@ -245,7 +245,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let dmax: u128;
 
   //Get or create the tick
-  if let Some(mut temp_tick) = brc30_store
+  if let Some(mut temp_tick) = brc20s_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
   {
@@ -271,7 +271,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     }
 
     // check stake has exist in tick's pools
-    if let Some(_) = brc30_store
+    if let Some(_) = brc20s_store
       .get_tickid_stake_to_pid(&tick_id, &stake)
       .map_err(|e| Error::LedgerError(e))?
     {
@@ -290,7 +290,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     }
     temp_tick.allocated = temp_tick.allocated + dmax;
     temp_tick.pids.push(pid.clone());
-    brc30_store
+    brc20s_store
       .set_tick_info(&tick_id, &temp_tick)
       .map_err(|e| Error::LedgerError(e))?;
 
@@ -338,7 +338,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
       context.blockheight,
       pids,
     );
-    brc30_store
+    brc20s_store
       .set_tick_info(&tick_id, &tick)
       .map_err(|e| Error::LedgerError(e))?;
 
@@ -365,10 +365,10 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     only,
   );
 
-  brc30_store
+  brc20s_store
     .set_pid_to_poolinfo(&pool.pid, &pool)
     .map_err(|e| Error::LedgerError(e))?;
-  brc30_store
+  brc20s_store
     .set_tickid_stake_to_pid(&tick_id, &stake, &pid)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -386,7 +386,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
 fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
-  brc30_store: &'a N,
+  brc20s_store: &'a N,
   msg: &BRC30ExecutionMessage,
   stake_msg: Stake,
 ) -> Result<BRC30Event, Error<N>> {
@@ -410,7 +410,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     )));
   }
 
-  let mut pool = brc30_store
+  let mut pool = brc20s_store
     .get_pid_to_poolinfo(&pool_id)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(
@@ -421,16 +421,16 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let amount = convert_pledged_tick_with_decimal(
     &stake_tick,
     stake_msg.amount.as_str(),
-    brc30_store,
+    brc20s_store,
     brc20_store,
   )?;
 
   // check user balance of stake is more than ammount to staked
   let stake_balance =
-    get_user_common_balance(&to_script_key, &stake_tick, brc30_store, brc20_store);
+    get_user_common_balance(&to_script_key, &stake_tick, brc20s_store, brc20_store);
 
   let is_first_stake: bool;
-  let mut userinfo = match brc30_store.get_pid_to_use_info(&to_script_key, &pool_id) {
+  let mut userinfo = match brc20s_store.get_pid_to_use_info(&to_script_key, &pool_id) {
     Ok(Some(info)) => {
       if info.staked == 0_u128 {
         is_first_stake = true;
@@ -445,7 +445,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     }
   };
 
-  let mut user_stakeinfo = brc30_store
+  let mut user_stakeinfo = brc20s_store
     .get_user_stakeinfo(&to_script_key, &stake_tick)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(StakeInfo::new(&vec![], &stake_tick, 0, 0), |v| v);
@@ -479,7 +479,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     )));
   }
 
-  let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
+  let dec = get_stake_dec(&stake_tick, brc20s_store, brc20_store);
   reward::update_pool(&mut pool, context.blockheight, dec)?;
   let mut reward = 0_u128;
   if !is_first_stake {
@@ -488,7 +488,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   // updated user balance of stakedhehe =
   userinfo.staked = has_staked.checked_add(&amount)?.checked_to_u128()?;
   reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
-  brc30_store
+  brc20s_store
     .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -508,7 +508,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     user_stakeinfo.max_share = cmp::max(user_stakeinfo.max_share, userinfo.staked)
   }
 
-  brc30_store
+  brc20s_store
     .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -516,7 +516,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   pool.staked = Num::from(pool.staked)
     .checked_add(&amount)?
     .checked_to_u128()?;
-  brc30_store
+  brc20s_store
     .set_pid_to_poolinfo(&pool_id, &pool)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -530,7 +530,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
 fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
-  brc30_store: &'a N,
+  brc20s_store: &'a N,
   msg: &BRC30ExecutionMessage,
   unstake: UnStake,
 ) -> Result<BRC30Event, Error<N>> {
@@ -553,7 +553,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     )));
   }
 
-  let mut pool = brc30_store
+  let mut pool = brc20s_store
     .get_pid_to_poolinfo(&pool_id)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(
@@ -565,11 +565,11 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let amount = convert_pledged_tick_with_decimal(
     &stake_tick,
     unstake.amount.as_str(),
-    brc30_store,
+    brc20s_store,
     brc20_store,
   )?;
 
-  let mut userinfo = brc30_store
+  let mut userinfo = brc20s_store
     .get_pid_to_use_info(&to_script_key, &pool_id)
     .map_or(Some(UserInfo::default(&pool_id)), |v| v)
     .unwrap_or(UserInfo::default(&pool_id));
@@ -581,7 +581,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     )));
   }
 
-  let dec = get_stake_dec(&stake_tick, brc30_store, brc20_store);
+  let dec = get_stake_dec(&stake_tick, brc20s_store, brc20_store);
   reward::update_pool(&mut pool, context.blockheight, dec)?;
   let reward = reward::withdraw_user_reward(&mut userinfo, &mut pool, dec)?;
   userinfo.staked = has_staked.checked_sub(&amount)?.checked_to_u128()?;
@@ -590,11 +590,11 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     .checked_to_u128()?;
   reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
 
-  brc30_store
+  brc20s_store
     .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
     .map_err(|e| Error::LedgerError(e))?;
 
-  let mut user_stakeinfo = brc30_store
+  let mut user_stakeinfo = brc20s_store
     .get_user_stakeinfo(&to_script_key, &stake_tick)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(
@@ -622,11 +622,11 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     user_stakeinfo.max_share = user_stakeinfo.calculate_max_share()?.checked_to_u128()?;
   }
 
-  brc30_store
+  brc20s_store
     .set_pid_to_poolinfo(&pool_id, &pool)
     .map_err(|e| Error::LedgerError(e))?;
 
-  brc30_store
+  brc20s_store
     .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -640,7 +640,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
 fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
-  brc30_store: &'a N,
+  brc20s_store: &'a N,
   msg: &BRC30ExecutionMessage,
   passive_unstake: PassiveUnStake,
 ) -> Result<Vec<BRC30Event>, Error<N>> {
@@ -655,7 +655,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite
   passive_msg.to = Some(msg.from.clone());
 
   let stake_tick = passive_unstake.get_stake_tick();
-  let stake_info = brc30_store
+  let stake_info = brc20s_store
     .get_user_stakeinfo(&from_script_key, &stake_tick)
     .map_err(|e| Error::LedgerError(e))?;
   let stake_info = match stake_info {
@@ -667,7 +667,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite
     }
   };
 
-  let balance = get_user_common_balance(&from_script_key, &stake_tick, brc30_store, brc20_store);
+  let balance = get_user_common_balance(&from_script_key, &stake_tick, brc20s_store, brc20_store);
   let staked_total =
     Num::from(stake_info.total_only).checked_add(&Num::from(stake_info.max_share))?;
 
@@ -684,13 +684,13 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite
   let pids: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&stake_alterive)?;
   for (pid, stake) in pids.iter() {
     let withdraw_stake =
-      convert_pledged_tick_without_decimal(&stake_tick, *stake, brc30_store, brc20_store)?;
+      convert_pledged_tick_without_decimal(&stake_tick, *stake, brc20s_store, brc20_store)?;
     let stake_msg = UnStake::new(
       pid.to_lowercase().as_str(),
       withdraw_stake.to_string().as_str(),
     );
     passive_msg.op = BRC30Operation::UnStake(stake_msg.clone());
-    process_unstake(context, brc20_store, brc30_store, &passive_msg, stake_msg)?;
+    process_unstake(context, brc20_store, brc20s_store, &passive_msg, stake_msg)?;
     events.push(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {
       pid: pid.clone(),
       amt: *stake,
@@ -702,7 +702,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite
 fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
-  brc30_store: &'a N,
+  brc20s_store: &'a N,
   msg: &BRC30ExecutionMessage,
   mint: Mint,
 ) -> Result<BRC30Event, Error<N>> {
@@ -727,7 +727,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
 
   // check tick
   let tick_id = mint.get_tick_id()?;
-  let mut tick_info = brc30_store
+  let mut tick_info = brc20s_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC30Error::TickNotFound(mint.tick.clone()))?;
@@ -752,17 +752,17 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
 
   // get user info and pool info
   let pool_id = mint.get_pool_id()?;
-  let mut user_info = brc30_store
+  let mut user_info = brc20s_store
     .get_pid_to_use_info(&to_script_key, &pool_id)
     .unwrap_or(Some(UserInfo::default(&pool_id)))
     .unwrap_or(UserInfo::default(&pool_id));
-  let mut pool_info = brc30_store
+  let mut pool_info = brc20s_store
     .get_pid_to_poolinfo(&pool_id)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(mint.pool_id)))?;
 
   // calculate reward
-  let dec = get_stake_dec(&pool_info.stake, brc30_store, brc20_store);
+  let dec = get_stake_dec(&pool_info.stake, brc20s_store, brc20_store);
   if user_info.pending_reward >= amt.checked_to_u128()? {
     user_info.pending_reward = user_info.pending_reward - amt.checked_to_u128()?;
     user_info.minted = user_info.minted + amt.checked_to_u128()?;
@@ -780,22 +780,22 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   }
 
   // update user info and pool info
-  brc30_store
+  brc20s_store
     .set_pid_to_use_info(&to_script_key, &pool_id, &user_info)
     .map_err(|e| Error::LedgerError(e))?;
-  brc30_store
+  brc20s_store
     .set_pid_to_poolinfo(&pool_id, &pool_info)
     .map_err(|e| Error::LedgerError(e))?;
 
   // update tick info
   tick_info.circulation += amt.checked_to_u128()?;
   tick_info.latest_mint_block = context.blockheight;
-  brc30_store
+  brc20s_store
     .set_tick_info(&tick_id, &tick_info)
     .map_err(|e| Error::LedgerError(e))?;
 
   // update user balance
-  let mut user_balance = brc30_store
+  let mut user_balance = brc20s_store
     .get_balance(&to_script_key, &tick_id)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(tick_id.clone()), |v| v);
@@ -804,7 +804,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     .checked_add(&amt)?
     .checked_to_u128()?;
 
-  brc30_store
+  brc20s_store
     .set_token_balance(&to_script_key, &tick_id, user_balance)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -817,7 +817,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
 fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   _context: BlockContext,
   _brc20_store: &'a M,
-  brc30_store: &'a N,
+  brc20s_store: &'a N,
   msg: &BRC30ExecutionMessage,
   transfer: Transfer,
 ) -> Result<BRC30Event, Error<N>> {
@@ -825,7 +825,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
   let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
   // check tick
   let tick_id = TickId::from_str(transfer.tick_id.as_str())?;
-  let tick_info = brc30_store
+  let tick_info = brc20s_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC30Error::TickNotFound(tick_id.hex()))?;
@@ -851,7 +851,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
   }
 
   // update balance
-  let mut balance = brc30_store
+  let mut balance = brc20s_store
     .get_balance(&to_script_key, &tick_id)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(tick_id.clone()), |v| v);
@@ -866,7 +866,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
     )));
   }
   balance.transferable_balance = transferable.checked_add(&amt)?.checked_to_u128()?;
-  brc30_store
+  brc20s_store
     .set_token_balance(&to_script_key, &tick_id, balance)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -878,7 +878,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
     tick_id,
     owner: to_script_key.clone(),
   };
-  brc30_store
+  brc20s_store
     .set_transferable_assets(
       &to_script_key,
       &tick_id,
@@ -887,7 +887,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
     )
     .map_err(|e| Error::LedgerError(e))?;
 
-  brc30_store
+  brc20s_store
     .insert_inscribe_transfer_inscription(
       msg.inscription_id,
       TransferInfo {
@@ -907,11 +907,11 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
 fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   _context: BlockContext,
   _brc20_store: &'a M,
-  brc30_store: &'a N,
+  brc20s_store: &'a N,
   msg: &BRC30ExecutionMessage,
 ) -> Result<BRC30Event, Error<N>> {
   let from_script_key = msg.from.clone();
-  let transferable = brc30_store
+  let transferable = brc20s_store
     .get_transferable_by_id(&from_script_key, &msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC30Error::TransferableNotFound(msg.inscription_id))?;
@@ -935,13 +935,13 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     msg.to.clone().unwrap()
   };
 
-  brc30_store
+  brc20s_store
     .get_tick_info(&transferable.tick_id)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC30Error::TickNotFound(transferable.tick_id.hex()))?;
 
   // update from key balance.
-  let mut from_balance = brc30_store
+  let mut from_balance = brc20s_store
     .get_balance(&from_script_key, &transferable.tick_id)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(transferable.tick_id), |v| v);
@@ -955,7 +955,7 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   from_balance.overall_balance = from_overall;
   from_balance.transferable_balance = from_transferable;
 
-  brc30_store
+  brc20s_store
     .set_token_balance(&from_script_key, &transferable.tick_id, from_balance)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -967,7 +967,7 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   // };
 
   // update to key balance.
-  let mut to_balance = brc30_store
+  let mut to_balance = brc20s_store
     .get_balance(&to_script_key, &transferable.tick_id)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(transferable.tick_id), |v| v);
@@ -975,15 +975,15 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let to_overall = Into::<Num>::into(to_balance.overall_balance);
   to_balance.overall_balance = to_overall.checked_add(&amt)?.checked_to_u128()?;
 
-  brc30_store
+  brc20s_store
     .set_token_balance(&to_script_key, &transferable.tick_id, to_balance)
     .map_err(|e| Error::LedgerError(e))?;
 
-  brc30_store
+  brc20s_store
     .remove_transferable(&from_script_key, &transferable.tick_id, &msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
-  brc30_store
+  brc20s_store
     .remove_inscribe_transfer_inscription(msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
@@ -1008,7 +1008,7 @@ mod tests {
   use crate::okx::datastore::brc20s::DataStoreReadOnly;
   use crate::okx::datastore::brc20s::PledgedTick;
   use crate::okx::protocol::brc20s::test::{
-    mock_create_brc30_message, mock_deploy_msg, mock_passive_unstake_msg, mock_stake_msg,
+    mock_create_brc20s_message, mock_deploy_msg, mock_passive_unstake_msg, mock_stake_msg,
     mock_unstake_msg,
   };
   use crate::test::Hash;
@@ -1019,7 +1019,7 @@ mod tests {
 
   fn execute_for_test<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     brc20_store: &'a M,
-    brc30_store: &'a N,
+    brc20s_store: &'a N,
     msg: &BRC30ExecutionMessage,
     height: u64,
   ) -> Result<Vec<BRC30Event>, BRC30Error> {
@@ -1030,40 +1030,42 @@ mod tests {
     };
     let result = match msg.clone().op {
       BRC30Operation::Deploy(deploy) => {
-        process_deploy(context, brc20_store, brc30_store, msg, deploy)
+        process_deploy(context, brc20_store, brc20s_store, msg, deploy)
       }
       BRC30Operation::Mint(mint) => {
-        match process_mint(context, brc20_store, brc30_store, msg, mint) {
+        match process_mint(context, brc20_store, brc20s_store, msg, mint) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
       BRC30Operation::Stake(stake) => {
-        match process_stake(context, brc20_store, brc30_store, msg, stake) {
+        match process_stake(context, brc20_store, brc20s_store, msg, stake) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
       BRC30Operation::UnStake(unstake) => {
-        match process_unstake(context, brc20_store, brc30_store, msg, unstake) {
+        match process_unstake(context, brc20_store, brc20s_store, msg, unstake) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
       BRC30Operation::PassiveUnStake(passive_unstake) => {
-        process_passive_unstake(context, brc20_store, brc30_store, msg, passive_unstake)
+        process_passive_unstake(context, brc20_store, brc20s_store, msg, passive_unstake)
       }
       BRC30Operation::InscribeTransfer(inscribe_transfer) => {
-        match process_inscribe_transfer(context, brc20_store, brc30_store, msg, inscribe_transfer) {
+        match process_inscribe_transfer(context, brc20_store, brc20s_store, msg, inscribe_transfer)
+        {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
-      BRC30Operation::Transfer(_) => match process_transfer(context, brc20_store, brc30_store, msg)
-      {
-        Ok(event) => Ok(vec![event]),
-        Err(e) => Err(e),
-      },
+      BRC30Operation::Transfer(_) => {
+        match process_transfer(context, brc20_store, brc20s_store, msg) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
     };
 
     match result {
@@ -1110,7 +1112,7 @@ mod tests {
   }
 
   fn assert_stake_info<'a, M: DataStoreReadWrite>(
-    brc30_data_store: &'a M,
+    brc20s_data_store: &'a M,
     pid: &str,
     from_script: &ScriptKey,
     stake_tick: &PledgedTick,
@@ -1119,18 +1121,18 @@ mod tests {
     expect_user_info: &str,
   ) {
     let temp_pid = Pid::from_str(pid).unwrap();
-    let mut stake_info = brc30_data_store
+    let mut stake_info = brc20s_data_store
       .get_user_stakeinfo(from_script, stake_tick)
       .unwrap()
       .unwrap();
     let pool_stakes: Vec<(Pid, bool, u128)> =
       stake_info.pool_stakes.iter().rev().cloned().collect();
     stake_info.pool_stakes = pool_stakes;
-    let pool_info = brc30_data_store
+    let pool_info = brc20s_data_store
       .get_pid_to_poolinfo(&temp_pid)
       .unwrap()
       .unwrap();
-    let user_info = brc30_data_store
+    let user_info = brc20s_data_store
       .get_pid_to_use_info(&from_script, &temp_pid)
       .unwrap()
       .unwrap();
@@ -1161,7 +1163,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -1181,7 +1183,7 @@ mod tests {
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -1196,7 +1198,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -1217,15 +1219,18 @@ mod tests {
     }
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
     let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -1238,7 +1243,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -1275,7 +1280,7 @@ mod tests {
     second_deply.stake = "orea".to_string();
     second_deply.distribution_max = "9000000".to_string();
     second_deply.earn_rate = "0.1".to_string();
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(second_deply.clone()),
@@ -1288,7 +1293,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       second_deply.clone(),
     );
@@ -1302,8 +1307,11 @@ mod tests {
     assert_ne!(true, result.is_err());
     let tick_id = second_deply.get_tick_id();
     let pid = second_deply.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#11"]}"##;
     let expect_pool_info = r##"{"pid":"13395c5283#11","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
@@ -1318,7 +1326,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -1338,7 +1346,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -1354,7 +1362,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -1375,8 +1383,11 @@ mod tests {
     }
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
     let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
@@ -1434,7 +1445,7 @@ mod tests {
     }
     //pool already exist
     {
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(deploy.clone()),
@@ -1447,7 +1458,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         deploy.clone(),
       );
@@ -1469,7 +1480,7 @@ mod tests {
       second_deploy.pool_id = "13395c5283#01".to_string();
       second_deploy.stake = "ore1".to_string();
       second_deploy.distribution_max = "8000000".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1482,7 +1493,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1495,8 +1506,11 @@ mod tests {
 
       let tick_id = second_deploy.get_tick_id();
       let pid = second_deploy.get_pool_id();
-      let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-      let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+      let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+      let pool_info = brc20s_data_store
+        .get_pid_to_poolinfo(&pid)
+        .unwrap()
+        .unwrap();
 
       let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01"]}"##;
       let expect_pool_info = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":8000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
@@ -1511,7 +1525,7 @@ mod tests {
       second_deploy.stake = "ore2".to_string();
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.only = Some("".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1524,7 +1538,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1537,8 +1551,11 @@ mod tests {
 
       let tick_id = second_deploy.get_tick_id();
       let pid = second_deploy.get_pool_id();
-      let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-      let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+      let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+      let pool_info = brc20s_data_store
+        .get_pid_to_poolinfo(&pid)
+        .unwrap()
+        .unwrap();
 
       let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20100000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01","13395c5283#02"]}"##;
       let expect_pool_info = r##"{"pid":"13395c5283#02","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore2"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":100000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
@@ -1554,7 +1571,7 @@ mod tests {
       second_deploy.stake = "ore1".to_string();
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.only = Some("".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1567,7 +1584,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1592,7 +1609,7 @@ mod tests {
       second_deploy.stake = "err1".to_string();
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.only = Some("".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1605,7 +1622,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1629,7 +1646,7 @@ mod tests {
       second_deploy.stake = "ore3".to_string();
       second_deploy.distribution_max = "10000000".to_string();
       second_deploy.only = Some("".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1642,7 +1659,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1667,7 +1684,7 @@ mod tests {
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.total_supply = Some("22000000".to_string());
       second_deploy.only = Some("".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1680,7 +1697,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1693,8 +1710,11 @@ mod tests {
 
       let tick_id = second_deploy.get_tick_id();
       let pid = second_deploy.get_pool_id();
-      let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-      let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+      let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+      let pool_info = brc20s_data_store
+        .get_pid_to_poolinfo(&pid)
+        .unwrap()
+        .unwrap();
 
       let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20200000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01","13395c5283#02","13395c5283#03"]}"##;
       let expect_pool_info = r##"{"pid":"13395c5283#03","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore3"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":100000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
@@ -1710,7 +1730,7 @@ mod tests {
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.total_supply = Some("22000000".to_string());
       second_deploy.only = Some("".to_string());
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1724,7 +1744,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1746,7 +1766,7 @@ mod tests {
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.total_supply = Some("22000000".to_string());
       second_deploy.only = Some("".to_string());
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1761,7 +1781,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1788,7 +1808,7 @@ mod tests {
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.total_supply = Some("22000000".to_string());
       second_deploy.only = Some("0".to_string());
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1803,7 +1823,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1825,7 +1845,7 @@ mod tests {
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.total_supply = Some("22000000".to_string());
       second_deploy.earn = "ordie".to_string();
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1834,7 +1854,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1860,7 +1880,7 @@ mod tests {
       second_deploy.distribution_max = "100000".to_string();
       second_deploy.total_supply = Some("22000000".to_string());
       second_deploy.earn = "ordi1".to_string();
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deploy.clone()),
@@ -1869,7 +1889,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deploy.clone(),
       );
@@ -1893,7 +1913,7 @@ mod tests {
       wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -1917,7 +1937,7 @@ mod tests {
     {
       let mut second_deply = deploy.clone();
       second_deply.total_supply = Some("20000000".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deply.clone()),
@@ -1933,7 +1953,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deply.clone(),
       );
@@ -1953,7 +1973,7 @@ mod tests {
 
       let mut second_deply = deploy.clone();
       second_deply.decimals = Some("17".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deply.clone()),
@@ -1966,7 +1986,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deply.clone(),
       );
@@ -1985,7 +2005,7 @@ mod tests {
       );
 
       let mut second_deply = deploy.clone();
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deply.clone()),
@@ -2003,7 +2023,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deply.clone(),
       );
@@ -2022,7 +2042,7 @@ mod tests {
       );
 
       let mut second_deply = deploy.clone();
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(second_deply.clone()),
@@ -2039,7 +2059,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         second_deply.clone(),
       );
@@ -2061,7 +2081,7 @@ mod tests {
     {
       let mut err_pool_type = deploy.clone();
       err_pool_type.pool_type = "errtype".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pool_type.clone()),
@@ -2074,7 +2094,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pool_type.clone(),
       );
@@ -2093,7 +2113,7 @@ mod tests {
     {
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "l8195197bc#1f".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2106,7 +2126,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pid.clone(),
       );
@@ -2127,7 +2147,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "8195197bc#1f".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2140,7 +2160,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pid.clone(),
       );
@@ -2161,7 +2181,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "13395c5283#lf".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2174,7 +2194,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pid.clone(),
       );
@@ -2196,7 +2216,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c81195197bc#f".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2209,7 +2229,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pid.clone(),
       );
@@ -2230,7 +2250,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "13395c5283$1f".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2243,7 +2263,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pid.clone(),
       );
@@ -2264,7 +2284,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c819519#bc#df".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2277,7 +2297,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pid.clone(),
       );
@@ -2298,7 +2318,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "c819519#bc#1f".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2311,7 +2331,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pid.clone(),
       );
@@ -2332,7 +2352,7 @@ mod tests {
 
       let mut err_pid = deploy.clone();
       err_pid.pool_id = "a8195197bc#1f".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_pid.clone()),
@@ -2345,7 +2365,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_pid.clone(),
       );
@@ -2369,7 +2389,7 @@ mod tests {
     {
       let mut err_stake = deploy.clone();
       err_stake.stake = "he".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2382,7 +2402,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_stake.clone(),
       );
@@ -2397,7 +2417,7 @@ mod tests {
 
       let mut err_stake = deploy.clone();
       err_stake.stake = "hehehh".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2410,7 +2430,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_stake.clone(),
       );
@@ -2425,7 +2445,7 @@ mod tests {
 
       let mut err_stake = deploy.clone();
       err_stake.stake = "test".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_stake.clone()),
@@ -2438,7 +2458,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_stake.clone(),
       );
@@ -2453,7 +2473,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "tes".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2466,7 +2486,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_earn.clone(),
       );
@@ -2484,7 +2504,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "test".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2497,7 +2517,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_earn.clone(),
       );
@@ -2515,7 +2535,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "testt".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2528,7 +2548,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_earn.clone(),
       );
@@ -2546,7 +2566,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "testttt".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2559,7 +2579,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_earn.clone(),
       );
@@ -2577,7 +2597,7 @@ mod tests {
 
       let mut err_earn = deploy.clone();
       err_earn.stake = "13395c5283".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_earn.clone()),
@@ -2590,7 +2610,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_earn.clone(),
       );
@@ -2613,7 +2633,7 @@ mod tests {
     {
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_erate.clone()),
@@ -2626,7 +2646,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_erate.clone(),
       );
@@ -2641,7 +2661,7 @@ mod tests {
 
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "1l".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_erate.clone()),
@@ -2654,7 +2674,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_erate.clone(),
       );
@@ -2672,7 +2692,7 @@ mod tests {
     {
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2685,7 +2705,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_dmax.clone(),
       );
@@ -2700,7 +2720,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "1l".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2713,7 +2733,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_dmax.clone(),
       );
@@ -2728,7 +2748,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "21000001".to_string();
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2741,7 +2761,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_dmax.clone(),
       );
@@ -2765,7 +2785,7 @@ mod tests {
     {
       let mut err_total = deploy.clone();
       err_total.total_supply = Some("".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_total.clone()),
@@ -2778,7 +2798,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_total.clone(),
       );
@@ -2793,7 +2813,7 @@ mod tests {
 
       let mut err_dmax = deploy.clone();
       err_dmax.total_supply = Some("1l".to_string());
-      let msg = mock_create_brc30_message(
+      let msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(err_dmax.clone()),
@@ -2806,7 +2826,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         err_dmax.clone(),
       );
@@ -2827,7 +2847,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -2874,7 +2894,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -2887,7 +2907,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -2908,8 +2928,11 @@ mod tests {
     }
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
     let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true}"##;
@@ -2922,7 +2945,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -2935,7 +2958,7 @@ mod tests {
     let result = process_stake(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -2954,12 +2977,14 @@ mod tests {
         assert_eq!("error", e.to_string())
       }
     }
-    let stakeinfo = brc30_data_store
+    let stakeinfo = brc20s_data_store
       .get_user_stakeinfo(&script, &stake_tick)
       .unwrap();
 
-    let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+    let userinfo = brc20s_data_store
+      .get_pid_to_use_info(&script, &pid)
+      .unwrap();
+    let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
     let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
     let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
@@ -2974,7 +2999,7 @@ mod tests {
         amount: "1000000".to_string(),
       };
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stake_msg.clone()),
@@ -2987,7 +3012,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3006,12 +3031,14 @@ mod tests {
           assert_eq!("error", e.to_string())
         }
       }
-      let stakeinfo = brc30_data_store
+      let stakeinfo = brc20s_data_store
         .get_user_stakeinfo(&script, &stake_tick)
         .unwrap();
 
-      let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-      let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+      let userinfo = brc20s_data_store
+        .get_pid_to_use_info(&script, &pid)
+        .unwrap();
+      let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"##;
       let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":1000000,"reward_debt":2000000,"latest_updated_block":30}"##;
       let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true}"##;
@@ -3041,7 +3068,7 @@ mod tests {
         amount: "1000000".to_string(),
       };
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stake_msg.clone()),
@@ -3056,7 +3083,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3078,7 +3105,7 @@ mod tests {
         amount: "a".to_string(),
       };
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stake_msg.clone()),
@@ -3092,7 +3119,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3114,7 +3141,7 @@ mod tests {
         amount: "1".to_string(),
       };
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stake_msg.clone()),
@@ -3129,7 +3156,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3151,7 +3178,7 @@ mod tests {
         amount: "2000000".to_string(),
       };
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stake_msg.clone()),
@@ -3165,7 +3192,7 @@ mod tests {
       let result = process_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         unstake_msg.clone(),
       );
@@ -3183,7 +3210,7 @@ mod tests {
         amount: "2000000".to_string(),
       };
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stake_msg.clone()),
@@ -3197,7 +3224,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3208,11 +3235,13 @@ mod tests {
         Err(e) => Err(BRC30Error::InternalError(e.to_string())),
       };
 
-      let stakeinfo = brc30_data_store
+      let stakeinfo = brc20s_data_store
         .get_user_stakeinfo(&script, &stake_tick)
         .unwrap();
-      let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-      let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+      let userinfo = brc20s_data_store
+        .get_pid_to_use_info(&script, &pid)
+        .unwrap();
+      let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"##;
       let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":1000000,"reward_debt":2000000,"latest_updated_block":30}"##;
       let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true}"##;
@@ -3256,7 +3285,7 @@ mod tests {
       )
       .unwrap();
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Deploy(deploy.clone()),
@@ -3267,7 +3296,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         deploy.clone(),
       );
@@ -3277,7 +3306,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         deploy.clone(),
       );
@@ -3287,7 +3316,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         deploy.clone(),
       );
@@ -3297,7 +3326,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         deploy.clone(),
       );
@@ -3308,7 +3337,7 @@ mod tests {
       let result = process_deploy(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         deploy.clone(),
       );
@@ -3320,7 +3349,7 @@ mod tests {
       };
 
       //stake 6 pool
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::Stake(stake_msg.clone()),
@@ -3334,7 +3363,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3344,7 +3373,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3354,7 +3383,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3364,7 +3393,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3374,7 +3403,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3384,7 +3413,7 @@ mod tests {
       let result = process_stake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3410,7 +3439,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -3457,7 +3486,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -3470,7 +3499,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -3491,8 +3520,11 @@ mod tests {
     }
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
     let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true}"##;
@@ -3505,7 +3537,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -3518,7 +3550,7 @@ mod tests {
     let result = process_stake(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -3537,12 +3569,14 @@ mod tests {
         assert_eq!("error", e.to_string())
       }
     }
-    let stakeinfo = brc30_data_store
+    let stakeinfo = brc20s_data_store
       .get_user_stakeinfo(&script, &stake_tick)
       .unwrap();
 
-    let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+    let userinfo = brc20s_data_store
+      .get_pid_to_use_info(&script, &pid)
+      .unwrap();
+    let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
     let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
     let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
@@ -3557,7 +3591,7 @@ mod tests {
         amount: "1000000".to_string(),
       };
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::UnStake(unstake_msg.clone()),
@@ -3570,7 +3604,7 @@ mod tests {
       let result = process_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         unstake_msg.clone(),
       );
@@ -3589,12 +3623,14 @@ mod tests {
           assert_eq!("error", e.to_string())
         }
       }
-      let stakeinfo = brc30_data_store
+      let stakeinfo = brc20s_data_store
         .get_user_stakeinfo(&script, &stake_tick)
         .unwrap();
 
-      let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-      let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+      let userinfo = brc20s_data_store
+        .get_pid_to_use_info(&script, &pid)
+        .unwrap();
+      let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo =
         r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
       let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":1000000,"reward_debt":0,"latest_updated_block":30}"##;
@@ -3624,7 +3660,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -3671,7 +3707,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -3684,7 +3720,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -3705,8 +3741,11 @@ mod tests {
     }
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
     let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
@@ -3719,7 +3758,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -3732,7 +3771,7 @@ mod tests {
     let result = process_stake(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -3751,12 +3790,14 @@ mod tests {
         assert_eq!("error", e.to_string())
       }
     }
-    let stakeinfo = brc30_data_store
+    let stakeinfo = brc20s_data_store
       .get_user_stakeinfo(&script, &stake_tick)
       .unwrap();
 
-    let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+    let userinfo = brc20s_data_store
+      .get_pid_to_use_info(&script, &pid)
+      .unwrap();
+    let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
     let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
@@ -3771,7 +3812,7 @@ mod tests {
         amount: "1000000".to_string(),
       };
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::UnStake(unstake_msg.clone()),
@@ -3784,7 +3825,7 @@ mod tests {
       let result = process_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         unstake_msg.clone(),
       );
@@ -3797,7 +3838,7 @@ mod tests {
         pool_id: pid.as_str().to_string(),
         amount: "1000000".to_string(),
       };
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::UnStake(unstake_msg.clone()),
@@ -3806,7 +3847,7 @@ mod tests {
       let result = process_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         unstake_msg.clone(),
       );
@@ -3827,7 +3868,7 @@ mod tests {
         pool_id: pid.as_str().to_string(),
         amount: "a".to_string(),
       };
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::UnStake(unstake_msg.clone()),
@@ -3840,7 +3881,7 @@ mod tests {
       let result = process_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         unstake_msg.clone(),
       );
@@ -3861,7 +3902,7 @@ mod tests {
         pool_id: pid.as_str().to_string(),
         amount: "1".to_string(),
       };
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::UnStake(unstake_msg.clone()),
@@ -3875,7 +3916,7 @@ mod tests {
       let result = process_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         unstake_msg.clone(),
       );
@@ -3896,7 +3937,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -3943,7 +3984,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -3956,7 +3997,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -3977,8 +4018,11 @@ mod tests {
     }
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
     let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true}"##;
@@ -3991,7 +4035,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -4004,7 +4048,7 @@ mod tests {
     let result = process_stake(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -4023,12 +4067,14 @@ mod tests {
         assert_eq!("error", e.to_string())
       }
     }
-    let stakeinfo = brc30_data_store
+    let stakeinfo = brc20s_data_store
       .get_user_stakeinfo(&script, &stake_tick)
       .unwrap();
 
-    let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+    let userinfo = brc20s_data_store
+      .get_pid_to_use_info(&script, &pid)
+      .unwrap();
+    let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
     let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
     let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
@@ -4042,7 +4088,7 @@ mod tests {
         stake: stake_tick.to_string(),
         amount: "2000000".to_string(),
       };
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
@@ -4068,7 +4114,7 @@ mod tests {
       let result = process_passive_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         passive_unstake_msg.clone(),
       );
@@ -4087,12 +4133,14 @@ mod tests {
           assert_eq!("error", e.to_string())
         }
       }
-      let stakeinfo = brc30_data_store
+      let stakeinfo = brc20s_data_store
         .get_user_stakeinfo(&script, &stake_tick)
         .unwrap();
 
-      let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-      let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+      let userinfo = brc20s_data_store
+        .get_pid_to_use_info(&script, &pid)
+        .unwrap();
+      let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo =
         r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
       let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":1000000,"reward_debt":0,"latest_updated_block":30}"##;
@@ -4122,7 +4170,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -4169,7 +4217,7 @@ mod tests {
       _ => {}
     }
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -4182,7 +4230,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -4203,8 +4251,11 @@ mod tests {
     }
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
     let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
@@ -4217,7 +4268,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -4230,7 +4281,7 @@ mod tests {
     let result = process_stake(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -4249,12 +4300,14 @@ mod tests {
         assert_eq!("error", e.to_string())
       }
     }
-    let stakeinfo = brc30_data_store
+    let stakeinfo = brc20s_data_store
       .get_user_stakeinfo(&script, &stake_tick)
       .unwrap();
 
-    let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+    let userinfo = brc20s_data_store
+      .get_pid_to_use_info(&script, &pid)
+      .unwrap();
+    let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
     let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
@@ -4268,7 +4321,7 @@ mod tests {
         stake: stake_tick.to_string(),
         amount: "2000000".to_string(),
       };
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
@@ -4294,7 +4347,7 @@ mod tests {
       let result = process_passive_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         passive_unstake_msg.clone(),
       );
@@ -4307,7 +4360,7 @@ mod tests {
         stake: stake_tick.to_string(),
         amount: "a".to_string(),
       };
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script.clone(),
         script.clone(),
         BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
@@ -4333,7 +4386,7 @@ mod tests {
       let result = process_passive_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         passive_unstake_msg.clone(),
       );
@@ -4361,7 +4414,7 @@ mod tests {
       let addr1 = Address::from_str("bc1q9x30z7rz52c97jwc2j79w76y7l3ny54nlvd4ew").unwrap();
       let script1 = ScriptKey::from_address(addr1);
 
-      let mut msg = mock_create_brc30_message(
+      let mut msg = mock_create_brc20s_message(
         script1.clone(),
         script1.clone(),
         BRC30Operation::PassiveUnStake(passive_unstake_msg.clone()),
@@ -4387,7 +4440,7 @@ mod tests {
       let result = process_passive_unstake(
         context,
         &brc20_data_store,
-        &brc30_data_store,
+        &brc20s_data_store,
         &msg,
         passive_unstake_msg.clone(),
       );
@@ -4409,7 +4462,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let (deploy, msg) = mock_deploy_msg(
@@ -4418,12 +4471,12 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
 
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let tick_id = deploy.get_tick_id();
     let tikc_id_str = tick_id.hex();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
       .get_pid_to_poolinfo(&deploy.get_pool_id())
       .unwrap()
       .unwrap();
@@ -4434,24 +4487,34 @@ mod tests {
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
     {
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::PoolAlreadyExist(deploy.pool_id.clone())),
         result
       );
 
       //brc20s stake can not deploy
-      let brc30_tick = tikc_id_str.as_str();
+      let brc20s_tick = tikc_id_str.as_str();
       let (deploy, msg) = mock_deploy_msg(
-        "pool", "02", brc30_tick, "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
+        "pool",
+        "02",
+        brc20s_tick,
+        "ordi2",
+        "10",
+        "12000000",
+        "21000000",
+        18,
+        true,
+        addr,
+        addr,
       );
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(Err(BRC30Error::StakeNoPermission(tikc_id_str)), result);
       //btc stake can not deploy
       let (_, msg) = mock_deploy_msg(
         "pool", "02", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
       );
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::StakeNoPermission("btc".to_string())),
         result
@@ -4469,7 +4532,7 @@ mod tests {
       );
       deploy.pool_id = tick_id.hex() + "#02";
       msg.op = BRC30Operation::Deploy(deploy);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::FromToNotEqual(
           new_addr.to_string(),
@@ -4486,7 +4549,7 @@ mod tests {
       deploy.pool_id = tick_id.hex() + "#02";
       let pool_id = deploy.pool_id.clone();
       msg.op = BRC30Operation::Deploy(deploy);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::DeployerNotEqual(
           pool_id,
@@ -4499,13 +4562,16 @@ mod tests {
     let (deploy, msg) = mock_deploy_msg(
       "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, addr, addr,
     );
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let tick_id = deploy.get_tick_id();
     let pid = deploy.get_pool_id();
-    let tick_info = brc30_data_store.get_tick_info(&tick_id).unwrap().unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap().unwrap();
+    let tick_info = brc20s_data_store.get_tick_info(&tick_id).unwrap().unwrap();
+    let pool_info = brc20s_data_store
+      .get_pid_to_poolinfo(&pid)
+      .unwrap()
+      .unwrap();
 
     let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"latest_mint_block":0,"pids":["13395c5283#01","13395c5283#02"]}"##;
     let expect_pool_info = r##"{"pid":"13395c5283#02","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
@@ -4519,7 +4585,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     // deploy brc20
     let script = ScriptKey::from_address(
@@ -4562,7 +4628,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -4576,7 +4642,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -4604,7 +4670,7 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -4617,7 +4683,7 @@ mod tests {
     let result = process_stake(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -4636,12 +4702,14 @@ mod tests {
         assert_eq!("error", e.to_string())
       }
     }
-    let stake_info = brc30_data_store
+    let stake_info = brc20s_data_store
       .get_user_stakeinfo(&script, &stake_tick)
       .unwrap();
 
-    let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+    let userinfo = brc20s_data_store
+      .get_pid_to_use_info(&script, &pid)
+      .unwrap();
+    let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stake_info = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
     let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
     let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
@@ -4660,7 +4728,7 @@ mod tests {
       amount: "1.1".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Mint(mint_msg.clone()),
@@ -4679,7 +4747,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &error_msg,
       mint_msg.clone(),
     ) {
@@ -4697,7 +4765,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &error_msg,
       mint_msg.clone(),
     ) {
@@ -4715,7 +4783,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &error_msg,
       mint_msg.clone(),
     ) {
@@ -4733,7 +4801,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_mint_msg.clone(),
     ) {
@@ -4754,7 +4822,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_mint_msg.clone(),
     ) {
@@ -4775,7 +4843,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_mint_msg.clone(),
     ) {
@@ -4796,7 +4864,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_mint_msg.clone(),
     ) {
@@ -4817,7 +4885,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_mint_msg.clone(),
     ) {
@@ -4838,7 +4906,7 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_mint_msg.clone(),
     ) {
@@ -4857,12 +4925,12 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       mint_msg.clone(),
     ) {
       Ok(event) => {
-        let userinfo = brc30_data_store
+        let userinfo = brc20s_data_store
           .get_pid_to_use_info(&script, &pid)
           .unwrap()
           .unwrap();
@@ -4883,12 +4951,12 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       mint_msg.clone(),
     ) {
       Ok(event) => {
-        let userinfo = brc30_data_store
+        let userinfo = brc20s_data_store
           .get_pid_to_use_info(&script, &pid)
           .unwrap()
           .unwrap();
@@ -4912,7 +4980,7 @@ mod tests {
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     // deploy brc20
     let script = ScriptKey::from_address(
@@ -4961,7 +5029,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Deploy(deploy.clone()),
@@ -4975,7 +5043,7 @@ mod tests {
     let result = process_deploy(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       deploy.clone(),
     );
@@ -5004,13 +5072,13 @@ mod tests {
       amount: "1000000".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
     );
 
-    let msg1 = mock_create_brc30_message(
+    let msg1 = mock_create_brc20s_message(
       script1.clone(),
       script1.clone(),
       BRC30Operation::Stake(stake_msg.clone()),
@@ -5024,7 +5092,7 @@ mod tests {
     let result = process_stake(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -5032,7 +5100,7 @@ mod tests {
     let result = process_stake(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg1,
       stake_msg.clone(),
     );
@@ -5051,12 +5119,14 @@ mod tests {
         assert_eq!("error", e.to_string())
       }
     }
-    let stake_info = brc30_data_store
+    let stake_info = brc20s_data_store
       .get_user_stakeinfo(&script, &stake_tick)
       .unwrap();
 
-    let userinfo = brc30_data_store.get_pid_to_use_info(&script, &pid).unwrap();
-    let pool_info = brc30_data_store.get_pid_to_poolinfo(&pid).unwrap();
+    let userinfo = brc20s_data_store
+      .get_pid_to_use_info(&script, &pid)
+      .unwrap();
+    let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
     let expect_stake_info = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
     let expect_user_info = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
     let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true}"##;
@@ -5075,12 +5145,12 @@ mod tests {
       amount: "10.1".to_string(),
     };
 
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Mint(mint_msg.clone()),
     );
-    let msg1 = mock_create_brc30_message(
+    let msg1 = mock_create_brc20s_message(
       script1.clone(),
       script1.clone(),
       BRC30Operation::Mint(mint_msg.clone()),
@@ -5095,12 +5165,12 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       mint_msg.clone(),
     ) {
       Ok(event) => {
-        let userinfo = brc30_data_store
+        let userinfo = brc20s_data_store
           .get_pid_to_use_info(&script, &pid)
           .unwrap()
           .unwrap();
@@ -5121,12 +5191,12 @@ mod tests {
     match process_mint(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg1,
       mint_msg.clone(),
     ) {
       Ok(event) => {
-        let userinfo = brc30_data_store
+        let userinfo = brc20s_data_store
           .get_pid_to_use_info(&script1, &pid)
           .unwrap()
           .unwrap();
@@ -5149,7 +5219,7 @@ mod tests {
       tick_id: tick_id.clone().hex(),
       amount: "1.1".to_string(),
     };
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::InscribeTransfer(transfer_msg.clone()),
@@ -5159,7 +5229,7 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
-    let msg1 = mock_create_brc30_message(
+    let msg1 = mock_create_brc20s_message(
       script1.clone(),
       script1.clone(),
       BRC30Operation::InscribeTransfer(transfer_msg.clone()),
@@ -5176,7 +5246,7 @@ mod tests {
     match process_inscribe_transfer(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &error_msg,
       transfer_msg.clone(),
     ) {
@@ -5194,7 +5264,7 @@ mod tests {
     match process_inscribe_transfer(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_transfer_msg.clone(),
     ) {
@@ -5212,7 +5282,7 @@ mod tests {
     match process_inscribe_transfer(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_transfer_msg.clone(),
     ) {
@@ -5230,7 +5300,7 @@ mod tests {
     match process_inscribe_transfer(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       error_transfer_msg.clone(),
     ) {
@@ -5246,12 +5316,12 @@ mod tests {
     match process_inscribe_transfer(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       transfer_msg.clone(),
     ) {
       Ok(event) => {
-        let balance = brc30_data_store
+        let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
           .unwrap()
           .unwrap();
@@ -5272,12 +5342,12 @@ mod tests {
     match process_inscribe_transfer(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg1,
       transfer_msg.clone(),
     ) {
       Ok(event) => {
-        let balance = brc30_data_store
+        let balance = brc20s_data_store
           .get_balance(&script1, &tick_id)
           .unwrap()
           .unwrap();
@@ -5295,7 +5365,7 @@ mod tests {
     };
 
     // brc20s-transfer
-    let msg = mock_create_brc30_message(
+    let msg = mock_create_brc20s_message(
       script.clone(),
       script.clone(),
       BRC30Operation::Transfer(transfer_msg.clone()),
@@ -5311,7 +5381,7 @@ mod tests {
     error_msg.from = ScriptKey::from_address(
       Address::from_str("bc1qzmh8f99f8ue8cy90a9xqflwtrhphg3sq76srhe").unwrap(),
     );
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
       Err(Error::BRC30Error(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -5325,7 +5395,7 @@ mod tests {
     error_msg.inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
       Err(Error::BRC30Error(e)) => {
         assert_eq!("transferable inscriptionId not found: 2111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -5338,9 +5408,9 @@ mod tests {
     let mut error_msg = msg.clone();
     error_msg.new_satpoint.outpoint.txid =
       Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111").unwrap();
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
       Ok(event) => {
-        let balance = brc30_data_store
+        let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
           .unwrap()
           .unwrap();
@@ -5361,7 +5431,7 @@ mod tests {
     let mut error_msg = msg.clone();
     error_msg.new_satpoint.outpoint.txid =
       Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111").unwrap();
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
       Err(Error::BRC30Error(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -5374,12 +5444,12 @@ mod tests {
     match process_inscribe_transfer(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       transfer_msg.clone(),
     ) {
       Ok(event) => {
-        let balance = brc30_data_store
+        let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
           .unwrap()
           .unwrap();
@@ -5397,9 +5467,9 @@ mod tests {
     };
 
     // normal, ok
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &msg) {
       Ok(event) => {
-        let balance = brc30_data_store
+        let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
           .unwrap()
           .unwrap();
@@ -5417,7 +5487,7 @@ mod tests {
     };
 
     // normal, second
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &msg) {
       Err(Error::BRC30Error(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -5430,12 +5500,12 @@ mod tests {
     match process_inscribe_transfer(
       context,
       &brc20_data_store,
-      &brc30_data_store,
+      &brc20s_data_store,
       &msg,
       transfer_msg.clone(),
     ) {
       Ok(event) => {
-        let balance = brc30_data_store
+        let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
           .unwrap()
           .unwrap();
@@ -5444,7 +5514,7 @@ mod tests {
         assert_eq!(balance.transferable_balance, 110);
         assert_eq!(balance.overall_balance, 1010);
 
-        let balance1 = brc30_data_store
+        let balance1 = brc20s_data_store
           .get_balance(&script1, &tick_id)
           .unwrap()
           .unwrap();
@@ -5463,9 +5533,9 @@ mod tests {
     // normal, ok
     let mut error_msg = msg.clone();
     error_msg.to = Some(script1.clone());
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
       Ok(event) => {
-        let balance = brc30_data_store
+        let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
           .unwrap()
           .unwrap();
@@ -5474,7 +5544,7 @@ mod tests {
         assert_eq!(balance.transferable_balance, 0);
         assert_eq!(balance.overall_balance, 900);
 
-        let balance1 = brc30_data_store
+        let balance1 = brc20s_data_store
           .get_balance(&script1, &tick_id)
           .unwrap()
           .unwrap();
@@ -5491,7 +5561,7 @@ mod tests {
     };
 
     // normal, second
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &msg) {
       Err(Error::BRC30Error(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -5507,14 +5577,14 @@ mod tests {
       tick_id,
       owner: script.clone(),
     };
-    brc30_data_store.set_transferable_assets(
+    brc20s_data_store.set_transferable_assets(
       &script1,
       &tick_id,
       &msg.inscription_id,
       &transferable_assets,
     );
 
-    brc30_data_store.insert_inscribe_transfer_inscription(
+    brc20s_data_store.insert_inscribe_transfer_inscription(
       msg.inscription_id,
       TransferInfo {
         tick_id,
@@ -5525,7 +5595,7 @@ mod tests {
 
     let mut error_msg = msg.clone();
     error_msg.from = script1.clone();
-    match process_transfer(context, &brc20_data_store, &brc30_data_store, &error_msg) {
+    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
       Err(Error::BRC30Error(e)) => {
         assert_eq!("transferable owner not match 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -5542,7 +5612,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -5556,25 +5626,25 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let pid_only1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     print!("only1{}", pid_only1.to_string());
@@ -5584,14 +5654,14 @@ mod tests {
     {
       //pool is not exist
       let (stake, msg) = mock_stake_msg("0000000001#11", "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::PoolNotExist("0000000001#11".to_string())),
         result
       );
       //from is not equal to
       let (stake, msg) = mock_stake_msg(pid_only1, "100", new_addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::FromToNotEqual(
           new_addr.to_string(),
@@ -5601,7 +5671,7 @@ mod tests {
       );
       //user balance < amount
       let (stake, msg) = mock_stake_msg(pid_only1, "300", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::InsufficientBalance(
           "300000000000000000000".to_string(),
@@ -5612,14 +5682,14 @@ mod tests {
     }
     //first stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000]],"max_share":0,"total_only":50000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"13395c5283#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_only1,
       &from_script,
       &stake_tick,
@@ -5629,14 +5699,14 @@ mod tests {
     );
     //first stake to share pool
     let (stake, msg) = mock_stake_msg(pid_share1, "49", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":50000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share1,
       &from_script,
       &stake_tick,
@@ -5646,18 +5716,18 @@ mod tests {
     );
     {
       let (stake, msg) = mock_stake_msg(pid_only2, "49", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(None, result.err());
 
       let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(None, result.err());
 
       let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,49000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"##;
       let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
       let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
       assert_stake_info(
-        &brc30_data_store,
+        &brc20s_data_store,
         pid_share2,
         &from_script,
         &stake_tick,
@@ -5668,7 +5738,7 @@ mod tests {
     }
     //user has stake 2 only pool 2 share pool, then stake to only pool but can_stake < amount
     let (stake, msg) = mock_stake_msg(pid_only2, "51.1", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(
       Some(BRC30Error::InsufficientBalance(
         "51100000000000000000".to_string(),
@@ -5678,7 +5748,7 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then stake to share pool but can_stake < amount
     let (stake, msg) = mock_stake_msg(pid_share2, "102", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(
       Some(BRC30Error::InsufficientBalance(
         "102000000000000000000".to_string(),
@@ -5688,13 +5758,13 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     assert_eq!(None, result.err());
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000]],"max_share":50000000000000000000,"total_only":149000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":99000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":20204081632653061176,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":99000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":true}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_only2,
       &from_script,
       &stake_tick,
@@ -5704,13 +5774,13 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then stake to share pool
     let (stake, msg) = mock_stake_msg(pid_share1, "2", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     assert_eq!(None, result.err());
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000],["fb641f54a2#01",false,51000000000000000000]],"max_share":51000000000000000000,"total_only":149000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":51000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":10408163265306122424,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":51000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share1,
       &from_script,
       &stake_tick,
@@ -5727,7 +5797,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -5741,25 +5811,25 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let pid_only1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     print!("only1  :{}\n", pid_only1.to_string());
@@ -5769,14 +5839,14 @@ mod tests {
     {
       //pool is not exist
       let (stake, msg) = mock_unstake_msg("0000000001#11", "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::PoolNotExist("0000000001#11".to_string())),
         result
       );
       //from is not equal to
       let (stake, msg) = mock_unstake_msg(pid_only1, "100", new_addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::FromToNotEqual(
           new_addr.to_string(),
@@ -5786,7 +5856,7 @@ mod tests {
       );
       //user haven't stake
       let (stake, msg) = mock_unstake_msg(pid_only1, "300", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::InsufficientBalance(
           "0".to_string(),
@@ -5797,12 +5867,12 @@ mod tests {
     }
     //stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     //unstake amt > stake amt
     let (stake, msg) = mock_unstake_msg(pid_only1, "300", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(
       Err(BRC30Error::InsufficientBalance(
         "50000000000000000000".to_string(),
@@ -5813,12 +5883,12 @@ mod tests {
 
     //unstake to only pool
     let (stake, msg) = mock_unstake_msg(pid_only1, "1", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000]],"max_share":0,"total_only":49000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"13395c5283#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_only1,
       &from_script,
       &stake_tick,
@@ -5829,16 +5899,16 @@ mod tests {
 
     //stake to share pool
     let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     //unstake to share pool
     let (stake, msg) = mock_unstake_msg(pid_share1, "1", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":49000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share1,
       &from_script,
       &stake_tick,
@@ -5849,18 +5919,18 @@ mod tests {
 
     {
       let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(None, result.err());
 
       let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(None, result.err());
 
       let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"##;
       let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
       let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
       assert_stake_info(
-        &brc30_data_store,
+        &brc20s_data_store,
         pid_share2,
         &from_script,
         &stake_tick,
@@ -5871,12 +5941,12 @@ mod tests {
     }
     //user has stake 2 only pool 2 share pool, then unstake from only pool
     let (stake, msg) = mock_unstake_msg(pid_only2, "2", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_only2,
       &from_script,
       &stake_tick,
@@ -5886,12 +5956,12 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then unstake from share pool
     let (stake, msg) = mock_unstake_msg(pid_share2, "2", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share2,
       &from_script,
       &stake_tick,
@@ -5902,12 +5972,12 @@ mod tests {
 
     //user has stake 2 only pool 2 share pool, then unstake from share pool to 0
     let (stake, msg) = mock_unstake_msg(pid_share1, "49", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 2);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 2);
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"##;
     let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"404081632653061224","last_update_block":2,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share1,
       &from_script,
       &stake_tick,
@@ -5924,7 +5994,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc30_data_store = DataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -5938,25 +6008,25 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let pid_only1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     print!("only1  :{}\n", pid_only1.to_string());
@@ -5966,19 +6036,19 @@ mod tests {
     {
       //pool is not exist
       let (stake, msg) = mock_passive_unstake_msg("0000000001", "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
         Err(BRC30Error::StakeNotFound("0000000001".to_string())),
         result
       );
       //no stake then passive unstake
       let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(Err(BRC30Error::StakeNotFound("btc1".to_string(),)), result);
     }
     //stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     //sum - transfer > amt nothing do
@@ -5986,7 +6056,7 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 50_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "200", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(Ok(vec![]), result);
 
     //sum - transfer > amt passive unstake
@@ -5994,7 +6064,7 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 10_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "190", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
         pid: Pid::from_str(pid_only1).unwrap(),
@@ -6007,7 +6077,7 @@ mod tests {
     let expect_userinfo = r##"{"pid":"13395c5283#01","staked":10000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":2000000000000000000,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":10000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_only1,
       &from_script,
       &stake_tick,
@@ -6020,7 +6090,7 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 0_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, new_addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 2);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 2);
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
         pid: Pid::from_str(pid_only1).unwrap(),
@@ -6034,7 +6104,7 @@ mod tests {
     let expect_userinfo = r##"{"pid":"13395c5283#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"##;
     let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":true}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_only1,
       &from_script,
       &stake_tick,
@@ -6049,7 +6119,7 @@ mod tests {
 
     //stake to share pool
     let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     //sum - transfer > amt nothing do
@@ -6057,7 +6127,7 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 50_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "200", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(Ok(vec![]), result);
 
     //sum - transfer > amt passive unstake
@@ -6065,7 +6135,7 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 10_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "190", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
         pid: Pid::from_str(pid_share1).unwrap(),
@@ -6078,7 +6148,7 @@ mod tests {
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":10000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":2000000000000000000,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":10000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share1,
       &from_script,
       &stake_tick,
@@ -6091,7 +6161,7 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 0_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, new_addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 2);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 2);
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
         pid: Pid::from_str(pid_share1).unwrap(),
@@ -6105,7 +6175,7 @@ mod tests {
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"##;
     let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share1,
       &from_script,
       &stake_tick,
@@ -6117,18 +6187,18 @@ mod tests {
 
   fn prepare_env_for_test<'a, L: BRC20DataStoreReadWrite, K: DataStoreReadWrite>(
     brc20_data_store: &'a L,
-    brc30_data_store: &'a K,
+    brc20s_data_store: &'a K,
     addr: &str,
     stake: &str,
     earn: &str,
   ) -> Result<(Vec<(String, PledgedTick)>, ScriptKey), BRC30Error> {
     let mut results: Vec<(String, PledgedTick)> = Vec::new();
-    let brc30_tick = format!("{}1", earn.to_string());
+    let brc20s_tick = format!("{}1", earn.to_string());
     let (deploy, msg) = mock_deploy_msg(
       "pool",
       "01",
       stake,
-      brc30_tick.as_str(),
+      brc20s_tick.as_str(),
       "10",
       "12000000",
       "21000000",
@@ -6146,17 +6216,17 @@ mod tests {
     let pid_only1 = deploy.pool_id.as_str();
     let hehe = deploy.get_pool_id();
 
-    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let stake_tick_only1 = deploy.get_stake_id();
     results.push((pid_only1.to_string(), stake_tick_only1.clone()));
 
-    let brc30_tick = format!("{}2", earn);
+    let brc20s_tick = format!("{}2", earn);
     let (deploy, msg) = mock_deploy_msg(
       "pool",
       "01",
       stake,
-      brc30_tick.as_str(),
+      brc20s_tick.as_str(),
       "10",
       "12000000",
       "21000000",
@@ -6166,17 +6236,17 @@ mod tests {
       addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let stake_tick_only2 = deploy.get_stake_id();
     results.push((pid_only2.to_string(), stake_tick_only2.clone()));
 
-    let brc30_tick = format!("{}3", earn);
+    let brc20s_tick = format!("{}3", earn);
     let (deploy, msg) = mock_deploy_msg(
       "pool",
       "01",
       stake,
-      brc30_tick.as_str(),
+      brc20s_tick.as_str(),
       "10",
       "12000000",
       "21000000",
@@ -6186,17 +6256,17 @@ mod tests {
       addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let stake_tick_share1 = deploy.get_stake_id();
     results.push((pid_share1.to_string(), stake_tick_share1.clone()));
 
-    let brc30_tick = format!("{}4", earn);
+    let brc20s_tick = format!("{}4", earn);
     let (deploy, msg) = mock_deploy_msg(
       "pool",
       "01",
       stake,
-      brc30_tick.as_str(),
+      brc20s_tick.as_str(),
       "10",
       "12000000",
       "21000000",
@@ -6206,33 +6276,33 @@ mod tests {
       addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let stake_tick_share2 = deploy.get_stake_id();
     results.push((pid_share2.to_string(), stake_tick_share2.clone()));
 
     //stake to
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc30_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["a2c6a6a614#01",true,50000000000000000000],["934a4f7aff#01",false,50000000000000000000],["83050baa2b#01",true,50000000000000000000],["92c3f0f4ab#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":100000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"a2c6a6a614#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"a2c6a6a614#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_stake_info(
-      brc30_data_store,
+      brc20s_data_store,
       pid_only1,
       &from_script,
       &stake_tick_only1,
@@ -6244,7 +6314,7 @@ mod tests {
     let expect_userinfo = r##"{"pid":"83050baa2b#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"83050baa2b#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true}"##;
     assert_stake_info(
-      brc30_data_store,
+      brc20s_data_store,
       pid_only2,
       &from_script,
       &stake_tick_only2,
@@ -6256,7 +6326,7 @@ mod tests {
     let expect_userinfo = r##"{"pid":"934a4f7aff#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"934a4f7aff#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
     assert_stake_info(
-      brc30_data_store,
+      brc20s_data_store,
       pid_share1,
       &from_script,
       &stake_tick_share1,
@@ -6268,7 +6338,7 @@ mod tests {
     let expect_userinfo = r##"{"pid":"92c3f0f4ab#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
     let expect_poolinfo = r##"{"pid":"92c3f0f4ab#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
     assert_stake_info(
-      brc30_data_store,
+      brc20s_data_store,
       pid_share2,
       &from_script,
       &stake_tick_share2,
@@ -6289,12 +6359,12 @@ mod tests {
       let wtx = db.begin_write().unwrap();
 
       let brc20_data_store = BRC20DataStore::new(&wtx);
-      let brc30_data_store = DataStore::new(&wtx);
+      let brc20s_data_store = DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
       let stake = "btc1";
-      let result = prepare_env_for_test(&brc20_data_store, &brc30_data_store, addr, stake, "ord");
+      let result = prepare_env_for_test(&brc20_data_store, &brc20s_data_store, addr, stake, "ord");
       let (infos, from_script) = match result {
         Ok(r) => r,
         Err(e) => {
@@ -6307,7 +6377,7 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 150_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
 
       // assert_eq!(
       //   Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
@@ -6322,7 +6392,7 @@ mod tests {
       // let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"##;
       // let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":false}"##;
       // assert_stake_info(
-      //   &brc30_data_store,
+      //   &brc20s_data_store,
       //   pid_share1,
       //   &from_script,
       //   &stake_tick,
@@ -6334,18 +6404,18 @@ mod tests {
     /*
     {
       let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(None, result.err());
 
       let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 0);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(None, result.err());
 
       let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"##;
       let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
       let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false}"##;
       assert_stake_info(
-        &brc30_data_store,
+        &brc20s_data_store,
         pid_share2,
         &from_script,
         &stake_tick,
@@ -6356,12 +6426,12 @@ mod tests {
     }
     //user has stake 2 only pool 2 share pool, then unstake from only pool
     let (stake, msg) = mock_unstake_msg(pid_only2, "2", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_only2,
       &from_script,
       &stake_tick,
@@ -6371,12 +6441,12 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then unstake from share pool
     let (stake, msg) = mock_unstake_msg(pid_share2, "2", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 1);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
     let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share2,
       &from_script,
       &stake_tick,
@@ -6387,12 +6457,12 @@ mod tests {
 
     //user has stake 2 only pool 2 share pool, then unstake from share pool to 0
     let (stake, msg) = mock_unstake_msg(pid_share1, "49", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc30_data_store, &msg, 2);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 2);
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"##;
     let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"404081632653061224","last_update_block":2,"only":false}"##;
     assert_stake_info(
-      &brc30_data_store,
+      &brc20s_data_store,
       pid_share1,
       &from_script,
       &stake_tick,

@@ -44,7 +44,7 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: DataStoreReadW
     client: &'a Client,
     ord_store: &'a O,
     brc20_store: &'a P,
-    brc30_store: &'a M,
+    brc20s_store: &'a M,
     first_brc20_height: u64,
     first_brc20s_height: u64,
   ) -> Self {
@@ -53,11 +53,11 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: DataStoreReadW
         client,
         ord_store,
         brc20_store,
-        brc30_store,
+        brc20s_store,
         first_brc20_height,
         first_brc20s_height,
       ),
-      call_man: CallManager::new(ord_store, brc20_store, brc30_store),
+      call_man: CallManager::new(ord_store, brc20_store, brc20s_store),
     }
   }
 

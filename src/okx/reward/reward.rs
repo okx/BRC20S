@@ -43,9 +43,10 @@ pub fn update_pool(
   let pool_stake = Into::<Num>::into(pool.staked);
   let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
 
+  debug!("  {}", pool);
   debug!(
-    "  {},block_num:{},staked_decimal:{}",
-    pool, block_num, staked_decimal
+    "  block_num:{},staked_decimal:{}",
+    block_num, staked_decimal
   );
   //1 check block num, minted, stake
   if block_num <= pool.last_update_block {
@@ -115,6 +116,7 @@ pub fn update_pool(
     pool.acc_reward_per_share, rewards
   );
 
+  debug!("  {}", pool);
   debug!("update_pool out");
   return Ok(());
 }
@@ -134,8 +136,8 @@ pub fn withdraw_user_reward(
   let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
   let reward_debt = Into::<Num>::into(user.reward_debt);
   let user_reward = Into::<Num>::into(user.pending_reward);
-  debug!("  {}", pool);
   debug!("  {}", user);
+  debug!("  {}", pool);
 
   //1 check user's staked gt 0
   if user_staked <= Num::zero() {
@@ -169,6 +171,8 @@ pub fn withdraw_user_reward(
 
   debug!("  pending reward:{}", pending_reward.clone());
 
+  debug!("  {}", user);
+  debug!("  {}", pool);
   debug!("withdraw_user_reward out");
   return pending_reward.truncate_to_u128();
 }
@@ -207,6 +211,8 @@ pub fn update_user_stake(
 
   debug!("  reward_debt:{}", user.reward_debt.clone());
 
+  debug!("  {}", user);
+  debug!("  {}", pool);
   debug!("update_user_stake out");
   return Ok(());
 }

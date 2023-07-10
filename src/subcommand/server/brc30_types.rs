@@ -1,5 +1,5 @@
 use super::{types::ScriptPubkey, *};
-use crate::okx::datastore::brc30::{self, BRC30OperationType};
+use crate::okx::datastore::brc30;
 use std::{convert::From, vec};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -278,16 +278,16 @@ pub enum OperationType {
   InscribeTransfer,
   Transfer,
 }
-impl From<BRC30OperationType> for OperationType {
-  fn from(op_type: BRC30OperationType) -> Self {
+impl From<brc30::BRC30OperationType> for OperationType {
+  fn from(op_type: brc30::BRC30OperationType) -> Self {
     match op_type {
-      BRC30OperationType::Deploy => Self::Deploy,
-      BRC30OperationType::Mint => Self::Mint,
-      BRC30OperationType::Stake => Self::Deposit,
-      BRC30OperationType::UnStake => Self::Withdraw,
-      BRC30OperationType::PassiveUnStake => Self::PassiveWithdraw,
-      BRC30OperationType::InscribeTransfer => Self::InscribeTransfer,
-      BRC30OperationType::Transfer => Self::Transfer,
+      brc30::BRC30OperationType::Deploy => Self::Deploy,
+      brc30::BRC30OperationType::Mint => Self::Mint,
+      brc30::BRC30OperationType::Stake => Self::Deposit,
+      brc30::BRC30OperationType::UnStake => Self::Withdraw,
+      brc30::BRC30OperationType::PassiveUnStake => Self::PassiveWithdraw,
+      brc30::BRC30OperationType::InscribeTransfer => Self::InscribeTransfer,
+      brc30::BRC30OperationType::Transfer => Self::Transfer,
     }
   }
 }
@@ -317,24 +317,24 @@ impl BRC30Receipt {
     let mut result = Self {
       op: receipt.op.clone().into(),
       inscription_number: match receipt.op {
-        BRC30OperationType::PassiveUnStake => None,
+        brc30::BRC30OperationType::PassiveUnStake => None,
         _ => Some(receipt.inscription_number),
       },
       inscription_id: match receipt.op {
-        BRC30OperationType::PassiveUnStake => None,
+        brc30::BRC30OperationType::PassiveUnStake => None,
         _ => Some(receipt.inscription_id),
       },
       old_satpoint: match receipt.op {
-        BRC30OperationType::PassiveUnStake => None,
+        brc30::BRC30OperationType::PassiveUnStake => None,
         _ => Some(receipt.old_satpoint),
       },
       new_satpoint: match receipt.op {
-        BRC30OperationType::PassiveUnStake => None,
+        brc30::BRC30OperationType::PassiveUnStake => None,
         _ => Some(receipt.new_satpoint),
       },
       from: receipt.from.clone().into(),
       to: match receipt.op {
-        BRC30OperationType::PassiveUnStake => None,
+        brc30::BRC30OperationType::PassiveUnStake => None,
         _ => Some(receipt.clone().to.into()),
       },
       valid: receipt.result.is_ok(),
@@ -664,13 +664,7 @@ impl From<&brc30::StakeInfo> for StakedInfo {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{
-    okx::datastore::{
-      brc30::{BRC30OperationType, PledgedTick, TickId},
-      ScriptKey,
-    },
-    txid, InscriptionId, SatPoint,
-  };
+  use crate::{okx::datastore::ScriptKey, txid, InscriptionId, SatPoint};
   use bitcoin::{Address, Network};
   use std::str::FromStr;
 
@@ -682,7 +676,7 @@ mod tests {
         index: 0xFFFFFFFF,
       }),
       inscription_number: Some(10),
-      op: BRC30OperationType::Deploy.into(),
+      op: brc30::BRC30OperationType::Deploy.into(),
       old_satpoint: Some(
         SatPoint::from_str(
           "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
@@ -732,7 +726,10 @@ mod tests {
         BRC30Event::DeployPool(DeployPoolEvent {
           pid: "aabbccddee#1f".to_string(),
           stake: Stake {
-            type_field: PledgedTick::BRC30Tick(TickId::from_str("aabbccddee").unwrap()).to_type(),
+            type_field: brc30::PledgedTick::BRC30Tick(
+              brc30::TickId::from_str("aabbccddee").unwrap(),
+            )
+            .to_type(),
             tick: "aabbccddee".to_string(),
           },
           earn: Earn {

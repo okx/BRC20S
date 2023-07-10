@@ -384,7 +384,7 @@ pub(crate) async fn brc20s_debug_balance(
 pub(crate) async fn brc20s_balance(
   Extension(index): Extension<Arc<Index>>,
   Path((tick_id, address)): Path<(String, String)>,
-) -> ApiResult<BRC30Balance> {
+) -> ApiResult<Balance> {
   log::debug!(
     "rpc: get brc20s_balance: tickId:{}, address:{}",
     tick_id,
@@ -411,7 +411,7 @@ pub(crate) async fn brc20s_balance(
     .brc20s_balance(&tick_id, &address)?
     .ok_or_api_not_found("balance not found")?;
 
-  let mut balance_result = BRC30Balance::from(balance);
+  let mut balance_result = Balance::from(balance);
 
   let tick_info = &index
     .brc20s_tick_info(&tick_id.to_string())?
@@ -431,7 +431,7 @@ pub(crate) async fn brc20s_balance(
 pub(crate) async fn brc20s_all_balance(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
-) -> ApiResult<AllBRC30Balance> {
+) -> ApiResult<AllBalance> {
   log::debug!("rpc: get brc20s_all_balance: {}", address);
 
   let address: bitcoin::Address = address
@@ -442,11 +442,11 @@ pub(crate) async fn brc20s_all_balance(
 
   log::debug!("rpc: get brc20s_all_balance: {} {:?}", address, all_balance);
 
-  Ok(Json(ApiResponse::ok(AllBRC30Balance {
+  Ok(Json(ApiResponse::ok(AllBalance {
     balance: all_balance
       .iter()
       .map(|(tick_id, balance)| {
-        let mut balance_result = BRC30Balance::from(balance);
+        let mut balance_result = Balance::from(balance);
 
         let tick_info = &index
           .brc20s_tick_info(&tick_id.hex().to_string())
@@ -499,7 +499,7 @@ pub(crate) async fn brc20s_transferable(
     inscriptions: all_transfer
       .iter()
       .map(|asset| {
-        let mut inscription = BRC30Inscription::from(asset);
+        let mut inscription = Inscription::from(asset);
 
         let tick_info = &index
           .brc20s_tick_info(&asset.tick_id.hex().to_string())
@@ -538,7 +538,7 @@ pub(crate) async fn brc20s_all_transferable(
     inscriptions: all
       .iter()
       .map(|asset| {
-        let mut inscription = BRC30Inscription::from(asset);
+        let mut inscription = Inscription::from(asset);
 
         let tick_info = &index
           .brc20s_tick_info(&asset.tick_id.hex().to_string())
@@ -572,7 +572,7 @@ pub(crate) async fn brc20s_txid_receipts(
 
   let mut receipts = Vec::new();
   for receipt in all_receipt.iter() {
-    match brc20s_types::BRC30Receipt::from(receipt, index.clone()) {
+    match brc20s_types::Receipt::from(receipt, index.clone()) {
       Ok(receipt) => {
         receipts.push(receipt);
       }
@@ -607,7 +607,7 @@ pub(crate) async fn brc20s_debug_txid_receipts(
 pub(crate) async fn brc20s_block_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,
-) -> ApiResult<BRC30BlockReceipts> {
+) -> ApiResult<BlockReceipts> {
   log::debug!("rpc: get brc20s_block_receipts: {}", block_hash);
 
   let hash =
@@ -622,7 +622,7 @@ pub(crate) async fn brc20s_block_receipts(
   for (txid, tx_receipts) in block_receipts.iter() {
     let mut api_tx_receipts = Vec::new();
     for receipt in tx_receipts.iter() {
-      match brc20s_types::BRC30Receipt::from(receipt, index.clone()) {
+      match brc20s_types::Receipt::from(receipt, index.clone()) {
         Ok(receipt) => {
           api_tx_receipts.push(receipt);
         }
@@ -639,7 +639,7 @@ pub(crate) async fn brc20s_block_receipts(
     });
   }
 
-  Ok(Json(ApiResponse::ok(BRC30BlockReceipts {
+  Ok(Json(ApiResponse::ok(BlockReceipts {
     block: api_block_receipts,
   })))
 }

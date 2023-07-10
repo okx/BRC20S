@@ -184,19 +184,19 @@ impl From<&brc20s::UserInfo> for UserInfo {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BRC30Balance {
+pub struct Balance {
   pub tick: Tick,
   pub transferable: String,
   pub overall: String,
 }
 
-impl BRC30Balance {
+impl Balance {
   pub fn set_tick_name(&mut self, name: String) {
     self.tick.name = name;
   }
 }
 
-impl From<&brc20s::Balance> for BRC30Balance {
+impl From<&brc20s::Balance> for Balance {
   fn from(balance: &brc20s::Balance) -> Self {
     let tick = Tick {
       id: balance.tick_id.to_lowercase().hex(),
@@ -213,19 +213,19 @@ impl From<&brc20s::Balance> for BRC30Balance {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AllBRC30Balance {
-  pub balance: Vec<BRC30Balance>,
+pub struct AllBalance {
+  pub balance: Vec<Balance>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transferable {
-  pub inscriptions: Vec<BRC30Inscription>,
+  pub inscriptions: Vec<Inscription>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BRC30Inscription {
+pub struct Inscription {
   pub tick: Tick,
   pub inscription_id: String,
   pub inscription_number: u64,
@@ -233,7 +233,7 @@ pub struct BRC30Inscription {
   pub owner: String,
 }
 
-impl BRC30Inscription {
+impl Inscription {
   pub fn set_tick_name(&mut self, name: String) {
     self.tick.name = name;
   }
@@ -243,7 +243,7 @@ impl BRC30Inscription {
   }
 }
 
-impl From<&brc20s::TransferableAsset> for BRC30Inscription {
+impl From<&brc20s::TransferableAsset> for Inscription {
   fn from(asset: &brc20s::TransferableAsset) -> Self {
     let tick = Tick {
       id: asset.tick_id.to_lowercase().hex(),
@@ -263,7 +263,7 @@ impl From<&brc20s::TransferableAsset> for BRC30Inscription {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TxReceipts {
-  pub receipts: Vec<BRC30Receipt>,
+  pub receipts: Vec<Receipt>,
   pub txid: String,
 }
 
@@ -294,7 +294,7 @@ impl From<brc20s::OperationType> for OperationType {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BRC30Receipt {
+pub struct Receipt {
   pub op: OperationType,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub inscription_number: Option<i64>,
@@ -309,10 +309,10 @@ pub struct BRC30Receipt {
   pub to: Option<ScriptPubkey>,
   pub valid: bool,
   pub msg: String,
-  pub events: Vec<BRC30Event>,
+  pub events: Vec<Event>,
 }
 
-impl BRC30Receipt {
+impl Receipt {
   pub(super) fn from(receipt: &brc20s::Receipt, index: Arc<Index>) -> Result<Self> {
     let mut result = Self {
       op: receipt.op.clone().into(),
@@ -350,33 +350,31 @@ impl BRC30Receipt {
       for event in events.into_iter() {
         receipt_events.push(match event {
           brc20s::Event::DeployTick(deploy_tick) => {
-            BRC30Event::DeployTick(DeployTickEvent::new(deploy_tick, receipt.to.clone().into()))
+            Event::DeployTick(DeployTickEvent::new(deploy_tick, receipt.to.clone().into()))
           }
-          brc20s::Event::DeployPool(deploy_pool) => BRC30Event::DeployPool(DeployPoolEvent::new(
+          brc20s::Event::DeployPool(deploy_pool) => Event::DeployPool(DeployPoolEvent::new(
             deploy_pool,
             receipt.to.clone().into(),
             index.clone(),
           )?),
           brc20s::Event::Deposit(deposit) => {
-            BRC30Event::Deposit(DepositEvent::new(deposit, receipt.to.clone().into()))
+            Event::Deposit(DepositEvent::new(deposit, receipt.to.clone().into()))
           }
           brc20s::Event::Withdraw(withdraw) => {
-            BRC30Event::Withdraw(WithdrawEvent::new(withdraw, receipt.to.clone().into()))
+            Event::Withdraw(WithdrawEvent::new(withdraw, receipt.to.clone().into()))
           }
-          brc20s::Event::PassiveWithdraw(passive_withdraw) => BRC30Event::PassiveWithdraw(
+          brc20s::Event::PassiveWithdraw(passive_withdraw) => Event::PassiveWithdraw(
             PassiveWithdrawEvent::new(passive_withdraw, receipt.from.clone().into()),
           ),
-          brc20s::Event::Mint(mint) => {
-            BRC30Event::Mint(MintEvent::new(mint, receipt.to.clone().into()))
-          }
+          brc20s::Event::Mint(mint) => Event::Mint(MintEvent::new(mint, receipt.to.clone().into())),
           brc20s::Event::InscribeTransfer(inscribe_transfer) => {
-            BRC30Event::InscribeTransfer(InscribeTransferEvent::new(
+            Event::InscribeTransfer(InscribeTransferEvent::new(
               inscribe_transfer,
               receipt.to.clone().into(),
               index.clone(),
             )?)
           }
-          brc20s::Event::Transfer(transfer) => BRC30Event::Transfer(TransferEvent::new(
+          brc20s::Event::Transfer(transfer) => Event::Transfer(TransferEvent::new(
             transfer,
             receipt.from.clone().into(),
             receipt.to.clone().into(),
@@ -393,7 +391,7 @@ impl BRC30Receipt {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
-pub enum BRC30Event {
+pub enum Event {
   DeployTick(DeployTickEvent),
   DeployPool(DeployPoolEvent),
   Deposit(DepositEvent),
@@ -607,7 +605,7 @@ impl TransferEvent {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BRC30BlockReceipts {
+pub struct BlockReceipts {
   pub block: Vec<TxReceipts>,
 }
 
@@ -672,7 +670,7 @@ mod tests {
 
   #[test]
   fn serialize_brc20s_receipts() {
-    let receipt = BRC30Receipt {
+    let receipt = Receipt {
       inscription_id: Some(InscriptionId {
         txid: txid(1),
         index: 0xFFFFFFFF,
@@ -710,7 +708,7 @@ mod tests {
       valid: true,
       msg: "ok".to_string(),
       events: vec![
-        BRC30Event::DeployTick(DeployTickEvent {
+        Event::DeployTick(DeployTickEvent {
           tick: Tick {
             id: "aabbccddee".to_string(),
             name: "abcdef".to_string(),
@@ -725,7 +723,7 @@ mod tests {
           )
           .into(),
         }),
-        BRC30Event::DeployPool(DeployPoolEvent {
+        Event::DeployPool(DeployPoolEvent {
           pid: "aabbccddee#1f".to_string(),
           stake: Stake {
             type_field: brc20s::PledgedTick::BRC20STick(

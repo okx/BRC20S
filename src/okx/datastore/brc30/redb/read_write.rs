@@ -172,7 +172,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   // 3.3.3 BRC30_TICKINFO
   fn set_tick_info(&self, tick_id: &TickId, brc30_tick_info: &TickInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TICKINFO)?.insert(
-      tick_id.to_lowercase().hex().as_str(),
+      tick_id.hex().as_str(),
       bincode::serialize(brc30_tick_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -181,7 +181,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   // 3.3.4 BRC30_PID_TO_POOLINFO
   fn set_pid_to_poolinfo(&self, pid: &Pid, brc30_pool_info: &PoolInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_PID_TO_POOLINFO)?.insert(
-      pid.to_lowercase().hex().as_str(),
+      pid.hex().as_str(),
       bincode::serialize(brc30_pool_info).unwrap().as_slice(),
     )?;
     Ok(())

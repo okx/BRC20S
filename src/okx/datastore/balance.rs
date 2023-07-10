@@ -141,7 +141,7 @@ pub fn convert_pledged_tick_with_decimal<
       let tick = brc30ledger
         .get_tick_info(tickid)
         .map_err(|e| Error::LedgerError(e))?
-        .ok_or(BRC30Error::TickNotFound(tickid.to_lowercase().hex()))?;
+        .ok_or(BRC30Error::TickNotFound(tickid.hex()))?;
 
       convert_amount_with_decimal(amount, tick.decimal)
     }
@@ -202,7 +202,7 @@ pub fn convert_pledged_tick_without_decimal<
       let tick = brc30ledger
         .get_tick_info(tickid)
         .map_err(|e| Error::LedgerError(e))?
-        .ok_or(BRC30Error::TickNotFound(tickid.to_lowercase().hex()))?;
+        .ok_or(BRC30Error::TickNotFound(tickid.hex()))?;
 
       convert_amount_without_decimal(amount, tick.decimal)
     }

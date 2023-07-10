@@ -58,7 +58,7 @@ pub struct Tick {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AllBRC30TickInfo {
+pub struct AllTickInfo {
   pub tokens: Vec<TickInfo>,
   pub total: usize,
 }

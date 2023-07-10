@@ -6,13 +6,13 @@ use axum::Json;
 pub(crate) async fn brc20s_all_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Query(page): Query<Pagination>,
-) -> ApiResult<AllBRC30TickInfo> {
+) -> ApiResult<AllTickInfo> {
   log::debug!("rpc: get brc20s_all_tick_info");
 
   let (all_tick_info, total) = index.brc20s_all_tick_info(page.start.unwrap_or(0), page.limit)?;
   log::debug!("rpc: get brc20s_all_tick_info: {:?}", all_tick_info);
 
-  Ok(Json(ApiResponse::ok(AllBRC30TickInfo {
+  Ok(Json(ApiResponse::ok(AllTickInfo {
     tokens: all_tick_info
       .iter()
       .map(|tick_info| {

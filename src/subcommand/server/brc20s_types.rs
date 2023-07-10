@@ -65,7 +65,7 @@ pub struct AllTickInfo {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BRC30Pool {
+pub struct Pool {
   pub pid: String,
   pub stake: Stake,
   pub earn: Earn,
@@ -85,7 +85,7 @@ pub struct BRC30Pool {
   pub txid: String,
 }
 
-impl BRC30Pool {
+impl Pool {
   pub fn set_earn(&mut self, earn_id: String, earn_name: String) {
     self.earn.id = earn_id;
     self.earn.name = earn_name;
@@ -102,7 +102,7 @@ impl BRC30Pool {
   }
 }
 
-impl From<&brc20s::PoolInfo> for BRC30Pool {
+impl From<&brc20s::PoolInfo> for Pool {
   fn from(pool_info: &brc20s::PoolInfo) -> Self {
     let stake = Stake {
       type_field: pool_info.stake.to_type(),
@@ -154,7 +154,7 @@ pub struct Earn {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AllBRC30PoolInfo {
-  pub tokens: Vec<BRC30Pool>,
+  pub tokens: Vec<Pool>,
   pub total: usize,
 }
 

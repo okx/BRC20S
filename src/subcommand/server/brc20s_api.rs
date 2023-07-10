@@ -138,7 +138,7 @@ pub(crate) async fn brc20s_all_pool_info(
           .unwrap()
           .unwrap();
 
-        let mut pool_result = BRC30Pool::from(pool);
+        let mut pool_result = Pool::from(pool);
         pool_result.set_earn(
           tick_info.tick_id.hex().to_string(),
           tick_info.name.as_str().to_string(),
@@ -160,7 +160,7 @@ pub(crate) async fn brc20s_all_pool_info(
 pub(crate) async fn brc20s_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Path(pid): Path<String>,
-) -> ApiResult<BRC30Pool> {
+) -> ApiResult<Pool> {
   log::debug!("rpc: get brc20s_pool_info: {}", pid);
 
   if pid.as_bytes().len() != 13 {
@@ -198,7 +198,7 @@ pub(crate) async fn brc20s_pool_info(
     .unwrap()
     .unwrap();
 
-  let mut pool = BRC30Pool::from(pool_info);
+  let mut pool = Pool::from(pool_info);
   pool.set_earn(
     tick_info.tick_id.hex().to_string(),
     tick_info.name.as_str().to_string(),

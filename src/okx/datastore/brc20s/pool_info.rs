@@ -1,6 +1,6 @@
 use super::*;
 use crate::okx::datastore::brc20s::PledgedTick;
-use crate::okx::protocol::brc20s::{params::PID_BYTE_COUNT, BRC30Error};
+use crate::okx::protocol::brc20s::{params::PID_BYTE_COUNT, BRC20SError};
 use crate::InscriptionId;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
@@ -9,13 +9,13 @@ use std::str::FromStr;
 pub struct Pid([u8; PID_BYTE_COUNT]);
 
 impl FromStr for Pid {
-  type Err = BRC30Error;
+  type Err = BRC20SError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let bytes = s.as_bytes();
 
     if bytes.len() != PID_BYTE_COUNT {
-      return Err(BRC30Error::InvalidTickLen(s.to_string()));
+      return Err(BRC20SError::InvalidTickLen(s.to_string()));
     }
     Ok(Self(bytes.try_into().unwrap()))
   }
@@ -179,21 +179,21 @@ mod tests {
   fn test_pid_length_case() {
     assert_eq!(
       Pid::from_str("a012345679#"),
-      Err(BRC30Error::InvalidTickLen("a012345679#".to_string()))
+      Err(BRC20SError::InvalidTickLen("a012345679#".to_string()))
     );
     assert_eq!(
       Pid::from_str(""),
-      Err(BRC30Error::InvalidTickLen("".to_string()))
+      Err(BRC20SError::InvalidTickLen("".to_string()))
     );
 
     assert_eq!(
       Pid::from_str("12345"),
-      Err(BRC30Error::InvalidTickLen("12345".to_string()))
+      Err(BRC20SError::InvalidTickLen("12345".to_string()))
     );
 
     assert_eq!(
       Pid::from_str("1234567"),
-      Err(BRC30Error::InvalidTickLen("1234567".to_string()))
+      Err(BRC20SError::InvalidTickLen("1234567".to_string()))
     );
   }
 

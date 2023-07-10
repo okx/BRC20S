@@ -6,7 +6,7 @@ use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc20s::params::{
   BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, NATIVE_TOKEN_DECIMAL,
 };
-use crate::okx::protocol::brc20s::{BRC30Error, Error, Num};
+use crate::okx::protocol::brc20s::{BRC20SError, Error, Num};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
@@ -102,20 +102,6 @@ pub fn tick_can_staked(token: &PledgedTick) -> bool {
   }
 }
 
-// pub fn get_user_available_balance<'a, L: BRC30DataStoreReadWrite, M:BRC20DataStoreReadWrite>
-//       (script: &ScriptKey, token: &PledgedTick, pid:&Pid, brc30ledger: &'a L, brc20ledger: &'a M)
-//   -> Result<u128,BRC30Error> {
-//   let balance = get_user_common_balance(script,token,brc30ledger,brc20ledger);
-//
-//   let userinfo = brc30ledger
-//     .get_pid_to_use_info(script, pid)
-//     .map_or(Some(UserInfo::default(pid)),|v|v).unwrap();
-//   if balance < userinfo.staked {
-//     return Err(BRC30Error::InValidStakeInfo(userinfo.staked,balance))
-//   }
-//   Ok(balance-userinfo.staked)
-// }
-
 pub fn convert_pledged_tick_with_decimal<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   tick: &PledgedTick,
   amount: &str,
@@ -123,13 +109,13 @@ pub fn convert_pledged_tick_with_decimal<'a, L: DataStoreReadWrite, M: BRC20Data
   brc20ledger: &'a M,
 ) -> Result<Num, Error<L>> {
   match tick {
-    PledgedTick::Unknown => Err(Error::BRC30Error(BRC30Error::UnknownStakeType)),
+    PledgedTick::Unknown => Err(Error::BRC20SError(BRC20SError::UnknownStakeType)),
     PledgedTick::Native => convert_amount_with_decimal(amount, NATIVE_TOKEN_DECIMAL),
     PledgedTick::BRC20Tick(tick) => {
       let token = brc20ledger
         .get_token_info(tick)
         .map_err(|e| Error::Others(anyhow!("brc20_query failed:{}", e)))?
-        .ok_or(BRC30Error::TickNotFound(tick.hex()))?;
+        .ok_or(BRC20SError::TickNotFound(tick.hex()))?;
 
       convert_amount_with_decimal(amount, token.decimal)
     }
@@ -137,7 +123,7 @@ pub fn convert_pledged_tick_with_decimal<'a, L: DataStoreReadWrite, M: BRC20Data
       let tick = brc20s_ledger
         .get_tick_info(tickid)
         .map_err(|e| Error::LedgerError(e))?
-        .ok_or(BRC30Error::TickNotFound(tickid.to_lowercase().hex()))?;
+        .ok_or(BRC20SError::TickNotFound(tickid.to_lowercase().hex()))?;
 
       convert_amount_with_decimal(amount, tick.decimal)
     }
@@ -149,25 +135,25 @@ pub fn convert_amount_with_decimal<L: DataStoreReadWrite>(
   decimal: u8,
 ) -> Result<Num, Error<L>> {
   if decimal > MAX_DECIMAL_WIDTH {
-    return Err(Error::BRC30Error(BRC30Error::DecimalsTooLarge(decimal)));
+    return Err(Error::BRC20SError(BRC20SError::DecimalsTooLarge(decimal)));
   }
   let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
   let mut amt = Num::from_str(amount)?;
 
   if amt.scale() > decimal as i64 {
-    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
+    return Err(Error::from(BRC20SError::InvalidNum(amount.to_string())));
   }
 
   if !amt.is_less_than_max_u64() || !amt.is_positive() {
-    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
+    return Err(Error::from(BRC20SError::InvalidNum(amount.to_string())));
   }
 
   amt = amt.checked_mul(&base)?;
   if amt.sign() == Sign::NoSign {
-    return Err(Error::from(BRC30Error::InvalidZeroAmount));
+    return Err(Error::from(BRC20SError::InvalidZeroAmount));
   }
   if !amt.is_positive_integer() {
-    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
+    return Err(Error::from(BRC20SError::InvalidNum(amount.to_string())));
   }
 
   Ok(amt)
@@ -184,13 +170,13 @@ pub fn convert_pledged_tick_without_decimal<
   brc20ledger: &'a M,
 ) -> Result<Num, Error<L>> {
   match tick {
-    PledgedTick::Unknown => Err(Error::BRC30Error(BRC30Error::UnknownStakeType)),
+    PledgedTick::Unknown => Err(Error::BRC20SError(BRC20SError::UnknownStakeType)),
     PledgedTick::Native => convert_amount_without_decimal(amount, NATIVE_TOKEN_DECIMAL),
     PledgedTick::BRC20Tick(tick) => {
       let token = brc20ledger
         .get_token_info(tick)
         .map_err(|e| Error::Others(anyhow!("brc20_query failed:{}", e)))?
-        .ok_or(BRC30Error::TickNotFound(tick.hex()))?;
+        .ok_or(BRC20SError::TickNotFound(tick.hex()))?;
 
       convert_amount_without_decimal(amount, token.decimal)
     }
@@ -198,7 +184,7 @@ pub fn convert_pledged_tick_without_decimal<
       let tick = brc30ledger
         .get_tick_info(tickid)
         .map_err(|e| Error::LedgerError(e))?
-        .ok_or(BRC30Error::TickNotFound(tickid.to_lowercase().hex()))?;
+        .ok_or(BRC20SError::TickNotFound(tickid.to_lowercase().hex()))?;
 
       convert_amount_without_decimal(amount, tick.decimal)
     }
@@ -210,7 +196,7 @@ pub fn convert_amount_without_decimal<L: DataStoreReadWrite>(
   decimal: u8,
 ) -> Result<Num, Error<L>> {
   if decimal > MAX_DECIMAL_WIDTH {
-    return Err(Error::BRC30Error(BRC30Error::DecimalsTooLarge(decimal)));
+    return Err(Error::BRC20SError(BRC20SError::DecimalsTooLarge(decimal)));
   }
 
   let base = BIGDECIMAL_TEN.checked_powu(decimal as u64)?;
@@ -218,16 +204,16 @@ pub fn convert_amount_without_decimal<L: DataStoreReadWrite>(
 
   //amount must be plus integer
   if !amt.is_positive_integer() {
-    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
+    return Err(Error::from(BRC20SError::InvalidNum(amount.to_string())));
   }
 
   amt = amt.checked_div(&base)?;
   if amt.sign() == Sign::NoSign {
-    return Err(Error::from(BRC30Error::InvalidZeroAmount));
+    return Err(Error::from(BRC20SError::InvalidZeroAmount));
   }
 
   if !amt.is_less_than_max_u64() || !amt.is_positive() {
-    return Err(Error::from(BRC30Error::InvalidNum(amount.to_string())));
+    return Err(Error::from(BRC20SError::InvalidNum(amount.to_string())));
   }
 
   Ok(amt)

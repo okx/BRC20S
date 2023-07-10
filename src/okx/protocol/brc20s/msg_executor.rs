@@ -19,7 +19,7 @@ use crate::okx::{
       operation::BRC30Operation,
       params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
       vesion::{enable_version_by_key, Version, VERSION_KEY_ENABLE_SHARE},
-      BRC20SMessage, BRC30Error, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer,
+      BRC20SError, BRC20SMessage, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer,
       UnStake,
     },
     utils, BlockContext,
@@ -169,7 +169,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     op: msg.op.op_type(),
     result: match event {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
+      Err(Error::BRC20SError(e)) => Err(e),
       Err(e) => return Err(anyhow!("BRC30 execute exception: {e}")),
     },
   };
@@ -189,17 +189,17 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   deploy: Deploy,
 ) -> Result<Vec<Event>, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
+  let to_script_key = msg.to.clone().ok_or(BRC20SError::InscribeToCoinbase)?;
   let mut events = Vec::new();
   // inscription message basic availability check
   if let Some(iserr) = deploy.validate_basic().err() {
-    return Err(Error::BRC30Error(iserr));
+    return Err(Error::BRC20SError(iserr));
   }
 
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
     None => {
-      return Err(Error::BRC30Error(BRC30Error::InternalError(
+      return Err(Error::BRC20SError(BRC20SError::InternalError(
         "commit from script pubkey not exist".to_string(),
       )));
     }
@@ -214,18 +214,18 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   // temp disable
   // btc and brc20-s can not be staked
   if !tick_can_staked(&stake) {
-    return Err(Error::BRC30Error(BRC30Error::StakeNoPermission(
+    return Err(Error::BRC20SError(BRC20SError::StakeNoPermission(
       stake.to_string(),
     )));
   }
 
   // share pool can not be deploy
   if !only && !enable_version_by_key(&msg.version, VERSION_KEY_ENABLE_SHARE, context.blockheight) {
-    return Err(Error::BRC30Error(BRC30Error::ShareNoPermission()));
+    return Err(Error::BRC20SError(BRC20SError::ShareNoPermission()));
   }
   //check stake
   if !stake_is_exist(&stake, brc20s_store, brc20_store) {
-    return Err(Error::BRC30Error(BRC30Error::StakeNotFound(
+    return Err(Error::BRC20SError(BRC20SError::StakeNotFound(
       stake.to_string(),
     )));
   }
@@ -234,7 +234,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     .get_pid_to_poolinfo(&pid)
     .map_err(|e| Error::LedgerError(e))?
   {
-    return Err(Error::BRC30Error(BRC30Error::PoolAlreadyExist(
+    return Err(Error::BRC20SError(BRC20SError::PoolAlreadyExist(
       pid.as_str().to_string(),
     )));
   }
@@ -251,13 +251,13 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?
   {
     if temp_tick.name != tick_name {
-      return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
+      return Err(Error::BRC20SError(BRC20SError::TickNameNotMatch(
         deploy.earn.clone(),
       )));
     }
 
     if !temp_tick.deployer.eq(&to_script_key) {
-      return Err(Error::BRC30Error(BRC30Error::DeployerNotEqual(
+      return Err(Error::BRC20SError(BRC20SError::DeployerNotEqual(
         pid.as_str().to_string(),
         temp_tick.deployer.to_string(),
         to_script_key.to_string(),
@@ -265,7 +265,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     }
 
     if !to_script_key.eq(&from_script_key) {
-      return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+      return Err(Error::BRC20SError(BRC20SError::FromToNotEqual(
         from_script_key.to_string(),
         to_script_key.to_string(),
       )));
@@ -276,7 +276,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
       .get_tickid_stake_to_pid(&tick_id, &stake)
       .map_err(|e| Error::LedgerError(e))?
     {
-      return Err(Error::BRC30Error(BRC30Error::StakeAlreadyExist(
+      return Err(Error::BRC20SError(BRC20SError::StakeAlreadyExist(
         stake.to_string(),
         tick_id.to_lowercase().hex(),
       )));
@@ -285,7 +285,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     dmax = convert_amount_with_decimal(dmax_str.clone(), temp_tick.decimal)?.checked_to_u128()?;
     // check dmax
     if temp_tick.supply - temp_tick.allocated < dmax {
-      return Err(Error::BRC30Error(BRC30Error::InsufficientTickSupply(
+      return Err(Error::BRC20SError(BRC20SError::InsufficientTickSupply(
         deploy.distribution_max,
       )));
     }
@@ -300,10 +300,10 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     let decimal = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
       .checked_to_u8()?;
     if decimal > MAX_DECIMAL_WIDTH {
-      return Err(Error::BRC30Error(BRC30Error::DecimalsTooLarge(decimal)));
+      return Err(Error::BRC20SError(BRC20SError::DecimalsTooLarge(decimal)));
     }
 
-    let supply_str = deploy.total_supply.ok_or(BRC30Error::InternalError(
+    let supply_str = deploy.total_supply.ok_or(BRC20SError::InternalError(
       "the first deploy must be set total supply".to_string(),
     ))?;
     let total_supply = convert_amount_with_decimal(supply_str.as_str(), decimal)?;
@@ -318,7 +318,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
       &to_script_key,
     );
     if !c_tick_id.to_lowercase().eq(&tick_id) {
-      return Err(Error::BRC30Error(BRC30Error::InvalidPoolTickId(
+      return Err(Error::BRC20SError(BRC20SError::InvalidPoolTickId(
         tick_id.hex(),
         c_tick_id.hex(),
       )));
@@ -392,20 +392,22 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   stake_msg: Stake,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
+  let to_script_key = msg.to.clone().ok_or(BRC20SError::InscribeToCoinbase)?;
   if let Some(err) = stake_msg.validate_basic().err() {
-    return Err(Error::BRC30Error(err));
+    return Err(Error::BRC20SError(err));
   }
   let pool_id = stake_msg.get_pool_id();
 
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
     None => {
-      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+      return Err(Error::BRC20SError(BRC20SError::InternalError(
+        "".to_string(),
+      )));
     }
   };
   if !to_script_key.eq(&from_script_key) {
-    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+    return Err(Error::BRC20SError(BRC20SError::FromToNotEqual(
       from_script_key.to_string(),
       to_script_key.to_string(),
     )));
@@ -414,7 +416,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let mut pool = brc20s_store
     .get_pid_to_poolinfo(&pool_id)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(
+    .ok_or(Error::BRC20SError(BRC20SError::PoolNotExist(
       pool_id.as_str().to_string(),
     )))?;
 
@@ -452,7 +454,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     .map_or(StakeInfo::new(&vec![], &stake_tick, 0, 0), |v| v);
 
   if user_stakeinfo.pool_stakes.len() == MAX_STAKED_POOL_NUM {
-    return Err(Error::BRC30Error(BRC30Error::InternalError(
+    return Err(Error::BRC20SError(BRC20SError::InternalError(
       "the number of stake pool is full".to_string(),
     )));
   }
@@ -460,7 +462,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let staked_total =
     Num::from(user_stakeinfo.total_only).checked_add(&Num::from(user_stakeinfo.max_share))?;
   if stake_balance.lt(&staked_total) {
-    return Err(Error::BRC30Error(BRC30Error::InternalError(
+    return Err(Error::BRC20SError(BRC20SError::InternalError(
       "got serious error stake_balance < user staked total".to_string(),
     )));
   }
@@ -474,7 +476,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
       .checked_sub(&has_staked)?;
   }
   if can_stake_balance.lt(&amount) {
-    return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
+    return Err(Error::BRC20SError(BRC20SError::InsufficientBalance(
       amount.clone().truncate_to_str().unwrap(),
       can_stake_balance.to_string(),
     )));
@@ -536,19 +538,21 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   unstake: UnStake,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
+  let to_script_key = msg.to.clone().ok_or(BRC20SError::InscribeToCoinbase)?;
   if let Some(err) = unstake.validate_basic().err() {
-    return Err(Error::BRC30Error(err));
+    return Err(Error::BRC20SError(err));
   }
   let pool_id = unstake.get_pool_id();
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
     None => {
-      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+      return Err(Error::BRC20SError(BRC20SError::InternalError(
+        "".to_string(),
+      )));
     }
   };
   if !to_script_key.eq(&from_script_key) {
-    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+    return Err(Error::BRC20SError(BRC20SError::FromToNotEqual(
       from_script_key.to_string(),
       to_script_key.to_string(),
     )));
@@ -557,7 +561,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let mut pool = brc20s_store
     .get_pid_to_poolinfo(&pool_id)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(
+    .ok_or(Error::BRC20SError(BRC20SError::PoolNotExist(
       pool_id.as_str().to_string(),
     )))?;
 
@@ -576,7 +580,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     .unwrap_or(UserInfo::default(&pool_id));
   let has_staked = Num::from(userinfo.staked);
   if has_staked.lt(&amount) {
-    return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
+    return Err(Error::BRC20SError(BRC20SError::InsufficientBalance(
       has_staked.clone().to_string(),
       amount.clone().truncate_to_str().unwrap(),
     )));
@@ -598,7 +602,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let mut user_stakeinfo = brc20s_store
     .get_user_stakeinfo(&to_script_key, &stake_tick)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(Error::BRC30Error(BRC30Error::InsufficientBalance(
+    .ok_or(Error::BRC20SError(BRC20SError::InsufficientBalance(
       amount.clone().truncate_to_str().unwrap(),
       0_u128.to_string(),
     )))?;
@@ -646,7 +650,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite
   passive_unstake: PassiveUnStake,
 ) -> Result<Vec<Event>, Error<N>> {
   if let Some(iserr) = passive_unstake.validate_basics().err() {
-    return Err(Error::BRC30Error(iserr));
+    return Err(Error::BRC20SError(iserr));
   }
   let from_script_key = msg.from.clone();
 
@@ -662,7 +666,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite
   let stake_info = match stake_info {
     Some(info) => info,
     None => {
-      return Err(Error::BRC30Error(BRC30Error::StakeNotFound(
+      return Err(Error::BRC20SError(BRC20SError::StakeNotFound(
         passive_unstake.stake.clone(),
       )));
     }
@@ -708,19 +712,21 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   mint: Mint,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
+  let to_script_key = msg.to.clone().ok_or(BRC20SError::InscribeToCoinbase)?;
   if let Some(iserr) = mint.validate_basic().err() {
-    return Err(Error::BRC30Error(iserr));
+    return Err(Error::BRC20SError(iserr));
   }
 
   let from_script_key = match msg.commit_from.clone() {
     Some(script) => script,
     None => {
-      return Err(Error::BRC30Error(BRC30Error::InternalError("".to_string())));
+      return Err(Error::BRC20SError(BRC20SError::InternalError(
+        "".to_string(),
+      )));
     }
   };
   if !to_script_key.eq(&from_script_key) {
-    return Err(Error::BRC30Error(BRC30Error::FromToNotEqual(
+    return Err(Error::BRC20SError(BRC20SError::FromToNotEqual(
       from_script_key.to_string(),
       to_script_key.to_string(),
     )));
@@ -731,11 +737,11 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let mut tick_info = brc20s_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(BRC30Error::TickNotFound(mint.tick.clone()))?;
+    .ok_or(BRC20SError::TickNotFound(mint.tick.clone()))?;
 
   let tick_name = Tick::from_str(mint.tick.as_str())?;
   if tick_info.name != tick_name {
-    return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
+    return Err(Error::BRC20SError(BRC20SError::TickNameNotMatch(
       mint.tick.clone(),
     )));
   }
@@ -743,12 +749,12 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   // check amount
   let mut amt = Num::from_str(&mint.amount)?;
   if amt.scale() > tick_info.decimal as i64 {
-    return Err(Error::BRC30Error(BRC30Error::AmountOverflow(mint.amount)));
+    return Err(Error::BRC20SError(BRC20SError::AmountOverflow(mint.amount)));
   }
   let base = BIGDECIMAL_TEN.checked_powu(tick_info.decimal as u64)?;
   amt = amt.checked_mul(&base)?;
   if amt.sign() == Sign::NoSign {
-    return Err(Error::BRC30Error(BRC30Error::InvalidZeroAmount));
+    return Err(Error::BRC20SError(BRC20SError::InvalidZeroAmount));
   }
 
   // get user info and pool info
@@ -760,7 +766,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let mut pool_info = brc20s_store
     .get_pid_to_poolinfo(&pool_id)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(Error::BRC30Error(BRC30Error::PoolNotExist(mint.pool_id)))?;
+    .ok_or(Error::BRC20SError(BRC20SError::PoolNotExist(mint.pool_id)))?;
 
   // calculate reward
   let dec = get_stake_dec(&pool_info.stake, brc20s_store, brc20_store);
@@ -772,7 +778,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     reward::withdraw_user_reward(&mut user_info, &mut pool_info, dec)?;
     reward::update_user_stake(&mut user_info, &mut pool_info, dec)?;
     if amt > user_info.pending_reward.into() {
-      return Err(Error::BRC30Error(BRC30Error::AmountExceedLimit(
+      return Err(Error::BRC20SError(BRC20SError::AmountExceedLimit(
         amt.clone().truncate_to_str().unwrap(),
       )));
     }
@@ -823,17 +829,17 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
   transfer: Transfer,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
-  let to_script_key = msg.to.clone().ok_or(BRC30Error::InscribeToCoinbase)?;
+  let to_script_key = msg.to.clone().ok_or(BRC20SError::InscribeToCoinbase)?;
   // check tick
   let tick_id = TickId::from_str(transfer.tick_id.as_str())?;
   let tick_info = brc20s_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(BRC30Error::TickNotFound(tick_id.hex()))?;
+    .ok_or(BRC20SError::TickNotFound(tick_id.hex()))?;
 
   let tick_name = Tick::from_str(transfer.tick.as_str())?;
   if tick_info.name != tick_name {
-    return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
+    return Err(Error::BRC20SError(BRC20SError::TickNameNotMatch(
       transfer.tick.clone(),
     )));
   }
@@ -841,14 +847,14 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
   // check amount
   let mut amt = Num::from_str(&transfer.amount)?;
   if amt.scale() > tick_info.decimal as i64 {
-    return Err(Error::BRC30Error(BRC30Error::AmountOverflow(
+    return Err(Error::BRC20SError(BRC20SError::AmountOverflow(
       transfer.amount,
     )));
   }
   let base = BIGDECIMAL_TEN.checked_powu(tick_info.decimal as u64)?;
   amt = amt.checked_mul(&base)?;
   if amt.sign() == Sign::NoSign {
-    return Err(Error::BRC30Error(BRC30Error::InvalidZeroAmount));
+    return Err(Error::BRC20SError(BRC20SError::InvalidZeroAmount));
   }
 
   // update balance
@@ -861,7 +867,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWri
   let transferable = Into::<Num>::into(balance.transferable_balance);
   let available = overall.checked_sub(&transferable)?;
   if available < amt {
-    return Err(Error::BRC30Error(BRC30Error::InsufficientBalance(
+    return Err(Error::BRC20SError(BRC20SError::InsufficientBalance(
       available.clone().to_string(),
       amt.clone().truncate_to_str().unwrap(),
     )));
@@ -915,12 +921,12 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   let transferable = brc20s_store
     .get_transferable_by_id(&from_script_key, &msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(BRC30Error::TransferableNotFound(msg.inscription_id))?;
+    .ok_or(BRC20SError::TransferableNotFound(msg.inscription_id))?;
 
   let amt = Into::<Num>::into(transferable.amount);
 
   if transferable.owner != from_script_key {
-    return Err(Error::BRC30Error(BRC30Error::TransferableOwnerNotMatch(
+    return Err(Error::BRC20SError(BRC20SError::TransferableOwnerNotMatch(
       msg.inscription_id,
     )));
   }
@@ -939,7 +945,7 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   brc20s_store
     .get_tick_info(&transferable.tick_id)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(BRC30Error::TickNotFound(transferable.tick_id.hex()))?;
+    .ok_or(BRC20SError::TickNotFound(transferable.tick_id.hex()))?;
 
   // update from key balance.
   let mut from_balance = brc20s_store
@@ -1023,7 +1029,7 @@ mod tests {
     brc20s_store: &'a N,
     msg: &BRC30ExecutionMessage,
     height: u64,
-  ) -> Result<Vec<Event>, BRC30Error> {
+  ) -> Result<Vec<Event>, BRC20SError> {
     let context = BlockContext {
       blockheight: height,
       blocktime: 1687245485,
@@ -1071,8 +1077,8 @@ mod tests {
 
     match result {
       Ok(events) => Ok(events),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     }
   }
 
@@ -1082,7 +1088,7 @@ mod tests {
     addr: &ScriptKey,
     balance: u128,
     dec: u8,
-  ) -> Result<(), BRC30Error> {
+  ) -> Result<(), BRC20SError> {
     let token = brc20::Tick::from_str(tick).unwrap();
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
@@ -1204,10 +1210,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -1249,14 +1255,14 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     assert_eq!(
-      Err(BRC30Error::PoolAlreadyExist(pid.as_str().to_string())),
+      Err(BRC20SError::PoolAlreadyExist(pid.as_str().to_string())),
       result
     );
 
@@ -1299,10 +1305,10 @@ mod tests {
       second_deply.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     assert_ne!(true, result.is_err());
@@ -1368,10 +1374,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -1464,14 +1470,14 @@ mod tests {
         deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       assert_eq!(
-        Err(BRC30Error::PoolAlreadyExist(pid.as_str().to_string())),
+        Err(BRC20SError::PoolAlreadyExist(pid.as_str().to_string())),
         result
       );
     }
@@ -1499,10 +1505,10 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       let tick_id = second_deploy.get_tick_id();
@@ -1544,10 +1550,10 @@ mod tests {
         second_deploy.clone(),
       );
       assert_eq!(false, result.is_err());
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       let tick_id = second_deploy.get_tick_id();
@@ -1590,14 +1596,14 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       assert_eq!(
-        Err(BRC30Error::StakeAlreadyExist(
+        Err(BRC20SError::StakeAlreadyExist(
           second_deploy.stake.clone(),
           second_deploy.get_tick_id().hex()
         )),
@@ -1628,14 +1634,14 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       assert_eq!(
-        Err(BRC30Error::StakeNotFound(second_deploy.stake.clone(),)),
+        Err(BRC20SError::StakeNotFound(second_deploy.stake.clone(),)),
         result
       );
     }
@@ -1665,14 +1671,14 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       assert_eq!(
-        Err(BRC30Error::InsufficientTickSupply("10000000".to_string())),
+        Err(BRC20SError::InsufficientTickSupply("10000000".to_string())),
         result
       );
     }
@@ -1703,10 +1709,10 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       let tick_id = second_deploy.get_tick_id();
@@ -1750,13 +1756,13 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
-      assert_eq!(Err(BRC30Error::InscribeToCoinbase), result);
+      assert_eq!(Err(BRC20SError::InscribeToCoinbase), result);
     }
 
     //match msg.commit_from is none
@@ -1787,14 +1793,14 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       assert_eq!(
-        Err(BRC30Error::InternalError(
+        Err(BRC20SError::InternalError(
           "commit from script pubkey not exist".to_string(),
         )),
         result
@@ -1829,13 +1835,13 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
-      assert_eq!(Err(BRC30Error::ShareNoPermission()), result);
+      assert_eq!(Err(BRC20SError::ShareNoPermission()), result);
     }
 
     //temp_tick.name != tick_name
@@ -1860,14 +1866,14 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       assert_eq!(
-        Err(BRC30Error::TickNameNotMatch("ordie".to_string())),
+        Err(BRC20SError::TickNameNotMatch("ordie".to_string())),
         result
       );
     }
@@ -1895,13 +1901,13 @@ mod tests {
         second_deploy.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
-      assert_eq!(Err(BRC30Error::DecimalsTooLarge(19)), result);
+      assert_eq!(Err(BRC20SError::DecimalsTooLarge(19)), result);
     }
   }
 
@@ -1959,13 +1965,13 @@ mod tests {
         second_deply.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolTickId(
+        Err(BRC20SError::InvalidPoolTickId(
           "13395c5283".to_string(),
           "9a839a5ec4".to_string()
         )),
@@ -1992,13 +1998,13 @@ mod tests {
         second_deply.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolTickId(
+        Err(BRC20SError::InvalidPoolTickId(
           "13395c5283".to_string(),
           "66a4a34e93".to_string()
         )),
@@ -2029,13 +2035,13 @@ mod tests {
         second_deply.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolTickId(
+        Err(BRC20SError::InvalidPoolTickId(
           "13395c5283".to_string(),
           "c9a808b614".to_string()
         )),
@@ -2065,13 +2071,13 @@ mod tests {
         second_deply.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolTickId(
+        Err(BRC20SError::InvalidPoolTickId(
           "13395c5283".to_string(),
           "22ec062391".to_string()
         )),
@@ -2102,12 +2108,12 @@ mod tests {
 
       let pid = deploy.get_pool_id();
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::UnknownPoolType), result);
+      assert_eq!(Err(BRC20SError::UnknownPoolType), result);
     }
 
     //err pid
@@ -2133,13 +2139,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolId(
+        Err(BRC20SError::InvalidPoolId(
           err_pid.pool_id.clone(),
           "the prefix of pool id is not hex".to_string()
         )),
@@ -2167,13 +2173,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolId(
+        Err(BRC20SError::InvalidPoolId(
           err_pid.pool_id.clone(),
           "pool id length is not 13".to_string()
         )),
@@ -2201,14 +2207,14 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       assert_eq!(
-        Err(BRC30Error::InvalidPoolId(
+        Err(BRC20SError::InvalidPoolId(
           err_pid.pool_id.clone(),
           "the suffix of pool id is not hex".to_string()
         )),
@@ -2236,13 +2242,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolId(
+        Err(BRC20SError::InvalidPoolId(
           err_pid.pool_id.clone(),
           "the prefix of pool id is not hex".to_string()
         )),
@@ -2270,13 +2276,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolId(
+        Err(BRC20SError::InvalidPoolId(
           err_pid.pool_id.clone(),
           "pool id must contains '#'".to_string()
         )),
@@ -2304,13 +2310,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolId(
+        Err(BRC20SError::InvalidPoolId(
           err_pid.pool_id.clone(),
           "pool id must contains only one '#'".to_string()
         )),
@@ -2338,13 +2344,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolId(
+        Err(BRC20SError::InvalidPoolId(
           err_pid.pool_id.clone(),
           "pool id must contains only one '#'".to_string()
         )),
@@ -2372,13 +2378,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidPoolTickId(
+        Err(BRC20SError::InvalidPoolTickId(
           "a8195197bc".to_string(),
           "13395c5283".to_string()
         )),
@@ -2409,12 +2415,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::UnknownStakeType), result);
+      assert_eq!(Err(BRC20SError::UnknownStakeType), result);
 
       let mut err_stake = deploy.clone();
       err_stake.stake = "hehehh".to_string();
@@ -2437,12 +2443,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::UnknownStakeType), result);
+      assert_eq!(Err(BRC20SError::UnknownStakeType), result);
 
       let mut err_stake = deploy.clone();
       err_stake.stake = "test".to_string();
@@ -2465,12 +2471,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::StakeNotFound(err_stake.stake)), result);
+      assert_eq!(Err(BRC20SError::StakeNotFound(err_stake.stake)), result);
 
       let mut err_earn = deploy.clone();
       err_earn.earn = "tes".to_string();
@@ -2493,13 +2499,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())),
+        Err(BRC20SError::InvalidTickLen(err_earn.earn.to_string())),
         result
       );
 
@@ -2524,13 +2530,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_ne!(
-        Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())),
+        Err(BRC20SError::InvalidTickLen(err_earn.earn.to_string())),
         result
       );
 
@@ -2555,13 +2561,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_ne!(
-        Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())),
+        Err(BRC20SError::InvalidTickLen(err_earn.earn.to_string())),
         result
       );
 
@@ -2586,13 +2592,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::InvalidTickLen(err_earn.earn.to_string())),
+        Err(BRC20SError::InvalidTickLen(err_earn.earn.to_string())),
         result
       );
 
@@ -2617,13 +2623,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::StakeEqualEarn(
+        Err(BRC20SError::StakeEqualEarn(
           err_earn.stake.to_string(),
           err_earn.earn.to_string()
         )),
@@ -2653,12 +2659,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::InvalidNum("".to_string())), result);
+      assert_eq!(Err(BRC20SError::InvalidNum("".to_string())), result);
 
       let mut err_erate = deploy.clone();
       err_erate.earn_rate = "1l".to_string();
@@ -2681,12 +2687,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::InvalidNum("1l".to_string())), result);
+      assert_eq!(Err(BRC20SError::InvalidNum("1l".to_string())), result);
     }
 
     //err dmax
@@ -2712,12 +2718,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::InvalidNum("".to_string())), result);
+      assert_eq!(Err(BRC20SError::InvalidNum("".to_string())), result);
 
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "1l".to_string();
@@ -2740,12 +2746,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::InvalidNum("1l".to_string())), result);
+      assert_eq!(Err(BRC20SError::InvalidNum("1l".to_string())), result);
 
       let mut err_dmax = deploy.clone();
       err_dmax.distribution_max = "21000001".to_string();
@@ -2768,13 +2774,13 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
       assert_eq!(
-        Err(BRC30Error::ExceedDmax(
+        Err(BRC20SError::ExceedDmax(
           "21000001".to_string(),
           "21000000".to_string()
         )),
@@ -2805,12 +2811,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::InvalidNum("".to_string())), result);
+      assert_eq!(Err(BRC20SError::InvalidNum("".to_string())), result);
 
       let mut err_dmax = deploy.clone();
       err_dmax.total_supply = Some("1l".to_string());
@@ -2833,12 +2839,12 @@ mod tests {
       );
 
       let pid = deploy.get_pool_id();
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
-      assert_eq!(Err(BRC30Error::InvalidNum("1l".to_string())), result);
+      assert_eq!(Err(BRC20SError::InvalidNum("1l".to_string())), result);
     }
   }
 
@@ -2913,10 +2919,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -2964,10 +2970,10 @@ mod tests {
       stake_msg.clone(),
     );
 
-    let result: Result<Event, BRC30Error> = match result {
+    let result: Result<Event, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -3018,10 +3024,10 @@ mod tests {
         stake_msg.clone(),
       );
 
-      let result: Result<Event, BRC30Error> = match result {
+      let result: Result<Event, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       match result {
@@ -3089,13 +3095,13 @@ mod tests {
         stake_msg.clone(),
       );
 
-      let result: Result<Event, BRC30Error> = match result {
+      let result: Result<Event, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
-      assert_eq!(Err(BRC30Error::InscribeToCoinbase), result);
+      assert_eq!(Err(BRC20SError::InscribeToCoinbase), result);
     }
 
     // stake msg validate_basic err
@@ -3125,13 +3131,13 @@ mod tests {
         stake_msg.clone(),
       );
 
-      let result: Result<Event, BRC30Error> = match result {
+      let result: Result<Event, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
-      assert_eq!(Err(BRC30Error::InvalidNum("a".to_string())), result);
+      assert_eq!(Err(BRC20SError::InvalidNum("a".to_string())), result);
     }
 
     // from_script_key is none
@@ -3162,13 +3168,13 @@ mod tests {
         stake_msg.clone(),
       );
 
-      let result: Result<Event, BRC30Error> = match result {
+      let result: Result<Event, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
-      assert_eq!(Err(BRC30Error::InternalError("".to_string())), result);
+      assert_eq!(Err(BRC20SError::InternalError("".to_string())), result);
     }
 
     // user stake is 0
@@ -3198,10 +3204,10 @@ mod tests {
         unstake_msg.clone(),
       );
 
-      let result: Result<Event, BRC30Error> = match result {
+      let result: Result<Event, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       //stake again
@@ -3230,10 +3236,10 @@ mod tests {
         stake_msg.clone(),
       );
 
-      let result: Result<Event, BRC30Error> = match result {
+      let result: Result<Event, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       let stakeinfo = brc20s_data_store
@@ -3419,14 +3425,14 @@ mod tests {
         stake_msg.clone(),
       );
 
-      let result: Result<Event, BRC30Error> = match result {
+      let result: Result<Event, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       assert_eq!(
-        Err(BRC30Error::InternalError(
+        Err(BRC20SError::InternalError(
           "the number of stake pool is full".to_string()
         )),
         result
@@ -3505,10 +3511,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -3556,10 +3562,10 @@ mod tests {
       stake_msg.clone(),
     );
 
-    let result: Result<Event, BRC30Error> = match result {
+    let result: Result<Event, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -3610,10 +3616,10 @@ mod tests {
         unstake_msg.clone(),
       );
 
-      let result: Result<Event, BRC30Error> = match result {
+      let result: Result<Event, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       match result {
@@ -3726,10 +3732,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -3777,10 +3783,10 @@ mod tests {
       stake_msg.clone(),
     );
 
-    let result: Result<Event, BRC30Error> = match result {
+    let result: Result<Event, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -3853,13 +3859,13 @@ mod tests {
         unstake_msg.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      let result: Result<Vec<Event>, BRC20SError> = match result {
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
         _ => panic!(),
       };
 
-      assert_eq!(Err(BRC30Error::InscribeToCoinbase), result);
+      assert_eq!(Err(BRC20SError::InscribeToCoinbase), result);
     }
 
     //validate_basic
@@ -3887,13 +3893,13 @@ mod tests {
         unstake_msg.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      let result: Result<Vec<Event>, BRC20SError> = match result {
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
         _ => panic!(),
       };
 
-      assert_eq!(Err(BRC30Error::InvalidNum("a".to_string())), result);
+      assert_eq!(Err(BRC20SError::InvalidNum("a".to_string())), result);
     }
 
     //msg.commit_from is none
@@ -3922,13 +3928,13 @@ mod tests {
         unstake_msg.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      let result: Result<Vec<Event>, BRC20SError> = match result {
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
         _ => panic!(),
       };
 
-      assert_eq!(Err(BRC30Error::InternalError("".to_string())), result);
+      assert_eq!(Err(BRC20SError::InternalError("".to_string())), result);
     }
   }
 
@@ -4003,10 +4009,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -4054,10 +4060,10 @@ mod tests {
       stake_msg.clone(),
     );
 
-    let result: Result<Event, BRC30Error> = match result {
+    let result: Result<Event, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -4120,10 +4126,10 @@ mod tests {
         passive_unstake_msg.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
+      let result: Result<Vec<Event>, BRC20SError> = match result {
         Ok(event) => Ok(event),
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
       };
 
       match result {
@@ -4236,10 +4242,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -4287,10 +4293,10 @@ mod tests {
       stake_msg.clone(),
     );
 
-    let result: Result<Event, BRC30Error> = match result {
+    let result: Result<Event, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -4392,14 +4398,14 @@ mod tests {
         passive_unstake_msg.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      let result: Result<Vec<Event>, BRC20SError> = match result {
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
         _ => panic!(),
       };
 
       assert_eq!(
-        Err(BRC30Error::InvalidNum("ainvalid number: a".to_string())),
+        Err(BRC20SError::InvalidNum("ainvalid number: a".to_string())),
         result
       );
     }
@@ -4446,13 +4452,13 @@ mod tests {
         passive_unstake_msg.clone(),
       );
 
-      let result: Result<Vec<Event>, BRC30Error> = match result {
-        Err(Error::BRC30Error(e)) => Err(e),
-        Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      let result: Result<Vec<Event>, BRC20SError> = match result {
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
         _ => panic!(),
       };
 
-      assert_eq!(Err(BRC30Error::StakeNotFound("orea".to_string())), result);
+      assert_eq!(Err(BRC20SError::StakeNotFound("orea".to_string())), result);
     }
   }
 
@@ -4490,7 +4496,7 @@ mod tests {
     {
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::PoolAlreadyExist(deploy.pool_id.clone())),
+        Err(BRC20SError::PoolAlreadyExist(deploy.pool_id.clone())),
         result
       );
 
@@ -4510,14 +4516,14 @@ mod tests {
         addr,
       );
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
-      assert_eq!(Err(BRC30Error::StakeNoPermission(tikc_id_str)), result);
+      assert_eq!(Err(BRC20SError::StakeNoPermission(tikc_id_str)), result);
       //btc stake can not deploy
       let (_, msg) = mock_deploy_msg(
         "pool", "02", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
       );
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::StakeNoPermission("btc".to_string())),
+        Err(BRC20SError::StakeNoPermission("btc".to_string())),
         result
       );
     }
@@ -4535,7 +4541,7 @@ mod tests {
       msg.op = BRC30Operation::Deploy(deploy);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::FromToNotEqual(
+        Err(BRC20SError::FromToNotEqual(
           new_addr.to_string(),
           addr.to_string()
         )),
@@ -4552,7 +4558,7 @@ mod tests {
       msg.op = BRC30Operation::Deploy(deploy);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::DeployerNotEqual(
+        Err(BRC20SError::DeployerNotEqual(
           pool_id,
           addr.to_string(),
           new_addr.to_string()
@@ -4648,10 +4654,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -4689,10 +4695,10 @@ mod tests {
       stake_msg.clone(),
     );
 
-    let result: Result<Event, BRC30Error> = match result {
+    let result: Result<Event, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -4752,7 +4758,7 @@ mod tests {
       &error_msg,
       mint_msg.clone(),
     ) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("from bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e must equal to to bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny", e.to_string())
       }
       _ => {
@@ -4770,7 +4776,7 @@ mod tests {
       &error_msg,
       mint_msg.clone(),
     ) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("invalid inscribe to coinbase", e.to_string())
       }
       _ => {
@@ -4788,7 +4794,7 @@ mod tests {
       &error_msg,
       mint_msg.clone(),
     ) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("internal error: ", e.to_string())
       }
       _ => {
@@ -4809,7 +4815,7 @@ mod tests {
       Ok(event) => {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("amount exceed limit: 1200000001", e.to_string())
       }
       _ => {
@@ -4830,7 +4836,7 @@ mod tests {
       Ok(event) => {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("amount overflow: 11.0111111111", e.to_string())
       }
       _ => {
@@ -4851,7 +4857,7 @@ mod tests {
       Ok(event) => {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("tick name orda is not match", e.to_string())
       }
       _ => {
@@ -4872,7 +4878,7 @@ mod tests {
       Ok(event) => {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -4893,7 +4899,7 @@ mod tests {
       Ok(event) => {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("invalid number: -1", e.to_string())
       }
       _ => {
@@ -4914,7 +4920,7 @@ mod tests {
       Ok(event) => {
         println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("invalid number: 0", e.to_string())
       }
       _ => {
@@ -4940,7 +4946,7 @@ mod tests {
         assert_eq!(userinfo.minted, 110);
         assert_eq!(userinfo.pending_reward, 999890);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -4966,7 +4972,7 @@ mod tests {
         assert_eq!(userinfo.minted, 220);
         assert_eq!(userinfo.pending_reward, 999780);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -5049,10 +5055,10 @@ mod tests {
       deploy.clone(),
     );
 
-    let result: Result<Vec<Event>, BRC30Error> = match result {
+    let result: Result<Vec<Event>, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -5106,10 +5112,10 @@ mod tests {
       stake_msg.clone(),
     );
 
-    let result: Result<Event, BRC30Error> = match result {
+    let result: Result<Event, BRC20SError> = match result {
       Ok(event) => Ok(event),
-      Err(Error::BRC30Error(e)) => Err(e),
-      Err(e) => Err(BRC30Error::InternalError(e.to_string())),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
     };
 
     match result {
@@ -5180,7 +5186,7 @@ mod tests {
         assert_eq!(userinfo.minted, 1010);
         assert_eq!(userinfo.pending_reward, 599998990);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -5206,7 +5212,7 @@ mod tests {
         assert_eq!(userinfo.minted, 1010);
         assert_eq!(userinfo.pending_reward, 599998990);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -5251,7 +5257,7 @@ mod tests {
       &error_msg,
       transfer_msg.clone(),
     ) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("invalid inscribe to coinbase", e.to_string())
       }
       _ => {
@@ -5269,7 +5275,7 @@ mod tests {
       &msg,
       error_transfer_msg.clone(),
     ) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("amount overflow: 11.0111111111", e.to_string())
       }
       _ => {
@@ -5287,7 +5293,7 @@ mod tests {
       &msg,
       error_transfer_msg.clone(),
     ) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("tick name orda is not match", e.to_string())
       }
       _ => {
@@ -5305,7 +5311,7 @@ mod tests {
       &msg,
       error_transfer_msg.clone(),
     ) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("insufficient balance: 1010 1020", e.to_string())
       }
       _ => {
@@ -5331,7 +5337,7 @@ mod tests {
         assert_eq!(balance.transferable_balance, 110);
         assert_eq!(balance.overall_balance, 1010);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -5357,7 +5363,7 @@ mod tests {
         assert_eq!(balance.transferable_balance, 110);
         assert_eq!(balance.overall_balance, 1010);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -5383,7 +5389,7 @@ mod tests {
       Address::from_str("bc1qzmh8f99f8ue8cy90a9xqflwtrhphg3sq76srhe").unwrap(),
     );
     match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
       _ => {
@@ -5397,7 +5403,7 @@ mod tests {
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
     match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 2111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
       _ => {
@@ -5420,7 +5426,7 @@ mod tests {
         assert_eq!(balance.transferable_balance, 0);
         assert_eq!(balance.overall_balance, 1010);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("invalid inscribe to coinbase", e.to_string())
       }
       _ => {
@@ -5433,7 +5439,7 @@ mod tests {
     error_msg.new_satpoint.outpoint.txid =
       Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111").unwrap();
     match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
       _ => {
@@ -5459,7 +5465,7 @@ mod tests {
         assert_eq!(balance.transferable_balance, 110);
         assert_eq!(balance.overall_balance, 1010);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -5479,7 +5485,7 @@ mod tests {
         assert_eq!(balance.transferable_balance, 0);
         assert_eq!(balance.overall_balance, 1010);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("invalid inscribe to coinbase", e.to_string())
       }
       _ => {
@@ -5489,7 +5495,7 @@ mod tests {
 
     // normal, second
     match process_transfer(context, &brc20_data_store, &brc20s_data_store, &msg) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
       _ => {
@@ -5523,7 +5529,7 @@ mod tests {
         assert_eq!(balance1.transferable_balance, 110);
         assert_eq!(balance1.overall_balance, 1010);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("pool fea607ea9e#11 is not exist", e.to_string())
       }
       _ => {
@@ -5553,7 +5559,7 @@ mod tests {
         assert_eq!(balance1.transferable_balance, 110);
         assert_eq!(balance1.overall_balance, 1120);
       }
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("invalid inscribe to coinbase", e.to_string())
       }
       _ => {
@@ -5563,7 +5569,7 @@ mod tests {
 
     // normal, second
     match process_transfer(context, &brc20_data_store, &brc20s_data_store, &msg) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
       _ => {
@@ -5597,7 +5603,7 @@ mod tests {
     let mut error_msg = msg.clone();
     error_msg.from = script1.clone();
     match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
-      Err(Error::BRC30Error(e)) => {
+      Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable owner not match 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
       _ => {
@@ -5657,14 +5663,14 @@ mod tests {
       let (stake, msg) = mock_stake_msg("0000000001#11", "100", addr, addr);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::PoolNotExist("0000000001#11".to_string())),
+        Err(BRC20SError::PoolNotExist("0000000001#11".to_string())),
         result
       );
       //from is not equal to
       let (stake, msg) = mock_stake_msg(pid_only1, "100", new_addr, addr);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::FromToNotEqual(
+        Err(BRC20SError::FromToNotEqual(
           new_addr.to_string(),
           addr.to_string()
         )),
@@ -5674,7 +5680,7 @@ mod tests {
       let (stake, msg) = mock_stake_msg(pid_only1, "300", addr, addr);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::InsufficientBalance(
+        Err(BRC20SError::InsufficientBalance(
           "300000000000000000000".to_string(),
           "200000000000000000000".to_string(),
         )),
@@ -5741,7 +5747,7 @@ mod tests {
     let (stake, msg) = mock_stake_msg(pid_only2, "51.1", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(
-      Some(BRC30Error::InsufficientBalance(
+      Some(BRC20SError::InsufficientBalance(
         "51100000000000000000".to_string(),
         "51000000000000000000".to_string(),
       )),
@@ -5751,7 +5757,7 @@ mod tests {
     let (stake, msg) = mock_stake_msg(pid_share2, "102", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(
-      Some(BRC30Error::InsufficientBalance(
+      Some(BRC20SError::InsufficientBalance(
         "102000000000000000000".to_string(),
         "51000000000000000000".to_string(),
       )),
@@ -5842,14 +5848,14 @@ mod tests {
       let (stake, msg) = mock_unstake_msg("0000000001#11", "100", addr, addr);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::PoolNotExist("0000000001#11".to_string())),
+        Err(BRC20SError::PoolNotExist("0000000001#11".to_string())),
         result
       );
       //from is not equal to
       let (stake, msg) = mock_unstake_msg(pid_only1, "100", new_addr, addr);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::FromToNotEqual(
+        Err(BRC20SError::FromToNotEqual(
           new_addr.to_string(),
           addr.to_string()
         )),
@@ -5859,7 +5865,7 @@ mod tests {
       let (stake, msg) = mock_unstake_msg(pid_only1, "300", addr, addr);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::InsufficientBalance(
+        Err(BRC20SError::InsufficientBalance(
           "0".to_string(),
           "300000000000000000000".to_string(),
         )),
@@ -5875,7 +5881,7 @@ mod tests {
     let (stake, msg) = mock_unstake_msg(pid_only1, "300", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(
-      Err(BRC30Error::InsufficientBalance(
+      Err(BRC20SError::InsufficientBalance(
         "50000000000000000000".to_string(),
         "300000000000000000000".to_string(),
       )),
@@ -6039,13 +6045,13 @@ mod tests {
       let (stake, msg) = mock_passive_unstake_msg("0000000001", "100", addr, addr);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(
-        Err(BRC30Error::StakeNotFound("0000000001".to_string())),
+        Err(BRC20SError::StakeNotFound("0000000001".to_string())),
         result
       );
       //no stake then passive unstake
       let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, addr);
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
-      assert_eq!(Err(BRC30Error::StakeNotFound("btc1".to_string(),)), result);
+      assert_eq!(Err(BRC20SError::StakeNotFound("btc1".to_string(),)), result);
     }
     //stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
@@ -6192,7 +6198,7 @@ mod tests {
     addr: &str,
     stake: &str,
     earn: &str,
-  ) -> Result<(Vec<(String, PledgedTick)>, ScriptKey), BRC30Error> {
+  ) -> Result<(Vec<(String, PledgedTick)>, ScriptKey), BRC20SError> {
     let mut results: Vec<(String, PledgedTick)> = Vec::new();
     let brc20s_tick = format!("{}1", earn.to_string());
     let (deploy, msg) = mock_deploy_msg(

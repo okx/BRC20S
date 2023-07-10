@@ -335,7 +335,7 @@ mod tests {
   use crate::okx::datastore::brc20;
   use crate::okx::datastore::brc20s::{DataStoreReadOnly, DataStoreReadWrite, OperationType};
   use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolType, Tick, TickId};
-  use crate::okx::protocol::brc20s::BRC30Error;
+  use crate::okx::protocol::brc20s::BRC20SError;
   use crate::SatPoint;
   use bitcoin::Address;
   use redb::Database;
@@ -878,7 +878,7 @@ mod tests {
         op: OperationType::Transfer,
         from: ScriptKey::Address(addr.clone()),
         to: ScriptKey::Address(addr.clone()),
-        result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+        result: Err(BRC20SError::InvalidTickLen("abcde".to_string())),
       },
       Receipt {
         inscription_id: inscription_id.clone(),
@@ -894,7 +894,7 @@ mod tests {
         op: OperationType::Transfer,
         from: ScriptKey::Address(addr.clone()),
         to: ScriptKey::Address(addr.clone()),
-        result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+        result: Err(BRC20SError::InvalidTickLen("abcde".to_string())),
       },
       Receipt {
         inscription_id: inscription_id.clone(),
@@ -910,7 +910,7 @@ mod tests {
         op: OperationType::Transfer,
         from: ScriptKey::Address(addr.clone()),
         to: ScriptKey::Address(addr.clone()),
-        result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+        result: Err(BRC20SError::InvalidTickLen("abcde".to_string())),
       },
     ];
 

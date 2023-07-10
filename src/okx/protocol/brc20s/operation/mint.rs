@@ -1,6 +1,6 @@
 use crate::okx::datastore::brc20s::{Pid, Tick, TickId};
 use crate::okx::protocol::brc20s::util::{validate_amount, validate_pool_str};
-use crate::okx::protocol::brc20s::BRC30Error;
+use crate::okx::protocol::brc20s::BRC20SError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -20,16 +20,16 @@ pub struct Mint {
 }
 
 impl Mint {
-  pub fn get_pool_id(&self) -> Result<Pid, BRC30Error> {
+  pub fn get_pool_id(&self) -> Result<Pid, BRC20SError> {
     Pid::from_str(self.pool_id.as_str())
   }
 
-  pub fn get_tick_id(&self) -> Result<TickId, BRC30Error> {
+  pub fn get_tick_id(&self) -> Result<TickId, BRC20SError> {
     let tick_str = self.pool_id.as_str().split("#").next().unwrap_or("");
     TickId::from_str(tick_str)
   }
 
-  pub fn validate_basic(&self) -> Result<(), BRC30Error> {
+  pub fn validate_basic(&self) -> Result<(), BRC20SError> {
     if let Some(err) = validate_pool_str(self.pool_id.as_str()).err() {
       return Err(err);
     }

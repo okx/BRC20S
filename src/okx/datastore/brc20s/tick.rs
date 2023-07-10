@@ -4,7 +4,7 @@ use crate::okx::protocol::brc20s::params::{
   NATIVE_TOKEN, TICK_BYTE_COUNT, TICK_BYTE_MAX_COUNT, TICK_BYTE_MIN_COUNT, TICK_ID_BYTE_COUNT,
   TICK_ID_STR_COUNT,
 };
-use crate::okx::protocol::brc20s::BRC30Error;
+use crate::okx::protocol::brc20s::BRC20SError;
 use crate::InscriptionId;
 use std::mem;
 
@@ -16,25 +16,25 @@ use std::str::FromStr;
 pub struct TickId([u8; TICK_ID_BYTE_COUNT]);
 
 impl FromStr for TickId {
-  type Err = BRC30Error;
+  type Err = BRC20SError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let bytes = hex::decode(s);
     if bytes.is_err() {
-      return Err(BRC30Error::InternalError(bytes.err().unwrap().to_string()));
+      return Err(BRC20SError::InternalError(bytes.err().unwrap().to_string()));
     }
     let bytes = bytes.unwrap();
     if bytes.len() != TICK_ID_BYTE_COUNT {
-      return Err(BRC30Error::InvalidTickLen(s.to_string()));
+      return Err(BRC20SError::InvalidTickLen(s.to_string()));
     }
     Ok(Self(bytes.as_slice().try_into().unwrap()))
   }
 }
 
 impl TickId {
-  pub fn from_bytes(bytes: &[u8]) -> Result<Self, BRC30Error> {
+  pub fn from_bytes(bytes: &[u8]) -> Result<Self, BRC20SError> {
     if bytes.len() != TICK_ID_BYTE_COUNT {
-      return Err(BRC30Error::InvalidTickLen(hex::encode(bytes)));
+      return Err(BRC20SError::InvalidTickLen(hex::encode(bytes)));
     }
     Ok(Self(bytes.try_into().unwrap()))
   }
@@ -92,14 +92,14 @@ impl<'de> Deserialize<'de> for TickId {
 pub struct Tick(Vec<u8>);
 
 impl FromStr for Tick {
-  type Err = BRC30Error;
+  type Err = BRC20SError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let bytes = s.as_bytes();
 
     let length = bytes.len();
     if length == 0 {
-      return Err(BRC30Error::InvalidTickLen("".to_string()));
+      return Err(BRC20SError::InvalidTickLen("".to_string()));
     }
 
     if length == NATIVE_TOKEN.len() && s.to_lowercase() == NATIVE_TOKEN {
@@ -107,7 +107,7 @@ impl FromStr for Tick {
     }
 
     if length > TICK_BYTE_MAX_COUNT || length < TICK_BYTE_MIN_COUNT {
-      return Err(BRC30Error::InvalidTickLen(s.to_string()));
+      return Err(BRC20SError::InvalidTickLen(s.to_string()));
     }
     Ok(Self(bytes.try_into().unwrap()))
   }
@@ -302,22 +302,22 @@ mod tests {
   fn test_tick_length_case() {
     assert_eq!(
       Tick::from_str(""),
-      Err(BRC30Error::InvalidTickLen("".to_string()))
+      Err(BRC20SError::InvalidTickLen("".to_string()))
     );
 
     assert_eq!(
       Tick::from_str("1"),
-      Err(BRC30Error::InvalidTickLen("1".to_string()))
+      Err(BRC20SError::InvalidTickLen("1".to_string()))
     );
 
     assert_eq!(
       Tick::from_str("12"),
-      Err(BRC30Error::InvalidTickLen("12".to_string()))
+      Err(BRC20SError::InvalidTickLen("12".to_string()))
     );
 
     assert_eq!(
       Tick::from_str("123"),
-      Err(BRC30Error::InvalidTickLen("123".to_string()))
+      Err(BRC20SError::InvalidTickLen("123".to_string()))
     );
 
     assert_eq!(Tick::from_str("1234"), Tick::from_str("1234"));
@@ -325,7 +325,7 @@ mod tests {
     assert_eq!(Tick::from_str("123456"), Tick::from_str("123456"));
     assert_eq!(
       Tick::from_str("1234567"),
-      Err(BRC30Error::InvalidTickLen("1234567".to_string()))
+      Err(BRC20SError::InvalidTickLen("1234567".to_string()))
     );
   }
 
@@ -392,12 +392,12 @@ mod tests {
   fn test_tid_err() {
     assert_eq!(
       TickId::from_str("btc").unwrap_err(),
-      BRC30Error::InternalError("Odd number of digits".to_string())
+      BRC20SError::InternalError("Odd number of digits".to_string())
     );
 
     assert_eq!(
       TickId::from_str("12345678").unwrap_err(),
-      BRC30Error::InvalidTickLen("12345678".to_string())
+      BRC20SError::InvalidTickLen("12345678".to_string())
     );
 
     let mut enc = sha256::Hash::engine();
@@ -405,12 +405,12 @@ mod tests {
     let hash = sha256::Hash::from_engine(enc).to_vec();
     assert_eq!(
       TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT - 1]).unwrap_err(),
-      BRC30Error::InvalidTickLen("a665a459".to_string())
+      BRC20SError::InvalidTickLen("a665a459".to_string())
     );
 
     assert_eq!(
       TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT + 1]).unwrap_err(),
-      BRC30Error::InvalidTickLen("a665a4592042".to_string())
+      BRC20SError::InvalidTickLen("a665a4592042".to_string())
     );
 
     assert_eq!(

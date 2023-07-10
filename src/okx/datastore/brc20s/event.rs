@@ -1,6 +1,6 @@
 use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolType, Tick, TickId};
 use crate::okx::datastore::ScriptKey;
-use crate::okx::protocol::brc20s::BRC30Error;
+use crate::okx::protocol::brc20s::BRC20SError;
 use crate::{InscriptionId, SatPoint};
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ pub struct Receipt {
   pub op: OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
-  pub result: Result<Vec<Event>, BRC30Error>,
+  pub result: Result<Vec<Event>, BRC20SError>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -123,7 +123,7 @@ mod tests {
       op: OperationType::Deploy,
       from: ScriptKey::Address(addr.clone()),
       to: ScriptKey::Address(addr.clone()),
-      result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
+      result: Err(BRC20SError::InvalidTickLen("abcde".to_string())),
     };
     assert_eq!(
       serde_json::to_string_pretty(&action_receipt).unwrap(),

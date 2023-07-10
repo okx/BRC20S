@@ -1,6 +1,6 @@
 use crate::okx::datastore::brc20s::Pid;
 use crate::okx::protocol::brc20s::util::{validate_amount, validate_pool_str};
-use crate::okx::protocol::brc20s::BRC30Error;
+use crate::okx::protocol::brc20s::BRC20SError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -27,9 +27,9 @@ impl UnStake {
     Pid::from_str(self.pool_id.as_str()).unwrap()
   }
 
-  pub fn validate_basic(&self) -> Result<(), BRC30Error> {
+  pub fn validate_basic(&self) -> Result<(), BRC20SError> {
     if let Some(err) = validate_pool_str(self.pool_id.as_str()).err() {
-      return Err(BRC30Error::InvalidPoolId(
+      return Err(BRC20SError::InvalidPoolId(
         self.pool_id.to_string(),
         err.to_string(),
       ));

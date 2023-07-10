@@ -1,7 +1,7 @@
 use super::*;
 use crate::okx::datastore::brc20s::PledgedTick;
 use crate::okx::protocol::brc20s::params::ZERO_NUM;
-use crate::okx::protocol::brc20s::{BRC30Error, Num};
+use crate::okx::protocol::brc20s::{BRC20SError, Num};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -27,7 +27,7 @@ impl StakeInfo {
     }
   }
 
-  pub fn calculate_max_share(&self) -> Result<Num, BRC30Error> {
+  pub fn calculate_max_share(&self) -> Result<Num, BRC20SError> {
     let mut staked_max_share = Num::from(0_u128);
     for (_, only, pool_stake) in self.pool_stakes.clone() {
       let current_pool_stake = Num::from(pool_stake);
@@ -41,7 +41,7 @@ impl StakeInfo {
   pub fn calculate_withdraw_pools(
     &self,
     stake_alterive: &Num,
-  ) -> Result<Vec<(Pid, u128)>, BRC30Error> {
+  ) -> Result<Vec<(Pid, u128)>, BRC20SError> {
     let mut max_share_alter = Num::from(0_u128); // the max share alter of pools
     let mut total_only = Num::from(0_u128); // the total only alter of pools
     let mut pids: Vec<(Pid, u128)> = Vec::new();

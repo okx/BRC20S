@@ -1,5 +1,5 @@
 use crate::okx::protocol::brc20s::params::MAX_DECIMAL_WIDTH;
-use crate::okx::protocol::brc20s::BRC30Error;
+use crate::okx::protocol::brc20s::BRC20SError;
 use bigdecimal::num_bigint::{BigInt, Sign, ToBigInt};
 use bigdecimal::{BigDecimal, One, Signed, ToPrimitive, Zero};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -15,13 +15,13 @@ impl Num {
   }
 
   // TODO check overflow
-  pub fn checked_add(&self, other: &Num) -> Result<Self, BRC30Error> {
+  pub fn checked_add(&self, other: &Num) -> Result<Self, BRC20SError> {
     Ok(Self(self.0.clone() + &other.0))
   }
 
-  pub fn checked_sub(&self, other: &Num) -> Result<Self, BRC30Error> {
+  pub fn checked_sub(&self, other: &Num) -> Result<Self, BRC20SError> {
     if self.0 < other.0 {
-      return Err(BRC30Error::Overflow {
+      return Err(BRC20SError::Overflow {
         op: String::from("checked_sub"),
         org: self.clone().to_string(),
         other: other.clone().to_string(),
@@ -32,19 +32,19 @@ impl Num {
   }
 
   // TODO check overflow
-  pub fn checked_mul(&self, other: &Num) -> Result<Self, BRC30Error> {
+  pub fn checked_mul(&self, other: &Num) -> Result<Self, BRC20SError> {
     Ok(Self(self.0.clone() * &other.0))
   }
 
-  pub fn checked_div(&self, other: &Num) -> Result<Self, BRC30Error> {
+  pub fn checked_div(&self, other: &Num) -> Result<Self, BRC20SError> {
     if other.0.is_zero() {
-      return Err(BRC30Error::DivedZero);
+      return Err(BRC20SError::DivedZero);
     }
 
     Ok(Self(self.0.clone() / other.0.clone()))
   }
 
-  pub fn checked_powu(&self, exp: u64) -> Result<Self, BRC30Error> {
+  pub fn checked_powu(&self, exp: u64) -> Result<Self, BRC20SError> {
     match exp {
       0 => Ok(Self(BigDecimal::one())),
       1 => Ok(Self(self.0.clone())),
@@ -59,11 +59,11 @@ impl Num {
     }
   }
 
-  pub fn checked_to_u8(&self) -> Result<u8, BRC30Error> {
+  pub fn checked_to_u8(&self) -> Result<u8, BRC20SError> {
     if !self.0.is_integer() {
-      return Err(BRC30Error::InvalidInteger(self.clone().to_string()));
+      return Err(BRC20SError::InvalidInteger(self.clone().to_string()));
     }
-    Ok(self.0.clone().to_u8().ok_or(BRC30Error::Overflow {
+    Ok(self.0.clone().to_u8().ok_or(BRC20SError::Overflow {
       op: String::from("to_u8"),
       org: self.clone().to_string(),
       other: Self(BigDecimal::from(u8::MAX)).to_string(),
@@ -79,20 +79,20 @@ impl Num {
     scale
   }
 
-  pub fn checked_to_u128(&self) -> Result<u128, BRC30Error> {
+  pub fn checked_to_u128(&self) -> Result<u128, BRC20SError> {
     if !self.0.is_integer() {
-      return Err(BRC30Error::InvalidInteger(self.clone().to_string()));
+      return Err(BRC20SError::InvalidInteger(self.clone().to_string()));
     }
     Ok(
       self
         .0
         .to_bigint()
-        .ok_or(BRC30Error::InternalError(format!(
+        .ok_or(BRC20SError::InternalError(format!(
           "convert {} to bigint failed",
           self.0
         )))?
         .to_u128()
-        .ok_or(BRC30Error::Overflow {
+        .ok_or(BRC20SError::Overflow {
           op: String::from("to_u128"),
           org: self.clone().to_string(),
           other: Self(BigDecimal::from(BigInt::from(u128::MAX))).to_string(), // TODO: change overflow error to others
@@ -100,17 +100,17 @@ impl Num {
     )
   }
 
-  pub fn truncate_to_u128(&self) -> Result<u128, BRC30Error> {
+  pub fn truncate_to_u128(&self) -> Result<u128, BRC20SError> {
     Ok(
       self
         .0
         .to_bigint()
-        .ok_or(BRC30Error::InternalError(format!(
+        .ok_or(BRC20SError::InternalError(format!(
           "convert {} to bigint failed",
           self.0
         )))?
         .to_u128()
-        .ok_or(BRC30Error::Overflow {
+        .ok_or(BRC20SError::Overflow {
           op: String::from("to_u128"),
           org: self.clone().to_string(),
           other: Self(BigDecimal::from(BigInt::from(u128::MAX))).to_string(), // TODO: change overflow error to others
@@ -118,7 +118,7 @@ impl Num {
     )
   }
 
-  pub fn truncate_to_str(&self) -> Result<String, BRC30Error> {
+  pub fn truncate_to_str(&self) -> Result<String, BRC20SError> {
     let big_str = self.0.clone().to_string();
     let parts: Vec<&str> = big_str.split(".").collect();
     let result = parts[0].to_string();
@@ -159,16 +159,16 @@ impl From<u128> for Num {
 }
 
 impl FromStr for Num {
-  type Err = BRC30Error;
+  type Err = BRC20SError;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     if s.starts_with(".") || s.ends_with(".") || s.find(&['e', 'E', '+', '-']).is_some() {
-      return Err(BRC30Error::InvalidNum(s.to_string()));
+      return Err(BRC20SError::InvalidNum(s.to_string()));
     }
-    let num = BigDecimal::from_str(s).map_err(|_| BRC30Error::InvalidNum(s.to_string()))?;
+    let num = BigDecimal::from_str(s).map_err(|_| BRC20SError::InvalidNum(s.to_string()))?;
 
     let (_, scale) = num.as_bigint_and_exponent();
     if scale > MAX_DECIMAL_WIDTH as i64 {
-      return Err(BRC30Error::InvalidNum(s.to_string()));
+      return Err(BRC20SError::InvalidNum(s.to_string()));
     }
 
     Ok(Self(num))
@@ -386,7 +386,7 @@ mod tests {
     assert_eq!(Num::from_str("255").unwrap().checked_to_u8().unwrap(), 255);
     assert_eq!(
       Num::from_str("256").unwrap().checked_to_u8().unwrap_err(),
-      BRC30Error::Overflow {
+      BRC20SError::Overflow {
         op: String::from("to_u8"),
         org: Num::from_str("256").unwrap().to_string(),
         other: Num(BigDecimal::from_u8(u8::MAX).unwrap()).to_string(),
@@ -460,7 +460,7 @@ mod tests {
     let n = Num::from_str(&format!("{}{}", u128::MAX, 1)).unwrap();
     assert_eq!(
       n.truncate_to_u128().unwrap_err(),
-      BRC30Error::Overflow {
+      BRC20SError::Overflow {
         op: String::from("to_u128"),
         org: n.to_string(),
         other: Num::from(u128::MAX).to_string(),
@@ -483,16 +483,16 @@ mod tests {
     let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
     assert_eq!(
       Num::from_str("1e2").unwrap_err(),
-      BRC30Error::InvalidNum("1e2".to_string())
+      BRC20SError::InvalidNum("1e2".to_string())
     );
     assert_eq!(
       Num::from_str("0e2").unwrap_err(),
-      BRC30Error::InvalidNum("0e2".to_string())
+      BRC20SError::InvalidNum("0e2".to_string())
     );
 
     assert_eq!(
       Num::from_str("100E2").unwrap_err(),
-      BRC30Error::InvalidNum("100E2".to_string())
+      BRC20SError::InvalidNum("100E2".to_string())
     );
 
     return;
@@ -507,7 +507,7 @@ mod tests {
     assert_eq!(n.truncate_to_str().unwrap(), "0".to_string());
 
     let n = Num::from_str(&format!("")).unwrap_err();
-    assert_eq!(n, BRC30Error::InvalidNum("".to_string()));
+    assert_eq!(n, BRC20SError::InvalidNum("".to_string()));
 
     let n = Num::from_str(&format!("{}{}", u128::MAX, 1)).unwrap();
     assert_eq!(
@@ -534,26 +534,26 @@ mod tests {
     let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
     assert_eq!(
       Num::from_str("1e2").unwrap_err(),
-      BRC30Error::InvalidNum("1e2".to_string())
+      BRC20SError::InvalidNum("1e2".to_string())
     );
     assert_eq!(
       Num::from_str("0e2").unwrap_err(),
-      BRC30Error::InvalidNum("0e2".to_string())
+      BRC20SError::InvalidNum("0e2".to_string())
     );
 
     assert_eq!(
       Num::from_str("100E2").unwrap_err(),
-      BRC30Error::InvalidNum("100E2".to_string())
+      BRC20SError::InvalidNum("100E2".to_string())
     );
 
     assert_eq!(
       Num::from_str("0.00.0").unwrap_err(),
-      BRC30Error::InvalidNum("0.00.0".to_string())
+      BRC20SError::InvalidNum("0.00.0".to_string())
     );
 
     assert_eq!(
       Num::from_str("").unwrap_err(),
-      BRC30Error::InvalidNum("".to_string())
+      BRC20SError::InvalidNum("".to_string())
     );
 
     assert_eq!(
@@ -585,7 +585,7 @@ mod tests {
     let n = Num::from_str(&format!("{}{}", u128::MAX, 1)).unwrap();
     assert_eq!(
       n.checked_to_u128().unwrap_err(),
-      BRC30Error::Overflow {
+      BRC20SError::Overflow {
         op: String::from("to_u128"),
         org: n.to_string(),
         other: Num::from(u128::MAX).to_string(),
@@ -595,13 +595,13 @@ mod tests {
     let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
     assert_eq!(
       n.checked_to_u128().unwrap_err(),
-      BRC30Error::InvalidInteger(n.to_string())
+      BRC20SError::InvalidInteger(n.to_string())
     );
 
     let n = Num::from_str(&format!("{}.{}", 0, "33333")).unwrap();
     assert_eq!(
       n.checked_to_u128().unwrap_err(),
-      BRC30Error::InvalidInteger(n.to_string())
+      BRC20SError::InvalidInteger(n.to_string())
     );
     let a = BigDecimal::from_str(&format!("0.333"))
       .unwrap()
@@ -614,16 +614,16 @@ mod tests {
     let n = Num::from_str(&format!("{}.{}", u128::MAX - 1, "33333")).unwrap();
     assert_eq!(
       Num::from_str("1e2").unwrap_err(),
-      BRC30Error::InvalidNum("1e2".to_string())
+      BRC20SError::InvalidNum("1e2".to_string())
     );
     assert_eq!(
       Num::from_str("0e2").unwrap_err(),
-      BRC30Error::InvalidNum("0e2".to_string())
+      BRC20SError::InvalidNum("0e2".to_string())
     );
 
     assert_eq!(
       Num::from_str("100E2").unwrap_err(),
-      BRC30Error::InvalidNum("100E2".to_string())
+      BRC20SError::InvalidNum("100E2".to_string())
     );
   }
 

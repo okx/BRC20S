@@ -4,7 +4,7 @@ use crate::okx::protocol::brc20s::params::{
   FIXED_TYPE, NATIVE_TOKEN, POOL_TYPE, TICK_BYTE_COUNT, TICK_ID_STR_COUNT,
 };
 use crate::okx::protocol::brc20s::util::{validate_amount, validate_pool_str};
-use crate::okx::protocol::brc20s::{BRC30Error, Num};
+use crate::okx::protocol::brc20s::{BRC20SError, Num};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -86,9 +86,9 @@ impl Deploy {
     let tick_str = self.pool_id.as_str().split("#").next().unwrap();
     TickId::from_str(tick_str).unwrap()
   }
-  pub fn validate_basic(&self) -> Result<(), BRC30Error> {
+  pub fn validate_basic(&self) -> Result<(), BRC20SError> {
     if self.get_pool_type() == PoolType::Unknown {
-      return Err(BRC30Error::UnknownPoolType);
+      return Err(BRC20SError::UnknownPoolType);
     }
     let iserr = validate_pool_str(self.pool_id.as_str()).err();
     if None != iserr {
@@ -96,12 +96,12 @@ impl Deploy {
     }
 
     if self.get_stake_id() == PledgedTick::Unknown {
-      return Err(BRC30Error::UnknownStakeType);
+      return Err(BRC20SError::UnknownStakeType);
     }
 
     let tick_id = self.get_tick_id();
     if self.stake.eq(tick_id.hex().as_str()) {
-      return Err(BRC30Error::StakeEqualEarn(
+      return Err(BRC20SError::StakeEqualEarn(
         self.stake.clone(),
         self.earn.clone(),
       ));
@@ -125,14 +125,14 @@ impl Deploy {
         Ok(total) => {
           let dmax = Num::from_str(self.distribution_max.as_str()).unwrap();
           if total.lt(&dmax) {
-            return Err(BRC30Error::ExceedDmax(
+            return Err(BRC20SError::ExceedDmax(
               self.distribution_max.clone(),
               supply.clone(),
             ));
           }
         }
         Err(e) => {
-          return Err(BRC30Error::InvalidNum(
+          return Err(BRC20SError::InvalidNum(
             supply.to_string() + e.to_string().as_str(),
           ));
         }
@@ -141,7 +141,7 @@ impl Deploy {
 
     if let Some(dec) = self.decimals.as_ref() {
       if let Some(iserr) = Num::from_str(dec.as_str()).err() {
-        return Err(BRC30Error::InvalidNum(
+        return Err(BRC20SError::InvalidNum(
           dec.to_string() + iserr.to_string().as_str(),
         ));
       }

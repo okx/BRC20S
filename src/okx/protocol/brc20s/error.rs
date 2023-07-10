@@ -6,7 +6,7 @@ use crate::okx::datastore::brc20s::DataStoreReadOnly;
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: DataStoreReadOnly> {
   #[error("brc20s error: {0}")]
-  BRC30Error(BRC30Error),
+  BRC20SError(BRC20SError),
 
   #[error("ledger error: {0}")]
   LedgerError(<L as DataStoreReadOnly>::Error),
@@ -34,7 +34,7 @@ pub enum JSONError {
 }
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error, Deserialize, Serialize)]
-pub enum BRC30Error {
+pub enum BRC20SError {
   #[error("{op} overflow: original: {org}, other: {other}")]
   Overflow {
     op: String,
@@ -168,8 +168,8 @@ pub enum BRC30Error {
   StakeEqualEarn(String, String),
 }
 
-impl<L: DataStoreReadOnly> From<BRC30Error> for Error<L> {
-  fn from(e: BRC30Error) -> Self {
-    Self::BRC30Error(e)
+impl<L: DataStoreReadOnly> From<BRC20SError> for Error<L> {
+  fn from(e: BRC20SError) -> Self {
+    Self::BRC20SError(e)
   }
 }

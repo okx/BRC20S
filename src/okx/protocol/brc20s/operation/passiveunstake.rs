@@ -1,7 +1,7 @@
 use crate::okx::datastore::brc20;
 use crate::okx::datastore::brc20s::{PledgedTick, TickId};
 use crate::okx::protocol::brc20s::params::{NATIVE_TOKEN, TICK_BYTE_COUNT, TICK_ID_STR_COUNT};
-use crate::okx::protocol::brc20s::{BRC30Error, Num};
+use crate::okx::protocol::brc20s::{BRC20SError, Num};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -28,13 +28,13 @@ impl PassiveUnStake {
       },
     }
   }
-  pub fn validate_basics(&self) -> Result<(), BRC30Error> {
+  pub fn validate_basics(&self) -> Result<(), BRC20SError> {
     if self.get_stake_tick() == PledgedTick::Unknown {
-      return Err(BRC30Error::UnknownStakeType);
+      return Err(BRC20SError::UnknownStakeType);
     }
 
     if let Some(iserr) = Num::from_str(self.amount.as_str()).err() {
-      return Err(BRC30Error::InvalidNum(
+      return Err(BRC20SError::InvalidNum(
         self.amount.clone() + iserr.to_string().as_str(),
       ));
     }

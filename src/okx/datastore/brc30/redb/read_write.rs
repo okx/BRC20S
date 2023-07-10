@@ -336,7 +336,7 @@ mod tests {
   use crate::okx::datastore::brc30::{
     BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, OperationType,
   };
-  use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
+  use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolType, Tick, TickId};
   use crate::okx::protocol::brc30::BRC30Error;
   use crate::SatPoint;
   use bitcoin::Address;
@@ -680,7 +680,7 @@ mod tests {
     let pid = Pid::from_str("1234567890#01").unwrap();
     let tick_info1 = TickInfo {
       tick_id: tick_id_1.clone(),
-      name: BRC30Tick::from_str("aBc1ab").unwrap(),
+      name: Tick::from_str("aBc1ab").unwrap(),
       inscription_id: inscription_id.clone(),
       allocated: 100,
       decimal: 1,

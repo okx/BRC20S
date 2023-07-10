@@ -1,4 +1,4 @@
-use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
+use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolType, Tick, TickId};
 use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc30::BRC30Error;
 use crate::{InscriptionId, SatPoint};
@@ -42,7 +42,7 @@ pub enum BRC30Event {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct DeployTickEvent {
   pub tick_id: TickId,
-  pub name: BRC30Tick,
+  pub name: Tick,
   pub supply: u128,
   pub decimal: u8,
 }

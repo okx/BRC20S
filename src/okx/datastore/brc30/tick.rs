@@ -89,9 +89,9 @@ impl<'de> Deserialize<'de> for TickId {
 }
 
 #[derive(Debug, Clone)]
-pub struct BRC30Tick(Vec<u8>);
+pub struct Tick(Vec<u8>);
 
-impl FromStr for BRC30Tick {
+impl FromStr for Tick {
   type Err = BRC30Error;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -113,7 +113,7 @@ impl FromStr for BRC30Tick {
   }
 }
 
-impl PartialEq for BRC30Tick {
+impl PartialEq for Tick {
   fn eq(&self, other: &Self) -> bool {
     self.to_lowercase().0 == other.to_lowercase().0
   }
@@ -123,14 +123,14 @@ impl PartialEq for BRC30Tick {
   }
 }
 
-impl BRC30Tick {
+impl Tick {
   pub fn as_str(&self) -> &str {
     // NOTE: BRC30Tick comes from &str by from_str,
     // so it could be calling unwrap when convert to str
     std::str::from_utf8(self.0.as_slice()).unwrap()
   }
 
-  pub fn to_lowercase(&self) -> BRC30Tick {
+  pub fn to_lowercase(&self) -> Tick {
     Self::from_str(self.as_str().to_lowercase().as_str()).unwrap()
   }
 
@@ -154,7 +154,7 @@ impl BRC30Tick {
   }
 }
 
-impl Serialize for BRC30Tick {
+impl Serialize for Tick {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: Serializer,
@@ -163,7 +163,7 @@ impl Serialize for BRC30Tick {
   }
 }
 
-impl<'de> Deserialize<'de> for BRC30Tick {
+impl<'de> Deserialize<'de> for Tick {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: Deserializer<'de>,
@@ -224,7 +224,7 @@ impl PledgedTick {
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct TickInfo {
   pub tick_id: TickId,
-  pub name: BRC30Tick,
+  pub name: Tick,
   pub inscription_id: InscriptionId,
   pub allocated: u128,
   pub decimal: u8,
@@ -239,7 +239,7 @@ pub struct TickInfo {
 impl TickInfo {
   pub fn new(
     tick_id: TickId,
-    name: &BRC30Tick,
+    name: &Tick,
     inscription_id: &InscriptionId,
     allocated: u128,
     decimal: u8,
@@ -301,39 +301,39 @@ mod tests {
   #[test]
   fn test_tick_length_case() {
     assert_eq!(
-      BRC30Tick::from_str(""),
+      Tick::from_str(""),
       Err(BRC30Error::InvalidTickLen("".to_string()))
     );
 
     assert_eq!(
-      BRC30Tick::from_str("1"),
+      Tick::from_str("1"),
       Err(BRC30Error::InvalidTickLen("1".to_string()))
     );
 
     assert_eq!(
-      BRC30Tick::from_str("12"),
+      Tick::from_str("12"),
       Err(BRC30Error::InvalidTickLen("12".to_string()))
     );
 
     assert_eq!(
-      BRC30Tick::from_str("123"),
+      Tick::from_str("123"),
       Err(BRC30Error::InvalidTickLen("123".to_string()))
     );
 
-    assert_eq!(BRC30Tick::from_str("1234"), BRC30Tick::from_str("1234"));
-    assert_eq!(BRC30Tick::from_str("12345"), BRC30Tick::from_str("12345"));
-    assert_eq!(BRC30Tick::from_str("123456"), BRC30Tick::from_str("123456"));
+    assert_eq!(Tick::from_str("1234"), Tick::from_str("1234"));
+    assert_eq!(Tick::from_str("12345"), Tick::from_str("12345"));
+    assert_eq!(Tick::from_str("123456"), Tick::from_str("123456"));
     assert_eq!(
-      BRC30Tick::from_str("1234567"),
+      Tick::from_str("1234567"),
       Err(BRC30Error::InvalidTickLen("1234567".to_string()))
     );
   }
 
   #[test]
   fn test_tick_compare_ignore_case() {
-    assert_eq!(BRC30Tick::from_str("aBc1a"), BRC30Tick::from_str("AbC1A"));
+    assert_eq!(Tick::from_str("aBc1a"), Tick::from_str("AbC1A"));
 
-    assert_ne!(BRC30Tick::from_str("aBc1D"), BRC30Tick::from_str("aBc2d"));
+    assert_ne!(Tick::from_str("aBc1D"), Tick::from_str("aBc2d"));
   }
 
   #[test]
@@ -353,41 +353,38 @@ mod tests {
   #[test]
   fn test_tick_str() {
     assert_eq!(
-      BRC30Tick::from_str("aBc1a").unwrap().as_str(),
+      Tick::from_str("aBc1a").unwrap().as_str(),
       "aBc1a".to_string()
     );
 
     assert_eq!(
-      BRC30Tick::from_str("aBc1a")
-        .unwrap()
-        .to_lowercase()
-        .as_str(),
+      Tick::from_str("aBc1a").unwrap().to_lowercase().as_str(),
       "abc1a".to_string()
     );
 
     assert_eq!(
-      BRC30Tick::from_str("aBc1a").unwrap().as_bytes(),
+      Tick::from_str("aBc1a").unwrap().as_bytes(),
       "aBc1a".as_bytes()
     );
 
     assert_eq!(
-      BRC30Tick::from_str("aBc1a").unwrap().hex(),
+      Tick::from_str("aBc1a").unwrap().hex(),
       "6142633161".to_string()
     );
 
-    assert_eq!(BRC30Tick::min_hex(), "".to_string());
-    assert_eq!(BRC30Tick::max_hex(), "ffffffffffff".to_string());
+    assert_eq!(Tick::min_hex(), "".to_string());
+    assert_eq!(Tick::max_hex(), "ffffffffffff".to_string());
   }
 
   #[test]
   fn test_tick_btc() {
-    assert_eq!(BRC30Tick::from_str("btc"), BRC30Tick::from_str("btc"));
-    assert_eq!(BRC30Tick::from_str("btc"), BRC30Tick::from_str("BTC"));
-    assert_eq!(BRC30Tick::from_str("btc"), BRC30Tick::from_str("Btc"));
-    assert_ne!(BRC30Tick::from_str("btc123"), BRC30Tick::from_str("btc"));
+    assert_eq!(Tick::from_str("btc"), Tick::from_str("btc"));
+    assert_eq!(Tick::from_str("btc"), Tick::from_str("BTC"));
+    assert_eq!(Tick::from_str("btc"), Tick::from_str("Btc"));
+    assert_ne!(Tick::from_str("btc123"), Tick::from_str("btc"));
     assert_eq!(
-      serde_json::from_str::<BRC30Tick>(r##""btc""##).unwrap(),
-      BRC30Tick::from_str("btc").unwrap()
+      serde_json::from_str::<Tick>(r##""btc""##).unwrap(),
+      Tick::from_str("btc").unwrap()
     );
   }
 

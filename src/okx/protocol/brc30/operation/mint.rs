@@ -1,4 +1,4 @@
-use crate::okx::datastore::brc30::{BRC30Tick, Pid, TickId};
+use crate::okx::datastore::brc30::{Pid, Tick, TickId};
 use crate::okx::protocol::brc30::util::{validate_amount, validate_pool_str};
 use crate::okx::protocol::brc30::BRC30Error;
 use serde::{Deserialize, Serialize};
@@ -34,12 +34,12 @@ impl Mint {
       return Err(err);
     }
 
-    if let Some(err) = BRC30Tick::from_str(self.tick.as_str()).err() {
+    if let Some(err) = Tick::from_str(self.tick.as_str()).err() {
       return Err(err);
     }
 
     //validate tick
-    if let Some(err) = BRC30Tick::from_str(self.tick.as_str()).err() {
+    if let Some(err) = Tick::from_str(self.tick.as_str()).err() {
       return Err(err);
     }
 

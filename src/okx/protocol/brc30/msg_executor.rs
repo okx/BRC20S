@@ -6,9 +6,9 @@ use crate::okx::{
       get_user_common_balance, stake_is_exist, tick_can_staked,
     },
     brc30::{
-      BRC30Event, BRC30Tick, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent,
-      InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, Receipt, StakeInfo,
-      TickId, TickInfo, TransferEvent, TransferInfo, TransferableAsset, UserInfo, WithdrawEvent,
+      BRC30Event, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent, InscribeTransferEvent,
+      MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, Receipt, StakeInfo, Tick, TickId, TickInfo,
+      TransferEvent, TransferInfo, TransferableAsset, UserInfo, WithdrawEvent,
     },
     ord::OrdDataStoreReadOnly,
     BRC20DataStoreReadWrite, BRC30DataStoreReadWrite, ScriptKey,
@@ -732,7 +732,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC30Error::TickNotFound(mint.tick.clone()))?;
 
-  let tick_name = BRC30Tick::from_str(mint.tick.as_str())?;
+  let tick_name = Tick::from_str(mint.tick.as_str())?;
   if tick_info.name != tick_name {
     return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
       mint.tick.clone(),
@@ -830,7 +830,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRe
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC30Error::TickNotFound(tick_id.hex()))?;
 
-  let tick_name = BRC30Tick::from_str(transfer.tick.as_str())?;
+  let tick_name = Tick::from_str(transfer.tick.as_str())?;
   if tick_info.name != tick_name {
     return Err(Error::BRC30Error(BRC30Error::TickNameNotMatch(
       transfer.tick.clone(),
@@ -1000,8 +1000,9 @@ mod tests {
   use super::super::*;
   use super::*;
   use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
+  use crate::okx::datastore::brc20;
   use crate::okx::datastore::brc20::redb::BRC20DataStore;
-  use crate::okx::datastore::brc20::{Balance as BRC20Banalce, Tick, TokenInfo};
+  use crate::okx::datastore::brc20::{Balance as BRC20Banalce, TokenInfo};
   use crate::okx::datastore::brc30::redb::BRC30DataStore;
   use crate::okx::datastore::brc30::BRC30DataStoreReadOnly;
   use crate::okx::datastore::brc30::BRC30Event::PassiveWithdraw;
@@ -1079,7 +1080,7 @@ mod tests {
     balance: u128,
     dec: u8,
   ) -> Result<(), BRC30Error> {
-    let token = Tick::from_str(tick).unwrap();
+    let token = brc20::Tick::from_str(tick).unwrap();
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -1253,7 +1254,7 @@ mod tests {
       result
     );
 
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
     let token_info = TokenInfo {
       tick: token.clone(),
       inscription_id: inscription_id.clone(),
@@ -1383,7 +1384,7 @@ mod tests {
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
     //add brc20 tokeninfo
     {
-      let token = Tick::from_str("ore1".to_string().as_str()).unwrap();
+      let token = brc20::Tick::from_str("ore1".to_string().as_str()).unwrap();
       let token_info = TokenInfo {
         tick: token.clone(),
         inscription_id: inscription_id.clone(),
@@ -1399,7 +1400,7 @@ mod tests {
       };
       brc20_data_store.insert_token_info(&token, &token_info);
 
-      let token = Tick::from_str("ore2".to_string().as_str()).unwrap();
+      let token = brc20::Tick::from_str("ore2".to_string().as_str()).unwrap();
       let token_info = TokenInfo {
         tick: token.clone(),
         inscription_id: inscription_id.clone(),
@@ -1415,7 +1416,7 @@ mod tests {
       };
       brc20_data_store.insert_token_info(&token, &token_info);
 
-      let token = Tick::from_str("ore3".to_string().as_str()).unwrap();
+      let token = brc20::Tick::from_str("ore3".to_string().as_str()).unwrap();
       let token_info = TokenInfo {
         tick: token.clone(),
         inscription_id: inscription_id.clone(),
@@ -2846,7 +2847,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
     let token_info = TokenInfo {
       tick: token.clone(),
       inscription_id: inscription_id.clone(),
@@ -3429,7 +3430,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
     let token_info = TokenInfo {
       tick: token.clone(),
       inscription_id: inscription_id.clone(),
@@ -3643,7 +3644,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
     let token_info = TokenInfo {
       tick: token.clone(),
       inscription_id: inscription_id.clone(),
@@ -3915,7 +3916,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
     let token_info = TokenInfo {
       tick: token.clone(),
       inscription_id: inscription_id.clone(),
@@ -4141,7 +4142,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
     let token_info = TokenInfo {
       tick: token.clone(),
       inscription_id: inscription_id.clone(),
@@ -4528,7 +4529,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
     let token_info = TokenInfo {
       tick: token.clone(),
       inscription_id: inscription_id.clone(),
@@ -4926,7 +4927,7 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let token = Tick::from_str("orea".to_string().as_str()).unwrap();
+    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
     let token_info = TokenInfo {
       tick: token.clone(),
       inscription_id: inscription_id.clone(),
@@ -5517,7 +5518,7 @@ mod tests {
       msg.inscription_id,
       TransferInfo {
         tick_id,
-        tick_name: BRC30Tick::from_str(transfer_msg.tick.as_str()).unwrap(),
+        tick_name: Tick::from_str(transfer_msg.tick.as_str()).unwrap(),
         amt: 100_u128,
       },
     );

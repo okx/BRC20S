@@ -1,5 +1,5 @@
 use crate::okx::datastore::brc20;
-use crate::okx::datastore::brc30::{BRC30Tick, Pid, PledgedTick, PoolType, TickId};
+use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolType, Tick, TickId};
 use crate::okx::protocol::brc30::params::{
   FIXED_TYPE, NATIVE_TOKEN, POOL_TYPE, TICK_BYTE_COUNT, TICK_ID_STR_COUNT,
 };
@@ -74,8 +74,8 @@ impl Deploy {
     }
   }
 
-  pub fn get_earn_id(&self) -> BRC30Tick {
-    return BRC30Tick::from_str(self.earn.as_str()).unwrap();
+  pub fn get_earn_id(&self) -> Tick {
+    return Tick::from_str(self.earn.as_str()).unwrap();
   }
 
   pub fn get_only(&self) -> bool {
@@ -107,7 +107,7 @@ impl Deploy {
       ));
     }
 
-    if let Some(iserr) = BRC30Tick::from_str(self.earn.as_str()).err() {
+    if let Some(iserr) = Tick::from_str(self.earn.as_str()).err() {
       return Err(iserr);
     }
 

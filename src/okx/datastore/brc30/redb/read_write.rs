@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
   okx::datastore::brc30::{
-    BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, BRC30Receipt, Balance, InscriptionOperation,
-    Pid, PoolInfo, StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
+    BRC30DataStoreReadOnly, BRC30DataStoreReadWrite, Balance, InscriptionOperation, Pid, PoolInfo,
+    Receipt, StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
   },
   InscriptionId,
 };
@@ -137,11 +137,11 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn get_txid_to_receipts(&self, tx_id: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+  fn get_txid_to_receipts(&self, tx_id: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_txid_to_receipts(tx_id)
   }
 
-  fn get_transaction_receipts(&self, tx_id: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+  fn get_transaction_receipts(&self, tx_id: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transaction_receipts(tx_id)
   }
 
@@ -264,11 +264,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   }
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn add_transaction_receipt(
-    &self,
-    tx_id: &Txid,
-    receipt: &BRC30Receipt,
-  ) -> Result<(), Self::Error> {
+  fn add_transaction_receipt(&self, tx_id: &Txid, receipt: &Receipt) -> Result<(), Self::Error> {
     let mut receipts = self.get_transaction_receipts(tx_id)?;
     receipts.push(receipt.clone());
     self.save_transaction_receipts(tx_id, &receipts)
@@ -277,7 +273,7 @@ impl<'db, 'a> BRC30DataStoreReadWrite for BRC30DataStore<'db, 'a> {
   fn save_transaction_receipts(
     &self,
     tx_id: &Txid,
-    receipts: &[BRC30Receipt],
+    receipts: &[Receipt],
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC30_TXID_TO_RECEIPTS)?.insert(
       tx_id.to_string().as_str(),
@@ -867,7 +863,7 @@ mod tests {
         .unwrap();
 
     let op_vec = vec![
-      BRC30Receipt {
+      Receipt {
         inscription_id: inscription_id.clone(),
         inscription_number: 0,
         old_satpoint: SatPoint {
@@ -883,7 +879,7 @@ mod tests {
         to: ScriptKey::Address(addr.clone()),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
-      BRC30Receipt {
+      Receipt {
         inscription_id: inscription_id.clone(),
         inscription_number: 0,
         old_satpoint: SatPoint {
@@ -899,7 +895,7 @@ mod tests {
         to: ScriptKey::Address(addr.clone()),
         result: Err(BRC30Error::InvalidTickLen("abcde".to_string())),
       },
-      BRC30Receipt {
+      Receipt {
         inscription_id: inscription_id.clone(),
         inscription_number: 0,
         old_satpoint: SatPoint {

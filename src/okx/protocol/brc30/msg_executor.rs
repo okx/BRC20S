@@ -6,9 +6,9 @@ use crate::okx::{
       get_user_common_balance, stake_is_exist, tick_can_staked,
     },
     brc30::{
-      BRC30Event, BRC30Receipt, BRC30Tick, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent,
-      InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, StakeInfo, TickId,
-      TickInfo, TransferEvent, TransferInfo, TransferableAsset, UserInfo, WithdrawEvent,
+      BRC30Event, BRC30Tick, Balance, DeployPoolEvent, DeployTickEvent, DepositEvent,
+      InscribeTransferEvent, MintEvent, PassiveWithdrawEvent, Pid, PoolInfo, Receipt, StakeInfo,
+      TickId, TickInfo, TransferEvent, TransferInfo, TransferableAsset, UserInfo, WithdrawEvent,
     },
     ord::OrdDataStoreReadOnly,
     BRC20DataStoreReadWrite, BRC30DataStoreReadWrite, ScriptKey,
@@ -107,7 +107,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   brc20_store: &'a M,
   brc30_store: &'a N,
   msg: &BRC30ExecutionMessage,
-) -> Result<Option<BRC30Receipt>> {
+) -> Result<Option<Receipt>> {
   log::debug!("BRC20S execute message: {:?}", msg);
   let mut is_save_receipt = true;
   let event = match &msg.op {
@@ -158,7 +158,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
     return Ok(None);
   }
 
-  let receipt = BRC30Receipt {
+  let receipt = Receipt {
     inscription_id: msg.inscription_id,
     inscription_number: msg.inscription_number,
     old_satpoint: msg.old_satpoint,

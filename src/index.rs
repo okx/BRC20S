@@ -1430,7 +1430,7 @@ impl Index {
     Ok(info)
   }
 
-  pub(crate) fn brc30_txid_receipts(&self, txid: &Txid) -> Result<Vec<brc30::BRC30Receipt>> {
+  pub(crate) fn brc30_txid_receipts(&self, txid: &Txid) -> Result<Vec<brc30::Receipt>> {
     let wtx = self.database.begin_read().unwrap();
     let brc30_db = BRC30DataStoreReader::new(&wtx);
     let info = brc30_db.get_txid_to_receipts(&txid)?;
@@ -1440,7 +1440,7 @@ impl Index {
   pub(crate) fn brc30_block_receipts(
     &self,
     hash: &BlockHash,
-  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc30::BRC30Receipt>)>>> {
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc30::Receipt>)>>> {
     let parsed_height = self.height()?;
     if parsed_height.is_none() {
       return Ok(None);

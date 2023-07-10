@@ -1,5 +1,5 @@
 use super::{brc30_types::*, error::ApiError, *};
-use crate::okx::datastore::brc30::{self, BRC30Receipt, PledgedTick, TickId};
+use crate::okx::datastore::brc30::{self, PledgedTick, Receipt, TickId};
 use axum::Json;
 
 // 3.4.1 /brc30/tick
@@ -592,7 +592,7 @@ pub(crate) async fn brc30_txid_receipts(
 pub(crate) async fn brc30_debug_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
-) -> ApiResult<Vec<BRC30Receipt>> {
+) -> ApiResult<Vec<Receipt>> {
   log::debug!("rpc: get brc30_txid_receipts: {}", txid);
   let txid = Txid::from_str(&txid).unwrap();
 

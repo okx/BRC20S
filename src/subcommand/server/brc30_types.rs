@@ -313,7 +313,7 @@ pub struct BRC30Receipt {
 }
 
 impl BRC30Receipt {
-  pub(super) fn from(receipt: &brc30::BRC30Receipt, index: Arc<Index>) -> Result<Self> {
+  pub(super) fn from(receipt: &brc30::Receipt, index: Arc<Index>) -> Result<Self> {
     let mut result = Self {
       op: receipt.op.clone().into(),
       inscription_number: match receipt.op {

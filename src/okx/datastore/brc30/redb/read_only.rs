@@ -1,6 +1,6 @@
 use super::*;
 use crate::okx::datastore::brc30::{
-  BRC30DataStoreReadOnly, BRC30Receipt, Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo,
+  BRC30DataStoreReadOnly, Balance, InscriptionOperation, Pid, PledgedTick, PoolInfo, Receipt,
   StakeInfo, TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
 };
 use bitcoin::hashes::Hash;
@@ -352,26 +352,26 @@ impl<'db, 'a> BRC30DataStoreReadOnly for BRC30DataStoreReader<'db, 'a> {
   }
 
   // 3.3.10 BRC30_TXID_TO_RECEIPTS
-  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+  fn get_txid_to_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_TXID_TO_RECEIPTS)?
         .get(txid.to_string().as_str())?
         .map_or(Vec::new(), |v| {
-          bincode::deserialize::<Vec<BRC30Receipt>>(v.value()).unwrap()
+          bincode::deserialize::<Vec<Receipt>>(v.value()).unwrap()
         }),
     )
   }
 
-  fn get_transaction_receipts(&self, tx_id: &Txid) -> Result<Vec<BRC30Receipt>, Self::Error> {
+  fn get_transaction_receipts(&self, tx_id: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC30_TXID_TO_RECEIPTS)?
         .get(tx_id.to_string().as_str())?
         .map_or(Vec::new(), |v| {
-          bincode::deserialize::<Vec<BRC30Receipt>>(v.value()).unwrap()
+          bincode::deserialize::<Vec<Receipt>>(v.value()).unwrap()
         }),
     )
   }

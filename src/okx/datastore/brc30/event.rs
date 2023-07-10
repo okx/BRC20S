@@ -16,7 +16,7 @@ pub enum OperationType {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct BRC30Receipt {
+pub struct Receipt {
   pub inscription_id: InscriptionId,
   pub inscription_number: i64,
   pub old_satpoint: SatPoint,
@@ -106,7 +106,7 @@ mod tests {
   fn action_receipt_serialize() {
     let addr =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let action_receipt = BRC30Receipt {
+    let action_receipt = Receipt {
       inscription_id: InscriptionId::from_str(
         "9991111111111111111111111111111111111111111111111111111111111111i1",
       )

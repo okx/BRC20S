@@ -21,8 +21,7 @@ pub(crate) use self::{
   msg_resolver::resolve_message,
   num::Num,
   operation::{
-    deserialize_brc20_operation, Deploy as BRC20Deploy, Mint as BRC20Mint, Operation,
-    Transfer as BRC20Transfer,
+    deserialize_brc20_operation, Deploy, Mint as BRC20Mint, Operation, Transfer as BRC20Transfer,
   },
 };
 

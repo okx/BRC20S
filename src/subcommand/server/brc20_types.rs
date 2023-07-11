@@ -1,5 +1,6 @@
 use super::{types::ScriptPubkey, *};
-use crate::okx::protocol::brc20::{BRC20Deploy, BRC20Mint, BRC20Transfer, Operation};
+use crate::okx::protocol::brc20;
+use crate::okx::protocol::brc20::{BRC20Mint, BRC20Transfer, Operation};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -77,8 +78,8 @@ pub struct Deploy {
   pub dec: Option<String>,
 }
 
-impl From<BRC20Deploy> for Deploy {
-  fn from(deploy: BRC20Deploy) -> Self {
+impl From<brc20::Deploy> for Deploy {
+  fn from(deploy: brc20::Deploy) -> Self {
     Deploy {
       tick: deploy.tick,
       max: deploy.max_supply,

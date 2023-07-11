@@ -114,7 +114,7 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   _ord_store: &'a O,
   brc20_store: &'a N,
   msg: &ExecutionMessage,
-  deploy: BRC20Deploy,
+  deploy: Deploy,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;

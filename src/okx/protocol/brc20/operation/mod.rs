@@ -11,7 +11,7 @@ pub use self::{deploy::Deploy, mint::Mint, transfer::Transfer};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operation {
-  Deploy(BRC20Deploy),
+  Deploy(Deploy),
   Mint(BRC20Mint),
   InscribeTransfer(BRC20Transfer),
   Transfer(BRC20Transfer),
@@ -218,7 +218,7 @@ mod tests {
         },
       )
       .unwrap(),
-      Operation::Deploy(BRC20Deploy {
+      Operation::Deploy(Deploy {
         tick: "abcd".to_string(),
         max_supply: "12000".to_string(),
         mint_limit: Some("12".to_string()),

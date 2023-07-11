@@ -3,14 +3,14 @@ use super::{
   *,
 };
 
+use crate::okx::datastore::brc20 as store_brc20;
+use crate::okx::datastore::ord as store_ord;
+
 use crate::{
   okx::{
-    datastore::{
-      brc20::{
-        BRC20DataStoreReadWrite, BRC20Error, Balance, DeployEvent, Event, InscripbeTransferEvent,
-        MintEvent, Receipt, Tick, TokenInfo, TransferEvent, TransferInfo, TransferableLog,
-      },
-      ord::OrdDataStoreReadOnly,
+    datastore::brc20::{
+      BRC20Error, Balance, DeployEvent, Event, InscripbeTransferEvent, MintEvent, Receipt, Tick,
+      TokenInfo, TransferEvent, TransferInfo, TransferableLog,
     },
     protocol::{
       brc20::{Message, Mint, Operation},
@@ -37,7 +37,7 @@ pub struct ExecutionMessage {
 }
 
 impl ExecutionMessage {
-  pub fn from_message<'a, O: OrdDataStoreReadOnly>(
+  pub fn from_message<'a, O: store_ord::OrdDataStoreReadOnly>(
     ord_store: &'a O,
     msg: &Message,
     network: Network,
@@ -67,7 +67,7 @@ impl ExecutionMessage {
   }
 }
 
-pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+pub fn execute<'a, O: store_ord::OrdDataStoreReadOnly, N: store_brc20::BRC20DataStoreReadWrite>(
   context: BlockContext,
   ord_store: &'a O,
   brc20_store: &'a N,
@@ -109,7 +109,11 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   Ok(Some(receipt))
 }
 
-fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+fn process_deploy<
+  'a,
+  O: store_ord::OrdDataStoreReadOnly,
+  N: store_brc20::BRC20DataStoreReadWrite,
+>(
   context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
@@ -187,7 +191,7 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   }))
 }
 
-fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+fn process_mint<'a, O: store_ord::OrdDataStoreReadOnly, N: store_brc20::BRC20DataStoreReadWrite>(
   context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
@@ -276,7 +280,11 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   }))
 }
 
-fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+fn process_inscribe_transfer<
+  'a,
+  O: store_ord::OrdDataStoreReadOnly,
+  N: store_brc20::BRC20DataStoreReadWrite,
+>(
   _context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
@@ -360,7 +368,11 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
   }))
 }
 
-fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
+fn process_transfer<
+  'a,
+  O: store_ord::OrdDataStoreReadOnly,
+  N: store_brc20::BRC20DataStoreReadWrite,
+>(
   _context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,

@@ -78,7 +78,7 @@ impl From<&brc20::Receipt> for TxEvent {
   fn from(event: &brc20::Receipt) -> Self {
     match &event.result {
       Ok(result) => match result {
-        brc20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
+        brc20::Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
           tick: std::str::from_utf8(deploy_event.tick.as_bytes())
             .unwrap()
             .to_string(),
@@ -95,7 +95,7 @@ impl From<&brc20::Receipt> for TxEvent {
           msg: "ok".to_string(),
           event: String::from("deploy"),
         }),
-        brc20::BRC20Event::Mint(mint_event) => Self::Mint(MintEvent {
+        brc20::Event::Mint(mint_event) => Self::Mint(MintEvent {
           tick: std::str::from_utf8(mint_event.tick.as_bytes())
             .unwrap()
             .to_string(),
@@ -110,24 +110,22 @@ impl From<&brc20::Receipt> for TxEvent {
           msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
           event: String::from("mint"),
         }),
-        brc20::BRC20Event::InscribeTransfer(trans1) => {
-          Self::InscribeTransfer(InscribeTransferEvent {
-            tick: std::str::from_utf8(trans1.tick.as_bytes())
-              .unwrap()
-              .to_string(),
-            inscription_id: event.inscription_id.to_string(),
-            inscription_number: event.inscription_number,
-            old_satpoint: event.old_satpoint,
-            new_satpoint: event.new_satpoint,
-            amount: trans1.amount.to_string(),
-            from: event.from.clone().into(),
-            to: event.to.clone().into(),
-            valid: true,
-            msg: "ok".to_string(),
-            event: String::from("inscribeTransfer"),
-          })
-        }
-        brc20::BRC20Event::Transfer(trans2) => Self::Transfer(TransferEvent {
+        brc20::Event::InscribeTransfer(trans1) => Self::InscribeTransfer(InscribeTransferEvent {
+          tick: std::str::from_utf8(trans1.tick.as_bytes())
+            .unwrap()
+            .to_string(),
+          inscription_id: event.inscription_id.to_string(),
+          inscription_number: event.inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          amount: trans1.amount.to_string(),
+          from: event.from.clone().into(),
+          to: event.to.clone().into(),
+          valid: true,
+          msg: "ok".to_string(),
+          event: String::from("inscribeTransfer"),
+        }),
+        brc20::Event::Transfer(trans2) => Self::Transfer(TransferEvent {
           tick: std::str::from_utf8(trans2.tick.as_bytes())
             .unwrap()
             .to_string(),

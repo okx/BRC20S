@@ -220,7 +220,7 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::brc20::{
-    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, Balance, MintEvent,
+    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, Balance, Event, MintEvent,
     OperationType, Receipt, Tick, TokenInfo, TransferEvent, TransferableLog,
   };
 
@@ -526,7 +526,7 @@ mod tests {
           "3111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        result: Ok(BRC20Event::Mint(MintEvent {
+        result: Ok(Event::Mint(MintEvent {
           tick: Tick::from_str("maEd").unwrap(),
           amount: 30,
           msg: None,
@@ -553,7 +553,7 @@ mod tests {
           "4111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        result: Ok(BRC20Event::Transfer(TransferEvent {
+        result: Ok(Event::Transfer(TransferEvent {
           tick: Tick::from_str("mmmm").unwrap(),
           amount: 11,
           msg: Some("a msg".to_string()),

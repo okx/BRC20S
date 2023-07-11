@@ -60,7 +60,7 @@ impl<
     match receipt.unwrap() {
       Receipt::BRC20(brc20_receipt) => {
         match brc20_receipt.result {
-          Ok(store_brc20::BRC20Event::Transfer(brc20_transfer)) => {
+          Ok(store_brc20::Event::Transfer(brc20_transfer)) => {
             let ptick = store_brc20s::PledgedTick::BRC20Tick(brc20_transfer.tick.clone());
             match convert_pledged_tick_without_decimal(
               &ptick,

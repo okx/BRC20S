@@ -7,9 +7,8 @@ use crate::{
   okx::{
     datastore::{
       brc20::{
-        BRC20DataStoreReadWrite, BRC20Error, BRC20Event, Balance, DeployEvent,
-        InscripbeTransferEvent, MintEvent, Receipt, Tick, TokenInfo, TransferEvent, TransferInfo,
-        TransferableLog,
+        BRC20DataStoreReadWrite, BRC20Error, Balance, DeployEvent, Event, InscripbeTransferEvent,
+        MintEvent, Receipt, Tick, TokenInfo, TransferEvent, TransferInfo, TransferableLog,
       },
       ord::OrdDataStoreReadOnly,
     },
@@ -116,7 +115,7 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   brc20_store: &'a N,
   msg: &ExecutionMessage,
   deploy: BRC20Deploy,
-) -> Result<BRC20Event, Error<N>> {
+) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
@@ -180,7 +179,7 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     .insert_token_info(&lower_tick, &new_info)
     .map_err(|e| Error::LedgerError(e))?;
 
-  Ok(BRC20Event::Deploy(DeployEvent {
+  Ok(Event::Deploy(DeployEvent {
     supply,
     limit_per_mint: limit,
     decimal: dec,
@@ -194,7 +193,7 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   brc20_store: &'a N,
   msg: &ExecutionMessage,
   mint: BRC20Mint,
-) -> Result<BRC20Event, Error<N>> {
+) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
@@ -270,7 +269,7 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     .update_mint_token_info(&lower_tick, minted, context.blockheight)
     .map_err(|e| Error::LedgerError(e))?;
 
-  Ok(BRC20Event::Mint(MintEvent {
+  Ok(Event::Mint(MintEvent {
     tick: token_info.tick,
     amount: amt.checked_to_u128()?,
     msg: out_msg,
@@ -283,7 +282,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
   brc20_store: &'a N,
   msg: &ExecutionMessage,
   transfer: BRC20Transfer,
-) -> Result<BRC20Event, Error<N>> {
+) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
@@ -355,7 +354,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
     )
     .map_err(|e| Error::LedgerError(e))?;
 
-  Ok(BRC20Event::InscribeTransfer(InscripbeTransferEvent {
+  Ok(Event::InscribeTransfer(InscripbeTransferEvent {
     tick: inscription.tick,
     amount: amt,
   }))
@@ -366,7 +365,7 @@ fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   _ord_store: &'a O,
   brc20_store: &'a N,
   msg: &ExecutionMessage,
-) -> Result<BRC20Event, Error<N>> {
+) -> Result<Event, Error<N>> {
   let transferable = brc20_store
     .get_transferable_by_id(&msg.from, &msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?
@@ -439,7 +438,7 @@ fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     .remove_inscribe_transfer_inscription(msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
-  Ok(BRC20Event::Transfer(TransferEvent {
+  Ok(Event::Transfer(TransferEvent {
     msg: out_msg,
     tick: token_info.tick,
     amount: amt.checked_to_u128()?,

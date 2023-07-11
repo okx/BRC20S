@@ -18,11 +18,11 @@ pub struct Receipt {
   pub op: OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
-  pub result: Result<BRC20Event, BRC20Error>,
+  pub result: Result<Event, BRC20Error>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub enum BRC20Event {
+pub enum Event {
   Deploy(DeployEvent),
   Mint(MintEvent),
   InscribeTransfer(InscripbeTransferEvent),

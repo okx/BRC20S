@@ -10,6 +10,26 @@ use redb::{
 };
 use std::{borrow::Borrow, ops::RangeBounds};
 
+pub fn try_init_tables<'db, 'a>(
+  wtx: &'a WriteTransaction<'db>,
+  rtx: &'a ReadTransaction<'db>,
+) -> Result<bool, redb::Error> {
+  if let Err(_) = rtx.open_table(BRC20S_TICKINFO) {
+    wtx.open_table(BRC20S_TICKINFO)?;
+    wtx.open_table(BRC20S_PID_TO_POOLINFO)?;
+    wtx.open_table(BRC20S_USER_STAKEINFO)?;
+    wtx.open_table(BRC20S_PID_TO_USERINFO)?;
+    wtx.open_table(BRC20S_STAKE_TICKID_TO_PID)?;
+    wtx.open_table(BRC20S_TICKID_STAKE_TO_PID)?;
+    wtx.open_table(BRC20S_BALANCES)?;
+    wtx.open_table(BRC20S_TRANSFERABLE_ASSETS)?;
+    wtx.open_table(BRC20S_TXID_TO_RECEIPTS)?;
+    wtx.open_table(BRC20S_INSCRIBE_TRANSFER)?;
+  }
+
+  return Ok(true);
+}
+
 pub struct DataStoreReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }

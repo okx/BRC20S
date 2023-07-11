@@ -1,7 +1,13 @@
 use crate::okx::{
   datastore::{
-    brc20::{self, redb as brc20_db, DataStoreReadOnly as BRC20DataStoreReadOnly},
-    brc20s::{self, redb as brc20s_db, DataStoreReadOnly as BRC20SDataStoreReadOnly},
+    brc20::{
+      self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
+      DataStoreReadOnly as BRC20DataStoreReadOnly,
+    },
+    brc20s::{
+      self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
+      DataStoreReadOnly as BRC20SDataStoreReadOnly,
+    },
     ScriptKey,
   },
   protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
@@ -263,7 +269,13 @@ impl Index {
         database
       }
     };
-
+    {
+      let wtx = database.begin_write()?;
+      let rtx = database.begin_read()?;
+      try_init_brc20(&wtx, &rtx)?;
+      try_init_brc20s(&wtx, &rtx)?;
+      wtx.commit()?;
+    }
     let genesis_block_coinbase_transaction =
       options.chain().genesis_block().coinbase().unwrap().clone();
 

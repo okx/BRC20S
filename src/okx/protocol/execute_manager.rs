@@ -149,6 +149,7 @@ fn convert_brc20msg_to_brc30msg(msg: &BRC20Message, op: PassiveUnStake) -> BRC30
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
     op: BRC30Operation::PassiveUnStake(op),
+    sat_in_outputs: msg.sat_in_outputs.clone(),
   }
 }
 
@@ -160,5 +161,6 @@ fn convert_brc30msg_to_brc30msg(msg: &BRC30Message, op: PassiveUnStake) -> BRC30
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
     op: BRC30Operation::PassiveUnStake(op),
+    sat_in_outputs: msg.sat_in_outputs.clone(),
   }
 }

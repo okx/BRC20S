@@ -524,7 +524,11 @@ pub(super) fn get_operations_by_txid(
   let rtx = index.begin_read()?.0;
   let brc20_store = BRC20DataStoreReader::new(&rtx);
   for operation in operations {
-    match brc20_protocol::resolve_message(&brc20_store, &new_inscriptions, &operation)? {
+    match brc20_protocol::BRC20Message::resolve(
+      &brc20_store,
+      &new_inscriptions,
+      &operation,
+    )? {
       None => continue,
       Some(msg) => brc20_operation_infos.push(InscriptionInfo {
         action: match msg.op {

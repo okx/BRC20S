@@ -52,9 +52,7 @@ impl BRC20ExecutionMessage {
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      // Only transfer operations will encounter the situation where new_satpoint.outpoint.txid != msg.txid.
-      // The engraving operation has been filtered out in the previous resolve_message step.
-      to: if msg.new_satpoint.unwrap().outpoint.txid == msg.txid {
+      to: if msg.sat_in_outputs {
         Some(utils::get_script_key_on_satpoint(
           msg.new_satpoint.unwrap(),
           ord_store,

@@ -63,16 +63,12 @@ impl BRC30ExecutionMessage {
       new_satpoint: msg
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
-      commit_from: match msg.commit_input_satpoint {
-        Some(satpoint) => Some(utils::get_script_key_on_satpoint(
-          satpoint, ord_store, network,
-        )?),
-        None => None,
-      },
+      commit_from: msg
+        .commit_input_satpoint
+        .map(|satpoint| utils::get_script_key_on_satpoint(satpoint, ord_store, network))
+        .transpose()?,
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      // Only transfer operations will encounter the situation where new_satpoint.outpoint.txid != msg.txid.
-      // The engraving operation has been filtered out in the previous resolve_message step.
-      to: if msg.new_satpoint.unwrap().outpoint.txid == msg.txid {
+      to: if msg.sat_in_outputs {
         Some(utils::get_script_key_on_satpoint(
           msg.new_satpoint.unwrap(),
           ord_store,
@@ -85,23 +81,8 @@ impl BRC30ExecutionMessage {
       version: HashMap::new(),
     })
   }
-
-  pub fn from(msg: &BRC30ExecutionMessage) -> Self {
-    Self {
-      txid: msg.txid.clone(),
-      inscription_id: msg.inscription_id.clone(),
-      inscription_number: msg.inscription_number.clone(),
-      commit_input_satpoint: msg.commit_input_satpoint.clone(),
-      old_satpoint: msg.old_satpoint.clone(),
-      new_satpoint: msg.new_satpoint.clone(),
-      commit_from: msg.commit_from.clone(),
-      from: msg.from.clone(),
-      to: msg.to.clone(),
-      op: msg.op.clone(),
-      version: msg.version.clone(),
-    }
-  }
 }
+
 pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
@@ -650,7 +631,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
   let from_script_key = msg.from.clone();
 
   // passive msg set from/commit_from/to = msg.from for passing unstake
-  let mut passive_msg = BRC30ExecutionMessage::from(msg);
+  let mut passive_msg = msg.clone();
   passive_msg.commit_from = Some(msg.from.clone());
   passive_msg.to = Some(msg.from.clone());
 

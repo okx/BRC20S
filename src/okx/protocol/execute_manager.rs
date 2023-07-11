@@ -48,7 +48,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC20SDataStor
         context,
         self.brc20_store,
         self.brc20s_store,
-        &brc20s::BRC20SExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
+        &brc20s::ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20S))?,
     };
@@ -80,7 +80,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC20SDataStor
                     context,
                     self.brc20_store,
                     self.brc20s_store,
-                    &brc20s::BRC20SExecutionMessage::from_message(
+                    &brc20s::ExecutionMessage::from_message(
                       self.ord_store,
                       &passive_msg,
                       context.network,
@@ -120,7 +120,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC20SDataStor
                       context,
                       self.brc20_store,
                       self.brc20s_store,
-                      &brc20s::BRC20SExecutionMessage::from_message(
+                      &brc20s::ExecutionMessage::from_message(
                         self.ord_store,
                         &passive_msg,
                         context.network,

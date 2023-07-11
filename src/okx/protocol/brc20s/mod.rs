@@ -18,7 +18,7 @@ mod vesion;
 
 pub use self::{
   error::{BRC20SError, Error},
-  msg_executor::{execute, BRC20SExecutionMessage},
+  msg_executor::{execute, ExecutionMessage},
   num::Num,
   operation::{Deploy, Mint, PassiveUnStake, RawOperation, Stake, Transfer, UnStake},
 };

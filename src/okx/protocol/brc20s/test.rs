@@ -10,7 +10,7 @@ pub(crate) fn mock_create_brc20s_message(
   from: ScriptKey,
   to: ScriptKey,
   op: Operation,
-) -> BRC20SExecutionMessage {
+) -> ExecutionMessage {
   let inscription_id =
     InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
       .unwrap();
@@ -29,7 +29,7 @@ pub(crate) fn mock_create_brc20s_message(
       start_height: 0,
     },
   );
-  let msg = BRC20SExecutionMessage {
+  let msg = ExecutionMessage {
     txid,
     inscription_id,
     inscription_number: 0,
@@ -57,7 +57,7 @@ pub(crate) fn mock_deploy_msg(
   only: bool,
   from: &str,
   to: &str,
-) -> (Deploy, BRC20SExecutionMessage) {
+) -> (Deploy, ExecutionMessage) {
   let only = if only { Some("1".to_string()) } else { None };
 
   let supply_128 = Num::from_str(supply).unwrap().checked_to_u128().unwrap();
@@ -92,7 +92,7 @@ pub(crate) fn mock_stake_msg(
   amt: &str,
   from: &str,
   to: &str,
-) -> (Stake, BRC20SExecutionMessage) {
+) -> (Stake, ExecutionMessage) {
   let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
   let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
 
@@ -114,7 +114,7 @@ pub(crate) fn mock_unstake_msg(
   amt: &str,
   from: &str,
   to: &str,
-) -> (UnStake, BRC20SExecutionMessage) {
+) -> (UnStake, ExecutionMessage) {
   let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
   let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
 
@@ -136,7 +136,7 @@ pub(crate) fn mock_passive_unstake_msg(
   amt: &str,
   from: &str,
   to: &str,
-) -> (PassiveUnStake, BRC20SExecutionMessage) {
+) -> (PassiveUnStake, ExecutionMessage) {
   let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
   let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
 

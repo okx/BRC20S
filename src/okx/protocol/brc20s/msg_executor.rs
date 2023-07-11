@@ -34,7 +34,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BRC20SExecutionMessage {
+pub struct ExecutionMessage {
   pub(crate) txid: Txid,
   pub(crate) inscription_id: InscriptionId,
   pub(crate) inscription_number: i64,
@@ -48,7 +48,7 @@ pub struct BRC20SExecutionMessage {
   pub(crate) version: HashMap<String, Version>,
 }
 
-impl BRC20SExecutionMessage {
+impl ExecutionMessage {
   pub fn from_message<'a, O: OrdDataStoreReadOnly>(
     ord_store: &'a O,
     msg: &Message,
@@ -86,7 +86,7 @@ impl BRC20SExecutionMessage {
     })
   }
 
-  pub fn from(msg: &BRC20SExecutionMessage) -> Self {
+  pub fn from(msg: &ExecutionMessage) -> Self {
     Self {
       txid: msg.txid.clone(),
       inscription_id: msg.inscription_id.clone(),
@@ -106,7 +106,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
-  msg: &BRC20SExecutionMessage,
+  msg: &ExecutionMessage,
 ) -> Result<Option<Receipt>> {
   log::debug!("BRC20S execute message: {:?}", msg);
   let mut is_save_receipt = true;
@@ -184,7 +184,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrit
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
-  msg: &BRC20SExecutionMessage,
+  msg: &ExecutionMessage,
   deploy: Deploy,
 ) -> Result<Vec<Event>, Error<N>> {
   // ignore inscribe inscription to coinbase.
@@ -387,7 +387,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
-  msg: &BRC20SExecutionMessage,
+  msg: &ExecutionMessage,
   stake_msg: Stake,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
@@ -533,7 +533,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
-  msg: &BRC20SExecutionMessage,
+  msg: &ExecutionMessage,
   unstake: UnStake,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
@@ -645,7 +645,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreRea
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
-  msg: &BRC20SExecutionMessage,
+  msg: &ExecutionMessage,
   passive_unstake: PassiveUnStake,
 ) -> Result<Vec<Event>, Error<N>> {
   if let Some(iserr) = passive_unstake.validate_basics().err() {
@@ -654,7 +654,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreRea
   let from_script_key = msg.from.clone();
 
   // passive msg set from/commit_from/to = msg.from for passing unstake
-  let mut passive_msg = BRC20SExecutionMessage::from(msg);
+  let mut passive_msg = ExecutionMessage::from(msg);
   passive_msg.commit_from = Some(msg.from.clone());
   passive_msg.to = Some(msg.from.clone());
 
@@ -707,7 +707,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
-  msg: &BRC20SExecutionMessage,
+  msg: &ExecutionMessage,
   mint: Mint,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
@@ -824,7 +824,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreR
   _context: BlockContext,
   _brc20_store: &'a M,
   brc20s_store: &'a N,
-  msg: &BRC20SExecutionMessage,
+  msg: &ExecutionMessage,
   transfer: Transfer,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
@@ -914,7 +914,7 @@ fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>
   _context: BlockContext,
   _brc20_store: &'a M,
   brc20s_store: &'a N,
-  msg: &BRC20SExecutionMessage,
+  msg: &ExecutionMessage,
 ) -> Result<Event, Error<N>> {
   let from_script_key = msg.from.clone();
   let transferable = brc20s_store
@@ -1026,7 +1026,7 @@ mod tests {
   fn execute_for_test<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
     brc20_store: &'a M,
     brc20s_store: &'a N,
-    msg: &BRC20SExecutionMessage,
+    msg: &ExecutionMessage,
     height: u64,
   ) -> Result<Vec<Event>, BRC20SError> {
     let context = BlockContext {

@@ -3,7 +3,7 @@ use crate::{InscriptionId, SatPoint};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub enum BRC20OperationType {
+pub enum OperationType {
   Deploy,
   Mint,
   InscribeTransfer,
@@ -15,7 +15,7 @@ pub struct BRC20Receipt {
   pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
-  pub op: BRC20OperationType,
+  pub op: OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
   pub result: Result<BRC20Event, BRC20Error>,
@@ -79,7 +79,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111:1:1",
       )
       .unwrap(),
-      op: BRC20OperationType::Deploy,
+      op: OperationType::Deploy,
       from: ScriptKey::from_address(
         Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
       ),

@@ -14,7 +14,7 @@ use crate::{
       ord::OrdDataStoreReadOnly,
     },
     protocol::{
-      brc20::{BRC20Message, BRC20Operation},
+      brc20::{BRC20Message, Operation},
       utils, BlockContext,
     },
   },
@@ -34,7 +34,7 @@ pub struct BRC20ExecutionMessage {
   pub(self) new_satpoint: SatPoint,
   pub(self) from: ScriptKey,
   pub(self) to: Option<ScriptKey>,
-  pub(self) op: BRC20Operation,
+  pub(self) op: Operation,
 }
 
 impl BRC20ExecutionMessage {
@@ -76,14 +76,14 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
 ) -> Result<Option<BRC20Receipt>> {
   log::debug!("BRC20 execute message: {:?}", msg);
   let event = match &msg.op {
-    BRC20Operation::Deploy(deploy) => {
+    Operation::Deploy(deploy) => {
       process_deploy(context, ord_store, brc20_store, &msg, deploy.clone())
     }
-    BRC20Operation::Mint(mint) => process_mint(context, ord_store, brc20_store, &msg, mint.clone()),
-    BRC20Operation::InscribeTransfer(transfer) => {
+    Operation::Mint(mint) => process_mint(context, ord_store, brc20_store, &msg, mint.clone()),
+    Operation::InscribeTransfer(transfer) => {
       process_inscribe_transfer(context, ord_store, brc20_store, &msg, transfer.clone())
     }
-    BRC20Operation::Transfer(_) => process_transfer(context, ord_store, brc20_store, &msg),
+    Operation::Transfer(_) => process_transfer(context, ord_store, brc20_store, &msg),
   };
 
   let receipt = BRC20Receipt {

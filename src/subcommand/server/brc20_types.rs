@@ -1,5 +1,5 @@
 use super::{types::ScriptPubkey, *};
-use crate::okx::protocol::brc20::{BRC20Deploy, BRC20Mint, BRC20Operation, BRC20Transfer};
+use crate::okx::protocol::brc20::{BRC20Deploy, BRC20Mint, BRC20Transfer, Operation};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,15 +55,13 @@ pub enum Brc20RawOperation {
 }
 
 // action to raw operation
-impl From<BRC20Operation> for Brc20RawOperation {
-  fn from(op: BRC20Operation) -> Self {
+impl From<Operation> for Brc20RawOperation {
+  fn from(op: Operation) -> Self {
     match op {
-      BRC20Operation::Deploy(deploy) => Brc20RawOperation::Deploy(deploy.into()),
-      BRC20Operation::Mint(mint) => Brc20RawOperation::Mint(mint.into()),
-      BRC20Operation::InscribeTransfer(transfer) => {
-        Brc20RawOperation::InscribeTransfer(transfer.into())
-      }
-      BRC20Operation::Transfer(transfer) => Brc20RawOperation::Transfer(transfer.into()),
+      Operation::Deploy(deploy) => Brc20RawOperation::Deploy(deploy.into()),
+      Operation::Mint(mint) => Brc20RawOperation::Mint(mint.into()),
+      Operation::InscribeTransfer(transfer) => Brc20RawOperation::InscribeTransfer(transfer.into()),
+      Operation::Transfer(transfer) => Brc20RawOperation::Transfer(transfer.into()),
     }
   }
 }

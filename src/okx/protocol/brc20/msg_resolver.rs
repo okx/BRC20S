@@ -6,7 +6,7 @@ use crate::{
       brc20::BRC20DataStoreReadOnly,
       ord::{Action, InscriptionOp},
     },
-    protocol::brc20::{deserialize_brc20_operation, BRC20Operation},
+    protocol::brc20::{deserialize_brc20_operation, Operation},
   },
   Result,
 };
@@ -39,7 +39,7 @@ pub(crate) fn resolve_message<'a, N: BRC20DataStoreReadOnly>(
     }
     Action::Transfer => match brc20_store.get_inscribe_transfer_inscription(op.inscription_id) {
       Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
-        BRC20Operation::Transfer(BRC20Transfer {
+        Operation::Transfer(BRC20Transfer {
           tick: transfer_info.tick.as_str().to_string(),
           amount: transfer_info.amt.to_string(),
         })

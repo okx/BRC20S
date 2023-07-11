@@ -10,20 +10,20 @@ use serde_json::{json, Value};
 pub use self::{deploy::Deploy, mint::Mint, transfer::Transfer};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum BRC20Operation {
+pub enum Operation {
   Deploy(BRC20Deploy),
   Mint(BRC20Mint),
   InscribeTransfer(BRC20Transfer),
   Transfer(BRC20Transfer),
 }
 
-impl BRC20Operation {
-  pub fn op_type(&self) -> BRC20OperationType {
+impl Operation {
+  pub fn op_type(&self) -> OperationType {
     match self {
-      BRC20Operation::Deploy(_) => BRC20OperationType::Deploy,
-      BRC20Operation::Mint(_) => BRC20OperationType::Mint,
-      BRC20Operation::InscribeTransfer(_) => BRC20OperationType::InscribeTransfer,
-      BRC20Operation::Transfer(_) => BRC20OperationType::Transfer,
+      Operation::Deploy(_) => OperationType::Deploy,
+      Operation::Mint(_) => OperationType::Mint,
+      Operation::InscribeTransfer(_) => OperationType::InscribeTransfer,
+      Operation::Transfer(_) => OperationType::Transfer,
     }
   }
 }
@@ -42,7 +42,7 @@ enum RawOperation {
 pub(crate) fn deserialize_brc20_operation(
   inscription: &Inscription,
   action: &Action,
-) -> Result<BRC20Operation> {
+) -> Result<Operation> {
   let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
   if content_body.len() < 40 {
     return Err(JSONError::NotBRC20Json.into());
@@ -70,12 +70,12 @@ pub(crate) fn deserialize_brc20_operation(
 
   match action {
     Action::New { .. } => match raw_operation {
-      RawOperation::Deploy(deploy) => Ok(BRC20Operation::Deploy(deploy)),
-      RawOperation::Mint(mint) => Ok(BRC20Operation::Mint(mint)),
-      RawOperation::Transfer(transfer) => Ok(BRC20Operation::InscribeTransfer(transfer)),
+      RawOperation::Deploy(deploy) => Ok(Operation::Deploy(deploy)),
+      RawOperation::Mint(mint) => Ok(Operation::Mint(mint)),
+      RawOperation::Transfer(transfer) => Ok(Operation::InscribeTransfer(transfer)),
     },
     Action::Transfer => match raw_operation {
-      RawOperation::Transfer(transfer) => Ok(BRC20Operation::Transfer(transfer)),
+      RawOperation::Transfer(transfer) => Ok(Operation::Transfer(transfer)),
       _ => Err(JSONError::NotBRC20Json.into()),
     },
   }
@@ -218,7 +218,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC20Operation::Deploy(BRC20Deploy {
+      Operation::Deploy(BRC20Deploy {
         tick: "abcd".to_string(),
         max_supply: "12000".to_string(),
         mint_limit: Some("12".to_string()),
@@ -242,7 +242,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC20Operation::Mint(Mint {
+      Operation::Mint(Mint {
         tick: "abcd".to_string(),
         amount: "12000".to_string()
       })
@@ -264,7 +264,7 @@ mod tests {
         },
       )
       .unwrap(),
-      BRC20Operation::InscribeTransfer(Transfer {
+      Operation::InscribeTransfer(Transfer {
         tick: "abcd".to_string(),
         amount: "12000".to_string()
       })
@@ -309,7 +309,7 @@ mod tests {
         &Action::Transfer
       )
       .unwrap(),
-      BRC20Operation::Transfer(Transfer {
+      Operation::Transfer(Transfer {
         tick: "abcd".to_string(),
         amount: "12000".to_string()
       })

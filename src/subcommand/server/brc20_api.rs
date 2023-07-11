@@ -153,10 +153,10 @@ impl From<&brc20::BRC20Receipt> for TxEvent {
         to: event.to.clone().into(),
         msg: err.to_string(),
         event: match event.op {
-          brc20::BRC20OperationType::Deploy => "deploy",
-          brc20::BRC20OperationType::Mint => "mint",
-          brc20::BRC20OperationType::InscribeTransfer => "inscribeTransfer",
-          brc20::BRC20OperationType::Transfer => "transfer",
+          brc20::OperationType::Deploy => "deploy",
+          brc20::OperationType::Mint => "mint",
+          brc20::OperationType::InscribeTransfer => "inscribeTransfer",
+          brc20::OperationType::Transfer => "transfer",
         }
         .to_string(),
       }),
@@ -528,7 +528,7 @@ pub(super) fn get_operations_by_txid(
       None => continue,
       Some(msg) => brc20_operation_infos.push(InscriptionInfo {
         action: match msg.op {
-          brc20_protocol::BRC20Operation::Transfer(_) => ActionType::Transfer,
+          brc20_protocol::Operation::Transfer(_) => ActionType::Transfer,
           _ => ActionType::Inscribe,
         },
         inscription_number: index

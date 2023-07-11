@@ -224,8 +224,8 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::brc20::{
-    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, BRC20OperationType,
-    BRC20Receipt, Balance, MintEvent, Tick, TokenInfo, TransferEvent, TransferableLog,
+    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, BRC20Receipt, Balance,
+    MintEvent, OperationType, Tick, TokenInfo, TransferEvent, TransferableLog,
   };
 
   use super::*;
@@ -492,7 +492,7 @@ mod tests {
         )
         .unwrap(),
         inscription_number: 1,
-        op: BRC20OperationType::Deploy,
+        op: OperationType::Deploy,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),
@@ -515,7 +515,7 @@ mod tests {
         )
         .unwrap(),
         inscription_number: 1,
-        op: BRC20OperationType::Mint,
+        op: OperationType::Mint,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),
@@ -542,7 +542,7 @@ mod tests {
         )
         .unwrap(),
         inscription_number: 1,
-        op: BRC20OperationType::Mint,
+        op: OperationType::Mint,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),

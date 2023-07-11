@@ -1,6 +1,5 @@
 use super::{types::ScriptPubkey, *};
 use crate::okx::protocol::brc20;
-use crate::okx::protocol::brc20::{BRC20Mint, BRC20Transfer, Operation};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -56,13 +55,15 @@ pub enum Brc20RawOperation {
 }
 
 // action to raw operation
-impl From<Operation> for Brc20RawOperation {
-  fn from(op: Operation) -> Self {
+impl From<brc20::Operation> for Brc20RawOperation {
+  fn from(op: brc20::Operation) -> Self {
     match op {
-      Operation::Deploy(deploy) => Brc20RawOperation::Deploy(deploy.into()),
-      Operation::Mint(mint) => Brc20RawOperation::Mint(mint.into()),
-      Operation::InscribeTransfer(transfer) => Brc20RawOperation::InscribeTransfer(transfer.into()),
-      Operation::Transfer(transfer) => Brc20RawOperation::Transfer(transfer.into()),
+      brc20::Operation::Deploy(deploy) => Brc20RawOperation::Deploy(deploy.into()),
+      brc20::Operation::Mint(mint) => Brc20RawOperation::Mint(mint.into()),
+      brc20::Operation::InscribeTransfer(transfer) => {
+        Brc20RawOperation::InscribeTransfer(transfer.into())
+      }
+      brc20::Operation::Transfer(transfer) => Brc20RawOperation::Transfer(transfer.into()),
     }
   }
 }
@@ -96,8 +97,8 @@ pub struct Mint {
   pub amt: String,
 }
 
-impl From<BRC20Mint> for Mint {
-  fn from(mint: BRC20Mint) -> Self {
+impl From<brc20::Mint> for Mint {
+  fn from(mint: brc20::Mint) -> Self {
     Mint {
       tick: mint.tick,
       amt: mint.amount,
@@ -111,8 +112,8 @@ pub struct Transfer {
   pub amt: String,
 }
 
-impl From<BRC20Transfer> for Transfer {
-  fn from(transfer: BRC20Transfer) -> Self {
+impl From<brc20::Transfer> for Transfer {
+  fn from(transfer: brc20::Transfer) -> Self {
     Transfer {
       tick: transfer.tick,
       amt: transfer.amount,

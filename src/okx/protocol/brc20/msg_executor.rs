@@ -13,7 +13,7 @@ use crate::{
       ord::OrdDataStoreReadOnly,
     },
     protocol::{
-      brc20::{Message, Operation},
+      brc20::{Message, Mint, Operation},
       utils, BlockContext,
     },
   },
@@ -192,7 +192,7 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   _ord_store: &'a O,
   brc20_store: &'a N,
   msg: &ExecutionMessage,
-  mint: BRC20Mint,
+  mint: Mint,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
@@ -281,7 +281,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
   _ord_store: &'a O,
   brc20_store: &'a N,
   msg: &ExecutionMessage,
-  transfer: BRC20Transfer,
+  transfer: Transfer,
 ) -> Result<Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;

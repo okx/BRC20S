@@ -12,9 +12,9 @@ pub use self::{deploy::Deploy, mint::Mint, transfer::Transfer};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operation {
   Deploy(Deploy),
-  Mint(BRC20Mint),
-  InscribeTransfer(BRC20Transfer),
-  Transfer(BRC20Transfer),
+  Mint(Mint),
+  InscribeTransfer(Transfer),
+  Transfer(Transfer),
 }
 
 impl Operation {

@@ -39,7 +39,7 @@ pub(crate) fn resolve_message<'a, N: BRC20DataStoreReadOnly>(
     }
     Action::Transfer => match brc20_store.get_inscribe_transfer_inscription(op.inscription_id) {
       Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
-        Operation::Transfer(BRC20Transfer {
+        Operation::Transfer(Transfer {
           tick: transfer_info.tick.as_str().to_string(),
           amount: transfer_info.amt.to_string(),
         })

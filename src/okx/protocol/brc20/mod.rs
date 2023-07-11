@@ -20,9 +20,7 @@ pub(crate) use self::{
   msg_executor::{execute, ExecutionMessage},
   msg_resolver::resolve_message,
   num::Num,
-  operation::{
-    deserialize_brc20_operation, Deploy, Mint as BRC20Mint, Operation, Transfer as BRC20Transfer,
-  },
+  operation::{deserialize_brc20_operation, Deploy, Mint, Operation, Transfer},
 };
 
 #[derive(Debug, Clone)]

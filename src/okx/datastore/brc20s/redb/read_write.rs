@@ -172,7 +172,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   // BRC20S_TICKINFO
   fn set_tick_info(&self, tick_id: &TickId, tick_info: &TickInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC20S_TICKINFO)?.insert(
-      tick_id.to_lowercase().hex().as_str(),
+      tick_id.hex().as_str(),
       bincode::serialize(tick_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -181,7 +181,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   // BRC20S_PID_TO_POOLINFO
   fn set_pid_to_poolinfo(&self, pid: &Pid, pool_info: &PoolInfo) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC20S_PID_TO_POOLINFO)?.insert(
-      pid.to_lowercase().hex().as_str(),
+      pid.hex().as_str(),
       bincode::serialize(pool_info).unwrap().as_slice(),
     )?;
     Ok(())

@@ -113,7 +113,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
       self
         .wrapper
         .open_table(BRC20S_TICKINFO)?
-        .get(tick_id.to_lowercase().hex().as_str())?
+        .get(tick_id.hex().as_str())?
         .map(|v| bincode::deserialize::<TickInfo>(v.value()).unwrap()),
     )
   }
@@ -147,7 +147,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
       self
         .wrapper
         .open_table(BRC20S_PID_TO_POOLINFO)?
-        .get(pid.to_lowercase().hex().as_str())?
+        .get(pid.hex().as_str())?
         .map(|v| bincode::deserialize::<PoolInfo>(v.value()).unwrap()),
     )
   }

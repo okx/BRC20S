@@ -12,14 +12,14 @@ use crate::okx::datastore::brc20s::Pid;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TickId([u8; TICK_ID_BYTE_COUNT]);
 
 impl FromStr for TickId {
   type Err = BRC20SError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    let bytes = hex::decode(s);
+    let bytes = hex::decode(s.to_lowercase().as_str());
     if bytes.is_err() {
       return Err(BRC20SError::InternalError(bytes.err().unwrap().to_string()));
     }
@@ -32,30 +32,6 @@ impl FromStr for TickId {
 }
 
 impl TickId {
-  pub fn from_bytes(bytes: &[u8]) -> Result<Self, BRC20SError> {
-    if bytes.len() != TICK_ID_BYTE_COUNT {
-      return Err(BRC20SError::InvalidTickLen(hex::encode(bytes)));
-    }
-    Ok(Self(bytes.try_into().unwrap()))
-  }
-}
-impl PartialEq for TickId {
-  fn eq(&self, other: &Self) -> bool {
-    self.to_lowercase().0 == other.to_lowercase().0
-  }
-
-  fn ne(&self, other: &Self) -> bool {
-    !self.eq(other)
-  }
-}
-
-impl TickId {
-  pub fn to_lowercase(&self) -> TickId {
-    let binding = self.hex().to_lowercase();
-    let lowercase = binding.as_str();
-    Self::from_str(lowercase).unwrap()
-  }
-
   pub fn hex(&self) -> String {
     hex::encode(&self.0)
   }
@@ -196,7 +172,7 @@ impl PledgedTick {
       PledgedTick::Unknown => "Unknown".to_string(),
       PledgedTick::Native => NATIVE_TOKEN.to_string(),
       PledgedTick::BRC20Tick(tick) => tick.as_str().to_string(),
-      PledgedTick::BRC20STick(tickid) => tickid.to_lowercase().hex(),
+      PledgedTick::BRC20STick(tickid) => tickid.hex(),
     }
   }
 
@@ -269,6 +245,7 @@ impl TickInfo {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use bitcoin::hashes::hex::ToHex;
   use bitcoin::hashes::{sha256, Hash, HashEngine};
 
   #[test]
@@ -402,19 +379,19 @@ mod tests {
 
     let mut enc = sha256::Hash::engine();
     enc.input("123".as_bytes());
-    let hash = sha256::Hash::from_engine(enc).to_vec();
+    let hash = sha256::Hash::from_engine(enc);
     assert_eq!(
-      TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT - 1]).unwrap_err(),
+      TickId::from_str(hash[0..TICK_ID_BYTE_COUNT - 1].to_hex().as_str()).unwrap_err(),
       BRC20SError::InvalidTickLen("a665a459".to_string())
     );
 
     assert_eq!(
-      TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT + 1]).unwrap_err(),
+      TickId::from_str(hash[0..TICK_ID_BYTE_COUNT + 1].to_hex().as_str()).unwrap_err(),
       BRC20SError::InvalidTickLen("a665a4592042".to_string())
     );
 
     assert_eq!(
-      TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT])
+      TickId::from_str(hash[0..TICK_ID_BYTE_COUNT].to_hex().as_str())
         .unwrap()
         .ne(&TickId::from_str("1234567890").unwrap()),
       true

@@ -5,14 +5,15 @@ use crate::InscriptionId;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Pid([u8; PID_BYTE_COUNT]);
 
 impl FromStr for Pid {
   type Err = BRC20SError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    let bytes = s.as_bytes();
+    let temp = s.to_lowercase();
+    let bytes = temp.as_bytes();
 
     if bytes.len() != PID_BYTE_COUNT {
       return Err(BRC20SError::InvalidTickLen(s.to_string()));
@@ -21,25 +22,11 @@ impl FromStr for Pid {
   }
 }
 
-impl PartialEq for Pid {
-  fn eq(&self, other: &Self) -> bool {
-    self.to_lowercase().0 == other.to_lowercase().0
-  }
-
-  fn ne(&self, other: &Self) -> bool {
-    !self.eq(other)
-  }
-}
-
 impl Pid {
   pub fn as_str(&self) -> &str {
     // NOTE: Pid comes from &str by from_str,
     // so it could be calling unwrap when convert to str
     std::str::from_utf8(self.0.as_slice()).unwrap()
-  }
-
-  pub fn to_lowercase(&self) -> Pid {
-    Self::from_str(self.as_str().to_lowercase().as_str()).unwrap()
   }
 
   pub fn hex(&self) -> String {

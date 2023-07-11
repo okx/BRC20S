@@ -30,7 +30,7 @@ impl TickInfo {
 impl From<&brc20s::TickInfo> for TickInfo {
   fn from(tick_info: &brc20s::TickInfo) -> Self {
     let tick = Tick {
-      id: tick_info.tick_id.to_lowercase().hex(),
+      id: tick_info.tick_id.hex(),
       name: tick_info.name.as_str().to_string(),
     };
 
@@ -199,7 +199,7 @@ impl Balance {
 impl From<&brc20s::Balance> for Balance {
   fn from(balance: &brc20s::Balance) -> Self {
     let tick = Tick {
-      id: balance.tick_id.to_lowercase().hex(),
+      id: balance.tick_id.hex(),
       name: "".to_string(),
     };
 
@@ -246,7 +246,7 @@ impl Inscription {
 impl From<&brc20s::TransferableAsset> for Inscription {
   fn from(asset: &brc20s::TransferableAsset) -> Self {
     let tick = Tick {
-      id: asset.tick_id.to_lowercase().hex(),
+      id: asset.tick_id.hex(),
       name: "".to_string(),
     };
 
@@ -415,7 +415,7 @@ impl DeployTickEvent {
   pub(super) fn new(event: brc20s::DeployTickEvent, deployer: ScriptPubkey) -> Self {
     Self {
       tick: Tick {
-        id: event.tick_id.to_lowercase().hex(),
+        id: event.tick_id.hex(),
         name: event.name.as_str().to_string(),
       },
       supply: event.supply.to_string(),

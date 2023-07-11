@@ -1462,12 +1462,6 @@ impl Index {
     if block.height as u64 > parsed_height {
       return Ok(None);
     }
-
-    // TODO: Handle it temporarily and delete it later
-    if let Err(_) = self.brc20s_all_tick_info(0, None) {
-      return Ok(Some(vec![]));
-    }
-
     let mut result = Vec::new();
     for tx_id in &block.tx {
       let tx_events = self.brc20s_txid_receipts(tx_id)?;

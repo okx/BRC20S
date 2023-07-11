@@ -1,7 +1,8 @@
 use super::{error::ApiError, types::ScriptPubkey, *};
+use crate::okx::datastore::brc20::redb as db_brc20;
 use crate::okx::{
   datastore::{
-    brc20::{self, redb::BRC20DataStoreReader},
+    brc20::{self},
     ScriptKey,
   },
   protocol::brc20 as brc20_protocol,
@@ -520,7 +521,7 @@ pub(super) fn get_operations_by_txid(
     .collect();
 
   let rtx = index.begin_read()?.0;
-  let brc20_store = BRC20DataStoreReader::new(&rtx);
+  let brc20_store = db_brc20::BRC20DataStoreReader::new(&rtx);
   for operation in operations {
     match brc20_protocol::resolve_message(&brc20_store, &new_inscriptions, &operation)? {
       None => continue,

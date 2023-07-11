@@ -1166,7 +1166,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
 
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let deploy = Deploy {
@@ -1329,7 +1329,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
 
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let deploy = Deploy {
@@ -1916,7 +1916,7 @@ mod tests {
     let mut inscription_id_to_inscription_entry =
       wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
 
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let deploy = Deploy {
@@ -2850,7 +2850,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let deploy = Deploy {
@@ -3442,7 +3442,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let deploy = Deploy {
@@ -3663,7 +3663,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let deploy = Deploy {
@@ -3940,7 +3940,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let deploy = Deploy {
@@ -4173,7 +4173,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let deploy = Deploy {
@@ -4465,7 +4465,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
 
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
@@ -4588,7 +4588,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     // deploy brc20
@@ -4983,7 +4983,7 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     // deploy brc20
@@ -5615,7 +5615,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
 
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
@@ -5800,7 +5800,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
 
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
@@ -5997,7 +5997,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
 
-    let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+    let brc20_data_store = db_brc20::DataStore::new(&wtx);
     let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
@@ -6362,7 +6362,7 @@ mod tests {
       let db = Database::create(dbfile.path()).unwrap();
       let wtx = db.begin_write().unwrap();
 
-      let brc20_data_store = db_brc20::BRC20DataStore::new(&wtx);
+      let brc20_data_store = db_brc20::DataStore::new(&wtx);
       let brc20s_data_store = db_brc20s::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";

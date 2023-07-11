@@ -603,7 +603,7 @@ impl Updater {
     ProtocolManager::new(
       &index.client,
       &ord::OrdDbReadWriter::new(wtx),
-      &db_brc20::BRC20DataStore::new(wtx),
+      &db_brc20::DataStore::new(wtx),
       &db_brc20s::DataStore::new(wtx),
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),

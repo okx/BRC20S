@@ -1,7 +1,6 @@
-use crate::okx::datastore::ord;
-
 use crate::okx::datastore::brc20::redb as brc20_db;
 use crate::okx::datastore::brc20s::redb as brc20s_db;
+use crate::okx::datastore::ord;
 
 use {
   self::inscription_updater::InscriptionUpdater,

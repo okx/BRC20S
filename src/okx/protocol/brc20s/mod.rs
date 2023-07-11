@@ -25,7 +25,7 @@ pub use self::{
 pub(crate) use self::{msg_resolver::resolve_message, operation::deserialize_brc20s_operation};
 
 #[derive(Debug, Clone)]
-pub struct BRC20SMessage {
+pub struct Message {
   pub txid: Txid,
   pub inscription_id: InscriptionId,
   pub commit_input_satpoint: Option<SatPoint>,

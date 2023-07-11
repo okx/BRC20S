@@ -1452,7 +1452,7 @@ impl Index {
     }
 
     // TODO: Handle it temporarily and delete it later
-    if let Err(_) = self.brc30_all_tick_info(0, None) {
+    if let Err(_) = self.brc20s_all_tick_info(0, None) {
       return Ok(Some(vec![]));
     }
 

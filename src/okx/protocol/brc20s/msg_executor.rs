@@ -19,8 +19,7 @@ use crate::okx::{
       operation::Operation,
       params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
       vesion::{enable_version_by_key, Version, VERSION_KEY_ENABLE_SHARE},
-      BRC20SError, BRC20SMessage, Deploy, Error, Mint, Num, PassiveUnStake, Stake, Transfer,
-      UnStake,
+      BRC20SError, Deploy, Error, Message, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
     },
     utils, BlockContext,
   },
@@ -52,7 +51,7 @@ pub struct BRC20SExecutionMessage {
 impl BRC20SExecutionMessage {
   pub fn from_message<'a, O: OrdDataStoreReadOnly>(
     ord_store: &'a O,
-    msg: &BRC20SMessage,
+    msg: &Message,
     network: Network,
   ) -> Result<Self> {
     Ok(Self {

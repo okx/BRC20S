@@ -1,12 +1,10 @@
 use super::*;
 use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20::BRC20Event;
+use crate::okx::datastore::brc20s as store_brc20s;
 use crate::okx::datastore::brc20s::{Event, PledgedTick};
-use crate::okx::datastore::DataStoreReadWrite;
-use crate::okx::protocol::brc20::{BRC20ExecutionMessage, BRC20Message};
-use crate::okx::protocol::brc20s;
-use crate::okx::protocol::brc20s::operation::Operation;
-use crate::okx::protocol::brc20s::PassiveUnStake;
+use crate::okx::protocol::brc20;
+use crate::okx::protocol::brc20s as proto_brc20s;
 use crate::{
   okx::datastore::{BRC20DataStoreReadWrite, OrdDataStoreReadWrite},
   Result,
@@ -16,15 +14,19 @@ pub struct CallManager<
   'a,
   O: OrdDataStoreReadWrite,
   N: BRC20DataStoreReadWrite,
-  M: DataStoreReadWrite,
+  M: store_brc20s::DataStoreReadWrite,
 > {
   ord_store: &'a O,
   brc20_store: &'a N,
   brc20s_store: &'a M,
 }
 
-impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadWrite>
-  CallManager<'a, O, N, M>
+impl<
+    'a,
+    O: OrdDataStoreReadWrite,
+    N: BRC20DataStoreReadWrite,
+    M: store_brc20s::DataStoreReadWrite,
+  > CallManager<'a, O, N, M>
 {
   pub fn new(ord_store: &'a O, brc20_store: &'a N, brc20s_store: &'a M) -> Self {
     Self {
@@ -41,7 +43,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
         context,
         self.ord_store,
         self.brc20_store,
-        &BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
+        &brc20::BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20))?,
       Message::BRC20S(msg) => brc20s::execute(
@@ -70,7 +72,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
               self.brc20_store,
             ) {
               Ok(amt) => {
-                let passive_unstake = PassiveUnStake {
+                let passive_unstake = proto_brc20s::PassiveUnStake {
                   stake: brc20_transfer.tick.as_str().to_string(),
                   amount: amt.to_string(),
                 };
@@ -110,7 +112,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
                 self.brc20_store,
               ) {
                 Ok(amt) => {
-                  let passive_unstake = PassiveUnStake {
+                  let passive_unstake = proto_brc20s::PassiveUnStake {
                     stake: ptick.to_string(),
                     amount: amt.to_string(),
                   };
@@ -142,24 +144,27 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadW
   }
 }
 
-fn convert_msg_brc20_to_brc20s(msg: &BRC20Message, op: PassiveUnStake) -> brc20s::Message {
+fn convert_msg_brc20_to_brc20s(
+  msg: &brc20::BRC20Message,
+  op: proto_brc20s::PassiveUnStake,
+) -> brc20s::Message {
   brc20s::Message {
     txid: msg.txid.clone(),
     inscription_id: msg.inscription_id.clone(),
     commit_input_satpoint: None,
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
-    op: Operation::PassiveUnStake(op),
+    op: proto_brc20s::Operation::PassiveUnStake(op),
   }
 }
 
-fn convert_msg_brc20s(msg: &brc20s::Message, op: PassiveUnStake) -> brc20s::Message {
+fn convert_msg_brc20s(msg: &brc20s::Message, op: proto_brc20s::PassiveUnStake) -> brc20s::Message {
   brc20s::Message {
     txid: msg.txid.clone(),
     inscription_id: msg.inscription_id.clone(),
     commit_input_satpoint: None,
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
-    op: Operation::PassiveUnStake(op),
+    op: proto_brc20s::Operation::PassiveUnStake(op),
   }
 }

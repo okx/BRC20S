@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::*;
-use crate::okx::datastore::DataStoreReadWrite;
+use crate::okx::datastore::brc20s::DataStoreReadWrite;
 use crate::{
   index::BlockData,
   okx::datastore::{

@@ -58,7 +58,7 @@ impl Chain {
 
   pub(crate) fn first_brc20s_height(self) -> u64 {
     match self {
-      Self::Mainnet => 798100,
+      Self::Mainnet => 798108,
       Self::Regtest => 0,
       Self::Signet => 151032,
       Self::Testnet => 2441183,

@@ -1,12 +1,18 @@
 use crate::okx::{
   datastore::{
-    brc20::{self, redb::BRC20DataStoreReader, BRC20DataStoreReadOnly},
-    brc20s::{self, redb::DataStoreReader, DataStoreReadOnly},
+    brc20::{self},
+    brc20s::{self},
     ScriptKey,
   },
   protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
   reward::reward,
 };
+
+use crate::okx::datastore::brc20::redb::BRC20DataStoreReader;
+use crate::okx::datastore::brc20::BRC20DataStoreReadOnly;
+use crate::okx::datastore::brc20s::redb::DataStoreReader;
+use crate::okx::datastore::brc20s::DataStoreReadOnly;
+
 #[cfg(feature = "rollback")]
 use once_cell::sync::OnceCell;
 

@@ -40,7 +40,7 @@ impl<
         context,
         self.ord_store,
         self.brc20_store,
-        &proto_brc20::BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
+        &proto_brc20::ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20))?,
       Message::BRC20S(msg) => brc20s::execute(

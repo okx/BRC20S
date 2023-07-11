@@ -26,7 +26,7 @@ use bitcoin::Network;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BRC20ExecutionMessage {
+pub struct ExecutionMessage {
   pub(self) txid: Txid,
   pub(self) inscription_id: InscriptionId,
   pub(self) inscription_number: i64,
@@ -37,7 +37,7 @@ pub struct BRC20ExecutionMessage {
   pub(self) op: Operation,
 }
 
-impl BRC20ExecutionMessage {
+impl ExecutionMessage {
   pub fn from_message<'a, O: OrdDataStoreReadOnly>(
     ord_store: &'a O,
     msg: &Message,
@@ -72,7 +72,7 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   context: BlockContext,
   ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20ExecutionMessage,
+  msg: &ExecutionMessage,
 ) -> Result<Option<Receipt>> {
   log::debug!("BRC20 execute message: {:?}", msg);
   let event = match &msg.op {
@@ -114,7 +114,7 @@ fn process_deploy<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20ExecutionMessage,
+  msg: &ExecutionMessage,
   deploy: BRC20Deploy,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
@@ -192,7 +192,7 @@ fn process_mint<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20ExecutionMessage,
+  msg: &ExecutionMessage,
   mint: BRC20Mint,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
@@ -281,7 +281,7 @@ fn process_inscribe_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadW
   _context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20ExecutionMessage,
+  msg: &ExecutionMessage,
   transfer: BRC20Transfer,
 ) -> Result<BRC20Event, Error<N>> {
   // ignore inscribe inscription to coinbase.
@@ -365,7 +365,7 @@ fn process_transfer<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   _context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
-  msg: &BRC20ExecutionMessage,
+  msg: &ExecutionMessage,
 ) -> Result<BRC20Event, Error<N>> {
   let transferable = brc20_store
     .get_transferable_by_id(&msg.from, &msg.inscription_id)

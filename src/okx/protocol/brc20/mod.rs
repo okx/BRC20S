@@ -17,7 +17,7 @@ mod params;
 use self::error::Error;
 pub(crate) use self::{
   error::JSONError,
-  msg_executor::{execute, BRC20ExecutionMessage},
+  msg_executor::{execute, ExecutionMessage},
   msg_resolver::resolve_message,
   num::Num,
   operation::{

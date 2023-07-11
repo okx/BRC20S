@@ -1,6 +1,6 @@
 use super::*;
 use crate::okx::datastore::brc20::{
-  BRC20DataStoreReadOnly, BRC20Receipt, Balance, Tick, TokenInfo, TransferInfo, TransferableLog,
+  BRC20DataStoreReadOnly, Balance, Receipt, Tick, TokenInfo, TransferInfo, TransferableLog,
 };
 use bitcoin::hashes::Hash;
 use redb::{
@@ -141,14 +141,14 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
     )
   }
 
-  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC20Receipt>, Self::Error> {
+  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC20_EVENTS)?
         .get(txid.to_string().as_str())?
         .map_or(Vec::new(), |v| {
-          bincode::deserialize::<Vec<BRC20Receipt>>(v.value()).unwrap()
+          bincode::deserialize::<Vec<Receipt>>(v.value()).unwrap()
         }),
     )
   }

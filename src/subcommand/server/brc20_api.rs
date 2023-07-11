@@ -74,8 +74,8 @@ pub struct TxEvents {
   pub txid: String,
 }
 
-impl From<&brc20::BRC20Receipt> for TxEvent {
-  fn from(event: &brc20::BRC20Receipt) -> Self {
+impl From<&brc20::Receipt> for TxEvent {
+  fn from(event: &brc20::Receipt) -> Self {
     match &event.result {
       Ok(result) => match result {
         brc20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {

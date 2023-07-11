@@ -7,8 +7,8 @@ use crate::{
   okx::{
     datastore::{
       brc20::{
-        BRC20DataStoreReadWrite, BRC20Error, BRC20Event, BRC20Receipt, Balance, DeployEvent,
-        InscripbeTransferEvent, MintEvent, Tick, TokenInfo, TransferEvent, TransferInfo,
+        BRC20DataStoreReadWrite, BRC20Error, BRC20Event, Balance, DeployEvent,
+        InscripbeTransferEvent, MintEvent, Receipt, Tick, TokenInfo, TransferEvent, TransferInfo,
         TransferableLog,
       },
       ord::OrdDataStoreReadOnly,
@@ -73,7 +73,7 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
   ord_store: &'a O,
   brc20_store: &'a N,
   msg: &BRC20ExecutionMessage,
-) -> Result<Option<BRC20Receipt>> {
+) -> Result<Option<Receipt>> {
   log::debug!("BRC20 execute message: {:?}", msg);
   let event = match &msg.op {
     Operation::Deploy(deploy) => {
@@ -86,7 +86,7 @@ pub fn execute<'a, O: OrdDataStoreReadOnly, N: BRC20DataStoreReadWrite>(
     Operation::Transfer(_) => process_transfer(context, ord_store, brc20_store, &msg),
   };
 
-  let receipt = BRC20Receipt {
+  let receipt = Receipt {
     inscription_id: msg.inscription_id,
     inscription_number: msg.inscription_number,
     old_satpoint: msg.old_satpoint,

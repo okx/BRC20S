@@ -9,6 +9,6 @@ pub enum Message {
 }
 
 pub enum Receipt {
-  BRC20(store_brc20::BRC20Receipt),
+  BRC20(store_brc20::Receipt),
   BRC20S(store_brc20s::Receipt),
 }

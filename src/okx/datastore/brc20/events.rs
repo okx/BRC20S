@@ -10,7 +10,7 @@ pub enum OperationType {
   Transfer,
 }
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct BRC20Receipt {
+pub struct Receipt {
   pub inscription_id: InscriptionId,
   pub inscription_number: i64,
   pub old_satpoint: SatPoint,
@@ -65,7 +65,7 @@ mod tests {
 
   #[test]
   fn action_receipt_serialize() {
-    let action_receipt = BRC20Receipt {
+    let action_receipt = Receipt {
       inscription_id: InscriptionId::from_str(
         "9991111111111111111111111111111111111111111111111111111111111111i1",
       )

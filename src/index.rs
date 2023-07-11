@@ -1208,7 +1208,7 @@ impl Index {
   pub(crate) fn brc20_get_tx_events_by_txid(
     &self,
     txid: &bitcoin::Txid,
-  ) -> Result<Option<Vec<brc20::BRC20Receipt>>> {
+  ) -> Result<Option<Vec<brc20::Receipt>>> {
     let wtx = self.database.begin_read().unwrap();
     let brc20_db = BRC20DataStoreReader::new(&wtx);
     let res = brc20_db.get_transaction_receipts(txid)?;
@@ -1232,7 +1232,7 @@ impl Index {
   pub(crate) fn brc20_get_block_events_by_blockhash(
     &self,
     blockhash: bitcoin::BlockHash,
-  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20::BRC20Receipt>)>>> {
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20::Receipt>)>>> {
     let parsed_height = self.height()?;
     if parsed_height.is_none() {
       return Ok(None);

@@ -1,6 +1,6 @@
 use crate::{
   okx::datastore::brc20::{
-    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Receipt, Balance, Tick, TokenInfo,
+    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, Balance, Receipt, Tick, TokenInfo,
     TransferInfo, TransferableLog,
   },
   InscriptionId,
@@ -43,7 +43,7 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_tokens_info()
   }
 
-  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC20Receipt>, Self::Error> {
+  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transaction_receipts(txid)
   }
 
@@ -124,7 +124,7 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
   fn save_transaction_receipts(
     &self,
     txid: &Txid,
-    receipts: &[BRC20Receipt],
+    receipts: &[Receipt],
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC20_EVENTS)?.insert(
       txid.to_string().as_str(),
@@ -133,11 +133,7 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
     Ok(())
   }
 
-  fn add_transaction_receipt(
-    &self,
-    txid: &Txid,
-    receipt: &BRC20Receipt,
-  ) -> Result<(), Self::Error> {
+  fn add_transaction_receipt(&self, txid: &Txid, receipt: &Receipt) -> Result<(), Self::Error> {
     let mut receipts = self.get_transaction_receipts(txid)?;
     receipts.push(receipt.clone());
     self.save_transaction_receipts(txid, &receipts)
@@ -224,8 +220,8 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::brc20::{
-    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, BRC20Receipt, Balance,
-    MintEvent, OperationType, Tick, TokenInfo, TransferEvent, TransferableLog,
+    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, Balance, MintEvent,
+    OperationType, Receipt, Tick, TokenInfo, TransferEvent, TransferableLog,
   };
 
   use super::*;
@@ -486,7 +482,7 @@ mod tests {
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
     let receipts = vec![
-      BRC20Receipt {
+      Receipt {
         inscription_id: InscriptionId::from_str(
           "1111111111111111111111111111111111111111111111111111111111111111i1",
         )
@@ -509,7 +505,7 @@ mod tests {
         .unwrap(),
         result: Err(BRC20Error::InvalidTickLen("abcde".to_string())),
       },
-      BRC20Receipt {
+      Receipt {
         inscription_id: InscriptionId::from_str(
           "2111111111111111111111111111111111111111111111111111111111111111i1",
         )
@@ -536,7 +532,7 @@ mod tests {
           msg: None,
         })),
       },
-      BRC20Receipt {
+      Receipt {
         inscription_id: InscriptionId::from_str(
           "3111111111111111111111111111111111111111111111111111111111111111i1",
         )

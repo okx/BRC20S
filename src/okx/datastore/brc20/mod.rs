@@ -9,7 +9,7 @@ pub(super) mod transfer;
 pub(super) mod transferable_log;
 
 pub use self::{
-  balance::Balance, errors::BRC20Error, events::BRC20Receipt, events::*, tick::Tick,
+  balance::Balance, errors::BRC20Error, events::Receipt, events::*, tick::Tick,
   token_info::TokenInfo, transfer::TransferInfo, transferable_log::TransferableLog,
 };
 use super::ScriptKey;
@@ -30,7 +30,7 @@ pub trait BRC20DataStoreReadOnly {
   fn get_token_info(&self, tick: &Tick) -> Result<Option<TokenInfo>, Self::Error>;
   fn get_tokens_info(&self) -> Result<Vec<TokenInfo>, Self::Error>;
 
-  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC20Receipt>, Self::Error>;
+  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error>;
 
   fn get_transferable(&self, script: &ScriptKey) -> Result<Vec<TransferableLog>, Self::Error>;
   fn get_transferable_by_tick(
@@ -67,14 +67,10 @@ pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
     minted_block_number: u64,
   ) -> Result<(), Self::Error>;
 
-  fn save_transaction_receipts(
-    &self,
-    txid: &Txid,
-    receipts: &[BRC20Receipt],
-  ) -> Result<(), Self::Error>;
-
-  fn add_transaction_receipt(&self, txid: &Txid, receipt: &BRC20Receipt)
+  fn save_transaction_receipts(&self, txid: &Txid, receipts: &[Receipt])
     -> Result<(), Self::Error>;
+
+  fn add_transaction_receipt(&self, txid: &Txid, receipt: &Receipt) -> Result<(), Self::Error>;
 
   fn insert_transferable(
     &self,

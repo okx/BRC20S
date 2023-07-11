@@ -1,19 +1,16 @@
 use super::*;
 use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
-use crate::okx::datastore::brc20::BRC20Event;
+use crate::okx::datastore::brc20 as store_brc20;
 use crate::okx::datastore::brc20s as store_brc20s;
-use crate::okx::datastore::brc20s::{Event, PledgedTick};
-use crate::okx::protocol::brc20;
+use crate::okx::datastore::ord as store_ord;
+use crate::okx::protocol::brc20 as proto_brc20;
 use crate::okx::protocol::brc20s as proto_brc20s;
-use crate::{
-  okx::datastore::{BRC20DataStoreReadWrite, OrdDataStoreReadWrite},
-  Result,
-};
+use crate::Result;
 
 pub struct CallManager<
   'a,
-  O: OrdDataStoreReadWrite,
-  N: BRC20DataStoreReadWrite,
+  O: store_ord::OrdDataStoreReadWrite,
+  N: store_brc20::BRC20DataStoreReadWrite,
   M: store_brc20s::DataStoreReadWrite,
 > {
   ord_store: &'a O,
@@ -23,8 +20,8 @@ pub struct CallManager<
 
 impl<
     'a,
-    O: OrdDataStoreReadWrite,
-    N: BRC20DataStoreReadWrite,
+    O: store_ord::OrdDataStoreReadWrite,
+    N: store_brc20::BRC20DataStoreReadWrite,
     M: store_brc20s::DataStoreReadWrite,
   > CallManager<'a, O, N, M>
 {
@@ -39,11 +36,11 @@ impl<
   pub fn execute_message(&self, context: BlockContext, msg: &Message) -> Result {
     // execute message
     let receipt = match msg {
-      Message::BRC20(msg) => brc20::execute(
+      Message::BRC20(msg) => proto_brc20::execute(
         context,
         self.ord_store,
         self.brc20_store,
-        &brc20::BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
+        &proto_brc20::BRC20ExecutionMessage::from_message(self.ord_store, &msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20))?,
       Message::BRC20S(msg) => brc20s::execute(
@@ -63,8 +60,8 @@ impl<
     match receipt.unwrap() {
       Receipt::BRC20(brc20_receipt) => {
         match brc20_receipt.result {
-          Ok(BRC20Event::Transfer(brc20_transfer)) => {
-            let ptick = PledgedTick::BRC20Tick(brc20_transfer.tick.clone());
+          Ok(store_brc20::BRC20Event::Transfer(brc20_transfer)) => {
+            let ptick = store_brc20s::PledgedTick::BRC20Tick(brc20_transfer.tick.clone());
             match convert_pledged_tick_without_decimal(
               &ptick,
               brc20_transfer.amount,
@@ -103,8 +100,8 @@ impl<
         match brc20s_receipt.result {
           Ok(events) => {
             let mut events = events.into_iter();
-            while let Some(Event::Transfer(brc20s_transfer)) = events.next() {
-              let ptick = PledgedTick::BRC20STick(brc20s_transfer.tick_id.clone());
+            while let Some(store_brc20s::Event::Transfer(brc20s_transfer)) = events.next() {
+              let ptick = store_brc20s::PledgedTick::BRC20STick(brc20s_transfer.tick_id.clone());
               match convert_pledged_tick_without_decimal(
                 &ptick,
                 brc20s_transfer.amt,
@@ -145,7 +142,7 @@ impl<
 }
 
 fn convert_msg_brc20_to_brc20s(
-  msg: &brc20::BRC20Message,
+  msg: &proto_brc20::BRC20Message,
   op: proto_brc20s::PassiveUnStake,
 ) -> brc20s::Message {
   brc20s::Message {

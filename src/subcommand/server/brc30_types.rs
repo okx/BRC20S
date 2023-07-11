@@ -30,7 +30,7 @@ impl BRC30TickInfo {
 impl From<&brc30::TickInfo> for BRC30TickInfo {
   fn from(tick_info: &brc30::TickInfo) -> Self {
     let tick = Tick {
-      id: tick_info.tick_id.to_lowercase().hex(),
+      id: tick_info.tick_id.hex(),
       name: tick_info.name.as_str().to_string(),
     };
 
@@ -199,7 +199,7 @@ impl BRC30Balance {
 impl From<&brc30::Balance> for BRC30Balance {
   fn from(balance: &brc30::Balance) -> Self {
     let tick = Tick {
-      id: balance.tick_id.to_lowercase().hex(),
+      id: balance.tick_id.hex(),
       name: "".to_string(),
     };
 
@@ -246,7 +246,7 @@ impl BRC30Inscription {
 impl From<&brc30::TransferableAsset> for BRC30Inscription {
   fn from(asset: &brc30::TransferableAsset) -> Self {
     let tick = Tick {
-      id: asset.tick_id.to_lowercase().hex(),
+      id: asset.tick_id.hex(),
       name: "".to_string(),
     };
 
@@ -415,7 +415,7 @@ impl DeployTickEvent {
   pub(super) fn new(event: brc30::DeployTickEvent, deployer: ScriptPubkey) -> Self {
     Self {
       tick: Tick {
-        id: event.tick_id.to_lowercase().hex(),
+        id: event.tick_id.hex(),
         name: event.name.as_str().to_string(),
       },
       supply: event.supply.to_string(),

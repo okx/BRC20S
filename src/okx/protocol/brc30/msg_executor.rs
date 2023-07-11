@@ -277,7 +277,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
     {
       return Err(Error::BRC30Error(BRC30Error::StakeAlreadyExist(
         stake.to_string(),
-        tick_id.to_lowercase().hex(),
+        tick_id.hex(),
       )));
     }
 
@@ -316,7 +316,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreReadWrite
       &from_script_key,
       &to_script_key,
     );
-    if !c_tick_id.to_lowercase().eq(&tick_id) {
+    if !c_tick_id.eq(&tick_id) {
       return Err(Error::BRC30Error(BRC30Error::InvalidPoolTickId(
         tick_id.hex(),
         c_tick_id.hex(),
@@ -685,10 +685,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC30DataStoreRead
   for (pid, stake) in pids.iter() {
     let withdraw_stake =
       convert_pledged_tick_without_decimal(&stake_tick, *stake, brc30_store, brc20_store)?;
-    let stake_msg = UnStake::new(
-      pid.to_lowercase().as_str(),
-      withdraw_stake.to_string().as_str(),
-    );
+    let stake_msg = UnStake::new(pid.as_str(), withdraw_stake.to_string().as_str());
     passive_msg.op = BRC30Operation::UnStake(stake_msg.clone());
     process_unstake(context, brc20_store, brc30_store, &passive_msg, stake_msg)?;
     events.push(BRC30Event::PassiveWithdraw(PassiveWithdrawEvent {

@@ -1,7 +1,9 @@
 use crate::okx::datastore::brc30::TickId;
 use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc30::params::TICK_ID_BYTE_COUNT;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::hashes::{sha256, Hash, HashEngine};
+use std::str::FromStr;
 
 pub fn caculate_tick_id(
   tick: &str,
@@ -16,8 +18,8 @@ pub fn caculate_tick_id(
   enc.input(decimals.to_string().as_bytes());
   enc.input(from.to_string().as_bytes());
   enc.input(to.to_string().as_bytes());
-  let hash = sha256::Hash::from_engine(enc).to_vec();
-  TickId::from_bytes(&hash[0..TICK_ID_BYTE_COUNT]).unwrap()
+  let hash = sha256::Hash::from_engine(enc);
+  TickId::from_str(hash[0..TICK_ID_BYTE_COUNT].to_hex().as_str()).unwrap()
 }
 
 #[cfg(test)]

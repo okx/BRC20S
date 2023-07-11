@@ -9,9 +9,9 @@ use crate::okx::{
 };
 
 use crate::okx::datastore::brc20::redb as db_brc20;
-use crate::okx::datastore::brc20::BRC20DataStoreReadOnly;
+use crate::okx::datastore::brc20::DataStoreReadOnly as BRC20DataStoreReadOnly;
 use crate::okx::datastore::brc20s::redb as db_brc20s;
-use crate::okx::datastore::brc20s::DataStoreReadOnly;
+use crate::okx::datastore::brc20s::DataStoreReadOnly as BRC20SDataStoreReadOnly;
 
 #[cfg(feature = "rollback")]
 use once_cell::sync::OnceCell;

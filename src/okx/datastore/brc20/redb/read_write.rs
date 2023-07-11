@@ -1,7 +1,7 @@
 use crate::{
   okx::datastore::brc20::{
-    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, Balance, Receipt, Tick, TokenInfo,
-    TransferInfo, TransferableLog,
+    BRC20DataStoreReadWrite, Balance, DataStoreReadOnly, Receipt, Tick, TokenInfo, TransferInfo,
+    TransferableLog,
   },
   InscriptionId,
 };
@@ -20,7 +20,7 @@ impl<'db, 'a> BRC20DataStore<'db, 'a> {
   }
 }
 
-impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStore<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for BRC20DataStore<'db, 'a> {
   type Error = redb::Error;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error> {
@@ -220,7 +220,7 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::brc20::{
-    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, Balance, Event, MintEvent,
+    BRC20DataStoreReadWrite, BRC20Error, Balance, DataStoreReadOnly, Event, MintEvent,
     OperationType, Receipt, Tick, TokenInfo, TransferEvent, TransferableLog,
   };
 

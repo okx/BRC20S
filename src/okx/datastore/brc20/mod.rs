@@ -17,7 +17,7 @@ use crate::{InscriptionId, Result};
 use bitcoin::Txid;
 use std::fmt::{Debug, Display};
 
-pub trait BRC20DataStoreReadOnly {
+pub trait DataStoreReadOnly {
   type Error: Debug + Display;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error>;
@@ -50,7 +50,7 @@ pub trait BRC20DataStoreReadOnly {
   ) -> Result<Option<TransferInfo>, Self::Error>;
 }
 
-pub trait BRC20DataStoreReadWrite: BRC20DataStoreReadOnly {
+pub trait BRC20DataStoreReadWrite: DataStoreReadOnly {
   fn update_token_balance(
     &self,
     script_key: &ScriptKey,

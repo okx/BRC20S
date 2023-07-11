@@ -3,7 +3,7 @@ use crate::{
   inscription::Inscription,
   okx::{
     datastore::{
-      brc20::BRC20DataStoreReadOnly,
+      brc20::DataStoreReadOnly,
       ord::{Action, InscriptionOp},
     },
     protocol::brc20::{deserialize_brc20_operation, Operation},
@@ -12,7 +12,7 @@ use crate::{
 };
 use anyhow::anyhow;
 
-pub(crate) fn resolve_message<'a, N: BRC20DataStoreReadOnly>(
+pub(crate) fn resolve_message<'a, N: DataStoreReadOnly>(
   brc20_store: &'a N,
   new_inscriptions: &Vec<Inscription>,
   op: &InscriptionOp,

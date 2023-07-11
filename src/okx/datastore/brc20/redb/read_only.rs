@@ -1,6 +1,6 @@
 use super::*;
 use crate::okx::datastore::brc20::{
-  BRC20DataStoreReadOnly, Balance, Receipt, Tick, TokenInfo, TransferInfo, TransferableLog,
+  Balance, DataStoreReadOnly, Receipt, Tick, TokenInfo, TransferInfo, TransferableLog,
 };
 use bitcoin::hashes::Hash;
 use redb::{
@@ -81,7 +81,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error> {

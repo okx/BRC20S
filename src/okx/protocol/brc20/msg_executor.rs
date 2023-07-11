@@ -14,7 +14,7 @@ use crate::{
       ord::OrdDataStoreReadOnly,
     },
     protocol::{
-      brc20::{BRC20Message, Operation},
+      brc20::{Message, Operation},
       utils, BlockContext,
     },
   },
@@ -40,7 +40,7 @@ pub struct BRC20ExecutionMessage {
 impl BRC20ExecutionMessage {
   pub fn from_message<'a, O: OrdDataStoreReadOnly>(
     ord_store: &'a O,
-    msg: &BRC20Message,
+    msg: &Message,
     network: Network,
   ) -> Result<Self> {
     Ok(Self {

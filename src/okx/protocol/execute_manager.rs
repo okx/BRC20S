@@ -142,7 +142,7 @@ impl<
 }
 
 fn convert_msg_brc20_to_brc20s(
-  msg: &proto_brc20::BRC20Message,
+  msg: &proto_brc20::Message,
   op: proto_brc20s::PassiveUnStake,
 ) -> brc20s::Message {
   brc20s::Message {

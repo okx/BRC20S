@@ -4,7 +4,7 @@ use crate::okx::protocol::brc20 as proto_brc20;
 use crate::okx::protocol::brc20s as proto_brc20s;
 
 pub enum Message {
-  BRC20(proto_brc20::BRC20Message),
+  BRC20(proto_brc20::Message),
   BRC20S(proto_brc20s::Message),
 }
 

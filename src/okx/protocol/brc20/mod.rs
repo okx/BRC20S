@@ -27,7 +27,7 @@ pub(crate) use self::{
 };
 
 #[derive(Debug, Clone)]
-pub struct BRC20Message {
+pub struct Message {
   pub txid: Txid,
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,

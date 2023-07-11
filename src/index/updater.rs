@@ -1,6 +1,8 @@
-use crate::okx::datastore::{
-  brc20::redb::BRC20DataStore, brc20s::redb::DataStore, ord::OrdDbReadWriter,
-};
+use crate::okx::datastore::ord;
+
+use crate::okx::datastore::brc20::redb as db_brc20;
+use crate::okx::datastore::brc20s::redb as db_brc20s;
+
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
@@ -600,9 +602,9 @@ impl Updater {
     // Create a protocol manager to index the block of brc20, brc20s data.
     ProtocolManager::new(
       &index.client,
-      &OrdDbReadWriter::new(wtx),
-      &BRC20DataStore::new(wtx),
-      &DataStore::new(wtx),
+      &ord::OrdDbReadWriter::new(wtx),
+      &db_brc20::BRC20DataStore::new(wtx),
+      &db_brc20s::DataStore::new(wtx),
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
     )

@@ -1,14 +1,11 @@
 use super::*;
+use crate::okx::datastore::brc20 as store_brc20;
+use crate::okx::datastore::brc20s as store_brc20s;
+use crate::okx::datastore::ord as store_ord;
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-  okx::{
-    datastore::{
-      ord::operation::InscriptionOp, BRC20DataStoreReadWrite, DataStoreReadWrite,
-      OrdDataStoreReadWrite,
-    },
-    protocol::Message,
-  },
+  okx::{datastore::ord::operation::InscriptionOp, protocol::Message},
   Inscription, Result,
 };
 use anyhow::anyhow;
@@ -16,9 +13,9 @@ use bitcoin::{OutPoint, Transaction, TxOut};
 use bitcoincore_rpc::Client;
 pub struct MsgResolveManager<
   'a,
-  O: OrdDataStoreReadWrite,
-  N: BRC20DataStoreReadWrite,
-  M: DataStoreReadWrite,
+  O: store_ord::OrdDataStoreReadWrite,
+  N: store_brc20::BRC20DataStoreReadWrite,
+  M: store_brc20s::DataStoreReadWrite,
 > {
   protocols: HashSet<ProtocolKind>,
   client: &'a Client,
@@ -29,8 +26,12 @@ pub struct MsgResolveManager<
   first_brc20s_height: u64,
 }
 
-impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: DataStoreReadWrite>
-  MsgResolveManager<'a, O, N, M>
+impl<
+    'a,
+    O: store_ord::OrdDataStoreReadWrite,
+    N: store_brc20::BRC20DataStoreReadWrite,
+    M: store_brc20s::DataStoreReadWrite,
+  > MsgResolveManager<'a, O, N, M>
 {
   pub fn new(
     client: &'a Client,

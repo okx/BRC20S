@@ -1,15 +1,15 @@
 use crate::InscriptionId;
 use serde::{Deserialize, Serialize};
 
-use crate::okx::datastore::brc20s::BRC20SDataStoreReadOnly;
+use crate::okx::datastore::brc20s::DataStoreReadOnly;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<L: BRC20SDataStoreReadOnly> {
+pub enum Error<L: DataStoreReadOnly> {
   #[error("brc20s error: {0}")]
   BRC20SError(BRC20SError),
 
   #[error("ledger error: {0}")]
-  LedgerError(<L as BRC20SDataStoreReadOnly>::Error),
+  LedgerError(<L as DataStoreReadOnly>::Error),
 
   #[error("others: {0}")]
   Others(anyhow::Error),
@@ -168,7 +168,7 @@ pub enum BRC20SError {
   StakeEqualEarn(String, String),
 }
 
-impl<L: BRC20SDataStoreReadOnly> From<BRC20SError> for Error<L> {
+impl<L: DataStoreReadOnly> From<BRC20SError> for Error<L> {
   fn from(e: BRC20SError) -> Self {
     Self::BRC20SError(e)
   }

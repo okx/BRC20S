@@ -1,7 +1,7 @@
 use crate::okx::datastore::brc20;
 use crate::okx::datastore::brc20::BRC20DataStoreReadWrite;
 use crate::okx::datastore::brc20s;
-use crate::okx::datastore::brc20s::{BRC20SDataStoreReadWrite, PledgedTick};
+use crate::okx::datastore::brc20s::{DataStoreReadWrite, PledgedTick};
 use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc20s::params::{
   BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, NATIVE_TOKEN_DECIMAL,
@@ -11,7 +11,7 @@ use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
 
-pub fn get_user_common_balance<'a, L: BRC20SDataStoreReadWrite, M: BRC20DataStoreReadWrite>(
+pub fn get_user_common_balance<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   script: &ScriptKey,
   token: &PledgedTick,
   brc20s_ledger: &'a L,
@@ -37,7 +37,7 @@ pub fn get_user_common_balance<'a, L: BRC20SDataStoreReadWrite, M: BRC20DataStor
   }
 }
 
-pub fn get_stake_dec<'a, L: BRC20SDataStoreReadWrite, M: BRC20DataStoreReadWrite>(
+pub fn get_stake_dec<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   token: &PledgedTick,
   brc20s_ledger: &'a L,
   brc20_ledger: &'a M,
@@ -62,7 +62,7 @@ pub fn get_stake_dec<'a, L: BRC20SDataStoreReadWrite, M: BRC20DataStoreReadWrite
   }
 }
 
-pub fn stake_is_exist<'a, L: BRC20SDataStoreReadWrite, M: BRC20DataStoreReadWrite>(
+pub fn stake_is_exist<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   token: &PledgedTick,
   brc20s_ledger: &'a L,
   brc20_ledger: &'a M,
@@ -102,11 +102,7 @@ pub fn tick_can_staked(token: &PledgedTick) -> bool {
   }
 }
 
-pub fn convert_pledged_tick_with_decimal<
-  'a,
-  L: BRC20SDataStoreReadWrite,
-  M: BRC20DataStoreReadWrite,
->(
+pub fn convert_pledged_tick_with_decimal<'a, L: DataStoreReadWrite, M: BRC20DataStoreReadWrite>(
   tick: &PledgedTick,
   amount: &str,
   brc20s_ledger: &'a L,
@@ -134,7 +130,7 @@ pub fn convert_pledged_tick_with_decimal<
   }
 }
 
-pub fn convert_amount_with_decimal<L: BRC20SDataStoreReadWrite>(
+pub fn convert_amount_with_decimal<L: DataStoreReadWrite>(
   amount: &str,
   decimal: u8,
 ) -> Result<Num, Error<L>> {
@@ -165,7 +161,7 @@ pub fn convert_amount_with_decimal<L: BRC20SDataStoreReadWrite>(
 
 pub fn convert_pledged_tick_without_decimal<
   'a,
-  L: BRC20SDataStoreReadWrite,
+  L: DataStoreReadWrite,
   M: BRC20DataStoreReadWrite,
 >(
   tick: &PledgedTick,
@@ -195,7 +191,7 @@ pub fn convert_pledged_tick_without_decimal<
   }
 }
 
-pub fn convert_amount_without_decimal<L: BRC20SDataStoreReadWrite>(
+pub fn convert_amount_without_decimal<L: DataStoreReadWrite>(
   amount: u128,
   decimal: u8,
 ) -> Result<Num, Error<L>> {

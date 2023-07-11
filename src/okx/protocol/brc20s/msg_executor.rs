@@ -11,7 +11,7 @@ use crate::okx::{
       TransferEvent, TransferInfo, TransferableAsset, UserInfo, WithdrawEvent,
     },
     ord::OrdDataStoreReadOnly,
-    BRC20DataStoreReadWrite, BRC20SDataStoreReadWrite, ScriptKey,
+    BRC20DataStoreReadWrite, DataStoreReadWrite, ScriptKey,
   },
   protocol::{
     brc20s::{
@@ -102,7 +102,7 @@ impl ExecutionMessage {
     }
   }
 }
-pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+pub fn execute<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -180,7 +180,7 @@ pub fn execute<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
   Ok(Some(receipt))
 }
 
-pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -383,7 +383,7 @@ pub fn process_deploy<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrit
   Ok(events)
 }
 
-fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+fn process_stake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -529,7 +529,7 @@ fn process_stake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
   }));
 }
 
-fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -641,7 +641,7 @@ fn process_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
   }));
 }
 
-fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -703,7 +703,7 @@ fn process_passive_unstake<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreRea
 
   Ok(events)
 }
-fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+fn process_mint<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -820,7 +820,7 @@ fn process_mint<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
   }))
 }
 
-fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   _context: BlockContext,
   _brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -910,7 +910,7 @@ fn process_inscribe_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreR
   }))
 }
 
-fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+fn process_transfer<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
   _context: BlockContext,
   _brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -1009,8 +1009,8 @@ mod tests {
   use crate::okx::datastore::brc20;
   use crate::okx::datastore::brc20::redb::BRC20DataStore;
   use crate::okx::datastore::brc20::{Balance as BRC20Banalce, TokenInfo};
-  use crate::okx::datastore::brc20s::redb::BRC20SDataStore;
-  use crate::okx::datastore::brc20s::BRC20SDataStoreReadOnly;
+  use crate::okx::datastore::brc20s::redb::DataStore;
+  use crate::okx::datastore::brc20s::DataStoreReadOnly;
   use crate::okx::datastore::brc20s::Event::PassiveWithdraw;
   use crate::okx::datastore::brc20s::PledgedTick;
   use crate::okx::protocol::brc20s::test::{
@@ -1023,7 +1023,7 @@ mod tests {
   use redb::Database;
   use tempfile::NamedTempFile;
 
-  fn execute_for_test<'a, M: BRC20DataStoreReadWrite, N: BRC20SDataStoreReadWrite>(
+  fn execute_for_test<'a, M: BRC20DataStoreReadWrite, N: DataStoreReadWrite>(
     brc20_store: &'a M,
     brc20s_store: &'a N,
     msg: &ExecutionMessage,
@@ -1111,7 +1111,7 @@ mod tests {
     Ok(())
   }
 
-  fn assert_stake_info<'a, M: BRC20SDataStoreReadWrite>(
+  fn assert_stake_info<'a, M: DataStoreReadWrite>(
     brc20s_data_store: &'a M,
     pid: &str,
     from_script: &ScriptKey,
@@ -1163,7 +1163,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -1326,7 +1326,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -1913,7 +1913,7 @@ mod tests {
       wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION_ENTRY).unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -2847,7 +2847,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -3439,7 +3439,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -3660,7 +3660,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -3937,7 +3937,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -4170,7 +4170,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -4462,7 +4462,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let (deploy, msg) = mock_deploy_msg(
@@ -4585,7 +4585,7 @@ mod tests {
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     // deploy brc20
     let script = ScriptKey::from_address(
@@ -4980,7 +4980,7 @@ mod tests {
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     // deploy brc20
     let script = ScriptKey::from_address(
@@ -5612,7 +5612,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -5797,7 +5797,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -5994,7 +5994,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
 
     let brc20_data_store = BRC20DataStore::new(&wtx);
-    let brc20s_data_store = BRC20SDataStore::new(&wtx);
+    let brc20s_data_store = DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -6185,7 +6185,7 @@ mod tests {
     );
   }
 
-  fn prepare_env_for_test<'a, L: BRC20DataStoreReadWrite, K: BRC20SDataStoreReadWrite>(
+  fn prepare_env_for_test<'a, L: BRC20DataStoreReadWrite, K: DataStoreReadWrite>(
     brc20_data_store: &'a L,
     brc20s_data_store: &'a K,
     addr: &str,
@@ -6359,7 +6359,7 @@ mod tests {
       let wtx = db.begin_write().unwrap();
 
       let brc20_data_store = BRC20DataStore::new(&wtx);
-      let brc20s_data_store = BRC20SDataStore::new(&wtx);
+      let brc20s_data_store = DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 

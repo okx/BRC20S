@@ -1,7 +1,7 @@
 mod read_only;
 mod read_write;
 
-pub use self::{read_only::BRC20SDataStoreReader, read_write::BRC20SDataStore};
+pub use self::{read_only::DataStoreReader, read_write::DataStore};
 
 use crate::okx::datastore::brc20s::{Pid, PledgedTick, TickId};
 use crate::okx::datastore::ScriptKey;

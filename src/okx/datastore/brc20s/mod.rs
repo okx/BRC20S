@@ -16,7 +16,7 @@ use crate::InscriptionId;
 use bitcoin::Txid;
 use std::fmt::{Debug, Display};
 
-pub trait BRC20SDataStoreReadOnly {
+pub trait DataStoreReadOnly {
   type Error: Debug + Display;
 
   // TXID_TO_INSCRIPTION_RECEIPTS
@@ -111,7 +111,7 @@ pub trait BRC20SDataStoreReadOnly {
   ) -> Result<Option<TransferInfo>, Self::Error>;
 }
 
-pub trait BRC20SDataStoreReadWrite: BRC20SDataStoreReadOnly {
+pub trait DataStoreReadWrite: DataStoreReadOnly {
   // TXID_TO_INSCRIPTION_RECEIPTS
   fn set_txid_to_inscription_receipts(
     &self,

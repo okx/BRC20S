@@ -3,7 +3,7 @@ use crate::{
   inscription::Inscription,
   okx::{
     datastore::{
-      brc20s::BRC20SDataStoreReadOnly,
+      brc20s::DataStoreReadOnly,
       ord::{Action, InscriptionOp, OrdDataStoreReadOnly},
     },
     protocol::brc20s::{deserialize_brc20s_operation, operation::Transfer},
@@ -15,7 +15,7 @@ use bitcoin::{OutPoint, TxOut};
 use bitcoincore_rpc::Client;
 use std::collections::HashMap;
 
-pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: BRC20SDataStoreReadOnly>(
+pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>(
   client: &Client,
   ord_store: &'a O,
   brc20s_store: &'a M,

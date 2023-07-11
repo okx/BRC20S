@@ -10,19 +10,17 @@ use redb::{
 use std::borrow::Borrow;
 use std::ops::RangeBounds;
 
-pub struct BRC20DataStoreReader<'db, 'a> {
+pub struct DataStoreReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }
 
-pub(super) fn new_with_wtx<'db, 'a>(
-  wtx: &'a WriteTransaction<'db>,
-) -> BRC20DataStoreReader<'db, 'a> {
-  BRC20DataStoreReader {
+pub(super) fn new_with_wtx<'db, 'a>(wtx: &'a WriteTransaction<'db>) -> DataStoreReader<'db, 'a> {
+  DataStoreReader {
     wrapper: ReaderWrapper::Wtx(wtx),
   }
 }
 
-impl<'db, 'a> BRC20DataStoreReader<'db, 'a> {
+impl<'db, 'a> DataStoreReader<'db, 'a> {
   pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
       wrapper: ReaderWrapper::Rtx(rtx),
@@ -81,7 +79,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error> {

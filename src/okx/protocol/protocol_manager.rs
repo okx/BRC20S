@@ -24,7 +24,7 @@ pub enum ProtocolKind {
 pub struct ProtocolManager<
   'a,
   O: ord::OrdDataStoreReadWrite,
-  P: brc20::BRC20DataStoreReadWrite,
+  P: brc20::DataStoreReadWrite,
   M: brc20s::DataStoreReadWrite,
 > {
   call_man: CallManager<'a, O, P, M>,
@@ -34,7 +34,7 @@ pub struct ProtocolManager<
 impl<
     'a,
     O: ord::OrdDataStoreReadWrite,
-    P: brc20::BRC20DataStoreReadWrite,
+    P: brc20::DataStoreReadWrite,
     M: brc20s::DataStoreReadWrite,
   > ProtocolManager<'a, O, P, M>
 {

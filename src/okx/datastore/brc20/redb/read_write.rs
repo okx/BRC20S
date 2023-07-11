@@ -1,6 +1,6 @@
 use crate::{
   okx::datastore::brc20::{
-    BRC20DataStoreReadWrite, Balance, DataStoreReadOnly, Receipt, Tick, TokenInfo, TransferInfo,
+    Balance, DataStoreReadOnly, DataStoreReadWrite, Receipt, Tick, TokenInfo, TransferInfo,
     TransferableLog,
   },
   InscriptionId,
@@ -75,7 +75,7 @@ impl<'db, 'a> DataStoreReadOnly for BRC20DataStore<'db, 'a> {
   }
 }
 
-impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
+impl<'db, 'a> DataStoreReadWrite for BRC20DataStore<'db, 'a> {
   fn update_token_balance(
     &self,
     script_key: &ScriptKey,
@@ -220,8 +220,8 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::brc20::{
-    BRC20DataStoreReadWrite, BRC20Error, Balance, DataStoreReadOnly, Event, MintEvent,
-    OperationType, Receipt, Tick, TokenInfo, TransferEvent, TransferableLog,
+    BRC20Error, Balance, DataStoreReadOnly, DataStoreReadWrite, Event, MintEvent, OperationType,
+    Receipt, Tick, TokenInfo, TransferEvent, TransferableLog,
   };
 
   use super::*;

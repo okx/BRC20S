@@ -105,7 +105,7 @@ impl ExecutionMessage {
     }
   }
 }
-pub fn execute<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+pub fn execute<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -183,7 +183,7 @@ pub fn execute<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWr
   Ok(Some(receipt))
 }
 
-pub fn process_deploy<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -386,7 +386,7 @@ pub fn process_deploy<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStor
   Ok(events)
 }
 
-fn process_stake<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -532,7 +532,7 @@ fn process_stake<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreRead
   }));
 }
 
-fn process_unstake<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+fn process_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -644,7 +644,7 @@ fn process_unstake<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreRe
   }));
 }
 
-fn process_passive_unstake<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+fn process_passive_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -706,7 +706,7 @@ fn process_passive_unstake<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::Dat
 
   Ok(events)
 }
-fn process_mint<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+fn process_mint<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -823,11 +823,7 @@ fn process_mint<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadW
   }))
 }
 
-fn process_inscribe_transfer<
-  'a,
-  M: brc20::BRC20DataStoreReadWrite,
-  N: brc20s::DataStoreReadWrite,
->(
+fn process_inscribe_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   _context: BlockContext,
   _brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -917,7 +913,7 @@ fn process_inscribe_transfer<
   }))
 }
 
-fn process_transfer<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   _context: BlockContext,
   _brc20_store: &'a M,
   brc20s_store: &'a N,
@@ -1014,11 +1010,11 @@ mod tests {
   use super::*;
   use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
   use crate::okx::datastore::brc20::redb::BRC20DataStore;
-  use crate::okx::datastore::brc20::BRC20DataStoreReadWrite;
+  use crate::okx::datastore::brc20::DataStoreReadWrite;
   use crate::okx::datastore::brc20::{Balance as BRC20Banalce, TokenInfo};
   use crate::okx::datastore::brc20s::redb::DataStore;
   use crate::okx::datastore::brc20s::DataStoreReadOnly;
-  use crate::okx::datastore::brc20s::DataStoreReadWrite;
+  use crate::okx::datastore::brc20s::DataStoreReadWrite as BRC20SDataStoreReadWrite;
   use crate::okx::datastore::brc20s::Event::PassiveWithdraw;
   use crate::okx::datastore::brc20s::PledgedTick;
   use crate::okx::protocol::brc20s::test::{
@@ -1031,7 +1027,7 @@ mod tests {
   use redb::Database;
   use tempfile::NamedTempFile;
 
-  fn execute_for_test<'a, M: brc20::BRC20DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+  fn execute_for_test<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
     brc20_store: &'a M,
     brc20s_store: &'a N,
     msg: &ExecutionMessage,
@@ -1083,7 +1079,7 @@ mod tests {
     }
   }
 
-  fn set_brc20_token_user<'a, M: brc20::BRC20DataStoreReadWrite>(
+  fn set_brc20_token_user<'a, M: brc20::DataStoreReadWrite>(
     brc20_store: &'a M,
     tick: &str,
     addr: &ScriptKey,
@@ -6193,7 +6189,7 @@ mod tests {
     );
   }
 
-  fn prepare_env_for_test<'a, L: brc20::BRC20DataStoreReadWrite, K: brc20s::DataStoreReadWrite>(
+  fn prepare_env_for_test<'a, L: brc20::DataStoreReadWrite, K: brc20s::DataStoreReadWrite>(
     brc20_data_store: &'a L,
     brc20s_data_store: &'a K,
     addr: &str,

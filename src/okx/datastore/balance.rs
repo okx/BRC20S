@@ -10,11 +10,7 @@ use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use std::str::FromStr;
 
-pub fn get_user_common_balance<
-  'a,
-  L: brc20s::DataStoreReadWrite,
-  M: brc20::BRC20DataStoreReadWrite,
->(
+pub fn get_user_common_balance<'a, L: brc20s::DataStoreReadWrite, M: brc20::DataStoreReadWrite>(
   script: &ScriptKey,
   token: &PledgedTick,
   brc20s_ledger: &'a L,
@@ -40,7 +36,7 @@ pub fn get_user_common_balance<
   }
 }
 
-pub fn get_stake_dec<'a, L: brc20s::DataStoreReadWrite, M: brc20::BRC20DataStoreReadWrite>(
+pub fn get_stake_dec<'a, L: brc20s::DataStoreReadWrite, M: brc20::DataStoreReadWrite>(
   token: &PledgedTick,
   brc20s_ledger: &'a L,
   brc20_ledger: &'a M,
@@ -65,7 +61,7 @@ pub fn get_stake_dec<'a, L: brc20s::DataStoreReadWrite, M: brc20::BRC20DataStore
   }
 }
 
-pub fn stake_is_exist<'a, L: brc20s::DataStoreReadWrite, M: brc20::BRC20DataStoreReadWrite>(
+pub fn stake_is_exist<'a, L: brc20s::DataStoreReadWrite, M: brc20::DataStoreReadWrite>(
   token: &PledgedTick,
   brc20s_ledger: &'a L,
   brc20_ledger: &'a M,
@@ -108,7 +104,7 @@ pub fn tick_can_staked(token: &PledgedTick) -> bool {
 pub fn convert_pledged_tick_with_decimal<
   'a,
   L: brc20s::DataStoreReadWrite,
-  M: brc20::BRC20DataStoreReadWrite,
+  M: brc20::DataStoreReadWrite,
 >(
   tick: &PledgedTick,
   amount: &str,
@@ -169,7 +165,7 @@ pub fn convert_amount_with_decimal<L: brc20s::DataStoreReadWrite>(
 pub fn convert_pledged_tick_without_decimal<
   'a,
   L: brc20s::DataStoreReadWrite,
-  M: brc20::BRC20DataStoreReadWrite,
+  M: brc20::DataStoreReadWrite,
 >(
   tick: &PledgedTick,
   amount: u128,

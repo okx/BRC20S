@@ -14,7 +14,7 @@ use bitcoincore_rpc::Client;
 pub struct MsgResolveManager<
   'a,
   O: store_ord::OrdDataStoreReadWrite,
-  N: store_brc20::BRC20DataStoreReadWrite,
+  N: store_brc20::DataStoreReadWrite,
   M: store_brc20s::DataStoreReadWrite,
 > {
   protocols: HashSet<ProtocolKind>,
@@ -29,7 +29,7 @@ pub struct MsgResolveManager<
 impl<
     'a,
     O: store_ord::OrdDataStoreReadWrite,
-    N: store_brc20::BRC20DataStoreReadWrite,
+    N: store_brc20::DataStoreReadWrite,
     M: store_brc20s::DataStoreReadWrite,
   > MsgResolveManager<'a, O, N, M>
 {

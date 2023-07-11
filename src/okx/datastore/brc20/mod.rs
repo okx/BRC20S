@@ -50,7 +50,7 @@ pub trait DataStoreReadOnly {
   ) -> Result<Option<TransferInfo>, Self::Error>;
 }
 
-pub trait BRC20DataStoreReadWrite: DataStoreReadOnly {
+pub trait DataStoreReadWrite: DataStoreReadOnly {
   fn update_token_balance(
     &self,
     script_key: &ScriptKey,

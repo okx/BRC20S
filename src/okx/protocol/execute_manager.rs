@@ -10,7 +10,7 @@ use crate::Result;
 pub struct CallManager<
   'a,
   O: store_ord::OrdDataStoreReadWrite,
-  N: store_brc20::BRC20DataStoreReadWrite,
+  N: store_brc20::DataStoreReadWrite,
   M: store_brc20s::DataStoreReadWrite,
 > {
   ord_store: &'a O,
@@ -21,7 +21,7 @@ pub struct CallManager<
 impl<
     'a,
     O: store_ord::OrdDataStoreReadWrite,
-    N: store_brc20::BRC20DataStoreReadWrite,
+    N: store_brc20::DataStoreReadWrite,
     M: store_brc20s::DataStoreReadWrite,
   > CallManager<'a, O, N, M>
 {

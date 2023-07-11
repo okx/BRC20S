@@ -1,7 +1,7 @@
 use crate::okx::datastore::ord;
 
-use crate::okx::datastore::brc20::redb as db_brc20;
-use crate::okx::datastore::brc20s::redb as db_brc20s;
+use crate::okx::datastore::brc20::redb as brc20_db;
+use crate::okx::datastore::brc20s::redb as brc20s_db;
 
 use {
   self::inscription_updater::InscriptionUpdater,
@@ -603,8 +603,8 @@ impl Updater {
     ProtocolManager::new(
       &index.client,
       &ord::OrdDbReadWriter::new(wtx),
-      &db_brc20::DataStore::new(wtx),
-      &db_brc20s::DataStore::new(wtx),
+      &brc20_db::DataStore::new(wtx),
+      &brc20s_db::DataStore::new(wtx),
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
     )

@@ -84,17 +84,14 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
 impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
-  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error> {
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC20_BALANCES)?
         .range(min_script_tick_key(script_key).as_str()..max_script_tick_key(&script_key).as_str())?
         .flat_map(|result| {
-          result.map(|(_, data)| {
-            let bal = bincode::deserialize::<StoreBalance>(data.value()).unwrap();
-            (bal.tick, bal.balance)
-          })
+          result.map(|(_, data)| bincode::deserialize::<Balance>(data.value()).unwrap())
         })
         .collect(),
     )
@@ -110,11 +107,7 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
         .wrapper
         .open_table(BRC20_BALANCES)?
         .get(script_tick_key(script_key, tick).as_str())?
-        .map(|v| {
-          let bal = bincode::deserialize::<StoreBalance>(v.value()).unwrap();
-          assert_eq!(&bal.tick, tick);
-          bal.balance
-        }),
+        .map(|v| bincode::deserialize::<Balance>(v.value()).unwrap()),
     )
   }
 

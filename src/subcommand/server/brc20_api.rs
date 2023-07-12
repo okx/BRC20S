@@ -288,20 +288,13 @@ pub(crate) async fn brc20_tick_info(
   Path(tick): Path<String>,
 ) -> ApiResult<TickInfo> {
   log::debug!("rpc: get brc20_tick_info: {}", tick);
-  if tick.as_bytes().len() != 4 {
-    return Err(ApiError::bad_request(brc20_api::ERR_TICK_LENGTH));
-  }
-  let tick = tick.to_lowercase();
-
+  let tick =
+    brc20::Tick::from_str(&tick).map_err(|_| ApiError::bad_request(brc20_api::ERR_TICK_LENGTH))?;
   let tick_info = &index
     .brc20_get_tick_info(&tick)?
     .ok_or_api_not_found("tick not found")?;
 
   log::debug!("rpc: get brc20_tick_info: {:?} {:?}", tick, tick_info);
-
-  if tick_info.tick != brc20::Tick::from_str(&tick).unwrap() {
-    return Err(ApiError::internal("db: not match"));
-  }
 
   Ok(Json(ApiResponse::ok(tick_info.into())))
 }

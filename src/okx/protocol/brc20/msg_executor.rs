@@ -51,9 +51,7 @@ impl ExecutionMessage {
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      // Only transfer operations will encounter the situation where new_satpoint.outpoint.txid != msg.txid.
-      // The engraving operation has been filtered out in the previous resolve_message step.
-      to: if msg.new_satpoint.unwrap().outpoint.txid == msg.txid {
+      to: if msg.sat_in_outputs {
         Some(utils::get_script_key_on_satpoint(
           msg.new_satpoint.unwrap(),
           ord_store,
@@ -120,14 +118,13 @@ fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataSt
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = deploy.tick.parse::<Tick>()?;
-  let lower_tick = tick.to_lowercase();
 
-  if let Some(_) = brc20_store
-    .get_token_info(&lower_tick)
+  if let Some(stored_tick_info) = brc20_store
+    .get_token_info(&tick)
     .map_err(|e| Error::LedgerError(e))?
   {
     return Err(Error::BRC20Error(BRC20Error::DuplicateTick(
-      lower_tick.as_str().to_string(),
+      stored_tick_info.tick.to_string(),
     )));
   }
 
@@ -154,7 +151,7 @@ fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataSt
   if limit.sign() == Sign::NoSign || limit > MAXIMUM_SUPPLY.to_owned() || limit.scale() > dec as i64
   {
     return Err(Error::BRC20Error(BRC20Error::MintLimitOutOfRange(
-      lower_tick.as_str().to_string(),
+      tick.to_lowercase().to_string(),
       limit.to_string(),
     )));
   }
@@ -165,7 +162,7 @@ fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataSt
   let new_info = TokenInfo {
     inscription_id: msg.inscription_id,
     inscription_number: msg.inscription_number,
-    tick,
+    tick: tick.clone(),
     decimal: dec,
     supply,
     limit_per_mint: limit,
@@ -176,7 +173,7 @@ fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataSt
     deployed_timestamp: context.blocktime,
   };
   brc20_store
-    .insert_token_info(&lower_tick, &new_info)
+    .insert_token_info(&tick, &new_info)
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(Event::Deploy(DeployEvent {
@@ -198,12 +195,11 @@ fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStor
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = mint.tick.parse::<Tick>()?;
-  let lower_tick = tick.to_lowercase();
 
   let token_info = brc20_store
-    .get_token_info(&lower_tick)
+    .get_token_info(&tick)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(BRC20Error::TickNotFound(lower_tick.as_str().to_string()))?;
+    .ok_or(BRC20Error::TickNotFound(tick.to_string()))?;
 
   let base = BIGDECIMAL_TEN.checked_powu(token_info.decimal as u64)?;
 
@@ -229,7 +225,7 @@ fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStor
 
   if minted >= supply {
     return Err(Error::BRC20Error(BRC20Error::TickMinted(
-      token_info.tick.as_str().to_string(),
+      token_info.tick.to_string(),
     )));
   }
 
@@ -249,9 +245,9 @@ fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStor
 
   // get or initialize user balance.
   let mut balance = brc20_store
-    .get_balance(&to_script_key, &lower_tick)
+    .get_balance(&to_script_key, &tick)
     .map_err(|e| Error::LedgerError(e))?
-    .map_or(Balance::new(), |v| v);
+    .map_or(Balance::new(&tick), |v| v);
 
   // add amount to available balance.
   balance.overall_balance = Into::<Num>::into(balance.overall_balance)
@@ -260,13 +256,13 @@ fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStor
 
   // store to database.
   brc20_store
-    .update_token_balance(&to_script_key, &lower_tick, balance)
+    .update_token_balance(&to_script_key, balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   // update token minted.
   let minted = minted.checked_add(&amt)?.checked_to_u128()?;
   brc20_store
-    .update_mint_token_info(&lower_tick, minted, context.blockheight)
+    .update_mint_token_info(&tick, minted, context.blockheight)
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(Event::Mint(MintEvent {
@@ -291,12 +287,11 @@ fn process_inscribe_transfer<
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = transfer.tick.parse::<Tick>()?;
-  let lower_tick = tick.to_lowercase();
 
   let token_info = brc20_store
-    .get_token_info(&lower_tick)
+    .get_token_info(&tick)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(BRC20Error::TickNotFound(lower_tick.as_str().to_string()))?;
+    .ok_or(BRC20Error::TickNotFound(tick.to_string()))?;
 
   let base = BIGDECIMAL_TEN.checked_powu(token_info.decimal as u64)?;
 
@@ -316,9 +311,9 @@ fn process_inscribe_transfer<
   }
 
   let mut balance = brc20_store
-    .get_balance(&to_script_key, &lower_tick)
+    .get_balance(&to_script_key, &tick)
     .map_err(|e| Error::LedgerError(e))?
-    .map_or(Balance::new(), |v| v);
+    .map_or(Balance::new(&tick), |v| v);
 
   let overall = Into::<Num>::into(balance.overall_balance);
   let transferable = Into::<Num>::into(balance.transferable_balance);
@@ -334,7 +329,7 @@ fn process_inscribe_transfer<
 
   let amt = amt.checked_to_u128()?;
   brc20_store
-    .update_token_balance(&to_script_key, &lower_tick, balance)
+    .update_token_balance(&to_script_key, balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   let inscription = TransferableLog {
@@ -345,7 +340,7 @@ fn process_inscribe_transfer<
     owner: to_script_key,
   };
   brc20_store
-    .insert_transferable(&inscription.owner, &lower_tick, inscription.clone())
+    .insert_transferable(&inscription.owner, &tick, inscription.clone())
     .map_err(|e| Error::LedgerError(e))?;
 
   brc20_store
@@ -383,18 +378,18 @@ fn process_transfer<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::Data
     )));
   }
 
-  let lower_tick = transferable.tick.to_lowercase();
+  let tick = transferable.tick;
 
   let token_info = brc20_store
-    .get_token_info(&lower_tick)
+    .get_token_info(&tick)
     .map_err(|e| Error::LedgerError(e))?
-    .ok_or(BRC20Error::TickNotFound(lower_tick.as_str().to_string()))?;
+    .ok_or(BRC20Error::TickNotFound(tick.to_string()))?;
 
   // update from key balance.
   let mut from_balance = brc20_store
-    .get_balance(&msg.from, &lower_tick)
+    .get_balance(&msg.from, &tick)
     .map_err(|e| Error::LedgerError(e))?
-    .map_or(Balance::new(), |v| v);
+    .map_or(Balance::new(&tick), |v| v);
 
   let from_overall = Into::<Num>::into(from_balance.overall_balance);
   let from_transferable = Into::<Num>::into(from_balance.transferable_balance);
@@ -406,7 +401,7 @@ fn process_transfer<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::Data
   from_balance.transferable_balance = from_transferable;
 
   brc20_store
-    .update_token_balance(&msg.from, &lower_tick, from_balance)
+    .update_token_balance(&msg.from, from_balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   // redirect receiver to sender if transfer to conibase.
@@ -423,19 +418,19 @@ fn process_transfer<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::Data
 
   // update to key balance.
   let mut to_balance = brc20_store
-    .get_balance(&to_script_key, &lower_tick)
+    .get_balance(&to_script_key, &tick)
     .map_err(|e| Error::LedgerError(e))?
-    .map_or(Balance::new(), |v| v);
+    .map_or(Balance::new(&tick), |v| v);
 
   let to_overall = Into::<Num>::into(to_balance.overall_balance);
   to_balance.overall_balance = to_overall.checked_add(&amt)?.checked_to_u128()?;
 
   brc20_store
-    .update_token_balance(&to_script_key, &lower_tick, to_balance)
+    .update_token_balance(&to_script_key, to_balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   brc20_store
-    .remove_transferable(&msg.from, &lower_tick, msg.inscription_id)
+    .remove_transferable(&msg.from, &tick, msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
   brc20_store

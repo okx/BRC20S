@@ -23,7 +23,7 @@ impl<'db, 'a> DataStore<'db, 'a> {
 impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
   type Error = redb::Error;
 
-  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error> {
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_balances(script_key)
   }
 
@@ -79,16 +79,11 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   fn update_token_balance(
     &self,
     script_key: &ScriptKey,
-    tick: &Tick,
     new_balance: Balance,
   ) -> Result<(), Self::Error> {
-    let bal = StoreBalance {
-      tick: tick.clone(),
-      balance: new_balance,
-    };
     self.wtx.open_table(BRC20_BALANCES)?.insert(
-      script_tick_key(script_key, tick).as_str(),
-      bincode::serialize(&bal).unwrap().as_slice(),
+      script_tick_key(script_key, &new_balance.tick).as_str(),
+      bincode::serialize(&new_balance).unwrap().as_slice(),
     )?;
     Ok(())
   }
@@ -109,7 +104,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut info = self
       .get_token_info(tick)?
-      .expect(&format!("token {} not exist", tick.hex()));
+      .expect(&format!("token {} not exist", tick.as_str()));
 
     info.minted = minted_amt;
     info.latest_mint_number = minted_block_number;
@@ -245,46 +240,46 @@ mod tests {
     let tick2 = Tick::from_str("1234").unwrap();
     let tick3 = Tick::from_str(";23!").unwrap();
     let expect_balance1 = Balance {
+      tick: tick1.clone(),
       overall_balance: 10,
       transferable_balance: 10,
     };
     let expect_balance2 = Balance {
+      tick: tick2,
       overall_balance: 30,
       transferable_balance: 30,
     };
     let expect_balance3 = Balance {
+      tick: tick3,
       overall_balance: 100,
       transferable_balance: 30,
     };
     brc20db
-      .update_token_balance(&script, &tick1, expect_balance1.clone())
+      .update_token_balance(&script, expect_balance1.clone())
       .unwrap();
     brc20db
-      .update_token_balance(&script, &tick2, expect_balance2.clone())
+      .update_token_balance(&script, expect_balance2.clone())
       .unwrap();
     brc20db
-      .update_token_balance(&script, &tick3, expect_balance3.clone())
+      .update_token_balance(&script, expect_balance3.clone())
       .unwrap();
 
     let script2 =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
     assert_ne!(script.to_string(), script2.to_string());
     let expect_balance22 = Balance {
+      tick: tick1,
       overall_balance: 100,
       transferable_balance: 30,
     };
     brc20db
-      .update_token_balance(&script2, &tick1, expect_balance22.clone())
+      .update_token_balance(&script2, expect_balance22.clone())
       .unwrap();
 
     let mut all_balances = brc20db.get_balances(&script).unwrap();
-    all_balances.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
-    let mut expect = vec![
-      (tick2, expect_balance2),
-      (tick1, expect_balance1),
-      (tick3, expect_balance3),
-    ];
-    expect.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
+    all_balances.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    let mut expect = vec![expect_balance2, expect_balance1, expect_balance3];
+    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
     assert_eq!(all_balances, expect);
   }
 
@@ -298,19 +293,25 @@ mod tests {
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
     );
-    let lower_tick = Tick::from_str("abcd").unwrap();
+    let tick = Tick::from_str("ABCd").unwrap();
     let expect_balance = Balance {
+      tick: tick.clone(),
       overall_balance: 30,
       transferable_balance: 30,
     };
 
     brc20db
-      .update_token_balance(&script, &lower_tick, expect_balance.clone())
+      .update_token_balance(&script, expect_balance.clone())
       .unwrap();
 
-    let upper_tick = Tick::from_str("ABCd").unwrap();
     assert_eq!(
-      brc20db.get_balance(&script, &upper_tick).unwrap(),
+      brc20db.get_balance(&script, &tick).unwrap(),
+      Some(expect_balance.clone())
+    );
+    assert_eq!(
+      brc20db
+        .get_balance(&script, &tick.to_lowercase().into())
+        .unwrap(),
       Some(expect_balance)
     );
     assert_eq!(
@@ -350,8 +351,16 @@ mod tests {
 
     brc20db.insert_token_info(&upper_tick, &expect).unwrap();
 
-    let lower_tick = upper_tick.to_lowercase();
-    assert_eq!(brc20db.get_token_info(&lower_tick).unwrap(), Some(expect));
+    assert_eq!(
+      brc20db.get_token_info(&upper_tick).unwrap(),
+      Some(expect.clone())
+    );
+    assert_eq!(
+      brc20db
+        .get_token_info(&upper_tick.to_lowercase().into())
+        .unwrap(),
+      Some(expect)
+    );
   }
 
   #[test]
@@ -464,6 +473,14 @@ mod tests {
     let upper_tick = Tick::from_str("ABcD").unwrap();
     assert_eq!(
       brc20db.get_token_info(&upper_tick).unwrap(),
+      Some(TokenInfo {
+        minted: org_info.minted + mint_amount,
+        latest_mint_number: mint_block,
+        ..org_info.clone()
+      })
+    );
+    assert_eq!(
+      brc20db.get_token_info(&tick).unwrap(),
       Some(TokenInfo {
         minted: org_info.minted + mint_amount,
         latest_mint_number: mint_block,

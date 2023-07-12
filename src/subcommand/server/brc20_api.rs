@@ -36,9 +36,7 @@ pub struct AllTickInfo {
 impl From<&brc20::TokenInfo> for TickInfo {
   fn from(tick_info: &brc20::TokenInfo) -> Self {
     Self {
-      tick: std::str::from_utf8(tick_info.tick.as_bytes())
-        .unwrap()
-        .to_string(),
+      tick: tick_info.tick.to_string(),
       inscription_id: tick_info.inscription_id.to_string(),
       inscription_number: tick_info.inscription_number,
       supply: tick_info.supply.to_string(),
@@ -80,9 +78,7 @@ impl From<&brc20::Receipt> for TxEvent {
     match &event.result {
       Ok(result) => match result {
         brc20::Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
-          tick: std::str::from_utf8(deploy_event.tick.as_bytes())
-            .unwrap()
-            .to_string(),
+          tick: deploy_event.tick.to_string(),
           inscription_id: event.inscription_id.to_string(),
           inscription_number: event.inscription_number,
           old_satpoint: event.old_satpoint,
@@ -97,9 +93,7 @@ impl From<&brc20::Receipt> for TxEvent {
           event: String::from("deploy"),
         }),
         brc20::Event::Mint(mint_event) => Self::Mint(MintEvent {
-          tick: std::str::from_utf8(mint_event.tick.as_bytes())
-            .unwrap()
-            .to_string(),
+          tick: mint_event.tick.to_string(),
           inscription_id: event.inscription_id.to_string(),
           inscription_number: event.inscription_number,
           old_satpoint: event.old_satpoint,
@@ -112,9 +106,7 @@ impl From<&brc20::Receipt> for TxEvent {
           event: String::from("mint"),
         }),
         brc20::Event::InscribeTransfer(trans1) => Self::InscribeTransfer(InscribeTransferEvent {
-          tick: std::str::from_utf8(trans1.tick.as_bytes())
-            .unwrap()
-            .to_string(),
+          tick: trans1.tick.to_string(),
           inscription_id: event.inscription_id.to_string(),
           inscription_number: event.inscription_number,
           old_satpoint: event.old_satpoint,
@@ -127,9 +119,7 @@ impl From<&brc20::Receipt> for TxEvent {
           event: String::from("inscribeTransfer"),
         }),
         brc20::Event::Transfer(trans2) => Self::Transfer(TransferEvent {
-          tick: std::str::from_utf8(trans2.tick.as_bytes())
-            .unwrap()
-            .to_string(),
+          tick: trans2.tick.to_string(),
           inscription_id: event.inscription_id.to_string(),
           inscription_number: event.inscription_number,
           old_satpoint: event.old_satpoint,
@@ -378,8 +368,8 @@ pub(crate) async fn brc20_all_balance(
   Ok(Json(ApiResponse::ok(AllBalance {
     balance: all_balance
       .iter()
-      .map(|(tick, bal)| Balance {
-        tick: std::str::from_utf8(tick.as_bytes()).unwrap().to_string(),
+      .map(|bal| Balance {
+        tick: bal.tick.to_string(),
         available_balance: (bal.overall_balance - bal.transferable_balance).to_string(),
         transferable_balance: bal.transferable_balance.to_string(),
         overall_balance: bal.overall_balance.to_string(),
@@ -523,7 +513,7 @@ pub(super) fn get_operations_by_txid(
   let rtx = index.begin_read()?.0;
   let brc20_store = brc20_db::DataStoreReader::new(&rtx);
   for operation in operations {
-    match brc20_protocol::resolve_message(&brc20_store, &new_inscriptions, &operation)? {
+    match brc20_protocol::Message::resolve(&brc20_store, &new_inscriptions, &operation)? {
       None => continue,
       Some(msg) => brc20_operation_infos.push(InscriptionInfo {
         action: match msg.op {

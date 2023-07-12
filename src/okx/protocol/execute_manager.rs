@@ -151,7 +151,8 @@ fn convert_msg_brc20_to_brc20s(
     commit_input_satpoint: None,
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
-    op: brc20s_proto::Operation::PassiveUnStake(op),
+    op: brc20s::Operation::PassiveUnStake(op),
+    sat_in_outputs: msg.sat_in_outputs.clone(),
   }
 }
 
@@ -162,6 +163,7 @@ fn convert_msg_brc20s(msg: &brc20s::Message, op: brc20s_proto::PassiveUnStake) -
     commit_input_satpoint: None,
     old_satpoint: msg.old_satpoint.clone(),
     new_satpoint: msg.new_satpoint.clone(),
-    op: brc20s_proto::Operation::PassiveUnStake(op),
+    op: brc20s::Operation::PassiveUnStake(op),
+    sat_in_outputs: msg.sat_in_outputs.clone(),
   }
 }

@@ -1185,11 +1185,10 @@ impl Index {
   pub(crate) fn brc20_get_all_balance_by_address(
     &self,
     address: &bitcoin::Address,
-  ) -> Result<Vec<(brc20::Tick, brc20::Balance)>> {
+  ) -> Result<Vec<brc20::Balance>> {
     let wtx = self.database.begin_read().unwrap();
     let brc20_db = brc20_db::DataStoreReader::new(&wtx);
-    let all_balance = brc20_db.get_balances(&ScriptKey::from_address(address.clone()))?;
-    Ok(all_balance)
+    Ok(brc20_db.get_balances(&ScriptKey::from_address(address.clone()))?)
   }
 
   pub(crate) fn get_transaction_info(

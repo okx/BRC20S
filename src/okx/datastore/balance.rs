@@ -28,7 +28,7 @@ pub fn get_user_common_balance<'a, L: brc20s::DataStoreReadWrite, M: brc20::Data
     PledgedTick::BRC20Tick(tick) => {
       let balance = match brc20_ledger.get_balance(&script, tick) {
         Ok(Some(brc20_balance)) => brc20_balance,
-        _ => brc20::Balance::new(),
+        _ => brc20::Balance::new(&tick),
       };
       Num::from(balance.overall_balance)
     }

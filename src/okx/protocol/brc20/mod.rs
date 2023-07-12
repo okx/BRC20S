@@ -18,16 +18,17 @@ use self::error::Error;
 pub(crate) use self::{
   error::JSONError,
   msg_executor::{execute, ExecutionMessage},
-  msg_resolver::resolve_message,
   num::Num,
   operation::{deserialize_brc20_operation, Deploy, Mint, Operation, Transfer},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Message {
   pub txid: Txid,
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
+  // `new_satpoint` may be none when the transaction is not yet confirmed and the sat has not been bound to the current outputs.
   pub new_satpoint: Option<SatPoint>,
   pub op: Operation,
+  pub sat_in_outputs: bool,
 }

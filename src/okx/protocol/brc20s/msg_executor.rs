@@ -66,16 +66,12 @@ impl ExecutionMessage {
       new_satpoint: msg
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
-      commit_from: match msg.commit_input_satpoint {
-        Some(satpoint) => Some(utils::get_script_key_on_satpoint(
-          satpoint, ord_store, network,
-        )?),
-        None => None,
-      },
+      commit_from: msg
+        .commit_input_satpoint
+        .map(|satpoint| utils::get_script_key_on_satpoint(satpoint, ord_store, network))
+        .transpose()?,
       from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
-      // Only transfer operations will encounter the situation where new_satpoint.outpoint.txid != msg.txid.
-      // The engraving operation has been filtered out in the previous resolve_message step.
-      to: if msg.new_satpoint.unwrap().outpoint.txid == msg.txid {
+      to: if msg.sat_in_outputs {
         Some(utils::get_script_key_on_satpoint(
           msg.new_satpoint.unwrap(),
           ord_store,
@@ -88,23 +84,8 @@ impl ExecutionMessage {
       version: HashMap::new(),
     })
   }
-
-  pub fn from(msg: &ExecutionMessage) -> Self {
-    Self {
-      txid: msg.txid.clone(),
-      inscription_id: msg.inscription_id.clone(),
-      inscription_number: msg.inscription_number.clone(),
-      commit_input_satpoint: msg.commit_input_satpoint.clone(),
-      old_satpoint: msg.old_satpoint.clone(),
-      new_satpoint: msg.new_satpoint.clone(),
-      commit_from: msg.commit_from.clone(),
-      from: msg.from.clone(),
-      to: msg.to.clone(),
-      op: msg.op.clone(),
-      version: msg.version.clone(),
-    }
-  }
 }
+
 pub fn execute<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
   brc20_store: &'a M,
@@ -657,7 +638,7 @@ fn process_passive_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStor
   let from_script_key = msg.from.clone();
 
   // passive msg set from/commit_from/to = msg.from for passing unstake
-  let mut passive_msg = ExecutionMessage::from(msg);
+  let mut passive_msg = msg.clone();
   passive_msg.commit_from = Some(msg.from.clone());
   passive_msg.to = Some(msg.from.clone());
 
@@ -1008,7 +989,7 @@ mod tests {
   use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
   use crate::okx::datastore::brc20::redb as brc20_db;
   use crate::okx::datastore::brc20::DataStoreReadWrite;
-  use crate::okx::datastore::brc20::{Balance as BRC20Banalce, TokenInfo};
+  use crate::okx::datastore::brc20::{Balance as BRC20Balance, TokenInfo};
   use crate::okx::datastore::brc20s::redb as brc20s_db;
   use crate::okx::datastore::brc20s::DataStoreReadOnly;
   use crate::okx::datastore::brc20s::DataStoreReadWrite as BRC20SDataStoreReadWrite;
@@ -1104,11 +1085,12 @@ mod tests {
 
     let base = BIGDECIMAL_TEN.checked_powu(dec as u64)?;
     let overall_balance = Num::from(balance).checked_mul(&base)?.checked_to_u128()?;
-    let balance = BRC20Banalce {
+    let balance = BRC20Balance {
+      tick: token.clone(),
       overall_balance,
       transferable_balance: 0_u128,
     };
-    brc20_store.update_token_balance(addr, &token.to_lowercase(), balance);
+    brc20_store.update_token_balance(addr, balance);
     Ok(())
   }
 
@@ -2883,11 +2865,12 @@ mod tests {
       latest_mint_number: 0,
     };
     brc20_data_store.insert_token_info(&token, &token_info);
-    let balance = BRC20Banalce {
+    let balance = BRC20Balance {
+      tick: token.clone(),
       overall_balance: 3000000000_u128,
       transferable_balance: 0_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -3475,11 +3458,12 @@ mod tests {
       latest_mint_number: 0,
     };
     brc20_data_store.insert_token_info(&token, &token_info);
-    let balance = BRC20Banalce {
+    let balance = BRC20Balance {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 1000000000_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -3696,11 +3680,12 @@ mod tests {
       latest_mint_number: 0,
     };
     brc20_data_store.insert_token_info(&token, &token_info);
-    let balance = BRC20Banalce {
+    let balance = BRC20Balance {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 1000000000_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -3973,11 +3958,12 @@ mod tests {
       latest_mint_number: 0,
     };
     brc20_data_store.insert_token_info(&token, &token_info);
-    let balance = BRC20Banalce {
+    let balance = BRC20Balance {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 1000000000_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -4101,11 +4087,12 @@ mod tests {
       };
 
       //mock brc20 transfer
-      let balance = BRC20Banalce {
+      let balance = BRC20Balance {
+        tick: token.clone(),
         overall_balance: 0_u128,
         transferable_balance: 0_u128,
       };
-      let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+      let result = brc20_data_store.update_token_balance(&script, balance);
       match result {
         Err(error) => {
           panic!("update_token_balance err: {}", error)
@@ -4206,11 +4193,12 @@ mod tests {
       latest_mint_number: 0,
     };
     brc20_data_store.insert_token_info(&token, &token_info);
-    let balance = BRC20Banalce {
+    let balance = BRC20Balance {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 1000000000_u128,
     };
-    let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let result = brc20_data_store.update_token_balance(&script, balance);
     match result {
       Err(error) => {
         panic!("update_token_balance err: {}", error)
@@ -4334,11 +4322,12 @@ mod tests {
       };
 
       //mock brc20 transfer
-      let balance = BRC20Banalce {
+      let balance = BRC20Balance {
+        tick: token.clone(),
         overall_balance: 0_u128,
         transferable_balance: 0_u128,
       };
-      let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+      let result = brc20_data_store.update_token_balance(&script, balance);
       match result {
         Err(error) => {
           panic!("update_token_balance err: {}", error)
@@ -4373,11 +4362,12 @@ mod tests {
       };
 
       //mock brc20 transfer
-      let balance = BRC20Banalce {
+      let balance = BRC20Balance {
+        tick: token.clone(),
         overall_balance: 0_u128,
         transferable_balance: 0_u128,
       };
-      let result = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+      let result = brc20_data_store.update_token_balance(&script, balance);
       match result {
         Err(error) => {
           panic!("update_token_balance err: {}", error)
@@ -4427,11 +4417,12 @@ mod tests {
       };
 
       //mock brc20 transfer
-      let balance = BRC20Banalce {
+      let balance = BRC20Balance {
+        tick: token.clone(),
         overall_balance: 0_u128,
         transferable_balance: 0_u128,
       };
-      let result = brc20_data_store.update_token_balance(&script1, &token.to_lowercase(), balance);
+      let result = brc20_data_store.update_token_balance(&script1, balance);
       match result {
         Err(error) => {
           panic!("update_token_balance err: {}", error)
@@ -4611,11 +4602,12 @@ mod tests {
       latest_mint_number: 0,
     };
     let _ = brc20_data_store.insert_token_info(&token, &token_info);
-    let balance = BRC20Banalce {
+    let balance = BRC20Balance {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 0_u128,
     };
-    let _ = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance);
+    let _ = brc20_data_store.update_token_balance(&script, balance);
 
     // deploy brc20-s
     let deploy = Deploy {
@@ -5011,12 +5003,13 @@ mod tests {
       latest_mint_number: 0,
     };
     let _ = brc20_data_store.insert_token_info(&token, &token_info);
-    let balance = BRC20Banalce {
+    let balance = BRC20Balance {
+      tick: token.clone(),
       overall_balance: 2000000000_u128,
       transferable_balance: 0_u128,
     };
-    let _ = brc20_data_store.update_token_balance(&script, &token.to_lowercase(), balance.clone());
-    let _ = brc20_data_store.update_token_balance(&script1, &token.to_lowercase(), balance.clone());
+    let _ = brc20_data_store.update_token_balance(&script, balance.clone());
+    let _ = brc20_data_store.update_token_balance(&script1, balance.clone());
 
     // deploy brc20-s
     let deploy = Deploy {

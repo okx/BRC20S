@@ -2,7 +2,7 @@ use super::*;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
 use crate::okx::datastore::ord as ord_store;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::{
   okx::{datastore::ord::operation::InscriptionOp, protocol::Message},
@@ -17,13 +17,11 @@ pub struct MsgResolveManager<
   N: brc20_store::DataStoreReadWrite,
   M: brc20s_store::DataStoreReadWrite,
 > {
-  protocols: HashSet<ProtocolKind>,
+  protocol_start_height: HashMap<ProtocolKind, u64>,
   client: &'a Client,
   ord_store: &'a O,
   brc20_store: &'a N,
   brc20s_store: &'a M,
-  first_brc20_height: u64,
-  first_brc20s_height: u64,
 }
 
 impl<
@@ -41,17 +39,15 @@ impl<
     first_brc20_height: u64,
     first_brc20s_height: u64,
   ) -> Self {
-    let mut protocols: HashSet<ProtocolKind> = HashSet::new();
-    protocols.insert(ProtocolKind::BRC20);
-    protocols.insert(ProtocolKind::BRC20S);
+    let mut protocol_start_height: HashMap<ProtocolKind, u64> = HashMap::new();
+    protocol_start_height.insert(ProtocolKind::BRC20, first_brc20_height);
+    protocol_start_height.insert(ProtocolKind::BRC20S, first_brc20s_height);
     Self {
-      protocols,
       client,
       ord_store,
       brc20_store,
       brc20s_store,
-      first_brc20_height,
-      first_brc20s_height,
+      protocol_start_height,
     }
   }
 
@@ -91,38 +87,56 @@ impl<
         let operation = operation_iter.next().unwrap();
 
         // Parse BRC20 message through inscription operation.
-        if self.protocols.contains(&ProtocolKind::BRC20)
-          && context.blockheight >= self.first_brc20_height
+        if self
+          .protocol_start_height
+          .get(&ProtocolKind::BRC20)
+          .map(|height| context.blockheight >= height.clone())
+          .unwrap_or(false)
         {
           if let Some(msg) =
-            brc20::resolve_message(self.brc20_store, &new_inscriptions, &operation)?
-              .map(Message::BRC20)
+            brc20::Message::resolve(self.brc20_store, &new_inscriptions, &operation)?
           {
-            messages.push(msg);
+            log::debug!(
+              "BRC20 resolved the message from {:?}, msg {:?}",
+              operation,
+              msg
+            );
+            messages.push(Message::BRC20(msg));
             continue;
           }
         }
 
-        // Parse BRC20S message through inscription operation.
-        if self.protocols.contains(&ProtocolKind::BRC20S)
-          && context.blockheight >= self.first_brc20s_height
+        // Parse BRC30 message through inscription operation.
+        if self
+          .protocol_start_height
+          .get(&ProtocolKind::BRC20S)
+          .map(|height| context.blockheight >= height.clone())
+          .unwrap_or(false)
         {
-          if let Some(msg) = brc20s::resolve_message(
+          if let Some(msg) = brc20s::Message::resolve(
             self.client,
             self.ord_store,
             self.brc20s_store,
             &new_inscriptions,
             &operation,
             &mut outpoint_to_txout_cache,
-          )?
-          .map(Message::BRC20S)
-          {
-            messages.push(msg);
+          )? {
+            log::debug!(
+              "BRC20S resolved the message from {:?}, msg {:?}",
+              operation,
+              msg
+            );
+            messages.push(Message::BRC20S(msg));
             continue;
           }
         }
       }
     }
+    self.update_outpoint_to_txout(outpoint_to_txout_cache)?;
+    Ok(messages)
+  }
+
+  fn update_outpoint_to_txout(&self, outpoint_to_txout_cache: HashMap<OutPoint, TxOut>) -> Result {
     for (outpoint, txout) in outpoint_to_txout_cache {
       self
         .ord_store
@@ -132,6 +146,6 @@ impl<
           outpoint
         )))?;
     }
-    Ok(messages)
+    Ok(())
   }
 }

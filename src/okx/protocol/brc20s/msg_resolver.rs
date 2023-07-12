@@ -15,70 +15,75 @@ use bitcoin::{OutPoint, TxOut};
 use bitcoincore_rpc::Client;
 use std::collections::HashMap;
 
-pub(crate) fn resolve_message<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>(
-  client: &Client,
-  ord_store: &'a O,
-  brc20s_store: &'a M,
-  new_inscriptions: &Vec<Inscription>,
-  op: &InscriptionOp,
-  outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
-) -> Result<Option<Message>> {
-  log::debug!("BRC20S resolving the message from {:?}", op);
-  let brc20s_operation = match op.action {
-    Action::New {
-      cursed: false,
-      unbound: false,
-    } => {
-      if op.new_satpoint.is_none() || op.new_satpoint.unwrap().outpoint.txid != op.txid {
-        log::debug!("BRC20S resolving filtered new inscription on coinbase tx");
-        return Ok(None);
+impl Message {
+  pub(crate) fn resolve<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>(
+    client: &Client,
+    ord_store: &'a O,
+    brc30_store: &'a M,
+    new_inscriptions: &Vec<Inscription>,
+    op: &InscriptionOp,
+    outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
+  ) -> Result<Option<Self>> {
+    log::debug!("BRC20S resolving the message from {:?}", op);
+    let sat_in_outputs = op
+      .new_satpoint
+      .map(|satpoint| satpoint.outpoint.txid == op.txid)
+      .unwrap_or(false);
+    let brc20s_operation = match op.action {
+      // New inscription is not `cursed` or `unbound`.
+      Action::New {
+        cursed: false,
+        unbound: false,
+      } if sat_in_outputs => {
+        match deserialize_brc20s_operation(
+          new_inscriptions
+            .get(usize::try_from(op.inscription_id.index).unwrap())
+            .unwrap(),
+          &op.action,
+        ) {
+          Ok(brc20s_operation) => brc20s_operation,
+          _ => return Ok(None),
+        }
       }
-      match deserialize_brc20s_operation(
-        new_inscriptions
-          .get(usize::try_from(op.inscription_id.index).unwrap())
-          .unwrap(),
-        &op.action,
-      ) {
-        Ok(brc20s_operation) => brc20s_operation,
+      // Transfered inscription operation.
+      // Attempt to retrieve the `InscribeTransfer` Inscription information from the data store of BRC20S.
+      Action::Transfer => match brc30_store.get_inscribe_transfer_inscription(op.inscription_id) {
+        // Ignore non-first transfer operations.
+        Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
+          Operation::Transfer(Transfer {
+            tick_id: transfer_info.tick_id.hex(),
+            tick: transfer_info.tick_name.as_str().to_string(),
+            amount: transfer_info.amt.to_string(),
+          })
+        }
+        Err(e) => {
+          return Err(anyhow!(
+            "failed to get inscribe transfer inscription for {}! error: {e}",
+            op.inscription_id,
+          ))
+        }
         _ => return Ok(None),
-      }
-    }
-    Action::Transfer => match brc20s_store.get_inscribe_transfer_inscription(op.inscription_id) {
-      Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
-        Operation::Transfer(Transfer {
-          tick_id: transfer_info.tick_id.hex(),
-          tick: transfer_info.tick_name.as_str().to_string(),
-          amount: transfer_info.amt.to_string(),
-        })
-      }
-      Err(e) => {
-        return Err(anyhow!(
-          "failed to get inscribe transfer inscription for {}! error: {e}",
-          op.inscription_id,
-        ))
-      }
+      },
       _ => return Ok(None),
-    },
-    _ => return Ok(None),
-  };
-  let msg = Message {
-    txid: op.txid,
-    inscription_id: op.inscription_id,
-    old_satpoint: op.old_satpoint,
-    new_satpoint: op.new_satpoint,
-    commit_input_satpoint: match op.action {
-      Action::New { .. } => Some(get_commit_input_satpoint(
-        client,
-        ord_store,
-        op.old_satpoint,
-        outpoint_to_txout_cache,
-      )?),
-      Action::Transfer => None,
-    },
-    op: brc20s_operation,
-  };
-  log::debug!("BRC20S resolved the message from {:?}, msg {:?}", op, msg);
-  Ok(Some(msg))
+    };
+    Ok(Some(Self {
+      txid: op.txid,
+      inscription_id: op.inscription_id,
+      old_satpoint: op.old_satpoint,
+      new_satpoint: op.new_satpoint,
+      commit_input_satpoint: match op.action {
+        Action::New { .. } => Some(get_commit_input_satpoint(
+          client,
+          ord_store,
+          op.old_satpoint,
+          outpoint_to_txout_cache,
+        )?),
+        Action::Transfer => None,
+      },
+      op: brc20s_operation,
+      sat_in_outputs,
+    }))
+  }
 }
 
 fn get_commit_input_satpoint<'a, O: OrdDataStoreReadOnly>(
@@ -137,4 +142,276 @@ fn get_commit_input_satpoint<'a, O: OrdDataStoreReadOnly>(
     }
   }
   return Err(anyhow!("no match found for the commit offset!"));
+}
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::okx::datastore::{
+    brc20s::{redb::DataStore, DataStoreReadWrite, Tick, TickId, TransferInfo},
+    ord::OrdDbReadWriter,
+  };
+  use bitcoin::OutPoint;
+  use bitcoincore_rpc::{Auth, Client};
+  use redb::Database;
+  use std::{str::FromStr, vec};
+  use tempfile::NamedTempFile;
+  fn create_inscription(str: &str) -> Inscription {
+    Inscription::new(
+      Some("text/plain;charset=utf-8".as_bytes().to_vec()),
+      Some(str.as_bytes().to_vec()),
+    )
+  }
+
+  fn create_inscribe_operation(str: &str) -> (Vec<Inscription>, InscriptionOp) {
+    let inscriptions = vec![create_inscription(str)];
+    let txid =
+      Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
+    let op = InscriptionOp {
+      txid,
+      action: Action::New {
+        cursed: false,
+        unbound: false,
+      },
+      inscription_number: Some(1),
+      inscription_id: txid.into(),
+      old_satpoint: SatPoint {
+        outpoint: OutPoint {
+          txid: Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111")
+            .unwrap(),
+          vout: 0,
+        },
+        offset: 0,
+      },
+      new_satpoint: Some(SatPoint {
+        outpoint: OutPoint { txid, vout: 0 },
+        offset: 0,
+      }),
+    };
+    (inscriptions, op)
+  }
+
+  fn create_transfer_operation() -> InscriptionOp {
+    let txid =
+      Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
+
+    let inscription_id =
+      Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111")
+        .unwrap()
+        .into();
+
+    InscriptionOp {
+      txid,
+      action: Action::Transfer,
+      inscription_number: Some(1),
+      inscription_id,
+      old_satpoint: SatPoint {
+        outpoint: OutPoint {
+          txid: inscription_id.txid,
+          vout: 0,
+        },
+        offset: 0,
+      },
+      new_satpoint: Some(SatPoint {
+        outpoint: OutPoint { txid, vout: 0 },
+        offset: 0,
+      }),
+    }
+  }
+
+  #[test]
+  fn test_invalid_protocol() {
+    let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+    let db_file = NamedTempFile::new().unwrap();
+    let db = Database::create(db_file.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let ord_store = OrdDbReadWriter::new(&wtx);
+    let brc30_store = DataStore::new(&wtx);
+
+    let mut outpoint_to_txout_cache = HashMap::new();
+
+    let (inscriptions, op) = create_inscribe_operation(
+      r##"{"p":"brc30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##,
+    );
+    assert_matches!(
+      Message::resolve(
+        &client,
+        &ord_store,
+        &brc30_store,
+        &inscriptions,
+        &op,
+        &mut outpoint_to_txout_cache,
+      ),
+      Ok(None)
+    );
+  }
+
+  #[test]
+  fn test_cursed_or_unbound_inscription() {
+    let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+    let db_file = NamedTempFile::new().unwrap();
+    let db = Database::create(db_file.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let ord_store = OrdDbReadWriter::new(&wtx);
+    let brc30_store = DataStore::new(&wtx);
+
+    let mut outpoint_to_txout_cache = HashMap::new();
+
+    let (inscriptions, op) = create_inscribe_operation(
+      r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##,
+    );
+    let op = InscriptionOp {
+      action: Action::New {
+        cursed: true,
+        unbound: false,
+      },
+      ..op.clone()
+    };
+    assert_matches!(
+      Message::resolve(
+        &client,
+        &ord_store,
+        &brc30_store,
+        &inscriptions,
+        &op,
+        &mut outpoint_to_txout_cache,
+      ),
+      Ok(None)
+    );
+
+    let op2 = InscriptionOp {
+      action: Action::New {
+        cursed: false,
+        unbound: true,
+      },
+      ..op.clone()
+    };
+    assert_matches!(
+      Message::resolve(
+        &client,
+        &ord_store,
+        &brc30_store,
+        &inscriptions,
+        &op2,
+        &mut outpoint_to_txout_cache,
+      ),
+      Ok(None)
+    );
+    let op3 = InscriptionOp {
+      action: Action::New {
+        cursed: true,
+        unbound: true,
+      },
+      ..op.clone()
+    };
+    assert_matches!(
+      Message::resolve(
+        &client,
+        &ord_store,
+        &brc30_store,
+        &inscriptions,
+        &op3,
+        &mut outpoint_to_txout_cache,
+      ),
+      Ok(None)
+    );
+  }
+
+  #[test]
+  fn test_invalid_transfer() {
+    let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+    let db_file = NamedTempFile::new().unwrap();
+    let db = Database::create(db_file.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let ord_store = OrdDbReadWriter::new(&wtx);
+    let brc30_store = DataStore::new(&wtx);
+
+    let mut outpoint_to_txout_cache = HashMap::new();
+    // inscribe transfer not found
+    let op = create_transfer_operation();
+    assert_matches!(
+      Message::resolve(
+        &client,
+        &ord_store,
+        &brc30_store,
+        &vec![],
+        &op,
+        &mut outpoint_to_txout_cache,
+      ),
+      Ok(None)
+    );
+
+    // non-first transfer operations.
+    let op1 = InscriptionOp {
+      old_satpoint: SatPoint {
+        outpoint: OutPoint {
+          txid: Txid::from_str("3111111111111111111111111111111111111111111111111111111111111111")
+            .unwrap(),
+          vout: 0,
+        },
+        offset: 0,
+      },
+      ..op.clone()
+    };
+    assert_matches!(
+      Message::resolve(
+        &client,
+        &ord_store,
+        &brc30_store,
+        &vec![],
+        &op1,
+        &mut outpoint_to_txout_cache,
+      ),
+      Ok(None)
+    );
+  }
+
+  #[test]
+  fn test_valid_transfer() {
+    let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+    let db_file = NamedTempFile::new().unwrap();
+    let db = Database::create(db_file.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+    let ord_store = OrdDbReadWriter::new(&wtx);
+    let brc30_store = DataStore::new(&wtx);
+
+    let mut outpoint_to_txout_cache = HashMap::new();
+
+    // inscribe transfer not found
+    let op = create_transfer_operation();
+
+    brc30_store
+      .insert_inscribe_transfer_inscription(
+        op.inscription_id,
+        TransferInfo {
+          tick_id: TickId::from_str("a3668daeaa").unwrap(),
+          tick_name: Tick::from_str("ordi").unwrap(),
+          amt: 100,
+        },
+      )
+      .unwrap();
+    let _msg = Message {
+      txid: op.txid,
+      inscription_id: op.inscription_id,
+      old_satpoint: op.old_satpoint,
+      new_satpoint: op.new_satpoint,
+      commit_input_satpoint: None,
+      op: Operation::Transfer(Transfer {
+        tick_id: "a3668daeaa".to_string(),
+        tick: "ordi".to_string(),
+        amount: "100".to_string(),
+      }),
+      sat_in_outputs: true,
+    };
+    assert_matches!(
+      Message::resolve(
+        &client,
+        &ord_store,
+        &brc30_store,
+        &vec![],
+        &op,
+        &mut outpoint_to_txout_cache,
+      ),
+      Ok(Some(_msg))
+    );
+  }
 }

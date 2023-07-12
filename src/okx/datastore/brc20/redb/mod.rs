@@ -1,8 +1,8 @@
 mod read_only;
 mod read_write;
 
-use super::{ScriptKey, Tick};
-use crate::{okx::datastore::brc20::storage_balance::StoreBalance, InscriptionId, Result};
+use super::{LowerTick, ScriptKey, Tick};
+use crate::{InscriptionId, Result};
 
 use bitcoin::Txid;
 use redb::TableDefinition;
@@ -22,9 +22,9 @@ fn script_tick_key(script: &ScriptKey, tick: &Tick) -> String {
 }
 
 fn min_script_tick_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), Tick::min_hex())
+  format!("{}_{}", script.to_string(), LowerTick::min_hex())
 }
 
 fn max_script_tick_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), Tick::max_hex())
+  format!("{}_{}", script.to_string(), LowerTick::max_hex())
 }

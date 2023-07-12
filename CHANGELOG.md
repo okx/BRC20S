@@ -1,6 +1,13 @@
 Changelog
 =========
 
+[0.8.0](https://github.com/okx/ord/releases/tag/0.8.0) - 2023-07-12
+---------------------------------------------------------------------
+### New Feature
+- Support BRC20S protocol
+### Changed
+- merge ordinals to v0.8.0 (#99)
+
 [0.7.0](https://github.com/okx/ord/releases/tag/0.7.0) - 2023-05-25
 ---------------------------------------------------------------------
 ### Added

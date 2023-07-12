@@ -1166,10 +1166,10 @@ impl Index {
     )
   }
 
-  pub(crate) fn brc20_get_tick_info(&self, name: &String) -> Result<Option<brc20::TokenInfo>> {
+  pub(crate) fn brc20_get_tick_info(&self, name: &brc20::Tick) -> Result<Option<brc20::TokenInfo>> {
     let wtx = self.database.begin_read().unwrap();
     let brc20_db = brc20_db::DataStoreReader::new(&wtx);
-    let info = brc20_db.get_token_info(&brc20::Tick::from_str(name)?)?;
+    let info = brc20_db.get_token_info(name)?;
     Ok(info)
   }
 

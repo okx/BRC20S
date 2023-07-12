@@ -1,7 +1,7 @@
-use crate::okx::datastore::brc20::{BRC20DataStoreReadOnly, BRC20Error};
+use crate::okx::datastore::brc20::{BRC20Error, DataStoreReadOnly};
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<L: BRC20DataStoreReadOnly> {
+pub enum Error<L: DataStoreReadOnly> {
   #[error("brc20 error: {0}")]
   BRC20Error(BRC20Error),
 
@@ -27,7 +27,7 @@ pub enum JSONError {
   ParseOperationJsonError(String),
 }
 
-impl<L: BRC20DataStoreReadOnly> From<BRC20Error> for Error<L> {
+impl<L: DataStoreReadOnly> From<BRC20Error> for Error<L> {
   fn from(e: BRC20Error) -> Self {
     Self::BRC20Error(e)
   }

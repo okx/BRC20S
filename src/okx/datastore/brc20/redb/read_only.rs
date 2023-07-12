@@ -1,6 +1,6 @@
 use super::*;
 use crate::okx::datastore::brc20::{
-  BRC20DataStoreReadOnly, BRC20Receipt, Balance, Tick, TokenInfo, TransferInfo, TransferableLog,
+  Balance, DataStoreReadOnly, Receipt, Tick, TokenInfo, TransferInfo, TransferableLog,
 };
 use bitcoin::hashes::Hash;
 use redb::{
@@ -10,19 +10,17 @@ use redb::{
 use std::borrow::Borrow;
 use std::ops::RangeBounds;
 
-pub struct BRC20DataStoreReader<'db, 'a> {
+pub struct DataStoreReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
 }
 
-pub(super) fn new_with_wtx<'db, 'a>(
-  wtx: &'a WriteTransaction<'db>,
-) -> BRC20DataStoreReader<'db, 'a> {
-  BRC20DataStoreReader {
+pub(super) fn new_with_wtx<'db, 'a>(wtx: &'a WriteTransaction<'db>) -> DataStoreReader<'db, 'a> {
+  DataStoreReader {
     wrapper: ReaderWrapper::Wtx(wtx),
   }
 }
 
-impl<'db, 'a> BRC20DataStoreReader<'db, 'a> {
+impl<'db, 'a> DataStoreReader<'db, 'a> {
   pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
       wrapper: ReaderWrapper::Rtx(rtx),
@@ -81,7 +79,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
   type Error = redb::Error;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error> {
@@ -134,14 +132,14 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStoreReader<'db, 'a> {
     )
   }
 
-  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC20Receipt>, Self::Error> {
+  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     Ok(
       self
         .wrapper
         .open_table(BRC20_EVENTS)?
         .get(txid.to_string().as_str())?
         .map_or(Vec::new(), |v| {
-          bincode::deserialize::<Vec<BRC20Receipt>>(v.value()).unwrap()
+          bincode::deserialize::<Vec<Receipt>>(v.value()).unwrap()
         }),
     )
   }

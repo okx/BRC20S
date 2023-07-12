@@ -39,8 +39,8 @@ use {
 mod api;
 mod brc20_api;
 mod brc20_types;
-mod brc30_api;
-mod brc30_types;
+mod brc20s_api;
+mod brc20s_types;
 mod ord_api;
 mod types;
 
@@ -222,69 +222,69 @@ impl Server {
           "/brc20/block/:block_hash/events",
           get(brc20_api::brc20_block_events),
         )
-        .route("/brc20s/tick", get(brc30_api::brc30_all_tick_info))
-        .route("/brc20s/tick/:tick_id", get(brc30_api::brc30_tick_info))
+        .route("/brc20s/tick", get(brc20s_api::brc20s_all_tick_info))
+        .route("/brc20s/tick/:tick_id", get(brc20s_api::brc20s_tick_info))
         .route(
           "/brc20s/debug/tick/:tick_id",
-          get(brc30_api::brc30_debug_tick_info),
+          get(brc20s_api::brc20s_debug_tick_info),
         )
-        .route("/brc20s/pool", get(brc30_api::brc30_all_pool_info))
-        .route("/brc20s/pool/:pid", get(brc30_api::brc30_pool_info))
+        .route("/brc20s/pool", get(brc20s_api::brc20s_all_pool_info))
+        .route("/brc20s/pool/:pid", get(brc20s_api::brc20s_pool_info))
         .route(
           "/brc20s/debug/pool/:pid",
-          get(brc30_api::brc30_debug_pool_info),
+          get(brc20s_api::brc20s_debug_pool_info),
         )
         .route(
           "/brc20s/debug/stake/:address/:tick",
-          get(brc30_api::brc30_debug_stake_info),
+          get(brc20s_api::brc20s_debug_stake_info),
         )
         .route(
           "/brc20s/pool/:pid/address/:address/userinfo",
-          get(brc30_api::brc30_userinfo),
+          get(brc20s_api::brc20s_userinfo),
         )
         .route(
           "/brc20s/debug/pool/:pid/address/:address/reward",
-          get(brc30_api::brc30_user_pending_reward),
+          get(brc20s_api::brc20s_user_pending_reward),
         )
         .route(
           "/brc20s/tick/:tick_id/address/:address/balance",
-          get(brc30_api::brc30_balance),
+          get(brc20s_api::brc20s_balance),
         )
         .route(
           "/brc20s/debug/pool/:pid/address/:address/userinfo",
-          get(brc30_api::brc30_debug_userinfo),
+          get(brc20s_api::brc20s_debug_userinfo),
         )
         .route(
           "/brc20s/debug/tick/:tick_id/address/:address/balance",
-          get(brc30_api::brc30_debug_balance),
+          get(brc20s_api::brc20s_debug_balance),
         )
         .route(
           "/brc20s/address/:address/balance",
-          get(brc30_api::brc30_all_balance),
+          get(brc20s_api::brc20s_all_balance),
         )
         .route(
           "/brc20s/tick/:tick_id/address/:address/transferable",
-          get(brc30_api::brc30_transferable),
+          get(brc20s_api::brc20s_transferable),
         )
         .route(
           "/brc20s/address/:address/transferable",
-          get(brc30_api::brc30_all_transferable),
+          get(brc20s_api::brc20s_all_transferable),
         )
         .route(
           "/brc20s/tx/:txid/receipts",
-          get(brc30_api::brc30_txid_receipts),
+          get(brc20s_api::brc20s_txid_receipts),
         )
         .route(
           "/brc20s/debug/tx/:txid/receipts",
-          get(brc30_api::brc30_debug_txid_receipts),
+          get(brc20s_api::brc20s_debug_txid_receipts),
         )
         .route(
           "/brc20s/block/:blockhash/receipts",
-          get(brc30_api::brc30_block_receipts),
+          get(brc20s_api::brc20s_block_receipts),
         )
         .route(
           "/brc20s/stake/:address/:tick",
-          get(brc30_api::brc30_stake_info),
+          get(brc20s_api::brc20s_stake_info),
         );
 
       let api_router = Router::new().nest("/v1", api_v1_router);

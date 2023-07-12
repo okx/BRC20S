@@ -1,15 +1,10 @@
 use std::collections::HashMap;
 
 use super::*;
-use crate::okx::datastore::BRC30DataStoreReadWrite;
-use crate::{
-  index::BlockData,
-  okx::datastore::{
-    ord::{operation::InscriptionOp, OrdDataStoreReadWrite},
-    BRC20DataStoreReadWrite,
-  },
-  Instant, Result,
-};
+use crate::okx::datastore::brc20;
+use crate::okx::datastore::brc20s;
+use crate::okx::datastore::ord;
+use crate::{index::BlockData, okx::datastore::ord::operation::InscriptionOp, Instant, Result};
 use bitcoin::{Network, Txid};
 use bitcoincore_rpc::Client;
 
@@ -23,28 +18,32 @@ pub struct BlockContext {
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum ProtocolKind {
   BRC20,
-  BRC30,
+  BRC20S,
 }
 
 pub struct ProtocolManager<
   'a,
-  O: OrdDataStoreReadWrite,
-  P: BRC20DataStoreReadWrite,
-  M: BRC30DataStoreReadWrite,
+  O: ord::OrdDataStoreReadWrite,
+  P: brc20::DataStoreReadWrite,
+  M: brc20s::DataStoreReadWrite,
 > {
   call_man: CallManager<'a, O, P, M>,
   resolve_man: MsgResolveManager<'a, O, P, M>,
 }
 
-impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStoreReadWrite>
-  ProtocolManager<'a, O, P, M>
+impl<
+    'a,
+    O: ord::OrdDataStoreReadWrite,
+    P: brc20::DataStoreReadWrite,
+    M: brc20s::DataStoreReadWrite,
+  > ProtocolManager<'a, O, P, M>
 {
   // Need three datastore, and they're all in the same write transaction.
   pub fn new(
     client: &'a Client,
     ord_store: &'a O,
     brc20_store: &'a P,
-    brc30_store: &'a M,
+    brc20s_store: &'a M,
     first_brc20_height: u64,
     first_brc20s_height: u64,
   ) -> Self {
@@ -53,11 +52,11 @@ impl<'a, O: OrdDataStoreReadWrite, P: BRC20DataStoreReadWrite, M: BRC30DataStore
         client,
         ord_store,
         brc20_store,
-        brc30_store,
+        brc20s_store,
         first_brc20_height,
         first_brc20s_height,
       ),
-      call_man: CallManager::new(ord_store, brc20_store, brc30_store),
+      call_man: CallManager::new(ord_store, brc20_store, brc20s_store),
     }
   }
 

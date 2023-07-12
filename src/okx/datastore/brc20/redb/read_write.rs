@@ -1,7 +1,7 @@
 use crate::{
   okx::datastore::brc20::{
-    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Receipt, Balance, Tick, TokenInfo,
-    TransferInfo, TransferableLog,
+    Balance, DataStoreReadOnly, DataStoreReadWrite, Receipt, Tick, TokenInfo, TransferInfo,
+    TransferableLog,
   },
   InscriptionId,
 };
@@ -10,17 +10,17 @@ use super::*;
 use bitcoin::{hashes::Hash, Txid};
 use redb::WriteTransaction;
 
-pub struct BRC20DataStore<'db, 'a> {
+pub struct DataStore<'db, 'a> {
   wtx: &'a WriteTransaction<'db>,
 }
 
-impl<'db, 'a> BRC20DataStore<'db, 'a> {
+impl<'db, 'a> DataStore<'db, 'a> {
   pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
     Self { wtx }
   }
 }
 
-impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStore<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
   type Error = redb::Error;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error> {
@@ -43,7 +43,7 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_tokens_info()
   }
 
-  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<BRC20Receipt>, Self::Error> {
+  fn get_transaction_receipts(&self, txid: &Txid) -> Result<Vec<Receipt>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transaction_receipts(txid)
   }
 
@@ -75,7 +75,7 @@ impl<'db, 'a> BRC20DataStoreReadOnly for BRC20DataStore<'db, 'a> {
   }
 }
 
-impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
+impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   fn update_token_balance(
     &self,
     script_key: &ScriptKey,
@@ -119,7 +119,7 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
   fn save_transaction_receipts(
     &self,
     txid: &Txid,
-    receipts: &[BRC20Receipt],
+    receipts: &[Receipt],
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC20_EVENTS)?.insert(
       txid.to_string().as_str(),
@@ -128,11 +128,7 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
     Ok(())
   }
 
-  fn add_transaction_receipt(
-    &self,
-    txid: &Txid,
-    receipt: &BRC20Receipt,
-  ) -> Result<(), Self::Error> {
+  fn add_transaction_receipt(&self, txid: &Txid, receipt: &Receipt) -> Result<(), Self::Error> {
     let mut receipts = self.get_transaction_receipts(txid)?;
     receipts.push(receipt.clone());
     self.save_transaction_receipts(txid, &receipts)
@@ -219,8 +215,8 @@ impl<'db, 'a> BRC20DataStoreReadWrite for BRC20DataStore<'db, 'a> {
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::brc20::{
-    BRC20DataStoreReadOnly, BRC20DataStoreReadWrite, BRC20Error, BRC20Event, BRC20OperationType,
-    BRC20Receipt, Balance, MintEvent, Tick, TokenInfo, TransferEvent, TransferableLog,
+    BRC20Error, Balance, DataStoreReadOnly, DataStoreReadWrite, Event, MintEvent, OperationType,
+    Receipt, Tick, TokenInfo, TransferEvent, TransferableLog,
   };
 
   use super::*;
@@ -235,7 +231,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -292,7 +288,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -331,7 +327,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let upper_tick = Tick::from_str("ABCD").unwrap();
     let expect = TokenInfo {
@@ -372,7 +368,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let expect1 = TokenInfo {
       tick: Tick::from_str("abcd").unwrap(),
@@ -445,7 +441,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let tick = Tick::from_str("aBcd").unwrap();
     let org_info = TokenInfo {
@@ -498,18 +494,18 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
     let receipts = vec![
-      BRC20Receipt {
+      Receipt {
         inscription_id: InscriptionId::from_str(
           "1111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
         inscription_number: 1,
-        op: BRC20OperationType::Deploy,
+        op: OperationType::Deploy,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),
@@ -526,13 +522,13 @@ mod tests {
         .unwrap(),
         result: Err(BRC20Error::InvalidTickLen("abcde".to_string())),
       },
-      BRC20Receipt {
+      Receipt {
         inscription_id: InscriptionId::from_str(
           "2111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
         inscription_number: 1,
-        op: BRC20OperationType::Mint,
+        op: OperationType::Mint,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),
@@ -547,19 +543,19 @@ mod tests {
           "3111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        result: Ok(BRC20Event::Mint(MintEvent {
+        result: Ok(Event::Mint(MintEvent {
           tick: Tick::from_str("maEd").unwrap(),
           amount: 30,
           msg: None,
         })),
       },
-      BRC20Receipt {
+      Receipt {
         inscription_id: InscriptionId::from_str(
           "3111111111111111111111111111111111111111111111111111111111111111i1",
         )
         .unwrap(),
         inscription_number: 1,
-        op: BRC20OperationType::Mint,
+        op: OperationType::Mint,
         from: ScriptKey::from_address(
           Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
         ),
@@ -574,7 +570,7 @@ mod tests {
           "4111111111111111111111111111111111111111111111111111111111111111:1:1",
         )
         .unwrap(),
-        result: Ok(BRC20Event::Transfer(TransferEvent {
+        result: Ok(Event::Transfer(TransferEvent {
           tick: Tick::from_str("mmmm").unwrap(),
           amount: 11,
           msg: Some("a msg".to_string()),
@@ -592,7 +588,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -661,7 +657,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -743,7 +739,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -795,7 +791,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let script1 = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
@@ -907,7 +903,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20db = BRC20DataStore::new(&wtx);
+    let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),

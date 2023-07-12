@@ -1,13 +1,13 @@
-use crate::okx::datastore::brc30::{PoolInfo, PoolType, UserInfo};
-use crate::okx::protocol::brc30::{params::BIGDECIMAL_TEN, BRC30Error, Num};
+use crate::okx::datastore::brc20s::{PoolInfo, PoolType, UserInfo};
+use crate::okx::protocol::brc20s::{params::BIGDECIMAL_TEN, BRC20SError, Num};
 use std::str::FromStr;
 
 const PER_SHARE_MULTIPLIER: u8 = 18;
 
 #[cfg(not(test))]
-use log::info;
+use log::debug;
 #[cfg(test)]
-use std::println as info;
+use std::println as debug;
 
 // demo
 // | Pool type | earn rate | total stake      | user stake     | block | reward                                        |
@@ -20,7 +20,7 @@ pub fn query_reward(
   pool: PoolInfo,
   block_num: u64,
   staked_decimal: u8,
-) -> Result<u128, BRC30Error> {
+) -> Result<u128, BRC20SError> {
   let mut user_temp = user;
   let mut pool_temp = pool;
   update_pool(&mut pool_temp, block_num, staked_decimal)?;
@@ -32,28 +32,29 @@ pub fn update_pool(
   pool: &mut PoolInfo,
   block_num: u64,
   staked_decimal: u8,
-) -> Result<(), BRC30Error> {
+) -> Result<(), BRC20SError> {
   if pool.ptype != PoolType::Pool && pool.ptype != PoolType::Fixed {
-    return Err(BRC30Error::UnknownPoolType);
+    return Err(BRC20SError::UnknownPoolType);
   }
-  info!("update_pool in");
+  debug!("update_pool in");
   let pool_minted = Into::<Num>::into(pool.minted);
   let pool_dmax = Into::<Num>::into(pool.dmax);
   let erate = Into::<Num>::into(pool.erate);
   let pool_stake = Into::<Num>::into(pool.staked);
   let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
 
-  info!(
-    "  {},block_num:{},staked_decimal:{}",
-    pool, block_num, staked_decimal
+  debug!("  {}", pool);
+  debug!(
+    "  block_num:{},staked_decimal:{}",
+    block_num, staked_decimal
   );
   //1 check block num, minted, stake
   if block_num <= pool.last_update_block {
-    info!("update_pool out");
+    debug!("update_pool out");
     return Ok(());
   }
   if pool_stake <= Num::zero() || pool_minted >= pool_dmax {
-    info!("update_pool out");
+    debug!("update_pool out");
     pool.last_update_block = block_num;
     return Ok(());
   }
@@ -64,7 +65,7 @@ pub fn update_pool(
   if pool.ptype == PoolType::Pool {
     if pool_minted.checked_add(&rewards)? > pool_dmax {
       rewards = pool_dmax.checked_sub(&pool_minted)?;
-      info!("  beyond minted, new rewards:{}", rewards);
+      debug!("  beyond minted, new rewards:{}", rewards);
     }
     pool.minted = pool_minted.checked_add(&rewards)?.truncate_to_u128()?;
 
@@ -81,7 +82,7 @@ pub fn update_pool(
       .checked_mul(&get_per_share_multiplier())?
       .checked_div(&get_num_by_decimal(staked_decimal)?)?
       .checked_div(&get_per_share_multiplier())?;
-    info!("  estimate_reward:{}, rewards:{}", estimate_reward, rewards);
+    debug!("  estimate_reward:{}, rewards:{}", estimate_reward, rewards);
 
     if pool_minted.checked_add(&estimate_reward)? > pool_dmax {
       estimate_reward = pool_dmax.checked_sub(&pool_minted)?;
@@ -90,7 +91,7 @@ pub fn update_pool(
         .checked_mul(&get_num_by_decimal(staked_decimal)?)?
         .checked_div(&pool_stake)?
         .checked_div(&get_per_share_multiplier())?;
-      info!(
+      debug!(
         "  beyond minted, new estimate_reward:{}, rewards:{}",
         estimate_reward, rewards
       );
@@ -110,12 +111,13 @@ pub fn update_pool(
 
   pool.last_update_block = block_num;
 
-  info!(
+  debug!(
     "  pool's acc_reward_per_share:{}, rewards:{}",
     pool.acc_reward_per_share, rewards
   );
 
-  info!("update_pool out");
+  debug!("  {}", pool);
+  debug!("update_pool out");
   return Ok(());
 }
 
@@ -124,23 +126,25 @@ pub fn withdraw_user_reward(
   user: &mut UserInfo,
   pool: &mut PoolInfo,
   staked_decimal: u8,
-) -> Result<u128, BRC30Error> {
+) -> Result<u128, BRC20SError> {
   if pool.ptype != PoolType::Pool && pool.ptype != PoolType::Fixed {
-    return Err(BRC30Error::UnknownPoolType);
+    return Err(BRC20SError::UnknownPoolType);
   }
 
-  info!("withdraw_user_reward in");
+  debug!("withdraw_user_reward in");
   let user_staked = Into::<Num>::into(user.staked);
   let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
   let reward_debt = Into::<Num>::into(user.reward_debt);
   let user_reward = Into::<Num>::into(user.pending_reward);
-  info!("  {}", pool);
-  info!("  {}", user);
+  debug!("  {}", user);
+  debug!("  {}", pool);
 
   //1 check user's staked gt 0
   if user_staked <= Num::zero() {
-    info!("withdraw_user_reward out");
-    return Err(BRC30Error::NoStaked(user.pid.as_str().to_string()));
+    debug!("withdraw_user_reward out");
+    return Err(BRC20SError::NoStaked(
+      user.pid.as_str().to_string(),
+    ));
   }
 
   //2 pending reward = staked * accRewardPerShare - user reward_debt
@@ -165,9 +169,11 @@ pub fn withdraw_user_reward(
       .truncate_to_u128()?;
   }
 
-  info!("  pending reward:{}", pending_reward.clone());
+  debug!("  pending reward:{}", pending_reward.clone());
 
-  info!("withdraw_user_reward out");
+  debug!("  {}", user);
+  debug!("  {}", pool);
+  debug!("withdraw_user_reward out");
   return pending_reward.truncate_to_u128();
 }
 
@@ -176,16 +182,16 @@ pub fn update_user_stake(
   user: &mut UserInfo,
   pool: &PoolInfo,
   staked_decimal: u8,
-) -> Result<(), BRC30Error> {
+) -> Result<(), BRC20SError> {
   if pool.ptype != PoolType::Pool && pool.ptype != PoolType::Fixed {
-    return Err(BRC30Error::UnknownPoolType);
+    return Err(BRC20SError::UnknownPoolType);
   }
 
-  info!("update_user_stake in");
+  debug!("update_user_stake in");
   let user_staked = Into::<Num>::into(user.staked);
   let acc_reward_per_share = Num::from_str(pool.acc_reward_per_share.as_str())?;
-  info!("  {}", user);
-  info!("  {}", pool);
+  debug!("  {}", user);
+  debug!("  {}", pool);
 
   //1 update user's reward_debt
   if pool.ptype == PoolType::Pool {
@@ -203,9 +209,11 @@ pub fn update_user_stake(
 
   user.latest_updated_block = pool.last_update_block;
 
-  info!("  reward_debt:{}", user.reward_debt.clone());
+  debug!("  reward_debt:{}", user.reward_debt.clone());
 
-  info!("update_user_stake out");
+  debug!("  {}", user);
+  debug!("  {}", pool);
+  debug!("update_user_stake out");
   return Ok(());
 }
 
@@ -213,7 +221,7 @@ fn get_per_share_multiplier() -> Num {
   return get_num_by_decimal(PER_SHARE_MULTIPLIER).unwrap();
 }
 
-fn get_num_by_decimal(decimal: u8) -> Result<Num, BRC30Error> {
+fn get_num_by_decimal(decimal: u8) -> Result<Num, BRC20SError> {
   BIGDECIMAL_TEN.checked_powu(decimal as u64)
 }
 
@@ -221,7 +229,7 @@ fn get_num_by_decimal(decimal: u8) -> Result<Num, BRC30Error> {
 #[allow(unused)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::brc30::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
+  use crate::okx::datastore::brc20s::{Pid, PledgedTick, PoolInfo, PoolType, UserInfo};
   use crate::InscriptionId;
   use std::str::FromStr;
 
@@ -243,7 +251,7 @@ mod tests {
       assert_eq!(update_pool(&mut pool, 1, STAKED_DECIMAL), Ok(()));
       assert_eq!(
         withdraw_user_reward(&mut user, &mut pool, STAKED_DECIMAL).expect_err(""),
-        BRC30Error::NoStaked("bca1dabca1d#1".to_string())
+        BRC20SError::NoStaked("bca1dabca1d#1".to_string())
       );
       user.staked += 2 * stake_base;
       pool.staked += 2 * stake_base;
@@ -301,7 +309,9 @@ mod tests {
       0,
       0,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -316,7 +326,9 @@ mod tests {
       1,
       1,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -460,7 +472,9 @@ mod tests {
       0,
       0,
       10610,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -476,7 +490,9 @@ mod tests {
       100 * stake_base,
       100 * stake_base,
       10610,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -554,7 +570,9 @@ mod tests {
       100,
       100,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -570,7 +588,9 @@ mod tests {
       100,
       200,
       10,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -586,7 +606,9 @@ mod tests {
       100,
       300,
       30,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -698,7 +720,9 @@ mod tests {
       0,
       400,
       100,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -746,7 +770,9 @@ mod tests {
       100,
       600,
       140,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -792,7 +818,9 @@ mod tests {
       0,
       0,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -807,7 +835,9 @@ mod tests {
       1,
       1,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -983,7 +1013,9 @@ mod tests {
       0,
       0,
       210000,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -999,7 +1031,9 @@ mod tests {
       100,
       100,
       210000,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1109,7 +1143,9 @@ mod tests {
       100,
       100,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1125,7 +1161,9 @@ mod tests {
       100,
       200,
       100,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1141,7 +1179,9 @@ mod tests {
       100,
       300,
       200,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1253,7 +1293,9 @@ mod tests {
       0,
       400,
       400,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1301,7 +1343,9 @@ mod tests {
       100,
       600,
       500,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1338,17 +1382,17 @@ mod tests {
 
     assert_eq!(
       update_pool(&mut pool, 1, STAKED_DECIMAL),
-      Err(BRC30Error::UnknownPoolType)
+      Err(BRC20SError::UnknownPoolType)
     );
 
     assert_eq!(
       withdraw_user_reward(&mut user, &mut pool, STAKED_DECIMAL),
-      Err(BRC30Error::UnknownPoolType)
+      Err(BRC20SError::UnknownPoolType)
     );
 
     assert_eq!(
       update_user_stake(&mut user, &mut pool, STAKED_DECIMAL),
-      Err(BRC30Error::UnknownPoolType)
+      Err(BRC20SError::UnknownPoolType)
     );
   }
 
@@ -1426,7 +1470,9 @@ mod tests {
       100 * stake_base,
       100 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1440,7 +1486,9 @@ mod tests {
       200 * stake_base,
       300 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1454,7 +1502,9 @@ mod tests {
       300 * stake_base,
       600 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1580,7 +1630,9 @@ mod tests {
       10 * stake_base,
       10 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1594,7 +1646,9 @@ mod tests {
       20 * stake_base,
       30 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1608,7 +1662,9 @@ mod tests {
       30 * stake_base,
       60 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1731,7 +1787,9 @@ mod tests {
 
     assert_eq!(
       withdraw_user_reward(&mut user, &mut pool, STAKED_DECIMAL),
-      Err(BRC30Error::NoStaked(pid.as_str().to_string()))
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string()
+      ))
     );
 
     assert_eq!(
@@ -1769,7 +1827,9 @@ mod tests {
       100 * stake_base,
       100 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1783,7 +1843,9 @@ mod tests {
       200 * stake_base,
       300 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1797,7 +1859,9 @@ mod tests {
       300 * stake_base,
       600 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1915,7 +1979,7 @@ mod tests {
 
     assert_eq!(
       query_reward(user1.clone(), pool.clone(), 101, STAKED_DECIMAL).unwrap_err(),
-      BRC30Error::NoStaked(pid.as_str().to_string(),)
+      BRC20SError::NoStaked(pid.as_str().to_string(),)
     );
     do_one_case(
       &mut user1,
@@ -1927,14 +1991,16 @@ mod tests {
       100 * stake_base,
       100 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
 
     assert_eq!(
       query_reward(user2.clone(), pool.clone(), 101, STAKED_DECIMAL).unwrap_err(),
-      BRC30Error::NoStaked(pid.as_str().to_string(),)
+      BRC20SError::NoStaked(pid.as_str().to_string(),)
     );
     do_one_case(
       &mut user2,
@@ -1946,14 +2012,16 @@ mod tests {
       200 * stake_base,
       300 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
 
     assert_eq!(
       query_reward(user3.clone(), pool.clone(), 101, STAKED_DECIMAL).unwrap_err(),
-      BRC30Error::NoStaked(pid.as_str().to_string(),)
+      BRC20SError::NoStaked(pid.as_str().to_string(),)
     );
     do_one_case(
       &mut user3,
@@ -1965,7 +2033,9 @@ mod tests {
       300 * stake_base,
       600 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3266,7 +3336,9 @@ mod tests {
       10000000 * stake_base,
       10000000 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3281,7 +3353,9 @@ mod tests {
       10000000 * stake_base,
       20000000 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3376,7 +3450,9 @@ mod tests {
       10000000 * stake_base,
       10000000 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3391,7 +3467,9 @@ mod tests {
       10000000 * stake_base,
       20000000 * stake_base,
       0,
-      Err(BRC30Error::NoStaked(pid.as_str().to_string())),
+      Err(BRC20SError::NoStaked(
+        pid.as_str().to_string(),
+      )),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3574,8 +3652,8 @@ mod tests {
     expert_user_staked: u128,
     expect_pool_staked: u128,
     expect_pool_minted: u128,
-    expect_withdraw_reward_result: Result<u128, BRC30Error>,
-    expect_update_stake_result: Result<(), BRC30Error>,
+    expect_withdraw_reward_result: Result<u128, BRC20SError>,
+    expect_update_stake_result: Result<(), BRC20SError>,
     staked_decimal: u8,
   ) {
     assert_eq!(update_pool(pool, block_mum, staked_decimal), Ok(()));

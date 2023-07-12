@@ -35,7 +35,7 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
 }
 
 impl<'db, 'a> OrdDataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
-  // 3.3.1 OUTPOINT_TO_SCRIPT
+  // OUTPOINT_TO_SCRIPT
 
   fn set_outpoint_to_txout(&self, outpoint: OutPoint, tx_out: &TxOut) -> Result<(), Self::Error> {
     let mut value = [0; 36];
@@ -66,7 +66,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc30db = OrdDbReadWriter::new(&wtx);
+    let brc20s_db = OrdDbReadWriter::new(&wtx);
 
     let outpoint1 = unbound_outpoint();
     let tx_out = TxOut {
@@ -76,10 +76,10 @@ mod tests {
         .script_pubkey(),
     };
 
-    brc30db.set_outpoint_to_txout(outpoint1, &tx_out).unwrap();
+    brc20s_db.set_outpoint_to_txout(outpoint1, &tx_out).unwrap();
 
     assert_eq!(
-      brc30db.get_outpoint_to_txout(outpoint1).unwrap().unwrap(),
+      brc20s_db.get_outpoint_to_txout(outpoint1).unwrap().unwrap(),
       tx_out
     );
   }

@@ -1,7 +1,8 @@
 use super::{error::ApiError, types::ScriptPubkey, *};
+use crate::okx::datastore::brc20::redb as brc20_db;
 use crate::okx::{
   datastore::{
-    brc20::{self, redb::BRC20DataStoreReader},
+    brc20::{self},
     ScriptKey,
   },
   protocol::brc20 as brc20_protocol,
@@ -72,11 +73,11 @@ pub struct TxEvents {
   pub txid: String,
 }
 
-impl From<&brc20::BRC20Receipt> for TxEvent {
-  fn from(event: &brc20::BRC20Receipt) -> Self {
+impl From<&brc20::Receipt> for TxEvent {
+  fn from(event: &brc20::Receipt) -> Self {
     match &event.result {
       Ok(result) => match result {
-        brc20::BRC20Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
+        brc20::Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
           tick: deploy_event.tick.to_string(),
           inscription_id: event.inscription_id.to_string(),
           inscription_number: event.inscription_number,
@@ -91,7 +92,7 @@ impl From<&brc20::BRC20Receipt> for TxEvent {
           msg: "ok".to_string(),
           event: String::from("deploy"),
         }),
-        brc20::BRC20Event::Mint(mint_event) => Self::Mint(MintEvent {
+        brc20::Event::Mint(mint_event) => Self::Mint(MintEvent {
           tick: mint_event.tick.to_string(),
           inscription_id: event.inscription_id.to_string(),
           inscription_number: event.inscription_number,
@@ -104,22 +105,20 @@ impl From<&brc20::BRC20Receipt> for TxEvent {
           msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
           event: String::from("mint"),
         }),
-        brc20::BRC20Event::InscribeTransfer(trans1) => {
-          Self::InscribeTransfer(InscribeTransferEvent {
-            tick: trans1.tick.to_string(),
-            inscription_id: event.inscription_id.to_string(),
-            inscription_number: event.inscription_number,
-            old_satpoint: event.old_satpoint,
-            new_satpoint: event.new_satpoint,
-            amount: trans1.amount.to_string(),
-            from: event.from.clone().into(),
-            to: event.to.clone().into(),
-            valid: true,
-            msg: "ok".to_string(),
-            event: String::from("inscribeTransfer"),
-          })
-        }
-        brc20::BRC20Event::Transfer(trans2) => Self::Transfer(TransferEvent {
+        brc20::Event::InscribeTransfer(trans1) => Self::InscribeTransfer(InscribeTransferEvent {
+          tick: trans1.tick.to_string(),
+          inscription_id: event.inscription_id.to_string(),
+          inscription_number: event.inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          amount: trans1.amount.to_string(),
+          from: event.from.clone().into(),
+          to: event.to.clone().into(),
+          valid: true,
+          msg: "ok".to_string(),
+          event: String::from("inscribeTransfer"),
+        }),
+        brc20::Event::Transfer(trans2) => Self::Transfer(TransferEvent {
           tick: trans2.tick.to_string(),
           inscription_id: event.inscription_id.to_string(),
           inscription_number: event.inscription_number,
@@ -143,10 +142,10 @@ impl From<&brc20::BRC20Receipt> for TxEvent {
         to: event.to.clone().into(),
         msg: err.to_string(),
         event: match event.op {
-          brc20::BRC20OperationType::Deploy => "deploy",
-          brc20::BRC20OperationType::Mint => "mint",
-          brc20::BRC20OperationType::InscribeTransfer => "inscribeTransfer",
-          brc20::BRC20OperationType::Transfer => "transfer",
+          brc20::OperationType::Deploy => "deploy",
+          brc20::OperationType::Mint => "mint",
+          brc20::OperationType::InscribeTransfer => "inscribeTransfer",
+          brc20::OperationType::Transfer => "transfer",
         }
         .to_string(),
       }),
@@ -512,17 +511,13 @@ pub(super) fn get_operations_by_txid(
     .collect();
 
   let rtx = index.begin_read()?.0;
-  let brc20_store = BRC20DataStoreReader::new(&rtx);
+  let brc20_store = brc20_db::DataStoreReader::new(&rtx);
   for operation in operations {
-    match brc20_protocol::BRC20Message::resolve(
-      &brc20_store,
-      &new_inscriptions,
-      &operation,
-    )? {
+    match brc20_protocol::Message::resolve(&brc20_store, &new_inscriptions, &operation)? {
       None => continue,
       Some(msg) => brc20_operation_infos.push(InscriptionInfo {
         action: match msg.op {
-          brc20_protocol::BRC20Operation::Transfer(_) => ActionType::Transfer,
+          brc20_protocol::Operation::Transfer(_) => ActionType::Transfer,
           _ => ActionType::Inscribe,
         },
         inscription_number: index

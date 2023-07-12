@@ -16,20 +16,22 @@ mod util;
 mod test;
 mod vesion;
 
+pub(crate) use self::operation::deserialize_brc30_operation;
 pub use self::{
   error::{BRC30Error, Error},
   msg_executor::{execute, BRC30ExecutionMessage},
   num::Num,
   operation::{Deploy, Mint, Operation, PassiveUnStake, Stake, Transfer, UnStake},
 };
-pub(crate) use self::{msg_resolver::resolve_message, operation::deserialize_brc30_operation};
-
 #[derive(Debug, Clone)]
 pub struct BRC30Message {
   pub txid: Txid,
   pub inscription_id: InscriptionId,
-  pub commit_input_satpoint: Option<SatPoint>,
   pub old_satpoint: SatPoint,
+  // `new_satpoint` may be none when the transaction is not yet confirmed and the sat has not been bound to the current outputs.
   pub new_satpoint: Option<SatPoint>,
+  // The validity of access control for `deploy`, `deposit`, `withdraw`, and `mint` operations requires this value.
+  pub commit_input_satpoint: Option<SatPoint>,
   pub op: BRC30Operation,
+  pub sat_in_outputs: bool,
 }

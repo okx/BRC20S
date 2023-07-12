@@ -3,21 +3,21 @@ use crate::{
   inscription::Inscription,
   okx::{
     datastore::{
-      brc20::BRC20DataStoreReadOnly,
+      brc20::DataStoreReadOnly,
       ord::{Action, InscriptionOp},
     },
-    protocol::brc20::{deserialize_brc20_operation, BRC20Operation},
+    protocol::brc20::{deserialize_brc20_operation, Operation},
   },
   Result,
 };
 use anyhow::anyhow;
 
-impl BRC20Message {
-  pub(crate) fn resolve<'a, N: BRC20DataStoreReadOnly>(
+impl Message {
+  pub(crate) fn resolve<'a, N: DataStoreReadOnly>(
     brc20_store: &'a N,
     new_inscriptions: &Vec<Inscription>,
     op: &InscriptionOp,
-  ) -> Result<Option<BRC20Message>> {
+  ) -> Result<Option<Message>> {
     log::debug!("BRC20 resolving the message from {:?}", op);
     let sat_in_outputs = op
       .new_satpoint
@@ -45,7 +45,7 @@ impl BRC20Message {
       Action::Transfer => match brc20_store.get_inscribe_transfer_inscription(op.inscription_id) {
         // Ignore non-first transfer operations.
         Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
-          BRC20Operation::Transfer(BRC20Transfer {
+          Operation::Transfer(Transfer {
             tick: transfer_info.tick.as_str().to_string(),
             amount: transfer_info.amt.to_string(),
           })
@@ -73,9 +73,7 @@ impl BRC20Message {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::brc20::{
-    redb::BRC20DataStore, BRC20DataStoreReadWrite, Tick, TransferInfo,
-  };
+  use crate::okx::datastore::brc20::{redb::DataStore, DataStoreReadWrite, Tick, TransferInfo};
   use bitcoin::OutPoint;
   use redb::Database;
   use std::str::FromStr;
@@ -148,15 +146,12 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_store = BRC20DataStore::new(&wtx);
+    let brc20_store = DataStore::new(&wtx);
 
     let (inscriptions, op) = create_inscribe_operation(
       r#"{ "p": "brc-20s","op": "deploy", "tick": "ordi", "max": "1000", "lim": "10" }"#,
     );
-    assert_matches!(
-      BRC20Message::resolve(&brc20_store, &inscriptions, &op),
-      Ok(None)
-    );
+    assert_matches!(Message::resolve(&brc20_store, &inscriptions, &op), Ok(None));
   }
 
   #[test]
@@ -164,7 +159,7 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_store = BRC20DataStore::new(&wtx);
+    let brc20_store = DataStore::new(&wtx);
 
     let (inscriptions, op) = create_inscribe_operation(
       r#"{ "p": "brc-20","op": "deploy", "tick": "ordi", "max": "1000", "lim": "10" }"#,
@@ -176,10 +171,7 @@ mod tests {
       },
       ..op.clone()
     };
-    assert_matches!(
-      BRC20Message::resolve(&brc20_store, &inscriptions, &op),
-      Ok(None)
-    );
+    assert_matches!(Message::resolve(&brc20_store, &inscriptions, &op), Ok(None));
 
     let op2 = InscriptionOp {
       action: Action::New {
@@ -189,7 +181,7 @@ mod tests {
       ..op.clone()
     };
     assert_matches!(
-      BRC20Message::resolve(&brc20_store, &inscriptions, &op2),
+      Message::resolve(&brc20_store, &inscriptions, &op2),
       Ok(None)
     );
     let op3 = InscriptionOp {
@@ -200,7 +192,7 @@ mod tests {
       ..op.clone()
     };
     assert_matches!(
-      BRC20Message::resolve(&brc20_store, &inscriptions, &op3),
+      Message::resolve(&brc20_store, &inscriptions, &op3),
       Ok(None)
     );
   }
@@ -210,17 +202,17 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_store = BRC20DataStore::new(&wtx);
+    let brc20_store = DataStore::new(&wtx);
 
     let (inscriptions, op) = create_inscribe_operation(
       r#"{ "p": "brc-20","op": "deploy", "tick": "ordi", "max": "1000", "lim": "10" }"#,
     );
-    let _result_msg = BRC20Message {
+    let _result_msg = Message {
       txid: op.txid,
       inscription_id: op.inscription_id,
       old_satpoint: op.old_satpoint,
       new_satpoint: op.new_satpoint,
-      op: BRC20Operation::Deploy(BRC20Deploy {
+      op: Operation::Deploy(Deploy {
         tick: "ordi".to_string(),
         max_supply: "1000".to_string(),
         mint_limit: Some("10".to_string()),
@@ -229,7 +221,7 @@ mod tests {
       sat_in_outputs: true,
     };
     assert_matches!(
-      BRC20Message::resolve(&brc20_store, &inscriptions, &op),
+      Message::resolve(&brc20_store, &inscriptions, &op),
       Ok(Some(_result_msg))
     );
   }
@@ -239,11 +231,11 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_store = BRC20DataStore::new(&wtx);
+    let brc20_store = DataStore::new(&wtx);
 
     // inscribe transfer not found
     let op = create_transfer_operation();
-    assert_matches!(BRC20Message::resolve(&brc20_store, &vec![], &op), Ok(None));
+    assert_matches!(Message::resolve(&brc20_store, &vec![], &op), Ok(None));
 
     // non-first transfer operations.
     let op1 = InscriptionOp {
@@ -257,7 +249,7 @@ mod tests {
       },
       ..op.clone()
     };
-    assert_matches!(BRC20Message::resolve(&brc20_store, &vec![], &op1), Ok(None));
+    assert_matches!(Message::resolve(&brc20_store, &vec![], &op1), Ok(None));
   }
 
   #[test]
@@ -265,7 +257,7 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let brc20_store = BRC20DataStore::new(&wtx);
+    let brc20_store = DataStore::new(&wtx);
 
     // inscribe transfer not found
     let op = create_transfer_operation();
@@ -279,21 +271,18 @@ mod tests {
         },
       )
       .unwrap();
-    let _msg = BRC20Message {
+    let _msg = Message {
       txid: op.txid,
       inscription_id: op.inscription_id,
       old_satpoint: op.old_satpoint,
       new_satpoint: op.new_satpoint,
-      op: BRC20Operation::Transfer(BRC20Transfer {
+      op: Operation::Transfer(Transfer {
         tick: "ordi".to_string(),
         amount: "100".to_string(),
       }),
       sat_in_outputs: true,
     };
 
-    assert_matches!(
-      BRC20Message::resolve(&brc20_store, &vec![], &op),
-      Ok(Some(_msg))
-    );
+    assert_matches!(Message::resolve(&brc20_store, &vec![], &op), Ok(Some(_msg)));
   }
 }

@@ -1,14 +1,11 @@
 use super::*;
+use crate::okx::datastore::brc20 as brc20_store;
+use crate::okx::datastore::brc20s as brc20s_store;
+use crate::okx::datastore::ord as ord_store;
 use std::collections::HashMap;
 
 use crate::{
-  okx::{
-    datastore::{
-      ord::operation::InscriptionOp, BRC20DataStoreReadWrite, BRC30DataStoreReadWrite,
-      OrdDataStoreReadWrite,
-    },
-    protocol::Message,
-  },
+  okx::{datastore::ord::operation::InscriptionOp, protocol::Message},
   Inscription, Result,
 };
 use anyhow::anyhow;
@@ -16,36 +13,40 @@ use bitcoin::{OutPoint, Transaction, TxOut};
 use bitcoincore_rpc::Client;
 pub struct MsgResolveManager<
   'a,
-  O: OrdDataStoreReadWrite,
-  N: BRC20DataStoreReadWrite,
-  M: BRC30DataStoreReadWrite,
+  O: ord_store::OrdDataStoreReadWrite,
+  N: brc20_store::DataStoreReadWrite,
+  M: brc20s_store::DataStoreReadWrite,
 > {
   protocol_start_height: HashMap<ProtocolKind, u64>,
   client: &'a Client,
   ord_store: &'a O,
   brc20_store: &'a N,
-  brc30_store: &'a M,
+  brc20s_store: &'a M,
 }
 
-impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStoreReadWrite>
-  MsgResolveManager<'a, O, N, M>
+impl<
+    'a,
+    O: ord_store::OrdDataStoreReadWrite,
+    N: brc20_store::DataStoreReadWrite,
+    M: brc20s_store::DataStoreReadWrite,
+  > MsgResolveManager<'a, O, N, M>
 {
   pub fn new(
     client: &'a Client,
     ord_store: &'a O,
     brc20_store: &'a N,
-    brc30_store: &'a M,
+    brc20s_store: &'a M,
     first_brc20_height: u64,
     first_brc20s_height: u64,
   ) -> Self {
     let mut protocol_start_height: HashMap<ProtocolKind, u64> = HashMap::new();
     protocol_start_height.insert(ProtocolKind::BRC20, first_brc20_height);
-    protocol_start_height.insert(ProtocolKind::BRC30, first_brc20s_height);
+    protocol_start_height.insert(ProtocolKind::BRC20S, first_brc20s_height);
     Self {
       client,
       ord_store,
       brc20_store,
-      brc30_store,
+      brc20s_store,
       protocol_start_height,
     }
   }
@@ -71,9 +72,9 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
 
     let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
-      // TODO: BTC transfer to BRC30 passive withdrawal.
+      // TODO: BTC transfer to BRC20S passive withdrawal.
 
-      // if self.protocols.contains(&ProtocolKind::BRC30) {
+      // if self.protocols.contains(&ProtocolKind::BRC20S) {
       //   messages.push(BTC::resolve_message(txid, block_height, block_time, tx));
       // }
 
@@ -93,7 +94,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
           .unwrap_or(false)
         {
           if let Some(msg) =
-            brc20::BRC20Message::resolve(self.brc20_store, &new_inscriptions, &operation)?
+            brc20::Message::resolve(self.brc20_store, &new_inscriptions, &operation)?
           {
             log::debug!(
               "BRC20 resolved the message from {:?}, msg {:?}",
@@ -108,14 +109,14 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
         // Parse BRC30 message through inscription operation.
         if self
           .protocol_start_height
-          .get(&ProtocolKind::BRC30)
+          .get(&ProtocolKind::BRC20S)
           .map(|height| context.blockheight >= height.clone())
           .unwrap_or(false)
         {
-          if let Some(msg) = brc30::BRC30Message::resolve(
+          if let Some(msg) = brc20s::Message::resolve(
             self.client,
             self.ord_store,
-            self.brc30_store,
+            self.brc20s_store,
             &new_inscriptions,
             &operation,
             &mut outpoint_to_txout_cache,
@@ -125,7 +126,7 @@ impl<'a, O: OrdDataStoreReadWrite, N: BRC20DataStoreReadWrite, M: BRC30DataStore
               operation,
               msg
             );
-            messages.push(Message::BRC30(msg));
+            messages.push(Message::BRC20S(msg));
             continue;
           }
         }

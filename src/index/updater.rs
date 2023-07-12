@@ -1,6 +1,7 @@
-use crate::okx::datastore::{
-  brc20::redb::BRC20DataStore, brc30::redb::BRC30DataStore, ord::OrdDbReadWriter,
-};
+use crate::okx::datastore::brc20::redb as brc20_db;
+use crate::okx::datastore::brc20s::redb as brc20s_db;
+use crate::okx::datastore::ord;
+
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
@@ -597,12 +598,12 @@ impl Updater {
 
     std::mem::drop(inscription_id_to_inscription_entry);
     std::mem::drop(outpoint_to_entry);
-    // Create a protocol manager to index the block of brc20, brc30 data.
+    // Create a protocol manager to index the block of brc20, brc20s data.
     ProtocolManager::new(
       &index.client,
-      &OrdDbReadWriter::new(wtx),
-      &BRC20DataStore::new(wtx),
-      &BRC30DataStore::new(wtx),
+      &ord::OrdDbReadWriter::new(wtx),
+      &brc20_db::DataStore::new(wtx),
+      &brc20s_db::DataStore::new(wtx),
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
     )

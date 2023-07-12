@@ -7,7 +7,7 @@ use crate::{InscriptionId, Result};
 use bitcoin::Txid;
 use redb::TableDefinition;
 
-pub use self::{read_only::BRC20DataStoreReader, read_write::BRC20DataStore};
+pub use self::{read_only::DataStoreReader, read_write::DataStore};
 
 const BRC20_BALANCES: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_BALANCES");
 const BRC20_TOKEN: TableDefinition<&str, &[u8]> = TableDefinition::new("BRC20_TOKEN");

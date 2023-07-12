@@ -1,5 +1,5 @@
 use super::{types::ScriptPubkey, *};
-use crate::okx::protocol::brc20::{BRC20Deploy, BRC20Mint, BRC20Operation, BRC20Transfer};
+use crate::okx::protocol::brc20;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,15 +55,15 @@ pub enum Brc20RawOperation {
 }
 
 // action to raw operation
-impl From<BRC20Operation> for Brc20RawOperation {
-  fn from(op: BRC20Operation) -> Self {
+impl From<brc20::Operation> for Brc20RawOperation {
+  fn from(op: brc20::Operation) -> Self {
     match op {
-      BRC20Operation::Deploy(deploy) => Brc20RawOperation::Deploy(deploy.into()),
-      BRC20Operation::Mint(mint) => Brc20RawOperation::Mint(mint.into()),
-      BRC20Operation::InscribeTransfer(transfer) => {
+      brc20::Operation::Deploy(deploy) => Brc20RawOperation::Deploy(deploy.into()),
+      brc20::Operation::Mint(mint) => Brc20RawOperation::Mint(mint.into()),
+      brc20::Operation::InscribeTransfer(transfer) => {
         Brc20RawOperation::InscribeTransfer(transfer.into())
       }
-      BRC20Operation::Transfer(transfer) => Brc20RawOperation::Transfer(transfer.into()),
+      brc20::Operation::Transfer(transfer) => Brc20RawOperation::Transfer(transfer.into()),
     }
   }
 }
@@ -79,8 +79,8 @@ pub struct Deploy {
   pub dec: Option<String>,
 }
 
-impl From<BRC20Deploy> for Deploy {
-  fn from(deploy: BRC20Deploy) -> Self {
+impl From<brc20::Deploy> for Deploy {
+  fn from(deploy: brc20::Deploy) -> Self {
     Deploy {
       tick: deploy.tick,
       max: deploy.max_supply,
@@ -97,8 +97,8 @@ pub struct Mint {
   pub amt: String,
 }
 
-impl From<BRC20Mint> for Mint {
-  fn from(mint: BRC20Mint) -> Self {
+impl From<brc20::Mint> for Mint {
+  fn from(mint: brc20::Mint) -> Self {
     Mint {
       tick: mint.tick,
       amt: mint.amount,
@@ -112,8 +112,8 @@ pub struct Transfer {
   pub amt: String,
 }
 
-impl From<BRC20Transfer> for Transfer {
-  fn from(transfer: BRC20Transfer) -> Self {
+impl From<brc20::Transfer> for Transfer {
+  fn from(transfer: brc20::Transfer) -> Self {
     Transfer {
       tick: transfer.tick,
       amt: transfer.amount,

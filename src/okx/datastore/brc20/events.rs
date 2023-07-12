@@ -3,26 +3,26 @@ use crate::{InscriptionId, SatPoint};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub enum BRC20OperationType {
+pub enum OperationType {
   Deploy,
   Mint,
   InscribeTransfer,
   Transfer,
 }
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct BRC20Receipt {
+pub struct Receipt {
   pub inscription_id: InscriptionId,
   pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
-  pub op: BRC20OperationType,
+  pub op: OperationType,
   pub from: ScriptKey,
   pub to: ScriptKey,
-  pub result: Result<BRC20Event, BRC20Error>,
+  pub result: Result<Event, BRC20Error>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub enum BRC20Event {
+pub enum Event {
   Deploy(DeployEvent),
   Mint(MintEvent),
   InscribeTransfer(InscripbeTransferEvent),
@@ -65,7 +65,7 @@ mod tests {
 
   #[test]
   fn action_receipt_serialize() {
-    let action_receipt = BRC20Receipt {
+    let action_receipt = Receipt {
       inscription_id: InscriptionId::from_str(
         "9991111111111111111111111111111111111111111111111111111111111111i1",
       )
@@ -79,7 +79,7 @@ mod tests {
         "2111111111111111111111111111111111111111111111111111111111111111:1:1",
       )
       .unwrap(),
-      op: BRC20OperationType::Deploy,
+      op: OperationType::Deploy,
       from: ScriptKey::from_address(
         Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
       ),

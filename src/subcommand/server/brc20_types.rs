@@ -1,5 +1,21 @@
 use super::{types::ScriptPubkey, *};
-use crate::okx::protocol::brc20;
+use crate::okx::{datastore::brc20 as brc20_store, protocol::brc20};
+
+#[derive(Debug, thiserror::Error)]
+pub enum BRC20Error {
+  #[error("tick must be 4 bytes length")]
+  IncorrectTickFormat,
+  #[error("tick not found")]
+  TickNotFound,
+  #[error("balance not found")]
+  BalanceNotFound,
+  #[error("operation not found")]
+  OperationNotFound,
+  #[error("events not found")]
+  EventsNotFound,
+  #[error("block not found")]
+  BlockNotFound,
+}
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -121,6 +137,279 @@ impl From<brc20::Transfer> for Transfer {
   }
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TickInfo {
+  pub tick: String,
+  pub inscription_id: String,
+  pub inscription_number: i64,
+  pub supply: String,
+  pub limit_per_mint: String,
+  pub minted: String,
+  pub decimal: u64,
+  pub deploy_by: ScriptPubkey,
+  pub txid: String,
+  pub deploy_height: u64,
+  pub deploy_blocktime: u64,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AllTickInfo {
+  pub tokens: Vec<TickInfo>,
+}
+
+impl From<&brc20_store::TokenInfo> for TickInfo {
+  fn from(tick_info: &brc20_store::TokenInfo) -> Self {
+    Self {
+      tick: tick_info.tick.to_string(),
+      inscription_id: tick_info.inscription_id.to_string(),
+      inscription_number: tick_info.inscription_number,
+      supply: tick_info.supply.to_string(),
+      limit_per_mint: tick_info.limit_per_mint.to_string(),
+      minted: tick_info.minted.to_string(),
+      decimal: tick_info.decimal as u64,
+      deploy_by: tick_info.deploy_by.clone().into(),
+      txid: tick_info.inscription_id.txid.to_string(),
+      deploy_height: tick_info.deployed_number,
+      deploy_blocktime: tick_info.deployed_timestamp as u64,
+    }
+  }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Balance {
+  pub tick: String,
+  pub available_balance: String,
+  pub transferable_balance: String,
+  pub overall_balance: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AllBalance {
+  pub balance: Vec<Balance>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TxEvents {
+  pub events: Vec<TxEvent>,
+  pub txid: String,
+}
+
+impl From<&brc20_store::Receipt> for TxEvent {
+  fn from(event: &brc20_store::Receipt) -> Self {
+    match &event.result {
+      Ok(result) => match result {
+        brc20_store::Event::Deploy(deploy_event) => Self::Deploy(DeployEvent {
+          tick: deploy_event.tick.to_string(),
+          inscription_id: event.inscription_id.to_string(),
+          inscription_number: event.inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          supply: deploy_event.supply.to_string(),
+          limit_per_mint: deploy_event.limit_per_mint.to_string(),
+          decimal: deploy_event.decimal as u64,
+          from: event.from.clone().into(),
+          to: event.to.clone().into(),
+          valid: true,
+          msg: "ok".to_string(),
+          event: String::from("deploy"),
+        }),
+        brc20_store::Event::Mint(mint_event) => Self::Mint(MintEvent {
+          tick: mint_event.tick.to_string(),
+          inscription_id: event.inscription_id.to_string(),
+          inscription_number: event.inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          amount: mint_event.amount.to_string(),
+          from: event.from.clone().into(),
+          to: event.to.clone().into(),
+          valid: true,
+          msg: mint_event.msg.clone().unwrap_or("ok".to_string()),
+          event: String::from("mint"),
+        }),
+        brc20_store::Event::InscribeTransfer(trans1) => {
+          Self::InscribeTransfer(InscribeTransferEvent {
+            tick: trans1.tick.to_string(),
+            inscription_id: event.inscription_id.to_string(),
+            inscription_number: event.inscription_number,
+            old_satpoint: event.old_satpoint,
+            new_satpoint: event.new_satpoint,
+            amount: trans1.amount.to_string(),
+            from: event.from.clone().into(),
+            to: event.to.clone().into(),
+            valid: true,
+            msg: "ok".to_string(),
+            event: String::from("inscribeTransfer"),
+          })
+        }
+        brc20_store::Event::Transfer(trans2) => Self::Transfer(TransferEvent {
+          tick: trans2.tick.to_string(),
+          inscription_id: event.inscription_id.to_string(),
+          inscription_number: event.inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          amount: trans2.amount.to_string(),
+          from: event.from.clone().into(),
+          to: event.to.clone().into(),
+          valid: true,
+          msg: trans2.msg.clone().unwrap_or("ok".to_string()),
+          event: String::from("transfer"),
+        }),
+      },
+      Err(err) => Self::Error(ErrorEvent {
+        inscription_id: event.inscription_id.to_string(),
+        inscription_number: event.inscription_number,
+        old_satpoint: event.old_satpoint,
+        new_satpoint: event.new_satpoint,
+        valid: false,
+        from: event.from.clone().into(),
+        to: event.to.clone().into(),
+        msg: err.to_string(),
+        event: match event.op {
+          brc20_store::OperationType::Deploy => "deploy",
+          brc20_store::OperationType::Mint => "mint",
+          brc20_store::OperationType::InscribeTransfer => "inscribeTransfer",
+          brc20_store::OperationType::Transfer => "transfer",
+        }
+        .to_string(),
+      }),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+#[serde(rename_all = "camelCase")]
+pub enum TxEvent {
+  Deploy(DeployEvent),
+  Mint(MintEvent),
+  InscribeTransfer(InscribeTransferEvent),
+  Transfer(TransferEvent),
+  Error(ErrorEvent),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorEvent {
+  #[serde(rename = "type")]
+  pub event: String,
+  pub inscription_id: String,
+  pub inscription_number: i64,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
+  pub valid: bool,
+  pub msg: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeployEvent {
+  #[serde(rename = "type")]
+  pub event: String,
+  pub tick: String,
+  pub inscription_id: String,
+  pub inscription_number: i64,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub supply: String,
+  pub limit_per_mint: String,
+  pub decimal: u64,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
+  pub valid: bool,
+  pub msg: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MintEvent {
+  #[serde(rename = "type")]
+  pub event: String,
+  pub tick: String,
+  pub inscription_id: String,
+  pub inscription_number: i64,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub amount: String,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
+  pub valid: bool,
+  pub msg: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InscribeTransferEvent {
+  #[serde(rename = "type")]
+  pub event: String,
+  pub tick: String,
+  pub inscription_id: String,
+  pub inscription_number: i64,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub amount: String,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
+  pub valid: bool,
+  pub msg: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransferEvent {
+  #[serde(rename = "type")]
+  pub event: String,
+  pub tick: String,
+  pub inscription_id: String,
+  pub inscription_number: i64,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub amount: String,
+  pub from: ScriptPubkey,
+  pub to: ScriptPubkey,
+  pub valid: bool,
+  pub msg: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockEvents {
+  pub block: Vec<TxEvents>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransferableInscriptions {
+  pub inscriptions: Vec<TransferableInscription>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransferableInscription {
+  pub inscription_id: String,
+  pub inscription_number: i64,
+  pub amount: String,
+  pub tick: String,
+  pub owner: String,
+}
+
+impl From<&brc20_store::TransferableLog> for TransferableInscription {
+  fn from(trans: &brc20_store::TransferableLog) -> Self {
+    Self {
+      inscription_id: trans.inscription_id.to_string(),
+      inscription_number: trans.inscription_number,
+      amount: trans.amount.to_string(),
+      tick: trans.tick.as_str().to_string(),
+      owner: trans.owner.to_string(),
+    }
+  }
+}
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::ScriptKey;

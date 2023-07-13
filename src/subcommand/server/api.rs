@@ -12,7 +12,7 @@ pub(crate) type ApiResult<T> = Result<axum::Json<ApiResponse<T>>, ApiError>;
 
 pub(super) trait ApiOptionExt<T> {
   fn ok_or_api_err<F: FnOnce() -> ApiError>(self, f: F) -> Result<T, ApiError>;
-  fn ok_or_api_not_found<S: Into<String>>(self, s: S) -> Result<T, ApiError>;
+  fn ok_or_api_not_found<S: ToString>(self, s: S) -> Result<T, ApiError>;
 }
 
 impl<T> ApiOptionExt<T> for Option<T> {
@@ -22,7 +22,7 @@ impl<T> ApiOptionExt<T> for Option<T> {
       None => Err(f()),
     }
   }
-  fn ok_or_api_not_found<S: Into<String>>(self, s: S) -> Result<T, ApiError> {
+  fn ok_or_api_not_found<S: ToString>(self, s: S) -> Result<T, ApiError> {
     match self {
       Some(value) => Ok(value),
       None => Err(ApiError::not_found(s)),

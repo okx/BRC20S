@@ -48,7 +48,6 @@ mod error;
 mod response;
 
 use self::api::*;
-use self::brc20_types::*;
 use self::response::ApiResponse;
 
 #[cfg(feature = "rollback")]

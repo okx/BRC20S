@@ -1,5 +1,8 @@
-use super::{brc20s_types::*, error::ApiError, *};
-use crate::okx::datastore::brc20s::{self, PledgedTick, Receipt, TickId};
+use super::{brc20s_types::*, *};
+use crate::okx::datastore::{
+  brc20,
+  brc20s::{self, Pid, PledgedTick, Receipt, TickId},
+};
 use axum::Json;
 
 // brc20s/tick
@@ -43,25 +46,16 @@ pub(crate) async fn brc20s_tick_info(
 ) -> ApiResult<TickInfo> {
   log::debug!("rpc: get brc20s_tick_info: {}", tick_id.to_string());
 
-  let tick_id = tick_id.to_lowercase();
-  if tick_id.as_bytes().len() != 10 {
-    return Err(ApiError::bad_request("tick id must be 10 hex length"));
-  }
-
-  match TickId::from_str(tick_id.as_str()) {
-    Ok(_) => {}
-    Err(error) => {
-      return Err(ApiError::BadRequest(error.to_string()));
-    }
-  }
+  let tick_id = TickId::from_str(tick_id.as_str())
+    .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
 
   let tick_info = &index
     .brc20s_tick_info(&tick_id)?
-    .ok_or_api_not_found("tick not found")?;
+    .ok_or_api_not_found(BRC20SError::TickIdNotFound)?;
 
   log::debug!("rpc: get brc20s_tick_info: {:?} {:?}", tick_id, tick_info);
 
-  if tick_info.tick_id != brc20s::TickId::from_str(&tick_id).unwrap() {
+  if tick_info.tick_id != tick_id {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -87,24 +81,20 @@ pub(crate) async fn brc20s_debug_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
 ) -> ApiResult<brc20s::TickInfo> {
-  log::debug!("rpc: get brc20s_tick_info: {}", tick_id.to_string());
-  let tick_id = tick_id.to_lowercase();
-  match TickId::from_str(tick_id.as_str()) {
-    Ok(_) => {}
-    Err(error) => {
-      return Err(ApiError::BadRequest(error.to_string()));
-    }
-  }
+  log::debug!("rpc: get brc20s_debug_tick_info: {}", tick_id.to_string());
+
+  let tick_id = TickId::from_str(&tick_id)
+    .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
 
   let tick_info = index
     .brc20s_tick_info(&tick_id)?
-    .ok_or_api_not_found("tick not found")?;
+    .ok_or_api_not_found(BRC20SError::TickIdNotFound)?;
 
-  log::debug!("rpc: get brc20s_tick_info: {:?} {:?}", tick_id, tick_info);
-
-  if tick_info.tick_id != brc20s::TickId::from_str(&tick_id).unwrap() {
-    return Err(ApiError::internal("db: not match"));
-  }
+  log::debug!(
+    "rpc: get brc20s_debug_tick_info: {:?} {:?}",
+    tick_id,
+    tick_info
+  );
 
   Ok(Json(ApiResponse::ok(tick_info)))
 }
@@ -121,13 +111,8 @@ pub(crate) async fn brc20s_all_pool_info(
     tokens: all_pool_info
       .iter()
       .map(|pool| {
-        let split_string: Vec<&str> = pool.pid.as_str().split("#").collect();
-        let tick_id = split_string[0];
-
-        let tick_info = &index
-          .brc20s_tick_info(&tick_id.to_string())
-          .unwrap()
-          .unwrap();
+        let tick_id = TickId::from(pool.pid.clone());
+        let tick_info = &index.brc20s_tick_info(&tick_id).unwrap().unwrap();
         let block = &index
           .get_block_by_height(tick_info.deploy_block)
           .unwrap()
@@ -163,14 +148,12 @@ pub(crate) async fn brc20s_pool_info(
 ) -> ApiResult<Pool> {
   log::debug!("rpc: get brc20s_pool_info: {}", pid);
 
-  if pid.as_bytes().len() != 13 {
-    return Err(ApiError::bad_request("pid length must 13."));
-  }
-  let pid = pid.to_lowercase();
+  let pid =
+    Pid::from_str(&pid).map_err(|_| ApiError::bad_request(BRC20SError::IncorrectPidFormat))?;
 
   let pool_info = &index
     .brc20s_pool_info(&pid)?
-    .ok_or_api_not_found("pool not found")?;
+    .ok_or_api_not_found(BRC20SError::PoolInfoNotFound)?;
 
   log::debug!(
     "rpc: get brc20s_pool_info: {:?} {:?}",
@@ -178,16 +161,15 @@ pub(crate) async fn brc20s_pool_info(
     pool_info
   );
 
-  if pool_info.pid != brc20s::Pid::from_str(&pid).unwrap() {
+  if pool_info.pid != pid {
     return Err(ApiError::internal("db: not match"));
   }
 
-  let split_string: Vec<&str> = pid.split("#").collect();
-  let tick_id = split_string[0];
+  let tick_id = TickId::from(pid.clone());
 
   let tick_info = &index
-    .brc20s_tick_info(&tick_id.to_string())?
-    .ok_or_api_not_found("tick not found")?;
+    .brc20s_tick_info(&tick_id)?
+    .ok_or_api_not_found(BRC20SError::TickIdNotFound)?;
   let block = &index
     .get_block_by_height(tick_info.deploy_block)
     .unwrap()
@@ -217,19 +199,17 @@ pub(crate) async fn brc20s_debug_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Path(pid): Path<String>,
 ) -> ApiResult<brc20s::PoolInfo> {
-  log::debug!("rpc: get brc20s_pool_info: {}", pid);
+  log::debug!("rpc: get brc20s_debug_pool_info: {}", pid);
 
-  if pid.as_bytes().len() != 13 {
-    return Err(ApiError::bad_request("pid length must 13."));
-  }
-  let pid = pid.to_lowercase();
+  let pid =
+    Pid::from_str(&pid).map_err(|_| ApiError::bad_request(BRC20SError::IncorrectPidFormat))?;
 
   let pool_info = index
     .brc20s_pool_info(&pid)?
-    .ok_or_api_not_found("pool not found")?;
+    .ok_or_api_not_found(BRC20SError::PoolInfoNotFound)?;
 
   log::debug!(
-    "rpc: get brc20s_pool_info: {:?} {:?}",
+    "rpc: get brc20s_debug_pool_info: {:?} {:?}",
     pid.as_str(),
     pool_info
   );
@@ -241,17 +221,15 @@ pub(crate) async fn brc20s_debug_stake_info(
   Extension(index): Extension<Arc<Index>>,
   Path((address, tick)): Path<(String, String)>,
 ) -> ApiResult<brc20s::StakeInfo> {
-  log::debug!("rpc: get brc20s_pool_info: {},{}", address, tick);
+  log::debug!("rpc: get brc20s_debug_stake_info: {},{}", address, tick);
 
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|err: bitcoin::util::address::Error| ApiError::bad_request(err.to_string()))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
 
   let stake_info = index
     .brc20s_stake_info(&address, &PledgedTick::from_str(tick.as_str()))?
-    .ok_or_api_not_found("stake not found")?;
+    .ok_or_api_not_found(BRC20SError::StakeInfoNotFound)?;
 
-  log::debug!("rpc: get brc20s_pool_info: {:?}", stake_info);
+  log::debug!("rpc: get brc20s_debug_stake_info: {:?}", stake_info);
 
   Ok(Json(ApiResponse::ok(stake_info)))
 }
@@ -263,16 +241,12 @@ pub(crate) async fn brc20s_userinfo(
 ) -> ApiResult<UserInfo> {
   log::debug!("rpc: get brc20s_userinfo: {}, {}", pid, address);
 
-  if pid.as_bytes().len() != 13 {
-    return Err(ApiError::bad_request("pid length must 13."));
-  }
-  let pid = pid.to_lowercase();
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let pid =
+    Pid::from_str(&pid).map_err(|_| ApiError::bad_request(BRC20SError::IncorrectPidFormat))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
   let user_info = &index
     .brc20s_user_info(&pid, &address)?
-    .ok_or_api_not_found("user not found")?;
+    .ok_or_api_not_found(BRC20SError::UserInfoNotFound)?;
 
   log::debug!(
     "rpc: get brc20s_userinfo: {:?} {:?}",
@@ -280,7 +254,7 @@ pub(crate) async fn brc20s_userinfo(
     user_info
   );
 
-  if user_info.pid != brc20s::Pid::from_str(&pid).unwrap() {
+  if user_info.pid != pid {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -291,19 +265,15 @@ pub(crate) async fn brc20s_user_pending_reward(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
 ) -> ApiResult<UserReward> {
-  log::debug!("rpc: get brc20s_user_reward: {}, {}", pid, address);
+  log::debug!("rpc: get brc20s_user_pending_reward: {}, {}", pid, address);
 
-  if pid.as_bytes().len() != 13 {
-    return Err(ApiError::bad_request("pid length must 13."));
-  }
-  let pid = pid.to_lowercase();
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let pid =
+    Pid::from_str(&pid).map_err(|_| ApiError::bad_request(BRC20SError::IncorrectPidFormat))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
   let (user_reward, block) = &index.brc20s_user_pending_reward(&pid, &address)?;
 
   log::debug!(
-    "rpc: get brc20s_user_reward: {:?}, {:?}, {:?}",
+    "rpc: get brc20s_user_pending_reward: {:?}, {:?}, {:?}",
     pid.as_str(),
     user_reward,
     block,
@@ -320,26 +290,22 @@ pub(crate) async fn brc20s_debug_userinfo(
   Extension(index): Extension<Arc<Index>>,
   Path((pid, address)): Path<(String, String)>,
 ) -> ApiResult<brc20s::UserInfo> {
-  log::debug!("rpc: get brc20s_userinfo: {}, {}", pid, address);
+  log::debug!("rpc: get brc20s_debug_userinfo: {}, {}", pid, address);
 
-  if pid.as_bytes().len() != 13 {
-    return Err(ApiError::bad_request("pid length must 13."));
-  }
-  let pid = pid.to_lowercase();
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let pid =
+    Pid::from_str(&pid).map_err(|_| ApiError::bad_request(BRC20SError::IncorrectPidFormat))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
   let user_info = index
     .brc20s_user_info(&pid, &address)?
-    .ok_or_api_not_found("user not found")?;
+    .ok_or_api_not_found(BRC20SError::UserInfoNotFound)?;
 
   log::debug!(
-    "rpc: get brc20s_userinfo: {:?} {:?}",
+    "rpc: get brc20s_debug_userinfo: {:?} {:?}",
     pid.as_str(),
     user_info
   );
 
-  if user_info.pid != brc20s::Pid::from_str(&pid).unwrap() {
+  if user_info.pid != pid {
     return Err(ApiError::internal("db: not match"));
   }
 
@@ -352,28 +318,21 @@ pub(crate) async fn brc20s_debug_balance(
   Path((tick_id, address)): Path<(String, String)>,
 ) -> ApiResult<brc20s::Balance> {
   log::debug!(
-    "rpc: get brc20s_balance: tickId:{}, address:{}",
+    "rpc: get brc20s_debug_balance: tickId:{}, address:{}",
     tick_id,
     address
   );
 
-  match TickId::from_str(tick_id.as_str()) {
-    Ok(_) => {}
-    Err(error) => {
-      return Err(ApiError::BadRequest(error.to_string()));
-    }
-  }
-  let tick_id = tick_id.to_lowercase();
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let tick_id = TickId::from_str(&tick_id)
+    .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
   let balance = index
     .brc20s_balance(&tick_id, &address)?
-    .ok_or_api_not_found("balance not found")?;
+    .ok_or_api_not_found(BRC20SError::BalanceNotFound)?;
 
   log::debug!(
-    "rpc: get brc20s_userinfo: {:?} {:?}",
-    tick_id.as_str(),
+    "rpc: get brc20s_debug_balance: {:?} {:?}",
+    tick_id.hex(),
     balance
   );
 
@@ -391,36 +350,24 @@ pub(crate) async fn brc20s_balance(
     address
   );
 
-  let tick_id = tick_id.to_lowercase();
-  if tick_id.as_bytes().len() != 10 {
-    return Err(ApiError::bad_request("tick id must be 10 hex length"));
-  }
+  let tick_id = TickId::from_str(&tick_id)
+    .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
 
-  let tick_id = tick_id.to_lowercase();
-  match TickId::from_str(tick_id.as_str()) {
-    Ok(_) => {}
-    Err(error) => {
-      return Err(ApiError::BadRequest(error.to_string()));
-    }
-  }
-
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
   let balance = &index
     .brc20s_balance(&tick_id, &address)?
-    .ok_or_api_not_found("balance not found")?;
+    .ok_or_api_not_found(BRC20SError::BalanceNotFound)?;
 
   let mut balance_result = Balance::from(balance);
 
   let tick_info = &index
-    .brc20s_tick_info(&tick_id.to_string())?
-    .ok_or_api_not_found("tick not found")?;
+    .brc20s_tick_info(&tick_id)?
+    .ok_or_api_not_found(BRC20SError::TickIdNotFound)?;
 
   balance_result.set_tick_name(tick_info.name.as_str().to_string());
   log::debug!(
-    "rpc: get brc20s_userinfo: {:?} {:?}",
-    tick_id.as_str(),
+    "rpc: get brc20s_balance: {:?} {:?}",
+    tick_id.hex(),
     balance_result
   );
 
@@ -434,9 +381,7 @@ pub(crate) async fn brc20s_all_balance(
 ) -> ApiResult<AllBalance> {
   log::debug!("rpc: get brc20s_all_balance: {}", address);
 
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
 
   let all_balance = index.brc20s_all_balance(&address)?;
 
@@ -448,10 +393,7 @@ pub(crate) async fn brc20s_all_balance(
       .map(|(tick_id, balance)| {
         let mut balance_result = Balance::from(balance);
 
-        let tick_info = &index
-          .brc20s_tick_info(&tick_id.hex().to_string())
-          .unwrap()
-          .unwrap();
+        let tick_info = &index.brc20s_tick_info(&tick_id).unwrap().unwrap();
 
         balance_result.set_tick_name(tick_info.name.as_str().to_string());
         log::debug!(
@@ -472,26 +414,15 @@ pub(crate) async fn brc20s_transferable(
 ) -> ApiResult<Transferable> {
   log::debug!("rpc: get brc20s_transferable: {},{}", tick_id, address);
 
-  let tick_id = tick_id.to_lowercase();
-  if tick_id.as_bytes().len() != 10 {
-    return Err(ApiError::bad_request("tick id must be 10 hex length"));
-  }
+  let tick_id = TickId::from_str(&tick_id)
+    .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
 
-  match TickId::from_str(tick_id.as_str()) {
-    Ok(_) => {}
-    Err(error) => {
-      return Err(ApiError::BadRequest(error.to_string()));
-    }
-  }
-
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
   let all_transfer = &index.brc20s_tickid_transferable(&tick_id, &address)?;
 
   log::debug!(
     "rpc: get brc20s_transferable: {:?} {:?}",
-    tick_id.as_str(),
+    tick_id.hex(),
     all_transfer
   );
 
@@ -501,10 +432,7 @@ pub(crate) async fn brc20s_transferable(
       .map(|asset| {
         let mut inscription = brc20s_types::Inscription::from(asset);
 
-        let tick_info = &index
-          .brc20s_tick_info(&asset.tick_id.hex().to_string())
-          .unwrap()
-          .unwrap();
+        let tick_info = &index.brc20s_tick_info(&asset.tick_id).unwrap().unwrap();
 
         let inscription_number = &index
           .get_inscription_entry(asset.inscription_id)
@@ -526,9 +454,7 @@ pub(crate) async fn brc20s_all_transferable(
 ) -> ApiResult<Transferable> {
   log::debug!("rpc: get brc20s_all_transferable: {}", address);
 
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
 
   let all = index.brc20s_all_transferable(&address)?;
 
@@ -540,10 +466,7 @@ pub(crate) async fn brc20s_all_transferable(
       .map(|asset| {
         let mut inscription = brc20s_types::Inscription::from(asset);
 
-        let tick_info = &index
-          .brc20s_tick_info(&asset.tick_id.hex().to_string())
-          .unwrap()
-          .unwrap();
+        let tick_info = &index.brc20s_tick_info(&asset.tick_id).unwrap().unwrap();
 
         let inscription_number = &index
           .get_inscription_entry(asset.inscription_id)
@@ -566,7 +489,9 @@ pub(crate) async fn brc20s_txid_receipts(
   log::debug!("rpc: get brc20s_txid_receipts: {}", txid);
   let txid = Txid::from_str(&txid).unwrap();
 
-  let all_receipt = index.brc20s_txid_receipts(&txid)?;
+  let all_receipt = index
+    .brc20s_txid_receipts(&txid)?
+    .ok_or_api_not_found(BRC20SError::ReceiptsNotFound)?;
 
   log::debug!("rpc: get brc20s_txid_receipts: {:?}", all_receipt);
 
@@ -593,12 +518,14 @@ pub(crate) async fn brc20s_debug_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
 ) -> ApiResult<Vec<Receipt>> {
-  log::debug!("rpc: get brc20s_txid_receipts: {}", txid);
+  log::debug!("rpc: get brc20s_debug_txid_receipts: {}", txid);
   let txid = Txid::from_str(&txid).unwrap();
 
-  let all_receipt = index.brc20s_txid_receipts(&txid)?;
+  let all_receipt = index
+    .brc20s_txid_receipts(&txid)?
+    .ok_or_api_not_found(BRC20SError::ReceiptsNotFound)?;
 
-  log::debug!("rpc: get brc20s_txid_receipts: {:?}", all_receipt);
+  log::debug!("rpc: get brc20s_debug_txid_receipts: {:?}", all_receipt);
 
   Ok(Json(ApiResponse::ok(all_receipt)))
 }
@@ -610,11 +537,10 @@ pub(crate) async fn brc20s_block_receipts(
 ) -> ApiResult<BlockReceipts> {
   log::debug!("rpc: get brc20s_block_receipts: {}", block_hash);
 
-  let hash =
-    bitcoin::BlockHash::from_str(&block_hash).map_err(|e| ApiError::bad_request(e.to_string()))?;
+  let block_hash = bitcoin::BlockHash::from_str(&block_hash).map_err(ApiError::bad_request)?;
   let block_receipts = index
-    .brc20s_block_receipts(&hash)?
-    .ok_or_api_not_found("block receipts not found")?;
+    .brc20s_block_receipts(&block_hash)?
+    .ok_or_api_not_found(BRC20SError::BlockReceiptsNotFound)?;
 
   log::debug!("rpc: get brc20s_block_receipts: {:?}", block_receipts);
 
@@ -655,17 +581,19 @@ pub(crate) async fn brc20s_stake_info(
     address
   );
 
-  if tick.as_bytes().len() != 4 {
-    return Err(ApiError::bad_request(brc20_api::ERR_TICK_LENGTH));
-  }
-  let tick = tick.to_lowercase();
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let tick = brc20::Tick::from_str(&tick)
+    .map_err(|_| ApiError::bad_request(brc20_types::BRC20Error::IncorrectTickFormat))?;
+
+  let tick = index
+    .brc20_get_tick_info(&tick)?
+    .ok_or_api_not_found(brc20_types::BRC20Error::TickNotFound)?
+    .tick;
+
+  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
 
   let stake_info = index
-    .brc20s_stake_info(&address, &PledgedTick::from_str(tick.as_str()))?
-    .ok_or_api_not_found("stake not found")?;
+    .brc20s_stake_info(&address, &PledgedTick::BRC20Tick(tick.clone()))?
+    .ok_or_api_not_found(BRC20SError::StakeInfoNotFound)?;
 
   log::debug!("rpc: get brc20s_stake_info: {:?}", stake_info);
 

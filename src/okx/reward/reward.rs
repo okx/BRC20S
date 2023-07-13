@@ -142,9 +142,7 @@ pub fn withdraw_user_reward(
   //1 check user's staked gt 0
   if user_staked <= Num::zero() {
     debug!("withdraw_user_reward out");
-    return Err(BRC20SError::NoStaked(
-      user.pid.as_str().to_string(),
-    ));
+    return Err(BRC20SError::NoStaked(user.pid.as_str().to_string()));
   }
 
   //2 pending reward = staked * accRewardPerShare - user reward_debt
@@ -309,9 +307,7 @@ mod tests {
       0,
       0,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -326,9 +322,7 @@ mod tests {
       1,
       1,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -472,9 +466,7 @@ mod tests {
       0,
       0,
       10610,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -490,9 +482,7 @@ mod tests {
       100 * stake_base,
       100 * stake_base,
       10610,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -570,9 +560,7 @@ mod tests {
       100,
       100,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -588,9 +576,7 @@ mod tests {
       100,
       200,
       10,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -606,9 +592,7 @@ mod tests {
       100,
       300,
       30,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -720,9 +704,7 @@ mod tests {
       0,
       400,
       100,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -770,9 +752,7 @@ mod tests {
       100,
       600,
       140,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -818,9 +798,7 @@ mod tests {
       0,
       0,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -835,9 +813,7 @@ mod tests {
       1,
       1,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1013,9 +989,7 @@ mod tests {
       0,
       0,
       210000,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1031,9 +1005,7 @@ mod tests {
       100,
       100,
       210000,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1143,9 +1115,7 @@ mod tests {
       100,
       100,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1161,9 +1131,7 @@ mod tests {
       100,
       200,
       100,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1179,9 +1147,7 @@ mod tests {
       100,
       300,
       200,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1293,9 +1259,7 @@ mod tests {
       0,
       400,
       400,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1343,9 +1307,7 @@ mod tests {
       100,
       600,
       500,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1470,9 +1432,7 @@ mod tests {
       100 * stake_base,
       100 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1486,9 +1446,7 @@ mod tests {
       200 * stake_base,
       300 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1502,9 +1460,7 @@ mod tests {
       300 * stake_base,
       600 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1630,9 +1586,7 @@ mod tests {
       10 * stake_base,
       10 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1646,9 +1600,7 @@ mod tests {
       20 * stake_base,
       30 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1662,9 +1614,7 @@ mod tests {
       30 * stake_base,
       60 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1787,9 +1737,7 @@ mod tests {
 
     assert_eq!(
       withdraw_user_reward(&mut user, &mut pool, STAKED_DECIMAL),
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string()
-      ))
+      Err(BRC20SError::NoStaked(pid.as_str().to_string()))
     );
 
     assert_eq!(
@@ -1827,9 +1775,7 @@ mod tests {
       100 * stake_base,
       100 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1843,9 +1789,7 @@ mod tests {
       200 * stake_base,
       300 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1859,9 +1803,7 @@ mod tests {
       300 * stake_base,
       600 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -1991,9 +1933,7 @@ mod tests {
       100 * stake_base,
       100 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -2012,9 +1952,7 @@ mod tests {
       200 * stake_base,
       300 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -2033,9 +1971,7 @@ mod tests {
       300 * stake_base,
       600 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3336,9 +3272,7 @@ mod tests {
       10000000 * stake_base,
       10000000 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3353,9 +3287,7 @@ mod tests {
       10000000 * stake_base,
       20000000 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3450,9 +3382,7 @@ mod tests {
       10000000 * stake_base,
       10000000 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3467,9 +3397,7 @@ mod tests {
       10000000 * stake_base,
       20000000 * stake_base,
       0,
-      Err(BRC20SError::NoStaked(
-        pid.as_str().to_string(),
-      )),
+      Err(BRC20SError::NoStaked(pid.as_str().to_string())),
       Ok(()),
       STAKED_DECIMAL,
     );
@@ -3708,6 +3636,8 @@ mod tests {
       acc_reward_per_share: "0".to_string(),
       last_update_block: 0,
       only: true,
+      deploy_block: 0,
+      deploy_block_time: 10000,
     }
   }
 

@@ -1,5 +1,4 @@
 use crate::okx::datastore::brc20;
-use crate::okx::datastore::brc20::Tick;
 use crate::okx::datastore::brc20s;
 use crate::okx::datastore::brc20s::PledgedTick;
 use crate::okx::datastore::ScriptKey;
@@ -96,7 +95,7 @@ pub fn stake_is_exist<'a, L: brc20s::DataStoreReadWrite, M: brc20::DataStoreRead
 pub fn get_raw_brc20_tick<M: brc20::DataStoreReadWrite>(
   token: PledgedTick,
   brc20_ledger: &M,
-) -> Option<Tick> {
+) -> Option<brc20::Tick> {
   let mut a = None;
   match token {
     PledgedTick::BRC20Tick(tick) => {

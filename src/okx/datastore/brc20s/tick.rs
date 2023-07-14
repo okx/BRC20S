@@ -91,7 +91,7 @@ impl FromStr for Tick {
 
 impl PartialEq for Tick {
   fn eq(&self, other: &Self) -> bool {
-    self.to_lowercase().0 == other.to_lowercase().0
+    self.as_str().to_lowercase().as_str() == other.as_str().to_lowercase().as_str()
   }
 
   fn ne(&self, other: &Self) -> bool {
@@ -104,10 +104,6 @@ impl Tick {
     // NOTE: Tick comes from &str by from_str,
     // so it could be calling unwrap when convert to str
     std::str::from_utf8(self.0.as_slice()).unwrap()
-  }
-
-  pub fn to_lowercase(&self) -> Tick {
-    Self::from_str(self.as_str().to_lowercase().as_str()).unwrap()
   }
 
   #[allow(dead_code)]
@@ -228,7 +224,7 @@ impl TickInfo {
   ) -> Self {
     Self {
       tick_id,
-      name: name.to_lowercase(),
+      name: name.clone(),
       inscription_id: inscription_id.clone(),
       allocated,
       decimal,
@@ -335,7 +331,7 @@ mod tests {
     );
 
     assert_eq!(
-      Tick::from_str("aBc1a").unwrap().to_lowercase().as_str(),
+      Tick::from_str("aBc1a").unwrap().as_str().to_lowercase(),
       "abc1a".to_string()
     );
 

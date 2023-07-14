@@ -221,7 +221,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
       }
       _ => {
         return Err(Error::BRC20SError(BRC20SError::InternalError(format!(
-          "Not found brc20 token:{}",
+          "not found brc20 token:{}",
           stake.to_string()
         ))));
       }

@@ -181,6 +181,13 @@ impl PledgedTick {
     }
   }
 
+  pub fn is_brc20(&self) -> bool {
+    match self {
+      PledgedTick::BRC20Tick(_) => true,
+      _ => false,
+    }
+  }
+
   pub fn from_str(str: &str) -> Self {
     match str {
       NATIVE_TOKEN => PledgedTick::Native,
@@ -321,6 +328,14 @@ mod tests {
       serde_json::from_str::<TickId>(r##""f7c515d6b7""##).unwrap(),
       TickId::from_str("f7c515d6b7").unwrap()
     );
+  }
+
+  #[test]
+  fn test_pledged_tick_brc20() {
+    assert_eq!(PledgedTick::from_str("btc").is_brc20(), false);
+    assert_eq!(PledgedTick::from_str("aBc1a").is_brc20(), false);
+    assert_eq!(PledgedTick::from_str("d").is_brc20(), false);
+    assert_eq!(PledgedTick::from_str("aBc1").is_brc20(), true);
   }
 
   #[test]

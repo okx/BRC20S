@@ -219,7 +219,12 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
       Some(t) => {
         stake = PledgedTick::BRC20Tick(t);
       }
-      _ => {}
+      _ => {
+        return Err(Error::BRC20SError(BRC20SError::InternalError(format!(
+          "Not found brc20 token:{}",
+          stake.to_string()
+        ))));
+      }
     }
   }
 

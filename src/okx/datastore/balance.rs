@@ -93,15 +93,15 @@ pub fn stake_is_exist<'a, L: brc20s::DataStoreReadWrite, M: brc20::DataStoreRead
   }
 }
 
-pub fn get_raw_brc20_tick<'a, M: brc20::DataStoreReadWrite>(
+pub fn get_raw_brc20_tick<M: brc20::DataStoreReadWrite>(
   token: PledgedTick,
-  brc20_ledger: &'a M,
+  brc20_ledger: &M,
 ) -> Option<Tick> {
   let mut a = None;
   match token {
     PledgedTick::BRC20Tick(tick) => {
-      let tokeninfo = brc20_ledger.get_token_info(&tick);
-      match tokeninfo {
+      let token_info = brc20_ledger.get_token_info(&tick);
+      match token_info {
         Ok(info) => match info {
           Some(store_token) => a = Some(store_token.tick),
           _ => {}

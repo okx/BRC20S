@@ -523,23 +523,17 @@ impl Index {
     self.begin_read()?.block_height()
   }
 
-  pub(crate) fn height_btc(
-    &self,
-    query_btc: bool,
-  ) -> Result<(
-    Option<Height>,
-    Option<bitcoincore_rpc::json::GetBlockchainInfoResult>,
-  )> {
+  pub(crate) fn height_btc(&self, query_btc: bool) -> Result<(Option<Height>, Option<Height>)> {
     let ord_height = self.begin_read()?.block_height()?;
     if let Some(height) = ord_height {
       if query_btc {
-        let btc_info = match self.client.get_blockchain_info() {
-          Ok(info) => info,
+        let btc_height = match self.client.get_blockchain_info() {
+          Ok(info) => Height(info.headers),
           Err(_) => {
             return Ok((Some(height), None));
           }
         };
-        return Ok((Some(height), Some(btc_info)));
+        return Ok((Some(height), Some(btc_height)));
       }
       return Ok((Some(height), None));
     } else {

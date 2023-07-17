@@ -1,7 +1,7 @@
 use {
   self::{
     deserialize_from_str::DeserializeFromStr,
-    error::{OptionExt, ServerError, ServerResult},
+    error::{ApiError, OptionExt, ServerError, ServerResult},
   },
   super::*,
   crate::page_config::PageConfig,

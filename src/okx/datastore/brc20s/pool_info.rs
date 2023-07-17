@@ -91,6 +91,8 @@ pub struct PoolInfo {
   pub acc_reward_per_share: String,
   pub last_update_block: u64,
   pub only: bool,
+  pub deploy_block: u64,
+  pub deploy_block_time: u32,
 }
 
 impl PoolInfo {
@@ -106,6 +108,8 @@ impl PoolInfo {
     acc_reward_per_share: String,
     last_update_block: u64,
     only: bool,
+    deploy_block: u64,
+    deploy_block_time: u32,
   ) -> Self {
     Self {
       pid: pid.clone(),
@@ -119,6 +123,8 @@ impl PoolInfo {
       acc_reward_per_share,
       last_update_block,
       only,
+      deploy_block,
+      deploy_block_time,
     }
   }
 }

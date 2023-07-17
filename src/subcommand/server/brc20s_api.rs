@@ -24,13 +24,7 @@ pub(crate) async fn brc20s_all_tick_info(
           .unwrap()
           .unwrap();
 
-        let block = &index
-          .get_block_by_height(tick_info.deploy_block)
-          .unwrap()
-          .unwrap();
-
         let mut brc20s_tick = TickInfo::from(tick_info);
-        brc20s_tick.set_deploy_blocktime(block.header.time as u64);
         brc20s_tick.set_inscription_number(inscription_number.number as u64);
         brc20s_tick
       })
@@ -64,13 +58,7 @@ pub(crate) async fn brc20s_tick_info(
     .unwrap()
     .unwrap();
 
-  let block = &index
-    .get_block_by_height(tick_info.deploy_block)
-    .unwrap()
-    .unwrap();
-
   let mut brc20s_tick = TickInfo::from(tick_info);
-  brc20s_tick.set_deploy_blocktime(block.header.time as u64);
   brc20s_tick.set_inscription_number(inscription_number.number as u64);
 
   Ok(Json(ApiResponse::ok(brc20s_tick)))
@@ -113,10 +101,6 @@ pub(crate) async fn brc20s_all_pool_info(
       .map(|pool| {
         let tick_id = TickId::from(pool.pid.clone());
         let tick_info = &index.brc20s_tick_info(&tick_id).unwrap().unwrap();
-        let block = &index
-          .get_block_by_height(tick_info.deploy_block)
-          .unwrap()
-          .unwrap();
 
         let inscription_number = &index
           .get_inscription_entry(pool.inscription_id)
@@ -129,11 +113,7 @@ pub(crate) async fn brc20s_all_pool_info(
           tick_info.name.as_str().to_string(),
         );
         pool_result.set_inscription_num(inscription_number.number as u64);
-        pool_result.set_deploy(
-          tick_info.deployer.clone().into(),
-          tick_info.deploy_block,
-          block.header.time as u64,
-        );
+        pool_result.set_deployer(tick_info.deployer.clone().into());
         pool_result
       })
       .collect(),
@@ -170,10 +150,6 @@ pub(crate) async fn brc20s_pool_info(
   let tick_info = &index
     .brc20s_tick_info(&tick_id)?
     .ok_or_api_not_found(BRC20SError::TickIdNotFound)?;
-  let block = &index
-    .get_block_by_height(tick_info.deploy_block)
-    .unwrap()
-    .unwrap();
 
   let inscription_number = &index
     .get_inscription_entry(pool_info.inscription_id)
@@ -186,11 +162,7 @@ pub(crate) async fn brc20s_pool_info(
     tick_info.name.as_str().to_string(),
   );
   pool.set_inscription_num(inscription_number.number as u64);
-  pool.set_deploy(
-    tick_info.deployer.clone().into(),
-    tick_info.deploy_block,
-    block.header.time as u64,
-  );
+  pool.set_deployer(tick_info.deployer.clone().into());
 
   Ok(Json(ApiResponse::ok(pool)))
 }

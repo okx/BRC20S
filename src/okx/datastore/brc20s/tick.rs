@@ -217,6 +217,7 @@ pub struct TickInfo {
   pub supply: u128,
   pub deployer: ScriptKey,
   pub deploy_block: u64,
+  pub deploy_block_time: u32,
   pub latest_mint_block: u64,
   pub pids: Vec<Pid>,
 }
@@ -232,6 +233,7 @@ impl TickInfo {
     supply: u128,
     deployer: &ScriptKey,
     deploy_block: u64,
+    deploy_block_time: u32,
     latest_mint_block: u64,
     pids: Vec<Pid>,
   ) -> Self {
@@ -245,6 +247,7 @@ impl TickInfo {
       supply,
       deployer: deployer.clone(),
       deploy_block,
+      deploy_block_time,
       latest_mint_block,
       pids,
     }

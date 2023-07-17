@@ -2,6 +2,28 @@ use super::{types::ScriptPubkey, *};
 use crate::okx::datastore::brc20s;
 use std::{convert::From, vec};
 
+#[derive(Debug, thiserror::Error)]
+pub enum BRC20SError {
+  #[error("tid must be 10 hex length")]
+  IncorrectTickIdFormat,
+  #[error("pid must be 13 hex length")]
+  IncorrectPidFormat,
+  #[error("tid not found")]
+  TickIdNotFound,
+  #[error("balance not found")]
+  BalanceNotFound,
+  #[error("receipts not found")]
+  ReceiptsNotFound,
+  #[error("block receipts not found")]
+  BlockReceiptsNotFound,
+  #[error("pool info not found")]
+  PoolInfoNotFound,
+  #[error("stake info not found")]
+  StakeInfoNotFound,
+  #[error("user info not found")]
+  UserInfoNotFound,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TickInfo {
@@ -444,9 +466,9 @@ impl DeployPoolEvent {
     deployer: ScriptPubkey,
     index: Arc<Index>,
   ) -> Result<Self> {
-    let parts: Vec<&str> = event.pid.as_str().split("#").collect();
+    let tick_id = brc20s::TickId::from(event.pid.clone());
     let tick_info = index
-      .brc20s_tick_info(&parts[0].to_string())?
+      .brc20s_tick_info(&tick_id)?
       .ok_or(anyhow!("tick not found, pid: {}", event.pid.as_str()))?;
 
     Ok(Self {
@@ -555,7 +577,7 @@ impl InscribeTransferEvent {
     index: Arc<Index>,
   ) -> Result<Self> {
     let tick_info = index
-      .brc20s_tick_info(&event.tick_id.hex())?
+      .brc20s_tick_info(&event.tick_id)?
       .ok_or(anyhow!("tick not found, tid: {}", event.tick_id.hex()))?;
 
     Ok(Self {
@@ -588,7 +610,7 @@ impl TransferEvent {
     index: Arc<Index>,
   ) -> Result<Self> {
     let tick_info = index
-      .brc20s_tick_info(&event.tick_id.hex())?
+      .brc20s_tick_info(&event.tick_id)?
       .ok_or(anyhow!("tick not found, tid: {}", event.tick_id.hex()))?;
     Ok(Self {
       tick: Tick {

@@ -43,10 +43,6 @@ impl TickInfo {
   pub fn set_inscription_number(&mut self, inscription_number: u64) {
     self.inscription_number = inscription_number;
   }
-
-  pub fn set_deploy_blocktime(&mut self, deploy_blocktime: u64) {
-    self.deploy_blocktime = deploy_blocktime;
-  }
 }
 
 impl From<&brc20s::TickInfo> for TickInfo {
@@ -66,7 +62,7 @@ impl From<&brc20s::TickInfo> for TickInfo {
       deployer: tick_info.deployer.clone().into(),
       txid: tick_info.inscription_id.txid.to_string(),
       deploy_height: tick_info.deploy_block,
-      deploy_blocktime: 0,
+      deploy_blocktime: tick_info.deploy_block_time as u64,
     }
   }
 }
@@ -117,10 +113,8 @@ impl Pool {
     self.inscription_number = inscription_number
   }
 
-  pub fn set_deploy(&mut self, deployer: ScriptPubkey, deploy_height: u64, deploy_blocktime: u64) {
+  pub fn set_deployer(&mut self, deployer: ScriptPubkey) {
     self.deployer = deployer;
-    self.deploy_height = deploy_height;
-    self.deploy_blocktime = deploy_blocktime;
   }
 }
 
@@ -151,8 +145,8 @@ impl From<&brc20s::PoolInfo> for Pool {
       inscription_id: pool_info.inscription_id.to_string(),
       inscription_number: 0,
       deployer: ScriptPubkey::default(),
-      deploy_height: 0,
-      deploy_blocktime: 0,
+      deploy_height: pool_info.deploy_block,
+      deploy_blocktime: pool_info.deploy_block_time as u64,
       txid: pool_info.inscription_id.txid.to_string(),
     }
   }

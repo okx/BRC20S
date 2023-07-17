@@ -472,6 +472,8 @@ mod tests {
       acc_reward_per_share: "0".to_string(),
       last_update_block: 0,
       only: true,
+      deploy_block: 100,
+      deploy_block_time: 10000,
     };
     let mut pool_info_2 = pool_info_1.clone();
     pool_info_2.pid = pid_2.clone();
@@ -688,6 +690,7 @@ mod tests {
         Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
       ),
       deploy_block: 100,
+      deploy_block_time: 100000,
       latest_mint_block: 100,
       pids: vec![pid],
     };

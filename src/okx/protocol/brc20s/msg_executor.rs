@@ -2,8 +2,8 @@ use crate::okx::{
   datastore::{
     balance::{
       convert_amount_with_decimal, convert_amount_without_decimal,
-      convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_stake_dec,
-      get_user_common_balance, stake_is_exist, tick_can_staked,
+      convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_raw_brc20_tick,
+      get_stake_dec, get_user_common_balance, stake_is_exist, tick_can_staked,
     },
     brc20s::{
       Balance, DeployPoolEvent, DeployTickEvent, DepositEvent, Event, InscribeTransferEvent,
@@ -27,6 +27,7 @@ use crate::okx::{
 
 use crate::okx::datastore::brc20;
 use crate::okx::datastore::brc20s;
+use crate::okx::datastore::brc20s::PledgedTick;
 use crate::okx::datastore::ord;
 use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
@@ -192,8 +193,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
   let pid = deploy.get_pool_id();
   let ptype = deploy.get_pool_type();
   let only = deploy.get_only();
-  let stake = deploy.get_stake_id();
-
+  let mut stake = deploy.get_stake_id();
   // temp disable
   // btc and brc20-s can not be staked
   if !tick_can_staked(&stake) {
@@ -212,6 +212,22 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
       stake.to_string(),
     )));
   }
+
+  if stake.is_brc20() {
+    let tick = get_raw_brc20_tick(stake.clone(), brc20_store);
+    match tick {
+      Some(t) => {
+        stake = PledgedTick::BRC20Tick(t);
+      }
+      _ => {
+        return Err(Error::BRC20SError(BRC20SError::InternalError(format!(
+          "not found brc20 token:{}",
+          stake.to_string()
+        ))));
+      }
+    }
+  }
+
   // check pool is exist, if true return error
   if let Some(_) = brc20s_store
     .get_pid_to_poolinfo(&pid)
@@ -224,25 +240,25 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
 
   let erate: Num;
 
-  let tick_name = deploy.get_earn_id();
+  let earn_tick = deploy.get_earn_tick();
   let dmax_str = deploy.distribution_max.as_str();
   let dmax: u128;
 
   //Get or create the tick
-  if let Some(mut temp_tick) = brc20s_store
+  if let Some(mut stored_tick) = brc20s_store
     .get_tick_info(&tick_id)
     .map_err(|e| Error::LedgerError(e))?
   {
-    if temp_tick.name != tick_name {
+    if stored_tick.name != earn_tick {
       return Err(Error::BRC20SError(BRC20SError::TickNameNotMatch(
         deploy.earn.clone(),
       )));
     }
 
-    if !temp_tick.deployer.eq(&to_script_key) {
+    if !stored_tick.deployer.eq(&to_script_key) {
       return Err(Error::BRC20SError(BRC20SError::DeployerNotEqual(
         pid.as_str().to_string(),
-        temp_tick.deployer.to_string(),
+        stored_tick.deployer.to_string(),
         to_script_key.to_string(),
       )));
     }
@@ -265,20 +281,20 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
       )));
     }
 
-    dmax = convert_amount_with_decimal(dmax_str.clone(), temp_tick.decimal)?.checked_to_u128()?;
+    dmax = convert_amount_with_decimal(dmax_str.clone(), stored_tick.decimal)?.checked_to_u128()?;
     // check dmax
-    if temp_tick.supply - temp_tick.allocated < dmax {
+    if stored_tick.supply - stored_tick.allocated < dmax {
       return Err(Error::BRC20SError(BRC20SError::InsufficientTickSupply(
         deploy.distribution_max,
       )));
     }
-    temp_tick.allocated = temp_tick.allocated + dmax;
-    temp_tick.pids.push(pid.clone());
+    stored_tick.allocated = stored_tick.allocated + dmax;
+    stored_tick.pids.push(pid.clone());
     brc20s_store
-      .set_tick_info(&tick_id, &temp_tick)
+      .set_tick_info(&tick_id, &stored_tick)
       .map_err(|e| Error::LedgerError(e))?;
 
-    erate = convert_amount_with_decimal(deploy.earn_rate.as_str(), temp_tick.decimal)?;
+    erate = convert_amount_with_decimal(deploy.earn_rate.as_str(), stored_tick.decimal)?;
   } else {
     let decimal = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
       .checked_to_u8()?;
@@ -294,7 +310,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
 
     let supply = total_supply.checked_to_u128()?;
     let c_tick_id = caculate_tick_id(
-      tick_name.as_str(),
+      earn_tick.as_str(),
       convert_amount_without_decimal(supply, decimal)?.checked_to_u128()?,
       decimal,
       &from_script_key,
@@ -311,7 +327,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
     dmax = convert_amount_with_decimal(dmax_str.clone(), decimal)?.checked_to_u128()?;
     let tick = TickInfo::new(
       tick_id,
-      &tick_name,
+      &earn_tick,
       &msg.inscription_id.clone(),
       dmax,
       decimal,
@@ -328,7 +344,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
 
     events.push(Event::DeployTick(DeployTickEvent {
       tick_id,
-      name: tick_name,
+      name: earn_tick,
       supply: tick.supply,
       decimal: tick.decimal,
     }));
@@ -1314,7 +1330,7 @@ mod tests {
     let deploy = Deploy {
       pool_type: "pool".to_string(),
       pool_id: "13395c5283#1f".to_string(),
-      stake: "btc1".to_string(),
+      stake: "BTC1".to_string(),
       earn: "ordi1".to_string(),
       earn_rate: "10".to_string(),
       distribution_max: "12000000".to_string(),

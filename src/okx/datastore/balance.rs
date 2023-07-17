@@ -92,6 +92,27 @@ pub fn stake_is_exist<'a, L: brc20s::DataStoreReadWrite, M: brc20::DataStoreRead
   }
 }
 
+pub fn get_raw_brc20_tick<M: brc20::DataStoreReadWrite>(
+  token: PledgedTick,
+  brc20_ledger: &M,
+) -> Option<brc20::Tick> {
+  let mut a = None;
+  match token {
+    PledgedTick::BRC20Tick(tick) => {
+      let token_info = brc20_ledger.get_token_info(&tick);
+      match token_info {
+        Ok(info) => match info {
+          Some(store_token) => a = Some(store_token.tick),
+          _ => {}
+        },
+        _ => {}
+      };
+    }
+    _ => {}
+  }
+  a
+}
+
 pub fn tick_can_staked(token: &PledgedTick) -> bool {
   match token {
     PledgedTick::Native => false,

@@ -74,7 +74,7 @@ impl Deploy {
     }
   }
 
-  pub fn get_earn_id(&self) -> Tick {
+  pub fn get_earn_tick(&self) -> Tick {
     return Tick::from_str(self.earn.as_str()).unwrap();
   }
 

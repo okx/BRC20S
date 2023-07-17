@@ -47,8 +47,8 @@ impl From<Error> for ServerError {
 }
 
 #[repr(i32)]
-#[allow(dead_code)]
 pub(crate) enum ApiError {
+  #[allow(dead_code)]
   NoError = 0,
   Internal(String) = 1,
   BadRequest(String) = 2,
@@ -65,16 +65,16 @@ impl ApiError {
     }
   }
 
-  pub(crate) fn not_found<S: Into<String>>(message: S) -> Self {
-    Self::NotFound(message.into())
+  pub(crate) fn not_found<S: ToString>(message: S) -> Self {
+    Self::NotFound(message.to_string())
   }
 
-  pub(crate) fn internal<S: Into<String>>(message: S) -> Self {
-    Self::Internal(message.into())
+  pub(crate) fn internal<S: ToString>(message: S) -> Self {
+    Self::Internal(message.to_string())
   }
 
-  pub(crate) fn bad_request<S: Into<String>>(message: S) -> Self {
-    Self::BadRequest(message.into())
+  pub(crate) fn bad_request<S: ToString>(message: S) -> Self {
+    Self::BadRequest(message.to_string())
   }
 }
 
@@ -103,6 +103,6 @@ impl IntoResponse for ApiError {
 
 impl From<anyhow::Error> for ApiError {
   fn from(error: anyhow::Error) -> Self {
-    Self::internal(error.to_string())
+    Self::internal(error)
   }
 }

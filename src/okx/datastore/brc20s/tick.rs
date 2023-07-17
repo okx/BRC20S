@@ -31,6 +31,12 @@ impl FromStr for TickId {
   }
 }
 
+impl From<Pid> for TickId {
+  fn from(pid: Pid) -> Self {
+    TickId::from_str(&pid.as_str().to_string()[..TICK_ID_STR_COUNT]).unwrap()
+  }
+}
+
 impl TickId {
   pub fn hex(&self) -> String {
     hex::encode(&self.0)
@@ -396,5 +402,18 @@ mod tests {
         .ne(&TickId::from_str("1234567890").unwrap()),
       true
     );
+  }
+
+  #[test]
+  fn test_pid_to_tid() {
+    let pid = Pid::from_str("A012345679#01").unwrap();
+    let tid = TickId::from(pid);
+    assert_eq!(tid, TickId::from_str("A012345679").unwrap());
+    assert_eq!(tid, TickId::from_str("a012345679").unwrap());
+
+    let pid = Pid::from_str("a012345679#01").unwrap();
+    let tid = TickId::from(pid);
+    assert_eq!(tid, TickId::from_str("A012345679").unwrap());
+    assert_eq!(tid, TickId::from_str("a012345679").unwrap());
   }
 }

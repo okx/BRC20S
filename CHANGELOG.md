@@ -1,6 +1,29 @@
 Changelog
 =========
 
+[0.8.1](https://github.com/okx/ord/releases/tag/0.8.1) - 2023-07-19
+---------------------------------------------------------------------
+
+### Performance
+- Optimize lowercase (#128)
+- Save block number and time in database (#127)
+- Optimize API code structure (#126)
+- Optimize message structure (#123)
+- Add lower tick structure (#113)
+
+### Changed
+- Refactor the 'node_info' interface (#125)
+- Rename BRC30 to BRC20S (#117)
+
+
+### Fixed
+- Api: tick case-sensitive issue (#124)
+- Database: initialize BRC20S database (#122)
+
+### Misc
+- Should only compile on 64bits target (#130)
+- Update dependencies (#129)
+
 [0.8.0](https://github.com/okx/ord/releases/tag/0.8.0) - 2023-07-12
 ---------------------------------------------------------------------
 ### New Feature

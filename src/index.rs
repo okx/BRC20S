@@ -8,6 +8,7 @@ use crate::okx::{
       self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
       DataStoreReadOnly as BRC20SDataStoreReadOnly,
     },
+    ord::{self, OrdDataStoreReadOnly},
     ScriptKey,
   },
   protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
@@ -1479,6 +1480,56 @@ impl Index {
         continue;
       }
       result.push((txid.clone(), tx_events));
+    }
+
+    Ok(Some(result))
+  }
+
+  pub(crate) fn ord_txid_inscriptions(
+    &self,
+    txid: &Txid,
+  ) -> Result<Option<Vec<ord::InscriptionOp>>> {
+    let rtx = self.database.begin_read().unwrap();
+    let ord_db = ord::OrdDbReader::new(&rtx);
+    let res = ord_db.get_transaction_operations(&txid)?;
+
+    if res.len() == 0 {
+      let tx = self.client.get_raw_transaction_info(txid, None)?;
+      if let Some(tx_blockhash) = tx.blockhash {
+        let tx_bh = self.client.get_block_header_info(&tx_blockhash)?;
+        let parsed_height = self.height()?;
+        if parsed_height.is_none() || tx_bh.height as u64 > parsed_height.unwrap().0 {
+          return Ok(None);
+        }
+      } else {
+        return Err(anyhow!("can't get tx block hash: {txid}"));
+      }
+    }
+
+    return Ok(Some(res));
+  }
+  pub(crate) fn ord_block_inscriptions(
+    &self,
+    hash: &BlockHash,
+  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<ord::InscriptionOp>)>>> {
+    let rtx = self.database.begin_read().unwrap();
+    let ord_db = ord::OrdDbReader::new(&rtx);
+    let parsed_height = self.height()?;
+    if parsed_height.is_none() {
+      return Ok(None);
+    }
+    let parsed_height = parsed_height.unwrap().0;
+    let block = self.client.get_block_info(&hash)?;
+    if block.height as u64 > parsed_height {
+      return Ok(None);
+    }
+    let mut result = Vec::new();
+    for txid in &block.tx {
+      let inscriptions = ord_db.get_transaction_operations(txid)?;
+      if inscriptions.len() == 0 {
+        continue;
+      }
+      result.push((txid.clone(), inscriptions));
     }
 
     Ok(Some(result))

@@ -17,7 +17,7 @@ use crate::okx::{
       hash::caculate_tick_id,
       operation::Operation,
       params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
-      vesion::{enable_version_by_key, Version, VERSION_KEY_ENABLE_SHARE},
+      vesion::{enable_version_by_key, get_version_by_network, Version, VERSION_KEY_ENABLE_SHARE},
       BRC20SError, Deploy, Error, Message, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
     },
     utils, BlockContext,
@@ -36,6 +36,8 @@ use bitcoin::{Network, Txid};
 use std::cmp;
 use std::collections::HashMap;
 use std::str::FromStr;
+
+use super::{params::MAX_STAKED_POOL_NUM_V1, vesion::VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExecutionMessage {
@@ -82,7 +84,7 @@ impl ExecutionMessage {
         None
       },
       op: msg.op.clone(),
-      version: HashMap::new(),
+      version: get_version_by_network(network),
     })
   }
 }
@@ -455,7 +457,17 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
     .map_err(|e| Error::LedgerError(e))?
     .map_or(StakeInfo::new(&vec![], &stake_tick, 0, 0), |v| v);
 
-  if user_stakeinfo.pool_stakes.len() == MAX_STAKED_POOL_NUM {
+  // update max staked pool num limit from 'MAX_STAKED_POOL_NUM' to  'VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1'
+  let mut max_staked_pool_num = MAX_STAKED_POOL_NUM;
+  if enable_version_by_key(
+    &msg.version,
+    VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1,
+    context.blockheight,
+  ) {
+    max_staked_pool_num = MAX_STAKED_POOL_NUM_V1;
+  };
+
+  if user_stakeinfo.pool_stakes.len() == max_staked_pool_num {
     return Err(Error::BRC20SError(BRC20SError::InternalError(
       "the number of stake pool is full".to_string(),
     )));
@@ -3431,6 +3443,33 @@ mod tests {
         Err(BRC20SError::InternalError(
           "the number of stake pool is full".to_string()
         )),
+        result
+      );
+
+      stake_msg.pool_id = "fa48a823af#01".to_string();
+      msg.op = Operation::Stake(stake_msg.clone());
+      let mut context = context.clone();
+      context.blockheight = 20_u64;
+      let result = process_stake(
+        context,
+        &brc20_data_store,
+        &brc20s_data_store,
+        &msg,
+        stake_msg.clone(),
+      );
+
+      let result: Result<Event, BRC20SError> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
+      };
+      let pid = Pid::from_str("fa48a823af#01").unwrap();
+      assert_eq!(
+        Ok(Event::Deposit(DepositEvent {
+          pid,
+          amt: 1000,
+          period_settlement_reward: 0
+        })),
         result
       );
     }

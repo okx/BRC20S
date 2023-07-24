@@ -2,8 +2,7 @@ use crate::okx::protocol::brc20s::vesion::{UNIT_TEST_VERSION, VERSION_KEY_ENABLE
 use std::collections::HashMap;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
-  crate::okx::protocol::brc20s::vesion::Version, crate::SatPoint, bitcoin::Address,
-  std::str::FromStr,
+  crate::SatPoint, bitcoin::Address, std::str::FromStr,
 };
 
 pub(crate) fn mock_create_brc20s_message(

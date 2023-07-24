@@ -22,7 +22,27 @@ lazy_static! {
       VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
       Version {
         name: VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
-        start_height: 2000,
+        start_height: 800200,
+      },
+    );
+    version
+  };
+
+  static ref TEST_NET_VERSION: HashMap<String, Version> = {
+    HashMap::new()
+  };
+
+  static ref SIG_NET_VERSION: HashMap<String, Version> = {
+    HashMap::new()
+  };
+
+  static ref REGTEST_NET_VERSION: HashMap<String, Version> = {
+    let mut version: HashMap<String, Version> = HashMap::new();
+    version.insert(
+      VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
+      Version {
+        name: VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
+        start_height: 2100,
       },
     );
     version
@@ -73,8 +93,8 @@ pub fn enable_version_by_key(
 pub fn get_version_by_network(network: Network) -> HashMap<String, Version> {
   match network {
     Network::Bitcoin => MAIN_NET_VERSION.clone(),
-    Network::Testnet => HashMap::new(),
-    Network::Signet => HashMap::new(),
-    Network::Regtest => HashMap::new(),
+    Network::Testnet => TEST_NET_VERSION.clone(),
+    Network::Signet => SIG_NET_VERSION.clone(),
+    Network::Regtest => REGTEST_NET_VERSION.clone(),
   }
 }

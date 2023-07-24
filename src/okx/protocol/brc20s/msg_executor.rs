@@ -457,20 +457,18 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
     .map_err(|e| Error::LedgerError(e))?
     .map_or(StakeInfo::new(&vec![], &stake_tick, 0, 0), |v| v);
 
-  // update max staked pool num limit from 'MAX_STAKED_POOL_NUM' to  'VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1'
-  let mut max_staked_pool_num = MAX_STAKED_POOL_NUM;
-  if enable_version_by_key(
+  // Verifying weather more than max_staked_pool_num at there is a bug which user deposit up to max_staked_pool_num use can not staked any pool.
+  // So we disable follow code after update max_staked_pool_num
+  if !enable_version_by_key(
     &msg.version,
     VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1,
     context.blockheight,
   ) {
-    max_staked_pool_num = MAX_STAKED_POOL_NUM_V1;
-  };
-
-  if user_stakeinfo.pool_stakes.len() == max_staked_pool_num {
-    return Err(Error::BRC20SError(BRC20SError::InternalError(
-      "the number of stake pool is full".to_string(),
-    )));
+    if user_stakeinfo.pool_stakes.len() == MAX_STAKED_POOL_NUM {
+      return Err(Error::BRC20SError(BRC20SError::InternalError(
+        "the number of stake pool is full".to_string(),
+      )));
+    }
   }
 
   let staked_total =
@@ -525,6 +523,18 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
     user_stakeinfo.max_share = cmp::max(user_stakeinfo.max_share, userinfo.staked)
   }
 
+  // Verifying weather more than max_staked_pool_num.
+  if enable_version_by_key(
+    &msg.version,
+    VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1,
+    context.blockheight,
+  ) {
+    if user_stakeinfo.pool_stakes.len() > MAX_STAKED_POOL_NUM_V1 {
+      return Err(Error::BRC20SError(BRC20SError::InternalError(
+        "the number of stake pool is full".to_string(),
+      )));
+    }
+  }
   brc20s_store
     .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
     .map_err(|e| Error::LedgerError(e))?;

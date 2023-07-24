@@ -1,5 +1,4 @@
-use crate::okx::protocol::brc20s::vesion::{UNIT_TEST_VERSION, VERSION_KEY_ENABLE_SHARE};
-use std::collections::HashMap;
+use crate::okx::protocol::brc20s::vesion::UNIT_TEST_VERSION;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
   crate::SatPoint, bitcoin::Address, std::str::FromStr,

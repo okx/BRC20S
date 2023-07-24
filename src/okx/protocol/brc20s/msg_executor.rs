@@ -1025,6 +1025,8 @@ fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWr
 #[allow(unused)]
 #[cfg(test)]
 mod tests {
+  use std::ops::Sub;
+
   use super::super::*;
   use super::*;
   use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
@@ -1042,7 +1044,11 @@ mod tests {
   };
   use crate::test::Hash;
   use bech32::CheckBase32;
+  use bitcoin::hashes::hex::ToHex;
+  use bitcoin::hashes::sha256;
+  use bitcoin::hashes::HashEngine;
   use bitcoin::Address;
+  use chrono::Local;
   use redb::Database;
   use tempfile::NamedTempFile;
 
@@ -7416,5 +7422,73 @@ mod tests {
         result
       );
     }
+  }
+
+  #[test]
+  fn test_process_passive_for_bench() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+
+    let brc20_data_store = brc20_db::DataStore::new(&wtx);
+    let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+
+    let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
+    let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let stake_tick = deploy.get_stake_id();
+    let from_script = msg.from.clone();
+    let to_script = msg.to.clone().unwrap();
+    let result =
+      set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 2000000_u128, 18_u8).err();
+    assert_eq!(None, result);
+
+    let number = 128_u64;
+    for i in 1..number {
+      let brc20s_tick = format!("ord{}", i);
+      let mut enc = sha256::Hash::engine();
+      enc.input(brc20s_tick.as_bytes());
+      let hash = sha256::Hash::from_engine(enc);
+      let (deploy, msg) = mock_deploy_msg(
+        "pool",
+        "01",
+        "btc1",
+        hash[0..3].to_hex().as_str(),
+        "10",
+        "12000000",
+        "21000000",
+        18,
+        true,
+        addr,
+        addr,
+      );
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      assert_eq!(None, result.err());
+
+      let pid_only1 = deploy.get_pool_id();
+      let (stake, msg) = mock_stake_msg(pid_only1.as_str(), "1", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 100);
+      assert_eq!(None, result.err());
+    }
+    let result = brc20s_data_store
+      .get_user_stakeinfo(&to_script, &stake_tick)
+      .unwrap();
+    match result {
+      Some(info) => print!("stakeinfo len:{}\n", info.pool_stakes.len()),
+      None => print!("stakeinfo no len\n"),
+    };
+
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &from_script, 0_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let fmt = "%Y年%m月%d日 %H:%M:%S";
+    let old = Local::now();
+
+    let (stake, msg) = mock_passive_unstake_msg("btc1", "1", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+    assert_eq!(None, result.err());
+    let now = Local::now().sub(old);
+    print!("\nend:{}\n", now);
   }
 }

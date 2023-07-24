@@ -177,7 +177,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     let mut total = 0;
     return Ok((
       table
-        .range(min_tickid_pid_key(tick_id).as_str()..max_tickid_pid_key(tick_id).as_str())?
+        .range(min_tid_to_pid_key(tick_id).as_str()..max_tid_to_pid_key(tick_id).as_str())?
         .flat_map(|result| {
           result.map(|(_, data)| {
             let pool = bincode::deserialize::<PoolInfo>(data.value()).unwrap();

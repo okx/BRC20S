@@ -96,7 +96,7 @@ pub(crate) async fn brc20s_all_pool_info(
   let (all_pool_info, total) = index.brc20s_all_pool_info(page.start.unwrap_or(0), page.limit)?;
   log::debug!("rpc: get brc20s_all_pool_info: {:?}", all_pool_info);
   Ok(Json(ApiResponse::ok(AllPoolInfo {
-    tokens: all_pool_info
+    pools: all_pool_info
       .iter()
       .map(|pool| {
         let tick_id = TickId::from(pool.pid.clone());
@@ -165,6 +165,48 @@ pub(crate) async fn brc20s_pool_info(
   pool.set_deployer(tick_info.deployer.clone().into());
 
   Ok(Json(ApiResponse::ok(pool)))
+}
+
+// /brc20s/pool/:tick_id
+pub(crate) async fn brc20s_all_pools_by_tid(
+  Extension(index): Extension<Arc<Index>>,
+  Path(tick_id): Path<String>,
+) -> ApiResult<AllPoolInfo> {
+  log::debug!("rpc: get brc20s_all_pools_by_tid: {}", tick_id.to_string());
+
+  let tick_id = TickId::from_str(&tick_id)
+    .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
+  let (all_pool_info, total) = index.brc20s_all_pools_by_tid(&tick_id)?;
+
+  let _ = index
+    .brc20s_tick_info(&tick_id)?
+    .ok_or_api_not_found(BRC20SError::TickIdNotFound)?;
+
+  log::debug!("rpc: get brc20s_all_pools_by_tid: {:?}", all_pool_info);
+  Ok(Json(ApiResponse::ok(AllPoolInfo {
+    pools: all_pool_info
+      .iter()
+      .map(|pool| {
+        let tick_id = TickId::from(pool.pid.clone());
+        let tick_info = &index.brc20s_tick_info(&tick_id).unwrap().unwrap();
+
+        let inscription_number = &index
+          .get_inscription_entry(pool.inscription_id)
+          .unwrap()
+          .unwrap();
+
+        let mut pool_result = Pool::from(pool);
+        pool_result.set_earn(
+          tick_info.tick_id.hex().to_string(),
+          tick_info.name.as_str().to_string(),
+        );
+        pool_result.set_inscription_num(inscription_number.number as u64);
+        pool_result.set_deployer(tick_info.deployer.clone().into());
+        pool_result
+      })
+      .collect(),
+    total,
+  })))
 }
 
 pub(crate) async fn brc20s_debug_pool_info(

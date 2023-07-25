@@ -22,7 +22,7 @@ lazy_static! {
       VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
       Version {
         name: VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
-        start_height: 800200,
+        start_height: 800225,
       },
     );
     version

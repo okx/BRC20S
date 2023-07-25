@@ -230,6 +230,10 @@ impl Server {
         .route("/brc20s/pool", get(brc20s_api::brc20s_all_pool_info))
         .route("/brc20s/pool/:pid", get(brc20s_api::brc20s_pool_info))
         .route(
+          "/brc20s/pool/tid/:tick_id",
+          get(brc20s_api::brc20s_all_pools_by_tid),
+        )
+        .route(
           "/brc20s/debug/pool/:pid",
           get(brc20s_api::brc20s_debug_pool_info),
         )

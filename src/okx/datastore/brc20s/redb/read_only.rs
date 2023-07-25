@@ -172,6 +172,23 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
     )
   }
 
+  fn get_all_pools_by_tid(&self, tick_id: &TickId) -> Result<Vec<PoolInfo>, Self::Error> {
+    let table = self.wrapper.open_table(BRC20S_PID_TO_POOLINFO)?;
+    let mut total = 0;
+    return Ok(
+      table
+        .range(min_tid_to_pid_key(tick_id).as_str()..max_tid_to_pid_key(tick_id).as_str())?
+        .flat_map(|result| {
+          result.map(|(_, data)| {
+            let pool = bincode::deserialize::<PoolInfo>(data.value()).unwrap();
+            total += 1;
+            pool
+          })
+        })
+        .collect(),
+    );
+  }
+
   fn get_all_poolinfo(
     &self,
     start: usize,

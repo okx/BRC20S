@@ -166,3 +166,11 @@ fn max_stake_tickid_key(pledged: &PledgedTick) -> String {
 
   format!("{}_{}", pledged_key.to_string(), TickId::max_hex())
 }
+
+fn min_tid_to_pid_key(tick_id: &TickId) -> String {
+  format!("{}000000", hex::encode(tick_id.hex()).as_str())
+}
+
+fn max_tid_to_pid_key(tick_id: &TickId) -> String {
+  format!("{}ffffff", hex::encode(tick_id.hex()).as_str())
+}

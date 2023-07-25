@@ -1,9 +1,7 @@
-use crate::okx::protocol::brc20s::vesion::VERSION_KEY_ENABLE_SHARE;
-use std::collections::HashMap;
+use crate::okx::protocol::brc20s::vesion::UNIT_TEST_VERSION;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
-  crate::okx::protocol::brc20s::vesion::Version, crate::SatPoint, bitcoin::Address,
-  std::str::FromStr,
+  crate::SatPoint, bitcoin::Address, std::str::FromStr,
 };
 
 pub(crate) fn mock_create_brc20s_message(
@@ -21,14 +19,7 @@ pub(crate) fn mock_create_brc20s_message(
   let new_satpoint =
     SatPoint::from_str("1111111111111111111111111111111111111111111111111111111111111111:2:1")
       .unwrap();
-  let mut version = HashMap::new();
-  version.insert(
-    VERSION_KEY_ENABLE_SHARE.to_string(),
-    Version {
-      name: VERSION_KEY_ENABLE_SHARE.to_string(),
-      start_height: 0,
-    },
-  );
+  let version = UNIT_TEST_VERSION.clone();
   let msg = ExecutionMessage {
     txid,
     inscription_id,

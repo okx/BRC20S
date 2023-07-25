@@ -17,7 +17,7 @@ use crate::okx::{
       hash::caculate_tick_id,
       operation::Operation,
       params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
-      vesion::{enable_version_by_key, Version, VERSION_KEY_ENABLE_SHARE},
+      vesion::{enable_version_by_key, get_version_by_network, Version, VERSION_KEY_ENABLE_SHARE},
       BRC20SError, Deploy, Error, Message, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
     },
     utils, BlockContext,
@@ -36,6 +36,8 @@ use bitcoin::{Network, Txid};
 use std::cmp;
 use std::collections::HashMap;
 use std::str::FromStr;
+
+use super::{params::MAX_STAKED_POOL_NUM_V1, vesion::VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExecutionMessage {
@@ -82,7 +84,7 @@ impl ExecutionMessage {
         None
       },
       op: msg.op.clone(),
-      version: HashMap::new(),
+      version: get_version_by_network(network),
     })
   }
 }
@@ -238,7 +240,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
     )));
   }
 
-  let erate: Num;
+  let erate: u128;
 
   let earn_tick = deploy.get_earn_tick();
   let dmax_str = deploy.distribution_max.as_str();
@@ -290,11 +292,11 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
     }
     stored_tick.allocated = stored_tick.allocated + dmax;
     stored_tick.pids.push(pid.clone());
+    erate = convert_amount_with_decimal(deploy.earn_rate.as_str(), stored_tick.decimal)?
+      .checked_to_u128()?;
     brc20s_store
       .set_tick_info(&tick_id, &stored_tick)
       .map_err(|e| Error::LedgerError(e))?;
-
-    erate = convert_amount_with_decimal(deploy.earn_rate.as_str(), stored_tick.decimal)?;
   } else {
     let decimal = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
       .checked_to_u8()?;
@@ -306,7 +308,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
       "the first deploy must be set total supply".to_string(),
     ))?;
     let total_supply = convert_amount_with_decimal(supply_str.as_str(), decimal)?;
-    erate = convert_amount_with_decimal(&deploy.earn_rate.as_str(), decimal)?;
+    erate = convert_amount_with_decimal(&deploy.earn_rate.as_str(), decimal)?.checked_to_u128()?;
 
     let supply = total_supply.checked_to_u128()?;
     let c_tick_id = caculate_tick_id(
@@ -351,7 +353,6 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
     }));
   };
 
-  let erate = erate.checked_to_u128()?;
   let pool = PoolInfo::new(
     &pid,
     &ptype,
@@ -455,10 +456,18 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
     .map_err(|e| Error::LedgerError(e))?
     .map_or(StakeInfo::new(&vec![], &stake_tick, 0, 0), |v| v);
 
-  if user_stakeinfo.pool_stakes.len() == MAX_STAKED_POOL_NUM {
-    return Err(Error::BRC20SError(BRC20SError::InternalError(
-      "the number of stake pool is full".to_string(),
-    )));
+  // Verifying weather more than max_staked_pool_num at there is a bug which user deposit up to max_staked_pool_num use can not staked any pool.
+  // So we disable follow code after update max_staked_pool_num
+  if !enable_version_by_key(
+    &msg.version,
+    VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1,
+    context.blockheight,
+  ) {
+    if user_stakeinfo.pool_stakes.len() == MAX_STAKED_POOL_NUM {
+      return Err(Error::BRC20SError(BRC20SError::InternalError(
+        "the number of stake pool is full".to_string(),
+      )));
+    }
   }
 
   let staked_total =
@@ -493,9 +502,6 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
   // updated user balance of stakedhehe =
   userinfo.staked = has_staked.checked_add(&amount)?.checked_to_u128()?;
   reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
-  brc20s_store
-    .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
-    .map_err(|e| Error::LedgerError(e))?;
 
   //update the stake_info of user
   user_stakeinfo
@@ -513,14 +519,32 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
     user_stakeinfo.max_share = cmp::max(user_stakeinfo.max_share, userinfo.staked)
   }
 
-  brc20s_store
-    .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
-    .map_err(|e| Error::LedgerError(e))?;
+  // Verifying weather more than max_staked_pool_num.
+  if enable_version_by_key(
+    &msg.version,
+    VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1,
+    context.blockheight,
+  ) {
+    if user_stakeinfo.pool_stakes.len() > MAX_STAKED_POOL_NUM_V1 {
+      return Err(Error::BRC20SError(BRC20SError::InternalError(
+        "the number of stake pool is full".to_string(),
+      )));
+    }
+  }
 
   // update pool_info for stake
   pool.staked = Num::from(pool.staked)
     .checked_add(&amount)?
     .checked_to_u128()?;
+
+  brc20s_store
+    .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
+    .map_err(|e| Error::LedgerError(e))?;
+
+  brc20s_store
+    .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
+    .map_err(|e| Error::LedgerError(e))?;
+
   brc20s_store
     .set_pid_to_poolinfo(&pool_id, &pool)
     .map_err(|e| Error::LedgerError(e))?;
@@ -597,10 +621,6 @@ fn process_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWri
     .checked_to_u128()?;
   reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
 
-  brc20s_store
-    .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
-    .map_err(|e| Error::LedgerError(e))?;
-
   let mut user_stakeinfo = brc20s_store
     .get_user_stakeinfo(&to_script_key, &stake_tick)
     .map_err(|e| Error::LedgerError(e))?
@@ -628,6 +648,10 @@ fn process_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWri
   } else {
     user_stakeinfo.max_share = user_stakeinfo.calculate_max_share()?.checked_to_u128()?;
   }
+
+  brc20s_store
+    .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
+    .map_err(|e| Error::LedgerError(e))?;
 
   brc20s_store
     .set_pid_to_poolinfo(&pool_id, &pool)
@@ -785,20 +809,9 @@ fn process_mint<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>
     user_info.minted = user_info.minted + amt.checked_to_u128()?;
   }
 
-  // update user info and pool info
-  brc20s_store
-    .set_pid_to_use_info(&to_script_key, &pool_id, &user_info)
-    .map_err(|e| Error::LedgerError(e))?;
-  brc20s_store
-    .set_pid_to_poolinfo(&pool_id, &pool_info)
-    .map_err(|e| Error::LedgerError(e))?;
-
   // update tick info
   tick_info.circulation += amt.checked_to_u128()?;
   tick_info.latest_mint_block = context.blockheight;
-  brc20s_store
-    .set_tick_info(&tick_id, &tick_info)
-    .map_err(|e| Error::LedgerError(e))?;
 
   // update user balance
   let mut user_balance = brc20s_store
@@ -810,6 +823,20 @@ fn process_mint<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>
     .checked_add(&amt)?
     .checked_to_u128()?;
 
+  // update user info and pool info
+  brc20s_store
+    .set_pid_to_use_info(&to_script_key, &pool_id, &user_info)
+    .map_err(|e| Error::LedgerError(e))?;
+  brc20s_store
+    .set_pid_to_poolinfo(&pool_id, &pool_info)
+    .map_err(|e| Error::LedgerError(e))?;
+
+  // update tick info
+  brc20s_store
+    .set_tick_info(&tick_id, &tick_info)
+    .map_err(|e| Error::LedgerError(e))?;
+
+  // update user balance
   brc20s_store
     .set_token_balance(&to_script_key, &tick_id, user_balance)
     .map_err(|e| Error::LedgerError(e))?;
@@ -872,9 +899,6 @@ fn process_inscribe_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataSt
     )));
   }
   balance.transferable_balance = transferable.checked_add(&amt)?.checked_to_u128()?;
-  brc20s_store
-    .set_token_balance(&to_script_key, &tick_id, balance)
-    .map_err(|e| Error::LedgerError(e))?;
 
   // insert transferable assets
   let amount = amt.checked_to_u128()?;
@@ -884,6 +908,12 @@ fn process_inscribe_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataSt
     tick_id,
     owner: to_script_key.clone(),
   };
+
+  //update balance
+  brc20s_store
+    .set_token_balance(&to_script_key, &tick_id, balance)
+    .map_err(|e| Error::LedgerError(e))?;
+
   brc20s_store
     .set_transferable_assets(
       &to_script_key,
@@ -964,7 +994,6 @@ fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWr
   brc20s_store
     .set_token_balance(&from_script_key, &transferable.tick_id, from_balance)
     .map_err(|e| Error::LedgerError(e))?;
-
   // redirect receiver to sender if transfer to conibase.
   // let to_script_key = if let None = to_script_key.clone() {
   //   from_script_key.clone()
@@ -1003,6 +1032,8 @@ fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWr
 #[allow(unused)]
 #[cfg(test)]
 mod tests {
+  use std::ops::Sub;
+
   use super::super::*;
   use super::*;
   use crate::index::INSCRIPTION_ID_TO_INSCRIPTION_ENTRY;
@@ -1020,7 +1051,11 @@ mod tests {
   };
   use crate::test::Hash;
   use bech32::CheckBase32;
+  use bitcoin::hashes::hex::ToHex;
+  use bitcoin::hashes::sha256;
+  use bitcoin::hashes::HashEngine;
   use bitcoin::Address;
+  use chrono::Local;
   use redb::Database;
   use tempfile::NamedTempFile;
 
@@ -3431,6 +3466,33 @@ mod tests {
         Err(BRC20SError::InternalError(
           "the number of stake pool is full".to_string()
         )),
+        result
+      );
+
+      stake_msg.pool_id = "fa48a823af#01".to_string();
+      msg.op = Operation::Stake(stake_msg.clone());
+      let mut context = context.clone();
+      context.blockheight = 20_u64;
+      let result = process_stake(
+        context,
+        &brc20_data_store,
+        &brc20s_data_store,
+        &msg,
+        stake_msg.clone(),
+      );
+
+      let result: Result<Event, BRC20SError> = match result {
+        Ok(event) => Ok(event),
+        Err(Error::BRC20SError(e)) => Err(e),
+        Err(e) => Err(BRC20SError::InternalError(e.to_string())),
+      };
+      let pid = Pid::from_str("fa48a823af#01").unwrap();
+      assert_eq!(
+        Ok(Event::Deposit(DepositEvent {
+          pid,
+          amt: 1000,
+          period_settlement_reward: 0
+        })),
         result
       );
     }
@@ -7367,5 +7429,73 @@ mod tests {
         result
       );
     }
+  }
+
+  #[test]
+  fn test_process_passive_for_bench() {
+    let dbfile = NamedTempFile::new().unwrap();
+    let db = Database::create(dbfile.path()).unwrap();
+    let wtx = db.begin_write().unwrap();
+
+    let brc20_data_store = brc20_db::DataStore::new(&wtx);
+    let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+
+    let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
+    let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
+    let (deploy, msg) = mock_deploy_msg(
+      "pool", "01", "btc1", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+    );
+    let stake_tick = deploy.get_stake_id();
+    let from_script = msg.from.clone();
+    let to_script = msg.to.clone().unwrap();
+    let result =
+      set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 2000000_u128, 18_u8).err();
+    assert_eq!(None, result);
+
+    let number = 128_u64;
+    for i in 1..number {
+      let brc20s_tick = format!("ord{}", i);
+      let mut enc = sha256::Hash::engine();
+      enc.input(brc20s_tick.as_bytes());
+      let hash = sha256::Hash::from_engine(enc);
+      let (deploy, msg) = mock_deploy_msg(
+        "pool",
+        "01",
+        "btc1",
+        hash[0..3].to_hex().as_str(),
+        "10",
+        "12000000",
+        "21000000",
+        18,
+        true,
+        addr,
+        addr,
+      );
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      assert_eq!(None, result.err());
+
+      let pid_only1 = deploy.get_pool_id();
+      let (stake, msg) = mock_stake_msg(pid_only1.as_str(), "1", addr, addr);
+      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 100);
+      assert_eq!(None, result.err());
+    }
+    let result = brc20s_data_store
+      .get_user_stakeinfo(&to_script, &stake_tick)
+      .unwrap();
+    match result {
+      Some(info) => print!("stakeinfo len:{}\n", info.pool_stakes.len()),
+      None => print!("stakeinfo no len\n"),
+    };
+
+    let result = set_brc20_token_user(&brc20_data_store, "btc1", &from_script, 0_u128, 18_u8).err();
+    assert_eq!(None, result);
+    let fmt = "%Y年%m月%d日 %H:%M:%S";
+    let old = Local::now();
+
+    let (stake, msg) = mock_passive_unstake_msg("btc1", "1", addr, addr);
+    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+    assert_eq!(None, result.err());
+    let now = Local::now().sub(old);
+    print!("\nend:{}\n", now);
   }
 }

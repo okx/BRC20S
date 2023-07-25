@@ -9,6 +9,7 @@ pub const TICK_ID_BYTE_COUNT: usize = 5;
 pub const TICK_ID_STR_COUNT: usize = 10;
 pub const TICK_BYTE_COUNT: usize = 4;
 pub const MAX_STAKED_POOL_NUM: usize = 5;
+pub const MAX_STAKED_POOL_NUM_V1: usize = 128;
 
 pub const TICK_BYTE_MIN_COUNT: usize = 4;
 pub const TICK_BYTE_MAX_COUNT: usize = 6;

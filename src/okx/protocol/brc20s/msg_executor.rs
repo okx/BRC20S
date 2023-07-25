@@ -308,7 +308,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
       "the first deploy must be set total supply".to_string(),
     ))?;
     let total_supply = convert_amount_with_decimal(supply_str.as_str(), decimal)?;
-    erate = convert_amount_with_decimal(&deploy.earn_rate.as_str(), decimal)?.checked_to_u128();
+    erate = convert_amount_with_decimal(&deploy.earn_rate.as_str(), decimal)?.checked_to_u128()?;
 
     let supply = total_supply.checked_to_u128()?;
     let c_tick_id = caculate_tick_id(

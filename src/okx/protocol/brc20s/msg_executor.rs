@@ -240,7 +240,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
     )));
   }
 
-  let erate: Num;
+  let erate: u128;
 
   let earn_tick = deploy.get_earn_tick();
   let dmax_str = deploy.distribution_max.as_str();
@@ -292,11 +292,11 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
     }
     stored_tick.allocated = stored_tick.allocated + dmax;
     stored_tick.pids.push(pid.clone());
+    erate = convert_amount_with_decimal(deploy.earn_rate.as_str(), stored_tick.decimal)?
+      .checked_to_u128()?;
     brc20s_store
       .set_tick_info(&tick_id, &stored_tick)
       .map_err(|e| Error::LedgerError(e))?;
-
-    erate = convert_amount_with_decimal(deploy.earn_rate.as_str(), stored_tick.decimal)?;
   } else {
     let decimal = Num::from_str(&deploy.decimals.map_or(MAX_DECIMAL_WIDTH.to_string(), |v| v))?
       .checked_to_u8()?;
@@ -308,7 +308,7 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
       "the first deploy must be set total supply".to_string(),
     ))?;
     let total_supply = convert_amount_with_decimal(supply_str.as_str(), decimal)?;
-    erate = convert_amount_with_decimal(&deploy.earn_rate.as_str(), decimal)?;
+    erate = convert_amount_with_decimal(&deploy.earn_rate.as_str(), decimal)?.checked_to_u128();
 
     let supply = total_supply.checked_to_u128()?;
     let c_tick_id = caculate_tick_id(
@@ -353,7 +353,6 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
     }));
   };
 
-  let erate = erate.checked_to_u128()?;
   let pool = PoolInfo::new(
     &pid,
     &ptype,
@@ -503,9 +502,6 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
   // updated user balance of stakedhehe =
   userinfo.staked = has_staked.checked_add(&amount)?.checked_to_u128()?;
   reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
-  brc20s_store
-    .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
-    .map_err(|e| Error::LedgerError(e))?;
 
   //update the stake_info of user
   user_stakeinfo
@@ -535,6 +531,11 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
       )));
     }
   }
+
+  brc20s_store
+    .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
+    .map_err(|e| Error::LedgerError(e))?;
+
   brc20s_store
     .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
     .map_err(|e| Error::LedgerError(e))?;
@@ -619,10 +620,6 @@ fn process_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWri
     .checked_to_u128()?;
   reward::update_user_stake(&mut userinfo, &mut pool, dec)?;
 
-  brc20s_store
-    .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
-    .map_err(|e| Error::LedgerError(e))?;
-
   let mut user_stakeinfo = brc20s_store
     .get_user_stakeinfo(&to_script_key, &stake_tick)
     .map_err(|e| Error::LedgerError(e))?
@@ -650,6 +647,10 @@ fn process_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWri
   } else {
     user_stakeinfo.max_share = user_stakeinfo.calculate_max_share()?.checked_to_u128()?;
   }
+
+  brc20s_store
+    .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
+    .map_err(|e| Error::LedgerError(e))?;
 
   brc20s_store
     .set_pid_to_poolinfo(&pool_id, &pool)
@@ -807,20 +808,9 @@ fn process_mint<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>
     user_info.minted = user_info.minted + amt.checked_to_u128()?;
   }
 
-  // update user info and pool info
-  brc20s_store
-    .set_pid_to_use_info(&to_script_key, &pool_id, &user_info)
-    .map_err(|e| Error::LedgerError(e))?;
-  brc20s_store
-    .set_pid_to_poolinfo(&pool_id, &pool_info)
-    .map_err(|e| Error::LedgerError(e))?;
-
   // update tick info
   tick_info.circulation += amt.checked_to_u128()?;
   tick_info.latest_mint_block = context.blockheight;
-  brc20s_store
-    .set_tick_info(&tick_id, &tick_info)
-    .map_err(|e| Error::LedgerError(e))?;
 
   // update user balance
   let mut user_balance = brc20s_store
@@ -832,6 +822,20 @@ fn process_mint<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>
     .checked_add(&amt)?
     .checked_to_u128()?;
 
+  // update user info and pool info
+  brc20s_store
+    .set_pid_to_use_info(&to_script_key, &pool_id, &user_info)
+    .map_err(|e| Error::LedgerError(e))?;
+  brc20s_store
+    .set_pid_to_poolinfo(&pool_id, &pool_info)
+    .map_err(|e| Error::LedgerError(e))?;
+
+  // update tick info
+  brc20s_store
+    .set_tick_info(&tick_id, &tick_info)
+    .map_err(|e| Error::LedgerError(e))?;
+
+  // update user balance
   brc20s_store
     .set_token_balance(&to_script_key, &tick_id, user_balance)
     .map_err(|e| Error::LedgerError(e))?;
@@ -894,9 +898,6 @@ fn process_inscribe_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataSt
     )));
   }
   balance.transferable_balance = transferable.checked_add(&amt)?.checked_to_u128()?;
-  brc20s_store
-    .set_token_balance(&to_script_key, &tick_id, balance)
-    .map_err(|e| Error::LedgerError(e))?;
 
   // insert transferable assets
   let amount = amt.checked_to_u128()?;
@@ -906,6 +907,12 @@ fn process_inscribe_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataSt
     tick_id,
     owner: to_script_key.clone(),
   };
+
+  //update balance
+  brc20s_store
+    .set_token_balance(&to_script_key, &tick_id, balance)
+    .map_err(|e| Error::LedgerError(e))?;
+
   brc20s_store
     .set_transferable_assets(
       &to_script_key,
@@ -983,10 +990,6 @@ fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWr
   from_balance.overall_balance = from_overall;
   from_balance.transferable_balance = from_transferable;
 
-  brc20s_store
-    .set_token_balance(&from_script_key, &transferable.tick_id, from_balance)
-    .map_err(|e| Error::LedgerError(e))?;
-
   // redirect receiver to sender if transfer to conibase.
   // let to_script_key = if let None = to_script_key.clone() {
   //   from_script_key.clone()
@@ -1002,6 +1005,11 @@ fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWr
 
   let to_overall = Into::<Num>::into(to_balance.overall_balance);
   to_balance.overall_balance = to_overall.checked_add(&amt)?.checked_to_u128()?;
+
+  //update from balance
+  brc20s_store
+    .set_token_balance(&from_script_key, &transferable.tick_id, from_balance)
+    .map_err(|e| Error::LedgerError(e))?;
 
   brc20s_store
     .set_token_balance(&to_script_key, &transferable.tick_id, to_balance)

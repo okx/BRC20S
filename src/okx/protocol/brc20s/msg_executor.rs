@@ -532,6 +532,11 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
     }
   }
 
+  // update pool_info for stake
+  pool.staked = Num::from(pool.staked)
+    .checked_add(&amount)?
+    .checked_to_u128()?;
+
   brc20s_store
     .set_pid_to_use_info(&to_script_key, &pool_id, &userinfo)
     .map_err(|e| Error::LedgerError(e))?;
@@ -540,10 +545,6 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
     .set_user_stakeinfo(&to_script_key, &stake_tick, &user_stakeinfo)
     .map_err(|e| Error::LedgerError(e))?;
 
-  // update pool_info for stake
-  pool.staked = Num::from(pool.staked)
-    .checked_add(&amount)?
-    .checked_to_u128()?;
   brc20s_store
     .set_pid_to_poolinfo(&pool_id, &pool)
     .map_err(|e| Error::LedgerError(e))?;
@@ -990,6 +991,9 @@ fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWr
   from_balance.overall_balance = from_overall;
   from_balance.transferable_balance = from_transferable;
 
+  brc20s_store
+    .set_token_balance(&from_script_key, &transferable.tick_id, from_balance)
+    .map_err(|e| Error::LedgerError(e))?;
   // redirect receiver to sender if transfer to conibase.
   // let to_script_key = if let None = to_script_key.clone() {
   //   from_script_key.clone()
@@ -1005,11 +1009,6 @@ fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWr
 
   let to_overall = Into::<Num>::into(to_balance.overall_balance);
   to_balance.overall_balance = to_overall.checked_add(&amt)?.checked_to_u128()?;
-
-  //update from balance
-  brc20s_store
-    .set_token_balance(&from_script_key, &transferable.tick_id, from_balance)
-    .map_err(|e| Error::LedgerError(e))?;
 
   brc20s_store
     .set_token_balance(&to_script_key, &transferable.tick_id, to_balance)

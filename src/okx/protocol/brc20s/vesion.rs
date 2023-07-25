@@ -12,7 +12,7 @@ pub const VERSION_KEY_ENABLE_SHARE: &str = "enable_share";
 /**
  * update staked pool number limit
  */
-pub const VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1: &str = "staked_pooll_num_limit_v1";
+pub const VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1: &str = "staked_pool_num_limit_v1";
 
 lazy_static! {
 

@@ -48,7 +48,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_pid_to_poolinfo(pid)
   }
 
-  fn get_all_pools_by_tid(&self, tick_id: &TickId) -> Result<(Vec<PoolInfo>, usize), Self::Error> {
+  fn get_all_pools_by_tid(&self, tick_id: &TickId) -> Result<Vec<PoolInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_all_pools_by_tid(tick_id)
   }
 
@@ -573,31 +573,28 @@ mod tests {
     let tid = TickId::from_str("a234567890").unwrap();
     assert_eq!(
       brc20s_db.get_all_pools_by_tid(&tid).unwrap(),
-      (vec![pool_info_5.clone()], 1)
+      vec![pool_info_5.clone()]
     );
 
     let tid = TickId::from_str("b234567890").unwrap();
     assert_eq!(
       brc20s_db.get_all_pools_by_tid(&tid).unwrap(),
-      (vec![pool_info_5.clone()], 1)
+      vec![pool_info_5.clone()]
     );
 
     let tid = TickId::from_str("0234567890").unwrap();
-    assert_eq!(brc20s_db.get_all_pools_by_tid(&tid).unwrap(), (vec![], 0));
+    assert_eq!(brc20s_db.get_all_pools_by_tid(&tid).unwrap(), vec![]);
 
     let tid = TickId::from_str("1234567890").unwrap();
     assert_eq!(
       brc20s_db.get_all_pools_by_tid(&tid).unwrap(),
-      (
-        vec![
-          pool_info_1.clone(),
-          pool_info_2.clone(),
-          pool_info_3.clone(),
-          pool_info_4.clone(),
-          pool_info_5.clone()
-        ],
-        5
-      )
+      vec![
+        pool_info_1.clone(),
+        pool_info_2.clone(),
+        pool_info_3.clone(),
+        pool_info_4.clone(),
+        pool_info_5.clone()
+      ]
     );
   }
 

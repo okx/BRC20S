@@ -176,7 +176,7 @@ pub(crate) async fn brc20s_all_pools_by_tid(
 
   let tick_id = TickId::from_str(&tick_id)
     .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
-  let (all_pool_info, total) = index.brc20s_all_pools_by_tid(&tick_id)?;
+  let all_pool_info = index.brc20s_all_pools_by_tid(&tick_id)?;
 
   let _ = index
     .brc20s_tick_info(&tick_id)?
@@ -205,7 +205,7 @@ pub(crate) async fn brc20s_all_pools_by_tid(
         pool_result
       })
       .collect(),
-    total,
+    total: all_pool_info.len(),
   })))
 }
 

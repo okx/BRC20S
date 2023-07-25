@@ -1342,7 +1342,7 @@ impl Index {
   pub(crate) fn brc20s_all_pools_by_tid(
     &self,
     tick_id: &brc20s::TickId,
-  ) -> Result<(Vec<brc20s::PoolInfo>, usize)> {
+  ) -> Result<Vec<brc20s::PoolInfo>> {
     let rtx = self.database.begin_read().unwrap();
     let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
     let all_pool = brc20s_db.get_all_pools_by_tid(tick_id)?;

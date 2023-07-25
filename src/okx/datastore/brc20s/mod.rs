@@ -37,7 +37,7 @@ pub trait DataStoreReadOnly {
   // BRC20S_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error>;
 
-  fn get_all_pools_by_tid(&self, tick_id: &TickId) -> Result<(Vec<PoolInfo>, usize), Self::Error>;
+  fn get_all_pools_by_tid(&self, tick_id: &TickId) -> Result<Vec<PoolInfo>, Self::Error>;
 
   fn get_all_poolinfo(
     &self,

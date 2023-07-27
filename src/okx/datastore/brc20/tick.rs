@@ -4,7 +4,7 @@ use std::{fmt::Formatter, str::FromStr};
 
 pub const TICK_BYTE_COUNT: usize = 4;
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Tick([u8; TICK_BYTE_COUNT]);
+pub struct Tick([u8; TICK_BYTE_COUNT * 4]);
 
 impl FromStr for Tick {
   type Err = BRC20Error;
@@ -12,15 +12,15 @@ impl FromStr for Tick {
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let bytes = s.as_bytes();
 
-    if s.to_lowercase().len() != TICK_BYTE_COUNT {
-      log::warn!("tick {s} to lowercase len not equal to TICK_BYTE_COUNT");
-      return Err(BRC20Error::InvalidTickLen(s.to_string()));
-    }
-
     if bytes.len() != TICK_BYTE_COUNT {
       return Err(BRC20Error::InvalidTickLen(s.to_string()));
     }
-    Ok(Self(bytes.try_into().unwrap()))
+
+    let mut data = [0; 16];
+    for (i, u) in s.to_lowercase().as_bytes().to_vec().into_iter().enumerate() {
+      data[i] = u;
+    }
+    Ok(Self(data))
   }
 }
 
@@ -84,11 +84,11 @@ impl LowerTick {
   }
 
   pub fn min_hex() -> String {
-    hex::encode(&[0u8; TICK_BYTE_COUNT])
+    hex::encode(&[0u8; TICK_BYTE_COUNT * 4])
   }
 
   pub fn max_hex() -> String {
-    hex::encode(&[0xffu8; TICK_BYTE_COUNT])
+    hex::encode(&[0xffu8; TICK_BYTE_COUNT * 4])
   }
 }
 
@@ -123,8 +123,10 @@ mod tests {
   use super::*;
   #[test]
   fn test_tick_unicode_lowercase() {
-    assert!(Tick::from_str("XAİ").is_err());
-    assert!("XAİ".parse::<Tick>().is_err());
+    assert!(Tick::from_str("XAİ").is_ok());
+    assert!(Tick::from_str("XAİİ").is_err());
+    assert!("XAİ".parse::<Tick>().is_ok());
+    assert!("XAİİ".parse::<Tick>().is_err());
     assert!(Tick::from_str("X。").is_ok());
     assert!("X。".parse::<Tick>().is_ok());
     assert!(Tick::from_str("aBc1").is_ok());

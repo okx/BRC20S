@@ -12,6 +12,11 @@ impl FromStr for Tick {
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     let bytes = s.as_bytes();
 
+    if s.to_lowercase().len() != TICK_BYTE_COUNT {
+      log::warn!("tick {s} to lowercase len not equal to TICK_BYTE_COUNT");
+      return Err(BRC20Error::InvalidTickLen(s.to_string()));
+    }
+
     if bytes.len() != TICK_BYTE_COUNT {
       return Err(BRC20Error::InvalidTickLen(s.to_string()));
     }
@@ -116,7 +121,15 @@ impl<'de> Deserialize<'de> for LowerTick {
 #[cfg(test)]
 mod tests {
   use super::*;
-
+  #[test]
+  fn test_tick_unicode_lowercase() {
+    assert!(Tick::from_str("XAİ").is_err());
+    assert!("XAİ".parse::<Tick>().is_err());
+    assert!(Tick::from_str("X。").is_ok());
+    assert!("X。".parse::<Tick>().is_ok());
+    assert!(Tick::from_str("aBc1").is_ok());
+    assert!("aBc1".parse::<Tick>().is_ok());
+  }
   #[test]
   fn test_tick_compare_ignore_case() {
     assert_ne!(Tick::from_str("aBc1"), Tick::from_str("AbC1"));

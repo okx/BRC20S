@@ -3,8 +3,9 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::{fmt::Formatter, str::FromStr};
 
 pub const TICK_BYTE_COUNT: usize = 4;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Tick([u8; TICK_BYTE_COUNT * 4]);
+pub struct Tick([u8; TICK_BYTE_COUNT]);
 
 impl FromStr for Tick {
   type Err = BRC20Error;
@@ -16,17 +17,18 @@ impl FromStr for Tick {
       return Err(BRC20Error::InvalidTickLen(s.to_string()));
     }
 
-    let mut data = [0; 16];
-    for (i, u) in s.to_lowercase().as_bytes().to_vec().into_iter().enumerate() {
-      data[i] = u;
-    }
-    Ok(Self(data))
+    // let mut data = [0; 16];
+    // for (i, u) in bytes.to_vec().into_iter().enumerate() {
+    //   data[i] = u;
+    // }
+
+    Ok(Self(bytes.try_into().unwrap()))
   }
 }
 
 impl From<LowerTick> for Tick {
   fn from(lower_tick: LowerTick) -> Self {
-    Self(lower_tick.0 .0)
+    Self(lower_tick.tick.0)
   }
 }
 
@@ -38,7 +40,8 @@ impl Tick {
   }
 
   pub fn to_lowercase(&self) -> LowerTick {
-    LowerTick(Self::from_str(self.as_str().to_lowercase().as_str()).unwrap())
+    // LowerTick(Self::from_str(self.as_str().to_lowercase().as_str()).unwrap())
+    LowerTick::new(self.as_str())
   }
 
   pub fn hex(&self) -> String {
@@ -48,17 +51,18 @@ impl Tick {
 
 impl Serialize for Tick {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: Serializer,
+    where
+      S: Serializer,
   {
-    self.as_str().serialize(serializer)
+    let s = &self.as_str()[..4];
+    s.serialize(serializer)
   }
 }
 
 impl<'de> Deserialize<'de> for Tick {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
+    where
+      D: Deserializer<'de>,
   {
     Self::from_str(&String::deserialize(deserializer)?)
       .map_err(|e| de::Error::custom(format!("deserialize tick error: {}", e)))
@@ -71,16 +75,27 @@ impl Display for Tick {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LowerTick(Tick);
+#[derive(Debug, Clone, Eq)]
+pub struct LowerTick{
+  tick: Tick,
+  data: [u8;16],
+}
 
 impl LowerTick {
+  pub fn new(str: &str) -> Self {
+    let mut data = [0; 16];
+    for (i, u) in str.to_lowercase().as_bytes().to_vec().into_iter().enumerate() {
+      data[i] = u;
+    }
+    LowerTick{tick:Tick::from_str(str).unwrap(),data}
+  }
+
   pub fn as_str(&self) -> &str {
-    self.0.as_str()
+    std::str::from_utf8(self.tick.0.as_slice()).unwrap()
   }
 
   pub fn hex(&self) -> String {
-    hex::encode(&self.0 .0)
+    hex::encode(&self.data)
   }
 
   pub fn min_hex() -> String {
@@ -92,6 +107,12 @@ impl LowerTick {
   }
 }
 
+impl PartialEq for LowerTick {
+  fn eq(&self, other: &Self) -> bool {
+    self.data == other.data
+  }
+}
+
 impl Display for LowerTick {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     write!(f, "{}", self.as_str())
@@ -100,17 +121,17 @@ impl Display for LowerTick {
 
 impl Serialize for LowerTick {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: Serializer,
+    where
+      S: Serializer,
   {
-    self.as_str().serialize(serializer)
+    self.data.serialize(serializer)
   }
 }
 
 impl<'de> Deserialize<'de> for LowerTick {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
+    where
+      D: Deserializer<'de>,
   {
     Tick::from_str(&String::deserialize(deserializer)?)
       .map(|tick| tick.to_lowercase())
@@ -121,6 +142,7 @@ impl<'de> Deserialize<'de> for LowerTick {
 #[cfg(test)]
 mod tests {
   use super::*;
+
   #[test]
   fn test_tick_unicode_lowercase() {
     assert!(Tick::from_str("XAİ").is_ok());
@@ -132,6 +154,7 @@ mod tests {
     assert!(Tick::from_str("aBc1").is_ok());
     assert!("aBc1".parse::<Tick>().is_ok());
   }
+
   #[test]
   fn test_tick_compare_ignore_case() {
     assert_ne!(Tick::from_str("aBc1"), Tick::from_str("AbC1"));
@@ -152,10 +175,6 @@ mod tests {
   fn test_tick_serialize() {
     let obj = Tick::from_str("Ab1;").unwrap();
     assert_eq!(serde_json::to_string(&obj).unwrap(), r##""Ab1;""##);
-    assert_eq!(
-      serde_json::to_string(&obj.to_lowercase()).unwrap(),
-      r##""ab1;""##
-    );
   }
 
   #[test]

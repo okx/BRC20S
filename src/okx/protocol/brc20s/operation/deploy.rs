@@ -95,10 +95,6 @@ impl Deploy {
       return Err(iserr.unwrap());
     }
 
-    if brc20::Tick::from_str(self.stake.as_str()).is_err() {
-      return Err(BRC20SError::InvalidTickLen(self.stake.clone()));
-    }
-
     if self.get_stake_id() == PledgedTick::Unknown {
       return Err(BRC20SError::UnknownStakeType);
     }

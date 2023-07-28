@@ -54,8 +54,7 @@ impl Serialize for Tick {
     where
       S: Serializer,
   {
-    let s = &self.as_str()[..4];
-    s.serialize(serializer)
+    self.as_str().serialize(serializer)
   }
 }
 
@@ -78,12 +77,12 @@ impl Display for Tick {
 #[derive(Debug, Clone, Eq)]
 pub struct LowerTick{
   tick: Tick,
-  data: [u8;16],
+  data: [u8;TICK_BYTE_COUNT * 4],
 }
 
 impl LowerTick {
   pub fn new(str: &str) -> Self {
-    let mut data = [0; 16];
+    let mut data = [0; TICK_BYTE_COUNT * 4];
     for (i, u) in str.to_lowercase().as_bytes().to_vec().into_iter().enumerate() {
       data[i] = u;
     }

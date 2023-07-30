@@ -138,8 +138,8 @@ pub fn convert_pledged_tick_with_decimal<
     PledgedTick::BRC20Tick(tick) => {
       let token = brc20_ledger
         .get_token_info(tick)
-        .map_err(|e| Error::Others(anyhow!("brc20_query failed:{}", e)))?
-        .ok_or(BRC20SError::TickNotFound(tick.hex()))?;
+        .map_err(|e| Error::Others(anyhow!("brc20_query failed:{e}")))?
+        .ok_or(BRC20SError::TickNotFound(tick.as_str().to_string()))?;
 
       convert_amount_with_decimal(amount, token.decimal)
     }
@@ -199,8 +199,8 @@ pub fn convert_pledged_tick_without_decimal<
     PledgedTick::BRC20Tick(tick) => {
       let token = brc20_ledger
         .get_token_info(tick)
-        .map_err(|e| Error::Others(anyhow!("brc20_query failed:{}", e)))?
-        .ok_or(BRC20SError::TickNotFound(tick.hex()))?;
+        .map_err(|e| Error::Others(anyhow!("brc20_query failed:{e}")))?
+        .ok_or(BRC20SError::TickNotFound(tick.as_str().to_string()))?;
 
       convert_amount_without_decimal(amount, token.decimal)
     }

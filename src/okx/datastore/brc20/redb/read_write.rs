@@ -277,9 +277,9 @@ mod tests {
       .unwrap();
 
     let mut all_balances = brc20db.get_balances(&script).unwrap();
-    all_balances.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    all_balances.sort_by(|a, b| a.tick.cmp(&b.tick));
     let mut expect = vec![expect_balance2, expect_balance1, expect_balance3];
-    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    expect.sort_by(|a, b| a.tick.cmp(&b.tick));
     assert_eq!(all_balances, expect);
   }
 
@@ -309,9 +309,7 @@ mod tests {
       Some(expect_balance.clone())
     );
     assert_eq!(
-      brc20db
-        .get_balance(&script, &tick.to_lowercase().into())
-        .unwrap(),
+      brc20db.get_balance(&script, &tick).unwrap(),
       Some(expect_balance)
     );
     assert_eq!(
@@ -355,12 +353,7 @@ mod tests {
       brc20db.get_token_info(&upper_tick).unwrap(),
       Some(expect.clone())
     );
-    assert_eq!(
-      brc20db
-        .get_token_info(&upper_tick.to_lowercase().into())
-        .unwrap(),
-      Some(expect)
-    );
+    assert_eq!(brc20db.get_token_info(&upper_tick).unwrap(), Some(expect));
   }
 
   #[test]
@@ -430,9 +423,9 @@ mod tests {
     brc20db.insert_token_info(&expect3.tick, &expect3).unwrap();
 
     let mut infos = brc20db.get_tokens_info().unwrap();
-    infos.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    infos.sort_by(|a, b| a.tick.cmp(&b.tick));
     let mut expect = vec![expect1, expect2, expect3];
-    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    expect.sort_by(|a, b| a.tick.cmp(&b.tick));
     assert_eq!(infos, expect);
   }
 
@@ -887,14 +880,14 @@ mod tests {
       .unwrap();
 
     let mut transferable_logs = brc20db.get_transferable(&script1).unwrap();
-    transferable_logs.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    transferable_logs.sort_by(|a, b| a.tick.cmp(&b.tick));
     let mut expect = vec![
       transferable_log11,
       transferable_log12,
       transferable_log13,
       transferable_log14,
     ]; // there's no transferable_log21
-    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    expect.sort_by(|a, b| a.tick.cmp(&b.tick));
     assert_eq!(transferable_logs, expect);
   }
 

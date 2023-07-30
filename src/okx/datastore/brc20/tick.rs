@@ -4,7 +4,7 @@ use std::{fmt::Formatter, str::FromStr};
 
 pub const TICK_BYTE_COUNT: usize = 4;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Tick([u8; TICK_BYTE_COUNT]);
 
 impl FromStr for Tick {
@@ -17,18 +17,7 @@ impl FromStr for Tick {
       return Err(BRC20Error::InvalidTickLen(s.to_string()));
     }
 
-    // let mut data = [0; 16];
-    // for (i, u) in bytes.to_vec().into_iter().enumerate() {
-    //   data[i] = u;
-    // }
-
     Ok(Self(bytes.try_into().unwrap()))
-  }
-}
-
-impl From<LowerTick> for Tick {
-  fn from(lower_tick: LowerTick) -> Self {
-    Self(lower_tick.tick.0)
   }
 }
 
@@ -40,19 +29,14 @@ impl Tick {
   }
 
   pub fn to_lowercase(&self) -> LowerTick {
-    // LowerTick(Self::from_str(self.as_str().to_lowercase().as_str()).unwrap())
-    LowerTick::new(self.as_str())
-  }
-
-  pub fn hex(&self) -> String {
-    hex::encode(&self.0)
+    LowerTick::new(&self.as_str().to_lowercase())
   }
 }
 
 impl Serialize for Tick {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-      S: Serializer,
+  where
+    S: Serializer,
   {
     self.as_str().serialize(serializer)
   }
@@ -60,8 +44,8 @@ impl Serialize for Tick {
 
 impl<'de> Deserialize<'de> for Tick {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-      D: Deserializer<'de>,
+  where
+    D: Deserializer<'de>,
   {
     Self::from_str(&String::deserialize(deserializer)?)
       .map_err(|e| de::Error::custom(format!("deserialize tick error: {}", e)))
@@ -74,27 +58,22 @@ impl Display for Tick {
   }
 }
 
-#[derive(Debug, Clone, Eq)]
-pub struct LowerTick{
-  tick: Tick,
-  data: [u8;TICK_BYTE_COUNT * 4],
-}
+#[derive(Debug, Clone, PartialEq)]
+pub struct LowerTick(Box<[u8]>);
 
 impl LowerTick {
-  pub fn new(str: &str) -> Self {
-    let mut data = [0; TICK_BYTE_COUNT * 4];
-    for (i, u) in str.to_lowercase().as_bytes().to_vec().into_iter().enumerate() {
-      data[i] = u;
-    }
-    LowerTick{tick:Tick::from_str(str).unwrap(),data}
+  fn new(str: &str) -> Self {
+    LowerTick(str.as_bytes().to_vec().into_boxed_slice())
   }
 
   pub fn as_str(&self) -> &str {
-    std::str::from_utf8(self.tick.0.as_slice()).unwrap()
+    std::str::from_utf8(&self.0).unwrap()
   }
 
   pub fn hex(&self) -> String {
-    hex::encode(&self.data)
+    let mut data = [0u8; TICK_BYTE_COUNT * 4];
+    data[..self.0.len()].copy_from_slice(&self.0);
+    hex::encode(data)
   }
 
   pub fn min_hex() -> String {
@@ -106,35 +85,9 @@ impl LowerTick {
   }
 }
 
-impl PartialEq for LowerTick {
-  fn eq(&self, other: &Self) -> bool {
-    self.data == other.data
-  }
-}
-
 impl Display for LowerTick {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     write!(f, "{}", self.as_str())
-  }
-}
-
-impl Serialize for LowerTick {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-      S: Serializer,
-  {
-    self.data.serialize(serializer)
-  }
-}
-
-impl<'de> Deserialize<'de> for LowerTick {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-      D: Deserializer<'de>,
-  {
-    Tick::from_str(&String::deserialize(deserializer)?)
-      .map(|tick| tick.to_lowercase())
-      .map_err(|e| de::Error::custom(format!("deserialize tick error: {}", e)))
   }
 }
 
@@ -143,7 +96,7 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test_tick_unicode_lowercase() {
+  fn test_tick_length_case() {
     assert!(Tick::from_str("XAİ").is_ok());
     assert!(Tick::from_str("XAİİ").is_err());
     assert!("XAİ".parse::<Tick>().is_ok());
@@ -152,6 +105,29 @@ mod tests {
     assert!("X。".parse::<Tick>().is_ok());
     assert!(Tick::from_str("aBc1").is_ok());
     assert!("aBc1".parse::<Tick>().is_ok());
+  }
+  #[test]
+  fn test_tick_hex() {
+    assert_eq!(
+      Tick::from_str("XAİ").unwrap().to_lowercase().hex(),
+      "786169cc870000000000000000000000"
+    );
+    assert_eq!(
+      Tick::from_str("aBc1").unwrap().to_lowercase().hex(),
+      "61626331000000000000000000000000"
+    );
+  }
+
+  #[test]
+  fn test_tick_unicode_lowercase() {
+    assert_eq!(
+      Tick::from_str("XAİ").unwrap().to_lowercase().as_str(),
+      "xai\u{307}"
+    );
+    assert_eq!(
+      Tick::from_str("aBc1").unwrap().to_lowercase().as_str(),
+      "abc1",
+    );
   }
 
   #[test]
@@ -181,10 +157,6 @@ mod tests {
     assert_eq!(
       serde_json::from_str::<Tick>(r##""Ab1;""##).unwrap(),
       Tick::from_str("Ab1;").unwrap()
-    );
-    assert_eq!(
-      serde_json::from_str::<LowerTick>(r##""ab1;""##).unwrap(),
-      Tick::from_str("ab1;").unwrap().to_lowercase()
     );
   }
 }

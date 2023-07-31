@@ -135,6 +135,10 @@ mod tests {
       Tick::from_str("aBc1").unwrap().to_lowercase().as_str(),
       "abc1",
     );
+    assert_eq!("ατ".parse::<Tick>().unwrap().to_lowercase().as_str(),"ατ");
+    assert_eq!("∑H".parse::<Tick>().unwrap().to_lowercase().as_str(),"∑h");
+    assert_eq!("⊢I".parse::<Tick>().unwrap().to_lowercase().as_str(),"⊢i");
+    assert_eq!("≯A".parse::<Tick>().unwrap().to_lowercase().as_str(),"≯a");
   }
 
   #[test]

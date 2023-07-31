@@ -109,19 +109,6 @@ impl<
       inscriptions_size,
       (Instant::now() - start).as_millis(),
     );
-
-    // debug
-    let coinbase_txid = block.txdata.get(0).unwrap().1;
-    if let Some(ops) = operations.get(&coinbase_txid) {
-      if !ops.is_empty() {
-        log::error!(
-          "Coinbase {} transaction has operations: {:?}",
-          coinbase_txid,
-          ops
-        );
-        assert!(false);
-      }
-    }
     Ok(())
   }
 }

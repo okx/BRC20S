@@ -71,11 +71,18 @@ impl Deploy {
           let tick = brc20::Tick::from_str(stake);
           if tick.is_ok() {
             PledgedTick::BRC20Tick(tick.unwrap())
-          }else {
+          } else {
             PledgedTick::Unknown
           }
         }
-        TICK_ID_STR_COUNT => PledgedTick::BRC20STick(TickId::from_str(stake).unwrap()),
+        TICK_ID_STR_COUNT => {
+          let tick_id = TickId::from_str(stake);
+          if tick_id.is_ok() {
+            PledgedTick::BRC20STick(tick_id.unwrap())
+          } else {
+            PledgedTick::Unknown
+          }
+        }
         _ => PledgedTick::Unknown,
       },
     }

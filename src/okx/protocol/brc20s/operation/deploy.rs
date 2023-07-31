@@ -67,7 +67,14 @@ impl Deploy {
     match stake {
       NATIVE_TOKEN => PledgedTick::Native,
       _ => match self.stake.len() {
-        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(brc20::Tick::from_str(stake).unwrap()),
+        TICK_BYTE_COUNT => {
+          let tick = brc20::Tick::from_str(stake);
+          if tick.is_ok() {
+            PledgedTick::BRC20Tick(tick.unwrap())
+          }else {
+            PledgedTick::Unknown
+          }
+        }
         TICK_ID_STR_COUNT => PledgedTick::BRC20STick(TickId::from_str(stake).unwrap()),
         _ => PledgedTick::Unknown,
       },

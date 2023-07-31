@@ -604,6 +604,7 @@ impl Updater {
       &ord::OrdDbReadWriter::new(wtx),
       &brc20_db::DataStore::new(wtx),
       &brc20s_db::DataStore::new(wtx),
+      index.first_inscription_height,
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
     )

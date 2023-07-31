@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
 use super::*;
-use crate::okx::datastore::brc20;
-use crate::okx::datastore::brc20s;
-use crate::okx::datastore::ord;
-use crate::{index::BlockData, okx::datastore::ord::operation::InscriptionOp, Instant, Result};
+use crate::{
+  index::BlockData,
+  okx::datastore::ord::operation::InscriptionOp,
+  okx::datastore::{brc20, brc20s, ord},
+  Instant, Result,
+};
+use anyhow::anyhow;
 use bitcoin::{Network, Txid};
 use bitcoincore_rpc::Client;
 
@@ -27,6 +30,8 @@ pub struct ProtocolManager<
   P: brc20::DataStoreReadWrite,
   M: brc20s::DataStoreReadWrite,
 > {
+  ord_store: &'a O,
+  first_inscription_height: u64,
   call_man: CallManager<'a, O, P, M>,
   resolve_man: MsgResolveManager<'a, O, P, M>,
 }
@@ -44,6 +49,7 @@ impl<
     ord_store: &'a O,
     brc20_store: &'a P,
     brc20s_store: &'a M,
+    first_inscription_height: u64,
     first_brc20_height: u64,
     first_brc20s_height: u64,
   ) -> Self {
@@ -56,6 +62,8 @@ impl<
         first_brc20_height,
         first_brc20s_height,
       ),
+      ord_store,
+      first_inscription_height,
       call_man: CallManager::new(ord_store, brc20_store, brc20s_store),
     }
   }
@@ -67,10 +75,22 @@ impl<
     mut operations: HashMap<Txid, Vec<InscriptionOp>>,
   ) -> Result {
     let start = Instant::now();
+    let mut inscriptions_size = 0;
     let mut messages_size = 0;
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
       if let Some(tx_operations) = operations.remove(txid) {
+        // save transaction operations.
+        if context.blockheight >= self.first_inscription_height {
+          self
+            .ord_store
+            .save_transaction_operations(txid, &tx_operations)
+            .map_err(|e| {
+              anyhow!("failed to set transaction ordinals operations to state! error: {e}")
+            })?;
+          inscriptions_size += tx_operations.len();
+        }
+
         // Resolve and execute messages.
         let messages = self
           .resolve_man
@@ -83,11 +103,25 @@ impl<
     }
 
     log::info!(
-      "Protocol Manager indexed block {} with {} messages in {} ms",
+      "Protocol Manager indexed block {} with {} messages, ord inscriptions {} in {} ms",
       context.blockheight,
       messages_size,
+      inscriptions_size,
       (Instant::now() - start).as_millis(),
     );
+
+    // debug
+    let coinbase_txid = block.txdata.get(0).unwrap().1;
+    if let Some(ops) = operations.get(&coinbase_txid) {
+      if !ops.is_empty() {
+        log::error!(
+          "Coinbase {} transaction has operations: {:?}",
+          coinbase_txid,
+          ops
+        );
+        assert!(false);
+      }
+    }
     Ok(())
   }
 }

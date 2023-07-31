@@ -197,6 +197,14 @@ impl Server {
           get(ord_api::ord_inscription_number),
         )
         .route("/ord/outpoint/:outpoint/info", get(ord_api::ord_outpoint))
+        .route(
+          "/ord/tx/:txid/inscriptions",
+          get(ord_api::ord_txid_inscriptions),
+        )
+        .route(
+          "/ord/block/:blockhash/inscriptions",
+          get(ord_api::ord_block_inscriptions),
+        )
         .route("/brc20/tick/:tick", get(brc20_api::brc20_tick_info))
         .route("/brc20/tick", get(brc20_api::brc20_all_tick_info))
         .route(

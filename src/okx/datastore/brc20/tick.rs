@@ -105,6 +105,13 @@ mod tests {
     assert!("X。".parse::<Tick>().is_ok());
     assert!(Tick::from_str("aBc1").is_ok());
     assert!("aBc1".parse::<Tick>().is_ok());
+    assert!("ατ".parse::<Tick>().is_ok());
+    assert!("∑ii".parse::<Tick>().is_err());
+    assert!("∑i".parse::<Tick>().is_ok());
+    assert!("⊢i".parse::<Tick>().is_ok());
+    assert!("⊢ii".parse::<Tick>().is_err());
+    assert!("≯a".parse::<Tick>().is_ok());
+    assert!("a≯a".parse::<Tick>().is_err());
   }
   #[test]
   fn test_tick_hex() {

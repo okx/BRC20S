@@ -239,30 +239,42 @@ mod tests {
     let tick1 = Tick::from_str("abcd").unwrap();
     let tick2 = Tick::from_str("1234").unwrap();
     let tick3 = Tick::from_str(";23!").unwrap();
-    let expect_balance1 = Balance {
-      tick: tick1.clone(),
-      overall_balance: 10,
-      transferable_balance: 10,
-    };
-    let expect_balance2 = Balance {
-      tick: tick2,
-      overall_balance: 30,
-      transferable_balance: 30,
-    };
-    let expect_balance3 = Balance {
-      tick: tick3,
-      overall_balance: 100,
-      transferable_balance: 30,
-    };
-    brc20db
-      .update_token_balance(&script, expect_balance1.clone())
-      .unwrap();
-    brc20db
-      .update_token_balance(&script, expect_balance2.clone())
-      .unwrap();
-    brc20db
-      .update_token_balance(&script, expect_balance3.clone())
-      .unwrap();
+    let tick4 = Tick::from_str("abİ").unwrap();
+    let tick5 = Tick::from_str("İİ").unwrap();
+
+    let mut expect_balances = vec![
+      Balance {
+        tick: tick1.clone(),
+        overall_balance: 10,
+        transferable_balance: 10,
+      },
+      Balance {
+        tick: tick2,
+        overall_balance: 30,
+        transferable_balance: 30,
+      },
+      Balance {
+        tick: tick3,
+        overall_balance: 100,
+        transferable_balance: 30,
+      },
+      Balance {
+        tick: tick4,
+        overall_balance: 100,
+        transferable_balance: 30,
+      },
+      Balance {
+        tick: tick5,
+        overall_balance: 100,
+        transferable_balance: 30,
+      },
+    ];
+
+    for balance in &expect_balances {
+      brc20db
+        .update_token_balance(&script, balance.clone())
+        .unwrap();
+    }
 
     let script2 =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
@@ -277,10 +289,9 @@ mod tests {
       .unwrap();
 
     let mut all_balances = brc20db.get_balances(&script).unwrap();
-    all_balances.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
-    let mut expect = vec![expect_balance2, expect_balance1, expect_balance3];
-    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
-    assert_eq!(all_balances, expect);
+    all_balances.sort_by(|a, b| a.tick.cmp(&b.tick));
+    expect_balances.sort_by(|a, b| a.tick.cmp(&b.tick));
+    assert_eq!(all_balances, expect_balances);
   }
 
   #[test]
@@ -309,9 +320,7 @@ mod tests {
       Some(expect_balance.clone())
     );
     assert_eq!(
-      brc20db
-        .get_balance(&script, &tick.to_lowercase().into())
-        .unwrap(),
+      brc20db.get_balance(&script, &tick).unwrap(),
       Some(expect_balance)
     );
     assert_eq!(
@@ -355,12 +364,7 @@ mod tests {
       brc20db.get_token_info(&upper_tick).unwrap(),
       Some(expect.clone())
     );
-    assert_eq!(
-      brc20db
-        .get_token_info(&upper_tick.to_lowercase().into())
-        .unwrap(),
-      Some(expect)
-    );
+    assert_eq!(brc20db.get_token_info(&upper_tick).unwrap(), Some(expect));
   }
 
   #[test]
@@ -425,14 +429,34 @@ mod tests {
       latest_mint_number: 3101,
     };
 
+    let expect4 = TokenInfo {
+      tick: Tick::from_str("İİ").unwrap(),
+      inscription_id: InscriptionId::from_str(
+        "4111111111111111111111111111111111111111111111111111111111111111i1",
+      )
+      .unwrap(),
+      inscription_number: 1,
+      supply: 300,
+      minted: 30,
+      limit_per_mint: 20,
+      decimal: 1,
+      deploy_by: ScriptKey::from_address(
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      ),
+      deployed_number: 499,
+      deployed_timestamp: 44222,
+      latest_mint_number: 4101,
+    };
+
     brc20db.insert_token_info(&expect1.tick, &expect1).unwrap();
     brc20db.insert_token_info(&expect2.tick, &expect2).unwrap();
     brc20db.insert_token_info(&expect3.tick, &expect3).unwrap();
+    brc20db.insert_token_info(&expect4.tick, &expect4).unwrap();
 
     let mut infos = brc20db.get_tokens_info().unwrap();
-    infos.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
-    let mut expect = vec![expect1, expect2, expect3];
-    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    infos.sort_by(|a, b| a.tick.cmp(&b.tick));
+    let mut expect = vec![expect1, expect2, expect3, expect4];
+    expect.sort_by(|a, b| a.tick.cmp(&b.tick));
     assert_eq!(infos, expect);
   }
 
@@ -887,14 +911,14 @@ mod tests {
       .unwrap();
 
     let mut transferable_logs = brc20db.get_transferable(&script1).unwrap();
-    transferable_logs.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    transferable_logs.sort_by(|a, b| a.tick.cmp(&b.tick));
     let mut expect = vec![
       transferable_log11,
       transferable_log12,
       transferable_log13,
       transferable_log14,
     ]; // there's no transferable_log21
-    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    expect.sort_by(|a, b| a.tick.cmp(&b.tick));
     assert_eq!(transferable_logs, expect);
   }
 

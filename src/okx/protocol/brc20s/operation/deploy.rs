@@ -67,8 +67,22 @@ impl Deploy {
     match stake {
       NATIVE_TOKEN => PledgedTick::Native,
       _ => match self.stake.len() {
-        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(brc20::Tick::from_str(stake).unwrap()),
-        TICK_ID_STR_COUNT => PledgedTick::BRC20STick(TickId::from_str(stake).unwrap()),
+        TICK_BYTE_COUNT => {
+          let tick = brc20::Tick::from_str(stake);
+          if tick.is_ok() {
+            PledgedTick::BRC20Tick(tick.unwrap())
+          } else {
+            PledgedTick::Unknown
+          }
+        }
+        TICK_ID_STR_COUNT => {
+          let tick_id = TickId::from_str(stake);
+          if tick_id.is_ok() {
+            PledgedTick::BRC20STick(tick_id.unwrap())
+          } else {
+            PledgedTick::Unknown
+          }
+        }
         _ => PledgedTick::Unknown,
       },
     }
@@ -93,10 +107,6 @@ impl Deploy {
     let iserr = validate_pool_str(self.pool_id.as_str()).err();
     if None != iserr {
       return Err(iserr.unwrap());
-    }
-
-    if brc20::Tick::from_str(self.stake.as_str()).is_err() {
-      return Err(BRC20SError::InvalidTickLen(self.stake.clone()));
     }
 
     if self.get_stake_id() == PledgedTick::Unknown {

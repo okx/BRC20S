@@ -257,7 +257,6 @@ impl TickInfo {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use bitcoin::hashes::hex::ToHex;
   use bitcoin::hashes::{sha256, Hash, HashEngine};
 
   #[test]
@@ -401,17 +400,17 @@ mod tests {
     enc.input("123".as_bytes());
     let hash = sha256::Hash::from_engine(enc);
     assert_eq!(
-      TickId::from_str(hash[0..TICK_ID_BYTE_COUNT - 1].to_hex().as_str()).unwrap_err(),
+      TickId::from_str(&hash.to_string()[..2 * (TICK_ID_BYTE_COUNT - 1)]).unwrap_err(),
       BRC20SError::InvalidTickLen("a665a459".to_string())
     );
 
     assert_eq!(
-      TickId::from_str(hash[0..TICK_ID_BYTE_COUNT + 1].to_hex().as_str()).unwrap_err(),
+      TickId::from_str(&hash.to_string()[..2 * (TICK_ID_BYTE_COUNT + 1)]).unwrap_err(),
       BRC20SError::InvalidTickLen("a665a4592042".to_string())
     );
 
     assert_eq!(
-      TickId::from_str(hash[0..TICK_ID_BYTE_COUNT].to_hex().as_str())
+      TickId::from_str(&hash.to_string()[..2 * (TICK_ID_BYTE_COUNT)])
         .unwrap()
         .ne(&TickId::from_str("1234567890").unwrap()),
       true

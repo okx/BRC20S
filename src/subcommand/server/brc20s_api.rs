@@ -237,7 +237,9 @@ pub(crate) async fn brc20s_debug_stake_info(
 ) -> ApiResult<brc20s::StakeInfo> {
   log::debug!("rpc: get brc20s_debug_stake_info: {},{}", address, tick);
 
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
 
   let stake_info = index
     .brc20s_stake_info(&address, &PledgedTick::from_str(tick.as_str()))?
@@ -257,7 +259,11 @@ pub(crate) async fn brc20s_userinfo(
 
   let pid =
     Pid::from_str(&pid).map_err(|_| ApiError::bad_request(BRC20SError::IncorrectPidFormat))?;
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
+
   let user_info = &index
     .brc20s_user_info(&pid, &address)?
     .ok_or_api_not_found(BRC20SError::UserInfoNotFound)?;
@@ -283,7 +289,9 @@ pub(crate) async fn brc20s_user_pending_reward(
 
   let pid =
     Pid::from_str(&pid).map_err(|_| ApiError::bad_request(BRC20SError::IncorrectPidFormat))?;
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
   let (user_reward, block) = &index.brc20s_user_pending_reward(&pid, &address)?;
 
   log::debug!(
@@ -308,7 +316,9 @@ pub(crate) async fn brc20s_debug_userinfo(
 
   let pid =
     Pid::from_str(&pid).map_err(|_| ApiError::bad_request(BRC20SError::IncorrectPidFormat))?;
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
   let user_info = index
     .brc20s_user_info(&pid, &address)?
     .ok_or_api_not_found(BRC20SError::UserInfoNotFound)?;
@@ -339,7 +349,9 @@ pub(crate) async fn brc20s_debug_balance(
 
   let tick_id = TickId::from_str(&tick_id)
     .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
   let balance = index
     .brc20s_balance(&tick_id, &address)?
     .ok_or_api_not_found(BRC20SError::BalanceNotFound)?;
@@ -367,7 +379,9 @@ pub(crate) async fn brc20s_balance(
   let tick_id = TickId::from_str(&tick_id)
     .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
 
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
   let balance = &index
     .brc20s_balance(&tick_id, &address)?
     .ok_or_api_not_found(BRC20SError::BalanceNotFound)?;
@@ -395,7 +409,9 @@ pub(crate) async fn brc20s_all_balance(
 ) -> ApiResult<AllBalance> {
   log::debug!("rpc: get brc20s_all_balance: {}", address);
 
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
 
   let all_balance = index.brc20s_all_balance(&address)?;
 
@@ -431,7 +447,9 @@ pub(crate) async fn brc20s_transferable(
   let tick_id = TickId::from_str(&tick_id)
     .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
 
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
   let all_transfer = &index.brc20s_tickid_transferable(&tick_id, &address)?;
 
   log::debug!(
@@ -468,7 +486,9 @@ pub(crate) async fn brc20s_all_transferable(
 ) -> ApiResult<Transferable> {
   log::debug!("rpc: get brc20s_all_transferable: {}", address);
 
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
 
   let all = index.brc20s_all_transferable(&address)?;
 
@@ -603,7 +623,9 @@ pub(crate) async fn brc20s_stake_info(
     .ok_or_api_not_found(brc20_types::BRC20Error::TickNotFound)?
     .tick;
 
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
 
   let stake_info = index
     .brc20s_stake_info(&address, &PledgedTick::BRC20Tick(tick.clone()))?

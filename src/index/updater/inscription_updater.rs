@@ -1,5 +1,8 @@
-use okx::datastore::ord::operation::{Action, InscriptionOp};
-use {super::*, inscription::Curse};
+use {
+  super::*,
+  crate::okx::datastore::ord::operation::{Action, InscriptionOp},
+  inscription::Curse,
+};
 
 #[derive(Debug, Clone)]
 pub(super) struct Flotsam {
@@ -72,8 +75,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
     let next_number = number_to_id
       .iter()?
-      .rev()
-      .next()
+      .next_back()
       .and_then(|result| result.ok())
       .map(|(number, _id)| number.value() + 1)
       .unwrap_or(0);
@@ -178,14 +180,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         } else if inscription.tx_in_offset != 0 {
           Some(Curse::NotAtOffsetZero)
         } else if inscribed_offsets.contains_key(&offset) {
-          let seq_num = self
-            .reinscription_id_to_seq_num
-            .iter()?
-            .rev()
-            .next()
-            .and_then(|result| result.ok())
-            .map(|(_id, number)| number.value() + 1)
-            .unwrap_or(0);
+          let seq_num = self.reinscription_id_to_seq_num.len()?;
 
           let sat = Self::calculate_sat(input_sat_ranges, offset);
           log::info!("processing reinscription {inscription_id} on sat {:?}: sequence number {seq_num}, inscribed offsets {:?}", sat, inscribed_offsets);

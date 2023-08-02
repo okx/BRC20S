@@ -53,8 +53,8 @@ pub(crate) fn mock_deploy_msg(
 
   let supply_128 = Num::from_str(supply).unwrap().checked_to_u128().unwrap();
 
-  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
-  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap().assume_checked());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let tickid = hash::caculate_tick_id(earn, supply_128, dec, &from_script_key, &to_script_key);
   let pid = tickid.hex().to_string() + "#" + poll_number;
@@ -84,8 +84,8 @@ pub(crate) fn mock_stake_msg(
   from: &str,
   to: &str,
 ) -> (Stake, ExecutionMessage) {
-  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
-  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap().assume_checked());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let msg = Stake {
     pool_id: pid.to_string(),
@@ -106,8 +106,8 @@ pub(crate) fn mock_unstake_msg(
   from: &str,
   to: &str,
 ) -> (UnStake, ExecutionMessage) {
-  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
-  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap().assume_checked());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let msg = UnStake {
     pool_id: pid.to_string(),
@@ -128,8 +128,8 @@ pub(crate) fn mock_passive_unstake_msg(
   from: &str,
   to: &str,
 ) -> (PassiveUnStake, ExecutionMessage) {
-  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
-  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap().assume_checked());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let msg = PassiveUnStake {
     stake: stake.to_string(),

@@ -92,6 +92,7 @@ mod tests {
       value: 100,
       script_pubkey: bitcoin::Address::from_str("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
         .unwrap()
+        .assume_checked()
         .script_pubkey(),
     };
 

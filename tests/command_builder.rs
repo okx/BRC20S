@@ -49,6 +49,7 @@ impl CommandBuilder {
     }
   }
 
+  #[allow(unused)]
   pub(crate) fn write(self, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Self {
     fs::write(self.tempdir.path().join(path), contents).unwrap();
     self
@@ -156,7 +157,7 @@ impl CommandBuilder {
 
     stdout.into()
   }
-
+  #[allow(unused)]
   pub(crate) fn run_and_check_output<T: DeserializeOwned>(self) -> T {
     let stdout = self.stdout_regex(".*").run_and_extract_stdout();
     serde_json::from_str(&stdout)

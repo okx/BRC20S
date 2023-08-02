@@ -6,7 +6,6 @@ use std::{borrow::Borrow, io};
 
 use bitcoin::{
   consensus::{Decodable, Encodable},
-  hashes::Hash,
   OutPoint, TxOut, Txid,
 };
 
@@ -82,7 +81,7 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
   ) -> Result<Option<i64>, Self::Error> {
     let mut key = [0; 36];
     let (txid, index) = key.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
     Ok(
       self

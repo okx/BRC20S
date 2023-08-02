@@ -7,6 +7,7 @@ use crate::okx::{
   protocol::brc20 as brc20_protocol,
 };
 use axum::Json;
+use bitcoin::address::Address;
 
 pub(crate) async fn brc20_tick_info(
   Extension(index): Extension<Arc<Index>>,
@@ -45,7 +46,9 @@ pub(crate) async fn brc20_balance(
   let tick =
     Tick::from_str(&tick).map_err(|_| ApiError::bad_request(BRC20Error::IncorrectTickFormat))?;
 
-  let address: bitcoin::Address = address.parse().map_err(ApiError::bad_request)?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
 
   let balance = index
     .brc20_get_balance_by_address(&tick, &address)?
@@ -69,9 +72,9 @@ pub(crate) async fn brc20_all_balance(
 ) -> ApiResult<AllBalance> {
   log::debug!("rpc: get brc20_all_balance: {}", address);
 
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|e: bitcoin::util::address::Error| ApiError::bad_request(e.to_string()))?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
 
   let all_balance = index.brc20_get_all_balance_by_address(&address)?;
 
@@ -165,9 +168,9 @@ pub(crate) async fn brc20_transferable(
   }
   let tick = tick.to_lowercase();
 
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|err: bitcoin::util::address::Error| ApiError::bad_request(err.to_string()))?;
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
 
   let transferable = index.brc20_get_tick_transferable_by_address(&tick, &address)?;
   log::debug!(
@@ -187,9 +190,10 @@ pub(crate) async fn brc20_all_transferable(
   Path(address): Path<String>,
 ) -> ApiResult<TransferableInscriptions> {
   log::debug!("rpc: get brc20_all_transferable: {}", address);
-  let address: bitcoin::Address = address
-    .parse()
-    .map_err(|err: bitcoin::util::address::Error| ApiError::bad_request(err.to_string()))?;
+
+  let address: bitcoin::Address = Address::from_str(&address)
+    .and_then(|address| address.require_network(index.get_chain_network()))
+    .map_err(ApiError::bad_request)?;
 
   let transferable = index.brc20_get_all_transferable_by_address(&address)?;
   log::debug!(

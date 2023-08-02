@@ -413,7 +413,6 @@ impl From<&brc20_store::TransferableLog> for TransferableInscription {
 #[cfg(test)]
 mod tests {
   use crate::okx::datastore::ScriptKey;
-  use bitcoin::hashes::hex::FromHex;
 
   use super::*;
   #[test]
@@ -421,6 +420,7 @@ mod tests {
     let script_pubkey: ScriptPubkey = ScriptKey::from_script(
       &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
         .unwrap()
+        .assume_checked()
         .script_pubkey(),
       Network::Bitcoin,
     )
@@ -430,10 +430,13 @@ mod tests {
       r#"{"address":"bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"}"#
     );
     let script_pubkey: ScriptPubkey = ScriptKey::from_script(
-      &Script::from_hex(
-        "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
-      )
-      .unwrap(),
+      &Script::from_bytes(
+        hex::decode(
+          "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+        )
+        .unwrap()
+        .as_slice(),
+      ),
       Network::Bitcoin,
     )
     .into();
@@ -543,16 +546,20 @@ mod tests {
       from: ScriptKey::from_script(
         &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
           .unwrap()
+          .assume_checked()
           .script_pubkey(),
         Network::Bitcoin,
       )
       .into(),
       to: Some(
         ScriptKey::from_script(
-          &Script::from_hex(
-            "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
-          )
-          .unwrap(),
+          &Script::from_bytes(
+            hex::decode(
+              "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+            )
+            .unwrap()
+            .as_slice(),
+          ),
           Network::Bitcoin,
         )
         .into(),
@@ -590,16 +597,20 @@ mod tests {
       from: ScriptKey::from_script(
         &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
           .unwrap()
+          .assume_checked()
           .script_pubkey(),
         Network::Bitcoin,
       )
       .into(),
       to: Some(
         ScriptKey::from_script(
-          &Script::from_hex(
-            "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
-          )
-          .unwrap(),
+          &Script::from_bytes(
+            hex::decode(
+              "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+            )
+            .unwrap()
+            .as_slice(),
+          ),
           Network::Bitcoin,
         )
         .into(),
@@ -645,16 +656,20 @@ mod tests {
       from: ScriptKey::from_script(
         &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
           .unwrap()
+          .assume_checked()
           .script_pubkey(),
         Network::Bitcoin,
       )
       .into(),
       to: Some(
         ScriptKey::from_script(
-          &Script::from_hex(
-            "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
-          )
-          .unwrap(),
+          &Script::from_bytes(
+            hex::decode(
+              "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
+            )
+            .unwrap()
+            .as_slice(),
+          ),
           Network::Bitcoin,
         )
         .into(),

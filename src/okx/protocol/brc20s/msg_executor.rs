@@ -1051,7 +1051,6 @@ mod tests {
   };
   use crate::test::Hash;
   use bech32::CheckBase32;
-  use bitcoin::hashes::hex::ToHex;
   use bitcoin::hashes::sha256;
   use bitcoin::hashes::HashEngine;
   use bitcoin::Address;
@@ -1216,7 +1215,7 @@ mod tests {
 
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let script = ScriptKey::from_address(addr1);
+    let script = ScriptKey::from_address(addr1.assume_checked());
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -1378,7 +1377,7 @@ mod tests {
     };
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let script = ScriptKey::from_address(addr1);
+    let script = ScriptKey::from_address(addr1.assume_checked());
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -1965,7 +1964,7 @@ mod tests {
     };
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let script = ScriptKey::from_address(addr1);
+    let script = ScriptKey::from_address(addr1.assume_checked());
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -2899,7 +2898,7 @@ mod tests {
     };
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let script = ScriptKey::from_address(addr1);
+    let script = ScriptKey::from_address(addr1.assume_checked());
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -3317,7 +3316,7 @@ mod tests {
       let addr1 =
         Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e")
           .unwrap();
-      let script = ScriptKey::from_address(addr1);
+      let script = ScriptKey::from_address(addr1.assume_checked());
       let inscription_id = InscriptionId::from_str(
         "1111111111111111111111111111111111111111111111111111111111111111i1",
       )
@@ -3519,7 +3518,7 @@ mod tests {
     };
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let script = ScriptKey::from_address(addr1);
+    let script = ScriptKey::from_address(addr1.assume_checked());
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -3741,7 +3740,7 @@ mod tests {
     };
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let script = ScriptKey::from_address(addr1);
+    let script = ScriptKey::from_address(addr1.assume_checked());
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -4019,7 +4018,7 @@ mod tests {
     };
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let script = ScriptKey::from_address(addr1);
+    let script = ScriptKey::from_address(addr1.assume_checked());
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -4254,7 +4253,7 @@ mod tests {
     };
     let addr1 =
       Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap();
-    let script = ScriptKey::from_address(addr1);
+    let script = ScriptKey::from_address(addr1.assume_checked());
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
@@ -4484,7 +4483,7 @@ mod tests {
       };
 
       let addr1 = Address::from_str("bc1q9x30z7rz52c97jwc2j79w76y7l3ny54nlvd4ew").unwrap();
-      let script1 = ScriptKey::from_address(addr1);
+      let script1 = ScriptKey::from_address(addr1.assume_checked());
 
       let mut msg = mock_create_brc20s_message(
         script1.clone(),
@@ -4662,7 +4661,9 @@ mod tests {
 
     // deploy brc20
     let script = ScriptKey::from_address(
-      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap(),
+      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e")
+        .unwrap()
+        .assume_checked(),
     );
     let inscription_id =
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
@@ -4816,7 +4817,9 @@ mod tests {
     // call control, commit_from != to
     let mut error_msg = msg.clone();
     error_msg.to = Some(ScriptKey::from_address(
-      Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
+      Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny")
+        .unwrap()
+        .assume_checked(),
     ));
     match process_mint(
       context,
@@ -5058,11 +5061,15 @@ mod tests {
 
     // deploy brc20
     let script = ScriptKey::from_address(
-      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap(),
+      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e")
+        .unwrap()
+        .assume_checked(),
     );
 
     let script1 = ScriptKey::from_address(
-      Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny").unwrap(),
+      Address::from_str("bc1q9cv6smq87myk2ujs352c3lulwzvdfujd5059ny")
+        .unwrap()
+        .assume_checked(),
     );
 
     let inscription_id =
@@ -5454,7 +5461,9 @@ mod tests {
     // commit_from not self
     let mut error_msg = msg.clone();
     error_msg.from = ScriptKey::from_address(
-      Address::from_str("bc1qzmh8f99f8ue8cy90a9xqflwtrhphg3sq76srhe").unwrap(),
+      Address::from_str("bc1qzmh8f99f8ue8cy90a9xqflwtrhphg3sq76srhe")
+        .unwrap()
+        .assume_checked(),
     );
     match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
       Err(Error::BRC20SError(e)) => {
@@ -7462,7 +7471,7 @@ mod tests {
         "pool",
         "01",
         "btc1",
-        hash[0..3].to_hex().as_str(),
+        &hash.to_string()[..(2 * 3)],
         "10",
         "12000000",
         "21000000",

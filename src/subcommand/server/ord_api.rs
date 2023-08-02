@@ -172,7 +172,7 @@ pub(super) async fn ord_outpoint(
 
   Ok(Json(ApiResponse::ok(OutPointData {
     txid: outpoint.txid.to_string(),
-    script_pub_key: vout.script_pubkey.asm(),
+    script_pub_key: vout.script_pubkey.to_asm_string(),
     owner: ScriptKey::from_script(&vout.script_pubkey, index.get_chain_network()).into(),
     value: vout.value,
     inscription_digest: inscription_digests,
@@ -560,6 +560,7 @@ mod tests {
       from: ScriptKey::from_script(
         &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
           .unwrap()
+          .assume_checked()
           .script_pubkey(),
         Network::Bitcoin,
       )
@@ -568,6 +569,7 @@ mod tests {
         ScriptKey::from_script(
           &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
             .unwrap()
+            .assume_checked()
             .script_pubkey(),
           Network::Bitcoin,
         )
@@ -648,6 +650,7 @@ mod tests {
         ScriptKey::from_script(
           &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
             .unwrap()
+            .assume_checked()
             .script_pubkey(),
           Network::Bitcoin,
         )

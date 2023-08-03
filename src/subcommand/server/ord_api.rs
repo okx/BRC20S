@@ -15,16 +15,16 @@ pub enum OrdError {
   BlockNotFound,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrdInscription {
-  pub id: String,
+  pub id: InscriptionId,
   pub number: i64,
   pub content_type: Option<String>,
   pub content: Option<String>,
-  pub owner: ScriptPubkey,
+  pub owner: Option<ScriptPubkey>,
   pub genesis_height: u64,
-  pub location: String,
+  pub location: SatPoint,
   pub sat: Option<u64>,
 }
 #[derive(Debug, Clone)]
@@ -64,32 +64,39 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
   let inscription_data = get_inscription_all_data_by_id(index.clone(), id)?
     .ok_or_api_not_found(format!("inscriptionId not found {id}"))?;
   let location_outpoint = inscription_data.sat_point.outpoint;
-  let owner = if inscription_data.tx.txid() != location_outpoint.txid {
-    let location_raw_tx = index
-      .get_transaction(location_outpoint.txid)?
-      .ok_or_api_not_found(format!(
-        "inscriptionId not found {}",
-        location_outpoint.txid
-      ))?;
-    ScriptKey::from_script(
-      &location_raw_tx
-        .output
-        .get(usize::try_from(location_outpoint.vout).unwrap())
-        .unwrap()
-        .script_pubkey,
-      index.get_chain_network(),
-    )
-    .into()
-  } else {
-    ScriptKey::from_script(
-      &inscription_data.tx.output[0].script_pubkey,
-      index.get_chain_network(),
-    )
-    .into()
+  let mut owner = None;
+  if location_outpoint != unbound_outpoint() {
+    owner = if inscription_data.tx.txid() != location_outpoint.txid {
+      let location_raw_tx = index
+        .get_transaction(location_outpoint.txid)?
+        .ok_or_api_not_found(format!(
+          "inscriptionId not found {}",
+          location_outpoint.txid
+        ))?;
+      Some(
+        ScriptKey::from_script(
+          &location_raw_tx
+            .output
+            .get(usize::try_from(location_outpoint.vout).unwrap())
+            .unwrap()
+            .script_pubkey,
+          index.get_chain_network(),
+        )
+        .into(),
+      )
+    } else {
+      Some(
+        ScriptKey::from_script(
+          &inscription_data.tx.output[0].script_pubkey,
+          index.get_chain_network(),
+        )
+        .into(),
+      )
+    };
   };
 
   Ok(Json(ApiResponse::ok(OrdInscription {
-    id: id.to_string(),
+    id,
     number: inscription_data.entry.number,
     content_type: inscription_data
       .inscription
@@ -98,7 +105,7 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
     content: inscription_data.inscription.body().map(|c| hex::encode(c)),
     owner,
     genesis_height: inscription_data.entry.height,
-    location: inscription_data.sat_point.to_string(),
+    location: inscription_data.sat_point,
     sat: inscription_data.entry.sat.map(|s| s.0),
   })))
 }
@@ -623,6 +630,63 @@ mod tests {
   "to": {
     "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
   }
+}"###,
+    );
+  }
+
+  #[test]
+  fn test_serialize_ord_inscription() {
+    let mut ord_inscription = OrdInscription {
+      id: InscriptionId {
+        txid: txid(1),
+        index: 0xFFFFFFFF,
+      },
+      number: -100,
+      content_type: Some("content_type".to_string()),
+      content: Some("content".to_string()),
+      owner: Some(
+        ScriptKey::from_script(
+          &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+            .unwrap()
+            .script_pubkey(),
+          Network::Bitcoin,
+        )
+        .into(),
+      ),
+      genesis_height: 1,
+      location: SatPoint::from_str(
+        "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+      )
+      .unwrap(),
+      sat: None,
+    };
+    assert_eq!(
+      serde_json::to_string_pretty(&ord_inscription).unwrap(),
+      r###"{
+  "id": "1111111111111111111111111111111111111111111111111111111111111111i4294967295",
+  "number": -100,
+  "contentType": "content_type",
+  "content": "content",
+  "owner": {
+    "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
+  },
+  "genesisHeight": 1,
+  "location": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+  "sat": null
+}"###,
+    );
+    ord_inscription.owner = None;
+    assert_eq!(
+      serde_json::to_string_pretty(&ord_inscription).unwrap(),
+      r###"{
+  "id": "1111111111111111111111111111111111111111111111111111111111111111i4294967295",
+  "number": -100,
+  "contentType": "content_type",
+  "content": "content",
+  "owner": null,
+  "genesisHeight": 1,
+  "location": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+  "sat": null
 }"###,
     );
   }

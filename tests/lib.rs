@@ -33,7 +33,6 @@ macro_rules! assert_regex_match {
 }
 
 mod command_builder;
-mod core;
 mod expected;
 mod index;
 mod server;

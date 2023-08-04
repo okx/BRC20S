@@ -440,11 +440,7 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
   let is_first_stake: bool;
   let mut userinfo = match brc20s_store.get_pid_to_use_info(&to_script_key, &pool_id) {
     Ok(Some(info)) => {
-      if info.staked == 0_u128 {
-        is_first_stake = true;
-      } else {
-        is_first_stake = false;
-      }
+      is_first_stake = info.staked == 0_u128;
       info
     }
     _ => {

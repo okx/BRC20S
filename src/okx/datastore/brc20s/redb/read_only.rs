@@ -3,7 +3,6 @@ use crate::okx::datastore::brc20s::{
   Balance, DataStoreReadOnly, InscriptionOperation, Pid, PledgedTick, PoolInfo, Receipt, StakeInfo,
   TickId, TickInfo, TransferInfo, TransferableAsset, UserInfo,
 };
-use bitcoin::hashes::Hash;
 use redb::{
   AccessGuard, Range, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
   StorageError, Table, TableDefinition, WriteTransaction,
@@ -419,7 +418,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
   ) -> Result<Option<TransferInfo>, Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
     Ok(
       self

@@ -6,7 +6,7 @@ use crate::{
   },
   InscriptionId,
 };
-use bitcoin::{hashes::Hash, Txid};
+use bitcoin::Txid;
 use redb::WriteTransaction;
 
 pub struct DataStore<'db, 'a> {
@@ -306,7 +306,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
 
     self.wtx.open_table(BRC20S_INSCRIBE_TRANSFER)?.insert(
@@ -322,7 +322,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
 
     self
@@ -354,7 +354,9 @@ mod tests {
     let brc20s_db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick1 = TickId::from_str("f7c515d6b1").unwrap();
     let tick2 = TickId::from_str("f7c515d6b2").unwrap();
@@ -389,8 +391,11 @@ mod tests {
       expect_balance1
     );
 
-    let script2 =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script2 = ScriptKey::from_address(
+      Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+        .unwrap()
+        .assume_checked(),
+    );
     assert_ne!(script.to_string(), script2.to_string());
     let expect_balance22 = Balance {
       tick_id: tick2.clone(),
@@ -601,7 +606,9 @@ mod tests {
   #[test]
   fn test_user_stakeinfo() {
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
 
     let dbfile = NamedTempFile::new().unwrap();
@@ -724,7 +731,9 @@ mod tests {
       circulation: 100,
       supply: 100,
       deployer: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
       deploy_block: 100,
       deploy_block_time: 100000,
@@ -833,8 +842,11 @@ mod tests {
       reward_debt: 0,
       latest_updated_block: 0,
     };
-    let script_key =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script_key = ScriptKey::from_address(
+      Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+        .unwrap()
+        .assume_checked(),
+    );
 
     brc20s_db
       .set_pid_to_use_info(&script_key, &pid, &user_info)
@@ -856,8 +868,11 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20s_db = DataStore::new(&wtx);
 
-    let script_key =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script_key = ScriptKey::from_address(
+      Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+        .unwrap()
+        .assume_checked(),
+    );
     let tick_id = TickId::from_str("f7c515d6b7").unwrap();
     let inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
@@ -1164,7 +1179,9 @@ mod tests {
     let brc20s_db = DataStore::new(&wtx);
 
     let script_key1 = ScriptKey::from_address(
-      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap(),
+      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e")
+        .unwrap()
+        .assume_checked(),
     );
     let tick_id1 = TickId::from_str("17c515d6b7").unwrap();
     let inscription_id1 =

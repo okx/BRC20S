@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::*;
-use bitcoin::{hashes::Hash, Txid};
+use bitcoin::Txid;
 use redb::WriteTransaction;
 
 pub struct DataStore<'db, 'a> {
@@ -185,7 +185,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
 
     self.wtx.open_table(BRC20_INSCRIBE_TRANSFER)?.insert(
@@ -201,7 +201,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
 
     self
@@ -234,7 +234,9 @@ mod tests {
     let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick1 = Tick::from_str("abcd").unwrap();
     let tick2 = Tick::from_str("1234").unwrap();
@@ -276,8 +278,11 @@ mod tests {
         .unwrap();
     }
 
-    let script2 =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script2 = ScriptKey::from_address(
+      Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+        .unwrap()
+        .assume_checked(),
+    );
     assert_ne!(script.to_string(), script2.to_string());
     let expect_balance22 = Balance {
       tick: tick1,
@@ -302,7 +307,9 @@ mod tests {
     let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick = Tick::from_str("ABCd").unwrap();
     let expect_balance = Balance {
@@ -351,7 +358,9 @@ mod tests {
       limit_per_mint: 10,
       decimal: 1,
       deploy_by: ScriptKey::from_address(
-        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .assume_checked(),
       ),
       deployed_number: 99,
       deployed_timestamp: 11222,
@@ -386,7 +395,9 @@ mod tests {
       limit_per_mint: 10,
       decimal: 1,
       deploy_by: ScriptKey::from_address(
-        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .assume_checked(),
       ),
       deployed_number: 99,
       deployed_timestamp: 11222,
@@ -404,7 +415,9 @@ mod tests {
       limit_per_mint: 20,
       decimal: 1,
       deploy_by: ScriptKey::from_address(
-        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .assume_checked(),
       ),
       deployed_number: 299,
       deployed_timestamp: 33222,
@@ -422,7 +435,9 @@ mod tests {
       limit_per_mint: 20,
       decimal: 1,
       deploy_by: ScriptKey::from_address(
-        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .assume_checked(),
       ),
       deployed_number: 399,
       deployed_timestamp: 33222,
@@ -441,7 +456,9 @@ mod tests {
       limit_per_mint: 20,
       decimal: 1,
       deploy_by: ScriptKey::from_address(
-        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .assume_checked(),
       ),
       deployed_number: 499,
       deployed_timestamp: 44222,
@@ -480,7 +497,9 @@ mod tests {
       limit_per_mint: 10,
       decimal: 1,
       deploy_by: ScriptKey::from_address(
-        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .assume_checked(),
       ),
       deployed_number: 99,
       deployed_timestamp: 33222,
@@ -531,10 +550,14 @@ mod tests {
         inscription_number: 1,
         op: OperationType::Deploy,
         from: ScriptKey::from_address(
-          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+            .unwrap()
+            .assume_checked(),
         ),
         to: ScriptKey::from_address(
-          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+            .unwrap()
+            .assume_checked(),
         ),
         old_satpoint: SatPoint::from_str(
           "1111111111111111111111111111111111111111111111111111111111111111:1:1",
@@ -554,10 +577,14 @@ mod tests {
         inscription_number: 1,
         op: OperationType::Mint,
         from: ScriptKey::from_address(
-          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+            .unwrap()
+            .assume_checked(),
         ),
         to: ScriptKey::from_address(
-          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+            .unwrap()
+            .assume_checked(),
         ),
         old_satpoint: SatPoint::from_str(
           "2111111111111111111111111111111111111111111111111111111111111111:1:1",
@@ -581,10 +608,14 @@ mod tests {
         inscription_number: 1,
         op: OperationType::Mint,
         from: ScriptKey::from_address(
-          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+            .unwrap()
+            .assume_checked(),
         ),
         to: ScriptKey::from_address(
-          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+          Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+            .unwrap()
+            .assume_checked(),
         ),
         old_satpoint: SatPoint::from_str(
           "4111111111111111111111111111111111111111111111111111111111111111:1:1",
@@ -615,7 +646,9 @@ mod tests {
     let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick = Tick::from_str("m23e").unwrap();
     let transferable_log1 = TransferableLog {
@@ -627,7 +660,9 @@ mod tests {
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     let transferable_log2 = TransferableLog {
@@ -639,7 +674,9 @@ mod tests {
       amount: 20,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
 
@@ -666,8 +703,11 @@ mod tests {
         .unwrap(),
       Vec::new()
     );
-    let not_exist_script =
-      ScriptKey::from_address(Address::from_str("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY").unwrap());
+    let not_exist_script = ScriptKey::from_address(
+      Address::from_str("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY")
+        .unwrap()
+        .assume_checked(),
+    );
     assert_eq!(
       brc20db
         .get_transferable_by_tick(&not_exist_script, &tick)
@@ -684,7 +724,9 @@ mod tests {
     let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick = Tick::from_str("m23e").unwrap();
     let transferable_log1 = TransferableLog {
@@ -696,7 +738,9 @@ mod tests {
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     let transferable_log2 = TransferableLog {
@@ -708,7 +752,9 @@ mod tests {
       amount: 20,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
 
@@ -742,8 +788,11 @@ mod tests {
         .unwrap(),
       None
     );
-    let not_exist_script =
-      ScriptKey::from_address(Address::from_str("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY").unwrap());
+    let not_exist_script = ScriptKey::from_address(
+      Address::from_str("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY")
+        .unwrap()
+        .assume_checked(),
+    );
     assert_eq!(
       brc20db
         .get_transferable_by_id(&not_exist_script, &transferable_log1.inscription_id)
@@ -766,7 +815,9 @@ mod tests {
     let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick = Tick::from_str("m23e").unwrap();
     let transferable_log1 = TransferableLog {
@@ -778,7 +829,9 @@ mod tests {
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     let transferable_log2 = TransferableLog {
@@ -790,7 +843,9 @@ mod tests {
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
 
@@ -818,7 +873,9 @@ mod tests {
     let brc20db = DataStore::new(&wtx);
 
     let script1 = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick1 = Tick::from_str("m23e").unwrap();
     let transferable_log11 = TransferableLog {
@@ -830,7 +887,9 @@ mod tests {
       amount: 10,
       tick: tick1.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     let transferable_log12 = TransferableLog {
@@ -842,7 +901,9 @@ mod tests {
       amount: 30,
       tick: tick1.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     // insert two logs for script1 and tick1
@@ -863,7 +924,9 @@ mod tests {
       amount: 10,
       tick: tick2.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     let transferable_log14 = TransferableLog {
@@ -875,7 +938,9 @@ mod tests {
       amount: 30,
       tick: tick2.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     // insert two logs for script1 and tick2
@@ -886,8 +951,11 @@ mod tests {
       .insert_transferable(&script1, &tick2, transferable_log14.clone())
       .unwrap();
 
-    let script2 =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script2 = ScriptKey::from_address(
+      Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+        .unwrap()
+        .assume_checked(),
+    );
     let transferable_log21 = TransferableLog {
       inscription_id: InscriptionId::from_str(
         "2111111111111111111111111111111111111111111111111111111111111111i1",
@@ -897,7 +965,9 @@ mod tests {
       amount: 30,
       tick: Tick::from_str("m333").unwrap(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     // insert one log for script2 and tick
@@ -930,7 +1000,9 @@ mod tests {
     let brc20db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick = Tick::from_str("m23e").unwrap();
     let transferable_log1 = TransferableLog {
@@ -942,7 +1014,9 @@ mod tests {
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     let transferable_log2 = TransferableLog {
@@ -954,7 +1028,9 @@ mod tests {
       amount: 10,
       tick: tick.clone(),
       owner: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
     };
     brc20db

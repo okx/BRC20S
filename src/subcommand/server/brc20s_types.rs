@@ -708,6 +708,7 @@ mod tests {
       from: ScriptKey::from_script(
         &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
           .unwrap()
+          .assume_checked()
           .script_pubkey(),
         Network::Bitcoin,
       )
@@ -716,6 +717,7 @@ mod tests {
         ScriptKey::from_script(
           &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
             .unwrap()
+            .assume_checked()
             .script_pubkey(),
           Network::Bitcoin,
         )
@@ -734,6 +736,7 @@ mod tests {
           deployer: ScriptKey::from_script(
             &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
               .unwrap()
+              .assume_checked()
               .script_pubkey(),
             Network::Bitcoin,
           )
@@ -759,6 +762,7 @@ mod tests {
           deployer: ScriptKey::from_script(
             &Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
               .unwrap()
+              .assume_checked()
               .script_pubkey(),
             Network::Bitcoin,
           )

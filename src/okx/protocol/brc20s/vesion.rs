@@ -96,5 +96,6 @@ pub fn get_version_by_network(network: Network) -> HashMap<String, Version> {
     Network::Testnet => TEST_NET_VERSION.clone(),
     Network::Signet => SIG_NET_VERSION.clone(),
     Network::Regtest => REGTEST_NET_VERSION.clone(),
+    _ => panic!("not support network"),
   }
 }

@@ -16,7 +16,7 @@ impl Default for ScriptPubkey {
 impl From<ScriptKey> for ScriptPubkey {
   fn from(script_key: ScriptKey) -> Self {
     match script_key {
-      ScriptKey::Address(address) => ScriptPubkey::Address(address.to_string()),
+      ScriptKey::Address(address) => ScriptPubkey::Address(address.assume_checked().to_string()),
       ScriptKey::ScriptHash(hash) => ScriptPubkey::NonStandard(hash.to_string()),
     }
   }

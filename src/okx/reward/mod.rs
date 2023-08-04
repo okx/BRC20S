@@ -71,7 +71,6 @@ pub fn update_pool(
 
     // calculating accRewardPerShare
     pool.acc_reward_per_share = rewards
-      
       .checked_mul(&get_per_share_multiplier())?
       .checked_div(&pool_stake)? // pool's per share = reward / all stake
       .checked_add(&acc_reward_per_share)?
@@ -103,7 +102,6 @@ pub fn update_pool(
 
     // calculating accRewardPerShare
     pool.acc_reward_per_share = rewards
-      
       .checked_mul(&get_per_share_multiplier())?
       .checked_add(&acc_reward_per_share)?
       .truncate_to_str()?;
@@ -253,10 +251,7 @@ mod tests {
       );
       user.staked += 2 * stake_base;
       pool.staked += 2 * stake_base;
-      assert_eq!(
-        update_user_stake(&mut user, &pool, STAKED_DECIMAL),
-        Ok(())
-      );
+      assert_eq!(update_user_stake(&mut user, &pool, STAKED_DECIMAL), Ok(()));
     }
 
     //withdraw, has reward
@@ -268,10 +263,7 @@ mod tests {
       );
       user.staked -= stake_base;
       pool.staked -= stake_base;
-      assert_eq!(
-        update_user_stake(&mut user, &pool, STAKED_DECIMAL),
-        Ok(())
-      );
+      assert_eq!(update_user_stake(&mut user, &pool, STAKED_DECIMAL), Ok(()));
     }
 
     // query reward
@@ -1740,10 +1732,7 @@ mod tests {
       Err(BRC20SError::NoStaked(pid.as_str().to_string()))
     );
 
-    assert_eq!(
-      update_user_stake(&mut user, &pool, STAKED_DECIMAL),
-      Ok(())
-    );
+    assert_eq!(update_user_stake(&mut user, &pool, STAKED_DECIMAL), Ok(()));
     assert_eq!(user.staked, 0);
     assert_eq!(user.pending_reward, 0);
     assert_eq!(user.latest_updated_block, 100);

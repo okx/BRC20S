@@ -58,7 +58,8 @@ mod tests {
         "op": "deposit",
         "pid": "pid",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -79,7 +80,8 @@ mod tests {
         "p": "brc20-s",
         "op": "deposit",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -97,7 +99,8 @@ mod tests {
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
       RawOperation::Stake(Stake {

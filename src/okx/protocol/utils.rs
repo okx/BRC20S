@@ -28,10 +28,10 @@ pub(super) fn get_inscription_number_by_id<O: OrdDataStoreReadOnly>(
   ord_store: &O,
 ) -> Result<i64> {
   ord_store
-      .get_number_by_inscription_id(inscription_id)
-      .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
-      .ok_or(anyhow!(
-        "failed to get inscription number! error: inscription id {} not found",
-        inscription_id
-      ))
+    .get_number_by_inscription_id(inscription_id)
+    .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
+    .ok_or(anyhow!(
+      "failed to get inscription number! error: inscription id {} not found",
+      inscription_id
+    ))
 }

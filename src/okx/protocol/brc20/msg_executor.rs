@@ -148,7 +148,9 @@ fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataSt
 
   let limit = Num::from_str(&deploy.mint_limit.map_or(deploy.max_supply, |v| v))?;
 
-  if limit.sign() == Sign::NoSign || limit > MAXIMUM_SUPPLY.to_owned() || limit.scale() > i64::from(dec)
+  if limit.sign() == Sign::NoSign
+    || limit > MAXIMUM_SUPPLY.to_owned()
+    || limit.scale() > i64::from(dec)
   {
     return Err(Error::BRC20Error(BRC20Error::MintLimitOutOfRange(
       tick.to_lowercase().to_string(),
@@ -235,8 +237,7 @@ fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStor
     let new = supply.checked_sub(&minted)?;
     out_msg = Some(format!(
       "amt has been cut off to fit the supply! origin: {}, now: {}",
-      amt,
-      new
+      amt, new
     ));
     new
   } else {
@@ -408,7 +409,8 @@ fn process_transfer<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::Data
   let mut out_msg = None;
 
   let to_script_key = if msg.to.clone().is_none() {
-    out_msg = Some("redirect receiver to sender, reason: transfer inscription to coinbase".to_string());
+    out_msg =
+      Some("redirect receiver to sender, reason: transfer inscription to coinbase".to_string());
     msg.from.clone()
   } else {
     msg.to.clone().unwrap()

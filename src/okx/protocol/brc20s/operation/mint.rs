@@ -81,7 +81,8 @@ mod tests {
         "pid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -104,7 +105,8 @@ mod tests {
         "op": "mint",
         "tick": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -122,7 +124,8 @@ mod tests {
         "pid": "pid-2",
         "tick": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
       RawOperation::Mint(Mint {

@@ -46,7 +46,8 @@ mod tests {
         "tid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -69,7 +70,8 @@ mod tests {
         "op": "transfer",
         "tick": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let result = deserialize_brc20s(&json_str);
 
@@ -88,7 +90,8 @@ mod tests {
         "tick": "tick-1",
         "tick": "tick-2",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
       RawOperation::Transfer(Transfer {

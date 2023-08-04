@@ -54,7 +54,10 @@ pub(crate) fn deserialize_brc20_operation(
 
   if content_type != "text/plain"
     && content_type != "text/plain;charset=utf-8"
-    && content_type != "text/plain;charset=UTF-8" && content_type != "application/json" && !content_type.starts_with("text/plain;") {
+    && content_type != "text/plain;charset=UTF-8"
+    && content_type != "application/json"
+    && !content_type.starts_with("text/plain;")
+  {
     return Err(JSONError::UnSupportContentType.into());
   }
   let raw_operation = match deserialize_brc20(content_body) {

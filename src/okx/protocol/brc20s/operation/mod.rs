@@ -81,7 +81,10 @@ pub(crate) fn deserialize_brc20s_operation(
 
   if content_type != "text/plain"
     && content_type != "text/plain;charset=utf-8"
-    && content_type != "text/plain;charset=UTF-8" && content_type != "application/json" && !content_type.starts_with("text/plain;") {
+    && content_type != "text/plain;charset=UTF-8"
+    && content_type != "application/json"
+    && !content_type.starts_with("text/plain;")
+  {
     return Err(JSONError::UnSupportContentType.into());
   }
 
@@ -153,7 +156,8 @@ mod tests {
         "op": "deposit",
         "pid": "pid",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let result = deserialize_brc20s(&json_str);
 
@@ -176,7 +180,8 @@ mod tests {
         "pid": "pid",
         "tick": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -199,7 +204,8 @@ mod tests {
         "op": "withdraw",
         "pid": "pid",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -222,7 +228,8 @@ mod tests {
         "tid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -246,7 +253,8 @@ mod tests {
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
       RawOperation::Stake(Stake {
@@ -263,7 +271,8 @@ mod tests {
         "op": "stake",
         "pid": "pid",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
     assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC20SJson))
   }
 
@@ -274,7 +283,8 @@ mod tests {
         "op": "stake",
         "pid": "pid",
         "amt": "amt",
-      }"##.to_string();
+      }"##
+      .to_string();
     assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::InvalidJson))
   }
 
@@ -286,7 +296,8 @@ mod tests {
         "Pid": "pid",
         "ticK": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC20SJson));
 
@@ -296,7 +307,8 @@ mod tests {
         "Pid": "pid",
         "ticK": "tick",
         "amt": "amt"
-      }"##.to_string();
+      }"##
+      .to_string();
 
     assert_eq!(
       deserialize_brc20s(&json_str1),

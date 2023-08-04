@@ -118,7 +118,7 @@ pub trait DataStoreReadWrite: DataStoreReadOnly {
   fn set_txid_to_inscription_receipts(
     &self,
     tx_id: &Txid,
-    inscription_operations: &Vec<InscriptionOperation>,
+    inscription_operations: &[InscriptionOperation],
   ) -> Result<(), Self::Error>;
 
   // BRC20S_TICKINFO

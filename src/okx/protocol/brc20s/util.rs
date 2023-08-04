@@ -11,14 +11,14 @@ pub fn validate_pool_str(s: &str) -> Result<(), BRC20SError> {
     ));
   }
 
-  if !s.contains("#") {
+  if !s.contains('#') {
     return Err(BRC20SError::InvalidPoolId(
       s.to_string(),
       "pool id must contains '#'".to_string(),
     ));
   }
 
-  let strs = s.split("#").collect::<Vec<&str>>();
+  let strs = s.split('#').collect::<Vec<&str>>();
   if strs.len() != 2 {
     return Err(BRC20SError::InvalidPoolId(
       s.to_string(),

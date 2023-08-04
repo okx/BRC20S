@@ -104,7 +104,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut info = self
       .get_token_info(tick)?
-      .expect(&format!("token {} not exist", tick.as_str()));
+      .unwrap_or_else(|| panic!("token {} not exist", tick.as_str()));
 
     info.minted = minted_amt;
     info.latest_mint_number = minted_block_number;
@@ -143,8 +143,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
     let mut logs = self.get_transferable_by_tick(script, tick)?;
     if logs
       .iter()
-      .find(|log| log.inscription_id == inscription.inscription_id)
-      .is_some()
+      .any(|log| log.inscription_id == inscription.inscription_id)
     {
       return Ok(());
     }
@@ -290,7 +289,7 @@ mod tests {
       transferable_balance: 30,
     };
     brc20db
-      .update_token_balance(&script2, expect_balance22.clone())
+      .update_token_balance(&script2, expect_balance22)
       .unwrap();
 
     let mut all_balances = brc20db.get_balances(&script).unwrap();

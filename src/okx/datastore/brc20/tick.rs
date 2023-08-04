@@ -77,11 +77,11 @@ impl LowerTick {
   }
 
   pub fn min_hex() -> String {
-    hex::encode(&[0u8; TICK_BYTE_COUNT * 4])
+    hex::encode([0u8; TICK_BYTE_COUNT * 4])
   }
 
   pub fn max_hex() -> String {
-    hex::encode(&[0xffu8; TICK_BYTE_COUNT * 4])
+    hex::encode([0xffu8; TICK_BYTE_COUNT * 4])
   }
 }
 

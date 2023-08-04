@@ -53,18 +53,16 @@ mod tests {
 
   #[test]
   fn test_deserialize() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "deposit",
         "pid": "pid",
         "amt": "amt"
-      }}"##
-    );
+      }"##.to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
-    assert!(!deserialize_brc20s(&json_str).is_err());
+    assert!(deserialize_brc20s(&json_str).is_ok());
 
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
@@ -77,13 +75,11 @@ mod tests {
 
   #[test]
   fn test_loss_require_key() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "deposit",
         "amt": "amt"
-      }}"##
-    );
+      }"##.to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -95,15 +91,13 @@ mod tests {
 
   #[test]
   fn test_duplicate_key() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "deposit",
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"
-      }}"##
-    );
+      }"##.to_string();
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
       RawOperation::Stake(Stake {

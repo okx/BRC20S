@@ -68,7 +68,7 @@ impl<
     let new_inscriptions = Inscription::from_transaction(tx)
       .into_iter()
       .map(|v| v.inscription)
-      .collect();
+      .collect::<Vec<Inscription>>();
 
     let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
@@ -90,7 +90,7 @@ impl<
         if self
           .protocol_start_height
           .get(&ProtocolKind::BRC20)
-          .map(|height| context.blockheight >= height.clone())
+          .map(|height| context.blockheight >= *height)
           .unwrap_or(false)
         {
           if let Some(msg) =
@@ -110,7 +110,7 @@ impl<
         if self
           .protocol_start_height
           .get(&ProtocolKind::BRC20S)
-          .map(|height| context.blockheight >= height.clone())
+          .map(|height| context.blockheight >= *height)
           .unwrap_or(false)
         {
           if let Some(msg) = brc20s::Message::resolve(

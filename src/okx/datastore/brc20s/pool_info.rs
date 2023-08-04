@@ -30,7 +30,7 @@ impl Pid {
   }
 
   pub fn hex(&self) -> String {
-    hex::encode(&self.0)
+    hex::encode(self.0)
   }
 
   pub fn min_hex() -> String {
@@ -68,8 +68,8 @@ pub enum PoolType {
   Unknown,
 }
 
-impl PoolType {
-  pub fn to_string(&self) -> String {
+impl ToString for PoolType {
+  fn to_string(&self) -> String {
     match self {
       PoolType::Pool => String::from("pool"),
       PoolType::Fixed => String::from("fixed"),
@@ -114,7 +114,7 @@ impl PoolInfo {
     Self {
       pid: pid.clone(),
       ptype: ptype.clone(),
-      inscription_id: inscription_id.clone(),
+      inscription_id: *inscription_id,
       stake: stake.clone(),
       erate,
       minted,

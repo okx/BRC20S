@@ -13,9 +13,9 @@ use crate::{
 use anyhow::anyhow;
 
 impl Message {
-  pub(crate) fn resolve<'a, N: DataStoreReadOnly>(
-    brc20_store: &'a N,
-    new_inscriptions: &Vec<Inscription>,
+  pub(crate) fn resolve<N: DataStoreReadOnly>(
+    brc20_store: &N,
+    new_inscriptions: &[Inscription],
     op: &InscriptionOp,
   ) -> Result<Option<Message>> {
     log::debug!("BRC20 resolving the message from {:?}", op);
@@ -169,7 +169,7 @@ mod tests {
         cursed: true,
         unbound: false,
       },
-      ..op.clone()
+      ..op
     };
     assert_matches!(Message::resolve(&brc20_store, &inscriptions, &op), Ok(None));
 
@@ -178,7 +178,7 @@ mod tests {
         cursed: false,
         unbound: true,
       },
-      ..op.clone()
+      ..op
     };
     assert_matches!(
       Message::resolve(&brc20_store, &inscriptions, &op2),
@@ -189,7 +189,7 @@ mod tests {
         cursed: true,
         unbound: true,
       },
-      ..op.clone()
+      ..op
     };
     assert_matches!(
       Message::resolve(&brc20_store, &inscriptions, &op3),
@@ -235,7 +235,7 @@ mod tests {
 
     // inscribe transfer not found
     let op = create_transfer_operation();
-    assert_matches!(Message::resolve(&brc20_store, &vec![], &op), Ok(None));
+    assert_matches!(Message::resolve(&brc20_store, &[], &op), Ok(None));
 
     // non-first transfer operations.
     let op1 = InscriptionOp {
@@ -247,9 +247,9 @@ mod tests {
         },
         offset: 0,
       },
-      ..op.clone()
+      ..op
     };
-    assert_matches!(Message::resolve(&brc20_store, &vec![], &op1), Ok(None));
+    assert_matches!(Message::resolve(&brc20_store, &[], &op1), Ok(None));
   }
 
   #[test]
@@ -283,6 +283,6 @@ mod tests {
       sat_in_outputs: true,
     };
 
-    assert_matches!(Message::resolve(&brc20_store, &vec![], &op), Ok(Some(_msg)));
+    assert_matches!(Message::resolve(&brc20_store, &[], &op), Ok(Some(_msg)));
   }
 }

@@ -168,11 +168,11 @@ impl From<&brc20_store::TokenInfo> for TickInfo {
       supply: tick_info.supply.to_string(),
       limit_per_mint: tick_info.limit_per_mint.to_string(),
       minted: tick_info.minted.to_string(),
-      decimal: tick_info.decimal as u64,
+      decimal: u64::from(tick_info.decimal),
       deploy_by: tick_info.deploy_by.clone().into(),
       txid: tick_info.inscription_id.txid.to_string(),
       deploy_height: tick_info.deployed_number,
-      deploy_blocktime: tick_info.deployed_timestamp as u64,
+      deploy_blocktime: u64::from(tick_info.deployed_timestamp),
     }
   }
 }
@@ -211,7 +211,7 @@ impl From<&brc20_store::Receipt> for TxEvent {
           new_satpoint: event.new_satpoint,
           supply: deploy_event.supply.to_string(),
           limit_per_mint: deploy_event.limit_per_mint.to_string(),
-          decimal: deploy_event.decimal as u64,
+          decimal: u64::from(deploy_event.decimal),
           from: event.from.clone().into(),
           to: event.to.clone().into(),
           valid: true,
@@ -430,7 +430,7 @@ mod tests {
       r#"{"address":"bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"}"#
     );
     let script_pubkey: ScriptPubkey = ScriptKey::from_script(
-      &Script::from_bytes(
+      Script::from_bytes(
         hex::decode(
           "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
         )
@@ -553,7 +553,7 @@ mod tests {
       .into(),
       to: Some(
         ScriptKey::from_script(
-          &Script::from_bytes(
+          Script::from_bytes(
             hex::decode(
               "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
             )
@@ -604,7 +604,7 @@ mod tests {
       .into(),
       to: Some(
         ScriptKey::from_script(
-          &Script::from_bytes(
+          Script::from_bytes(
             hex::decode(
               "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
             )
@@ -663,7 +663,7 @@ mod tests {
       .into(),
       to: Some(
         ScriptKey::from_script(
-          &Script::from_bytes(
+          Script::from_bytes(
             hex::decode(
               "0014017fed86bba5f31f955f8b316c7fb9bd45cb6cbc00000000000000000000000000000000000000",
             )

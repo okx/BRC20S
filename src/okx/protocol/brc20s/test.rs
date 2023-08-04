@@ -1,4 +1,4 @@
-use crate::okx::protocol::brc20s::vesion::UNIT_TEST_VERSION;
+use crate::okx::protocol::brc20s::version::UNIT_TEST_VERSION;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
   crate::SatPoint, bitcoin::Address, std::str::FromStr,
@@ -12,7 +12,7 @@ pub(crate) fn mock_create_brc20s_message(
   let inscription_id =
     InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
       .unwrap();
-  let txid = inscription_id.txid.clone();
+  let txid = inscription_id.txid;
   let old_satpoint =
     SatPoint::from_str("1111111111111111111111111111111111111111111111111111111111111111:1:1")
       .unwrap();
@@ -20,7 +20,8 @@ pub(crate) fn mock_create_brc20s_message(
     SatPoint::from_str("1111111111111111111111111111111111111111111111111111111111111111:2:1")
       .unwrap();
   let version = UNIT_TEST_VERSION.clone();
-  let msg = ExecutionMessage {
+
+  ExecutionMessage {
     txid,
     inscription_id,
     inscription_number: 0,
@@ -28,12 +29,11 @@ pub(crate) fn mock_create_brc20s_message(
     old_satpoint,
     new_satpoint,
     commit_from: Some(from.clone()),
-    from: from.clone(),
-    to: Some(to.clone()),
+    from,
+    to: Some(to),
     op,
     version,
-  };
-  msg
+  }
 }
 
 pub(crate) fn mock_deploy_msg(
@@ -57,7 +57,7 @@ pub(crate) fn mock_deploy_msg(
   let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let tickid = hash::caculate_tick_id(earn, supply_128, dec, &from_script_key, &to_script_key);
-  let pid = tickid.hex().to_string() + "#" + poll_number;
+  let pid = tickid.hex() + "#" + poll_number;
   let msg = Deploy {
     pool_type: pool_type.to_string(),
     pool_id: pid,

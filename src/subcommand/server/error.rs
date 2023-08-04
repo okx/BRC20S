@@ -78,12 +78,12 @@ impl ApiError {
   }
 }
 
-impl<T> Into<axum::Json<ApiResponse<T>>> for ApiError
+impl<T> From<ApiError> for axum::Json<ApiResponse<T>>
 where
   T: Serialize,
 {
-  fn into(self) -> axum::Json<ApiResponse<T>> {
-    axum::Json(ApiResponse::api_err(&self))
+  fn from(val: ApiError) -> Self {
+    axum::Json(ApiResponse::api_err(&val))
   }
 }
 

@@ -18,13 +18,13 @@ const BRC20_INSCRIBE_TRANSFER: TableDefinition<&[u8; 36], &[u8]> =
   TableDefinition::new("BRC20_INSCRIBE_TRANSFER");
 
 fn script_tick_key(script: &ScriptKey, tick: &Tick) -> String {
-  format!("{}_{}", script.to_string(), tick.to_lowercase().hex())
+  format!("{}_{}", script, tick.to_lowercase().hex())
 }
 
 fn min_script_tick_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), LowerTick::min_hex())
+  format!("{}_{}", script, LowerTick::min_hex())
 }
 
 fn max_script_tick_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), LowerTick::max_hex())
+  format!("{}_{}", script, LowerTick::max_hex())
 }

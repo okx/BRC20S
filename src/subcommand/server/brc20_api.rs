@@ -221,7 +221,7 @@ fn get_operations_by_txid(index: &Arc<Index>, txid: &bitcoin::Txid) -> Result<Tx
   let new_inscriptions = Inscription::from_transaction(&tx_result.transaction()?)
     .into_iter()
     .map(|i| i.inscription)
-    .collect();
+    .collect::<Vec<Inscription>>();
 
   let rtx = index.begin_read()?.0;
   let brc20_store = brc20_db::DataStoreReader::new(&rtx);

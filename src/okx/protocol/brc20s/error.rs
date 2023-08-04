@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::okx::datastore::brc20s::DataStoreReadOnly;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, thiserror::Error)]
 pub enum Error<L: DataStoreReadOnly> {
   #[error("brc20s error: {0}")]

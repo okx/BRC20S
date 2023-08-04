@@ -12,7 +12,7 @@ use crate::okx::{
     ScriptKey,
   },
   protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
-  reward::reward,
+  reward,
 };
 
 #[cfg(feature = "rollback")]
@@ -573,9 +573,9 @@ impl Index {
         };
         return Ok((Some(height), Some(btc_height)));
       }
-      return Ok((Some(height), None));
+      Ok((Some(height), None))
     } else {
-      return Ok((None, None));
+      Ok((None, None))
     }
   }
 
@@ -1247,7 +1247,7 @@ impl Index {
     } else {
       self
         .client
-        .get_raw_transaction_info(&txid, None)
+        .get_raw_transaction_info(txid, None)
         .into_option()
     }
   }
@@ -1260,7 +1260,7 @@ impl Index {
     let brc20_db = brc20_db::DataStoreReader::new(&rtx);
     let res = brc20_db.get_transaction_receipts(txid)?;
 
-    if res.len() == 0 {
+    if res.is_empty() {
       let tx = self.client.get_raw_transaction_info(txid, None)?;
       if let Some(tx_blockhash) = tx.blockhash {
         let tx_bh = self.client.get_block_header_info(&tx_blockhash)?;
@@ -1273,7 +1273,7 @@ impl Index {
       }
     }
 
-    return Ok(Some(res));
+    Ok(Some(res))
   }
 
   pub(crate) fn brc20_get_block_events_by_blockhash(
@@ -1297,10 +1297,10 @@ impl Index {
 
     for txid in &block.tx {
       let tx_events = brc20_db.get_transaction_receipts(txid)?;
-      if tx_events.len() == 0 {
+      if tx_events.is_empty() {
         continue;
       }
-      result.push((txid.clone(), tx_events));
+      result.push((*txid, tx_events));
     }
 
     Ok(Some(result))
@@ -1483,9 +1483,9 @@ impl Index {
   pub(crate) fn brc20s_txid_receipts(&self, txid: &Txid) -> Result<Option<Vec<brc20s::Receipt>>> {
     let rtx = self.database.begin_read().unwrap();
     let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let res = brc20s_db.get_txid_to_receipts(&txid)?;
+    let res = brc20s_db.get_txid_to_receipts(txid)?;
 
-    if res.len() == 0 {
+    if res.is_empty() {
       let tx = self.client.get_raw_transaction_info(txid, None)?;
       if let Some(tx_blockhash) = tx.blockhash {
         let tx_bh = self.client.get_block_header_info(&tx_blockhash)?;
@@ -1498,7 +1498,7 @@ impl Index {
       }
     }
 
-    return Ok(Some(res));
+    Ok(Some(res))
   }
 
   pub(crate) fn brc20s_block_receipts(
@@ -1512,17 +1512,17 @@ impl Index {
       return Ok(None);
     }
     let parsed_height = parsed_height.unwrap().0;
-    let block = self.client.get_block_info(&hash)?;
+    let block = self.client.get_block_info(hash)?;
     if block.height as u64 > parsed_height {
       return Ok(None);
     }
     let mut result = Vec::new();
     for txid in &block.tx {
       let tx_events = brc20s_db.get_txid_to_receipts(txid)?;
-      if tx_events.len() == 0 {
+      if tx_events.is_empty() {
         continue;
       }
-      result.push((txid.clone(), tx_events));
+      result.push((*txid, tx_events));
     }
 
     Ok(Some(result))
@@ -1534,9 +1534,9 @@ impl Index {
   ) -> Result<Option<Vec<ord::InscriptionOp>>> {
     let rtx = self.database.begin_read().unwrap();
     let ord_db = ord::OrdDbReader::new(&rtx);
-    let res = ord_db.get_transaction_operations(&txid)?;
+    let res = ord_db.get_transaction_operations(txid)?;
 
-    if res.len() == 0 {
+    if res.is_empty() {
       let tx = self.client.get_raw_transaction_info(txid, None)?;
       if let Some(tx_blockhash) = tx.blockhash {
         let tx_bh = self.client.get_block_header_info(&tx_blockhash)?;
@@ -1549,7 +1549,7 @@ impl Index {
       }
     }
 
-    return Ok(Some(res));
+    Ok(Some(res))
   }
   pub(crate) fn ord_block_inscriptions(
     &self,
@@ -1562,17 +1562,17 @@ impl Index {
       return Ok(None);
     }
     let parsed_height = parsed_height.unwrap().0;
-    let block = self.client.get_block_info(&hash)?;
+    let block = self.client.get_block_info(hash)?;
     if block.height as u64 > parsed_height {
       return Ok(None);
     }
     let mut result = Vec::new();
     for txid in &block.tx {
       let inscriptions = ord_db.get_transaction_operations(txid)?;
-      if inscriptions.len() == 0 {
+      if inscriptions.is_empty() {
         continue;
       }
-      result.push((txid.clone(), inscriptions));
+      result.push((*txid, inscriptions));
     }
 
     Ok(Some(result))

@@ -13,7 +13,7 @@ pub fn try_init_tables<'db, 'a>(
   wtx: &'a WriteTransaction<'db>,
   rtx: &'a ReadTransaction<'db>,
 ) -> Result<bool, redb::Error> {
-  if let Err(_) = rtx.open_table(BRC20_BALANCES) {
+  if rtx.open_table(BRC20_BALANCES).is_err() {
     wtx.open_table(BRC20_BALANCES)?;
     wtx.open_table(BRC20_TOKEN)?;
     wtx.open_table(BRC20_EVENTS)?;
@@ -21,7 +21,7 @@ pub fn try_init_tables<'db, 'a>(
     wtx.open_table(BRC20_INSCRIBE_TRANSFER)?;
   }
 
-  return Ok(true);
+  Ok(true)
 }
 
 pub struct DataStoreReader<'db, 'a> {
@@ -101,7 +101,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
       self
         .wrapper
         .open_table(BRC20_BALANCES)?
-        .range(min_script_tick_key(script_key).as_str()..max_script_tick_key(&script_key).as_str())?
+        .range(min_script_tick_key(script_key).as_str()..max_script_tick_key(script_key).as_str())?
         .flat_map(|result| {
           result.map(|(_, data)| bincode::deserialize::<Balance>(data.value()).unwrap())
         })
@@ -198,7 +198,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
         .get_transferable(script)?
         .iter()
         .find(|log| log.inscription_id == *inscription_id)
-        .map(|log| log.clone()),
+        .cloned(),
     )
   }
 

@@ -5,9 +5,9 @@ use crate::{
 use anyhow::anyhow;
 use bitcoin::Network;
 
-pub(super) fn get_script_key_on_satpoint<'a, O: OrdDataStoreReadOnly>(
+pub(super) fn get_script_key_on_satpoint<O: OrdDataStoreReadOnly>(
   satpoint: SatPoint,
-  ord_store: &'a O,
+  ord_store: &O,
   network: Network,
 ) -> Result<ScriptKey> {
   Ok(ScriptKey::from_script(
@@ -23,17 +23,15 @@ pub(super) fn get_script_key_on_satpoint<'a, O: OrdDataStoreReadOnly>(
   ))
 }
 
-pub(super) fn get_inscription_number_by_id<'a, O: OrdDataStoreReadOnly>(
+pub(super) fn get_inscription_number_by_id<O: OrdDataStoreReadOnly>(
   inscription_id: InscriptionId,
-  ord_store: &'a O,
+  ord_store: &O,
 ) -> Result<i64> {
-  Ok(
-    ord_store
+  ord_store
       .get_number_by_inscription_id(inscription_id)
       .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
       .ok_or(anyhow!(
         "failed to get inscription number! error: inscription id {} not found",
         inscription_id
-      ))?,
-  )
+      ))
 }

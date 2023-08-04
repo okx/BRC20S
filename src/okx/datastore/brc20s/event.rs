@@ -122,7 +122,7 @@ mod tests {
       },
       op: OperationType::Deploy,
       from: ScriptKey::Address(addr.clone()),
-      to: ScriptKey::Address(addr.clone()),
+      to: ScriptKey::Address(addr),
       result: Err(BRC20SError::InvalidTickLen("abcde".to_string())),
     };
     assert_eq!(

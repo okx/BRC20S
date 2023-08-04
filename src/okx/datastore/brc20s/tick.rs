@@ -39,7 +39,7 @@ impl From<Pid> for TickId {
 
 impl TickId {
   pub fn hex(&self) -> String {
-    hex::encode(&self.0)
+    hex::encode(self.0)
   }
 
   pub fn min_hex() -> String {
@@ -88,7 +88,7 @@ impl FromStr for Tick {
       return Ok(Self(bytes.try_into().unwrap()));
     }
 
-    if length > TICK_BYTE_MAX_COUNT || length < TICK_BYTE_MIN_COUNT {
+    if !(TICK_BYTE_MIN_COUNT..=TICK_BYTE_MAX_COUNT).contains(&length) {
       return Err(BRC20SError::InvalidTickLen(s.to_string()));
     }
     Ok(Self(bytes.try_into().unwrap()))
@@ -99,10 +99,6 @@ impl PartialEq for Tick {
   fn eq(&self, other: &Self) -> bool {
     self.as_str().to_lowercase().as_str() == other.as_str().to_lowercase().as_str()
   }
-
-  fn ne(&self, other: &Self) -> bool {
-    !self.eq(other)
-  }
 }
 
 impl Tick {
@@ -112,7 +108,7 @@ impl Tick {
     std::str::from_utf8(self.0.as_slice()).unwrap()
   }
 
-  #[allow(dead_code)]
+  #[allow(unused)]
   pub fn as_bytes(&self) -> &[u8] {
     self.0.as_slice()
   }
@@ -169,29 +165,18 @@ impl PledgedTick {
     const MAX_SIZE: usize = mem::size_of::<PledgedTick>();
     hex::encode([0u8; MAX_SIZE])
   }
-  pub fn to_string(&self) -> String {
-    match self {
-      PledgedTick::Unknown => "Unknown".to_string(),
-      PledgedTick::Native => NATIVE_TOKEN.to_string(),
-      PledgedTick::BRC20Tick(tick) => tick.as_str().to_string(),
-      PledgedTick::BRC20STick(tickid) => tickid.hex(),
-    }
-  }
 
   pub fn to_type(&self) -> String {
     match self {
       PledgedTick::Unknown => "Unknown".to_string(),
-      PledgedTick::Native => NATIVE_TOKEN.to_uppercase().to_string(),
+      PledgedTick::Native => NATIVE_TOKEN.to_uppercase(),
       PledgedTick::BRC20Tick(_) => "BRC20".to_string(),
       PledgedTick::BRC20STick(_) => "BRC20-S".to_string(),
     }
   }
 
   pub fn is_brc20(&self) -> bool {
-    match self {
-      PledgedTick::BRC20Tick(_) => true,
-      _ => false,
-    }
+    matches!(self, PledgedTick::BRC20Tick(_))
   }
 
   pub fn from_str(str: &str) -> Self {
@@ -202,6 +187,17 @@ impl PledgedTick {
         TICK_ID_STR_COUNT => PledgedTick::BRC20STick(TickId::from_str(str).unwrap()),
         _ => PledgedTick::Unknown,
       },
+    }
+  }
+}
+
+impl ToString for PledgedTick {
+  fn to_string(&self) -> String {
+    match self {
+      PledgedTick::Unknown => "Unknown".to_string(),
+      PledgedTick::Native => NATIVE_TOKEN.to_string(),
+      PledgedTick::BRC20Tick(tick) => tick.as_str().to_string(),
+      PledgedTick::BRC20STick(tickid) => tickid.hex(),
     }
   }
 }
@@ -240,7 +236,7 @@ impl TickInfo {
     Self {
       tick_id,
       name: name.clone(),
-      inscription_id: inscription_id.clone(),
+      inscription_id: *inscription_id,
       allocated,
       decimal,
       circulation: minted,
@@ -340,10 +336,10 @@ mod tests {
 
   #[test]
   fn test_pledged_tick_brc20() {
-    assert_eq!(PledgedTick::from_str("btc").is_brc20(), false);
-    assert_eq!(PledgedTick::from_str("aBc1a").is_brc20(), false);
-    assert_eq!(PledgedTick::from_str("d").is_brc20(), false);
-    assert_eq!(PledgedTick::from_str("aBc1").is_brc20(), true);
+    assert!(!PledgedTick::from_str("btc").is_brc20());
+    assert!(!PledgedTick::from_str("aBc1a").is_brc20());
+    assert!(!PledgedTick::from_str("d").is_brc20());
+    assert!(PledgedTick::from_str("aBc1").is_brc20());
   }
 
   #[test]
@@ -409,11 +405,10 @@ mod tests {
       BRC20SError::InvalidTickLen("a665a4592042".to_string())
     );
 
-    assert_eq!(
+    assert!(
       TickId::from_str(&hash.to_string()[..2 * (TICK_ID_BYTE_COUNT)])
         .unwrap()
-        .ne(&TickId::from_str("1234567890").unwrap()),
-      true
+        .ne(&TickId::from_str("1234567890").unwrap())
     );
   }
 

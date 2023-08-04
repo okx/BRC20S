@@ -25,7 +25,7 @@ pub(crate) async fn brc20s_all_tick_info(
           .unwrap();
 
         let mut brc20s_tick = TickInfo::from(tick_info);
-        brc20s_tick.set_inscription_number(inscription_number.number as u64);
+        brc20s_tick.set_inscription_number(inscription_number.number);
         brc20s_tick
       })
       .collect(),
@@ -38,7 +38,7 @@ pub(crate) async fn brc20s_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
 ) -> ApiResult<TickInfo> {
-  log::debug!("rpc: get brc20s_tick_info: {}", tick_id.to_string());
+  log::debug!("rpc: get brc20s_tick_info: {}", tick_id);
 
   let tick_id = TickId::from_str(tick_id.as_str())
     .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
@@ -59,7 +59,7 @@ pub(crate) async fn brc20s_tick_info(
     .unwrap();
 
   let mut brc20s_tick = TickInfo::from(tick_info);
-  brc20s_tick.set_inscription_number(inscription_number.number as u64);
+  brc20s_tick.set_inscription_number(inscription_number.number);
 
   Ok(Json(ApiResponse::ok(brc20s_tick)))
 }
@@ -69,7 +69,7 @@ pub(crate) async fn brc20s_debug_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
 ) -> ApiResult<brc20s::TickInfo> {
-  log::debug!("rpc: get brc20s_debug_tick_info: {}", tick_id.to_string());
+  log::debug!("rpc: get brc20s_debug_tick_info: {}", tick_id);
 
   let tick_id = TickId::from_str(&tick_id)
     .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
@@ -108,11 +108,8 @@ pub(crate) async fn brc20s_all_pool_info(
           .unwrap();
 
         let mut pool_result = Pool::from(pool);
-        pool_result.set_earn(
-          tick_info.tick_id.hex().to_string(),
-          tick_info.name.as_str().to_string(),
-        );
-        pool_result.set_inscription_num(inscription_number.number as u64);
+        pool_result.set_earn(tick_info.tick_id.hex(), tick_info.name.as_str().to_string());
+        pool_result.set_inscription_num(inscription_number.number);
         pool_result.set_deployer(tick_info.deployer.clone().into());
         pool_result
       })
@@ -145,7 +142,7 @@ pub(crate) async fn brc20s_pool_info(
     return Err(ApiError::internal("db: not match"));
   }
 
-  let tick_id = TickId::from(pid.clone());
+  let tick_id = TickId::from(pid);
 
   let tick_info = &index
     .brc20s_tick_info(&tick_id)?
@@ -157,11 +154,8 @@ pub(crate) async fn brc20s_pool_info(
     .unwrap();
 
   let mut pool = Pool::from(pool_info);
-  pool.set_earn(
-    tick_info.tick_id.hex().to_string(),
-    tick_info.name.as_str().to_string(),
-  );
-  pool.set_inscription_num(inscription_number.number as u64);
+  pool.set_earn(tick_info.tick_id.hex(), tick_info.name.as_str().to_string());
+  pool.set_inscription_num(inscription_number.number);
   pool.set_deployer(tick_info.deployer.clone().into());
 
   Ok(Json(ApiResponse::ok(pool)))
@@ -172,7 +166,7 @@ pub(crate) async fn brc20s_all_pools_by_tid(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
 ) -> ApiResult<AllPoolInfo> {
-  log::debug!("rpc: get brc20s_all_pools_by_tid: {}", tick_id.to_string());
+  log::debug!("rpc: get brc20s_all_pools_by_tid: {}", tick_id);
 
   let tick_id = TickId::from_str(&tick_id)
     .map_err(|_| ApiError::bad_request(BRC20SError::IncorrectTickIdFormat))?;
@@ -196,11 +190,8 @@ pub(crate) async fn brc20s_all_pools_by_tid(
           .unwrap();
 
         let mut pool_result = Pool::from(pool);
-        pool_result.set_earn(
-          tick_info.tick_id.hex().to_string(),
-          tick_info.name.as_str().to_string(),
-        );
-        pool_result.set_inscription_num(inscription_number.number as u64);
+        pool_result.set_earn(tick_info.tick_id.hex(), tick_info.name.as_str().to_string());
+        pool_result.set_inscription_num(inscription_number.number);
         pool_result.set_deployer(tick_info.deployer.clone().into());
         pool_result
       })
@@ -423,7 +414,7 @@ pub(crate) async fn brc20s_all_balance(
       .map(|(tick_id, balance)| {
         let mut balance_result = Balance::from(balance);
 
-        let tick_info = &index.brc20s_tick_info(&tick_id).unwrap().unwrap();
+        let tick_info = &index.brc20s_tick_info(tick_id).unwrap().unwrap();
 
         balance_result.set_tick_name(tick_info.name.as_str().to_string());
         log::debug!(
@@ -472,7 +463,7 @@ pub(crate) async fn brc20s_transferable(
           .unwrap();
 
         inscription.set_tick_name(tick_info.name.as_str().to_string());
-        inscription.set_inscription_number(inscription_number.number as u64);
+        inscription.set_inscription_number(inscription_number.number);
         inscription
       })
       .collect(),
@@ -508,7 +499,7 @@ pub(crate) async fn brc20s_all_transferable(
           .unwrap();
 
         inscription.set_tick_name(tick_info.name.as_str().to_string());
-        inscription.set_inscription_number(inscription_number.number as u64);
+        inscription.set_inscription_number(inscription_number.number);
         inscription
       })
       .collect(),

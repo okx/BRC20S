@@ -156,15 +156,14 @@ mod tests {
         "op": "deposit",
         "pid": "pid",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    let result = deserialize_brc20s(&json_str);
+    let result = deserialize_brc20s(json_str);
 
-    assert!(deserialize_brc20s(&json_str).is_ok());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Stake(Stake {
         pool_id: "pid".to_string(),
         amount: "amt".to_string(),
@@ -180,15 +179,14 @@ mod tests {
         "pid": "pid",
         "tick": "tick",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(deserialize_brc20s(&json_str).is_ok());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "pid".to_string(),
@@ -204,15 +202,14 @@ mod tests {
         "op": "withdraw",
         "pid": "pid",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(deserialize_brc20s(&json_str).is_ok());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::UnStake(UnStake {
         pool_id: "pid".to_string(),
         amount: "amt".to_string(),
@@ -228,15 +225,14 @@ mod tests {
         "tid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(deserialize_brc20s(&json_str).is_ok());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Transfer(Transfer {
         tick: "tick".to_string(),
         tick_id: "tid".to_string(),
@@ -253,10 +249,9 @@ mod tests {
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Stake(Stake {
         pool_id: "pid-2".to_string(),
         amount: "amt".to_string(),
@@ -271,9 +266,8 @@ mod tests {
         "op": "stake",
         "pid": "pid",
         "amt": "amt"
-      }"##
-      .to_string();
-    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC20SJson))
+      }"##;
+    assert_eq!(deserialize_brc20s(json_str), Err(JSONError::NotBRC20SJson))
   }
 
   #[test]
@@ -283,9 +277,8 @@ mod tests {
         "op": "stake",
         "pid": "pid",
         "amt": "amt",
-      }"##
-      .to_string();
-    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::InvalidJson))
+      }"##;
+    assert_eq!(deserialize_brc20s(json_str), Err(JSONError::InvalidJson))
   }
 
   #[test]
@@ -296,10 +289,9 @@ mod tests {
         "Pid": "pid",
         "ticK": "tick",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC20SJson));
+    assert_eq!(deserialize_brc20s(json_str), Err(JSONError::NotBRC20SJson));
 
     let json_str1 = r##"{
         "p": "brc20-s",
@@ -307,11 +299,10 @@ mod tests {
         "Pid": "pid",
         "ticK": "tick",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
     assert_eq!(
-      deserialize_brc20s(&json_str1),
+      deserialize_brc20s(json_str1),
       Err(JSONError::ParseOperationJsonError(
         "missing field `op`".to_string()
       ))

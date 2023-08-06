@@ -58,15 +58,14 @@ mod tests {
         "op": "deposit",
         "pid": "pid",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(deserialize_brc20s(&json_str).is_ok());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Stake(Stake {
         pool_id: "pid".to_string(),
         amount: "amt".to_string(),
@@ -80,13 +79,12 @@ mod tests {
         "p": "brc20-s",
         "op": "deposit",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap_err(),
+      deserialize_brc20s(json_str).unwrap_err(),
       JSONError::ParseOperationJsonError("missing field `pid`".to_string())
     );
   }
@@ -99,10 +97,9 @@ mod tests {
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Stake(Stake {
         pool_id: "pid-2".to_string(),
         amount: "amt".to_string(),

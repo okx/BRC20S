@@ -81,15 +81,14 @@ mod tests {
         "pid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(deserialize_brc20s(&json_str).is_ok());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "tid".to_string(),
@@ -105,13 +104,12 @@ mod tests {
         "op": "mint",
         "tick": "tick",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap_err(),
+      deserialize_brc20s(json_str).unwrap_err(),
       JSONError::ParseOperationJsonError("missing field `pid`".to_string())
     );
   }
@@ -124,10 +122,9 @@ mod tests {
         "pid": "pid-2",
         "tick": "tick",
         "amt": "amt"
-      }"##
-      .to_string();
+      }"##;
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "pid-2".to_string(),

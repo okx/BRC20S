@@ -29,7 +29,7 @@ pub enum BRC20SError {
 pub struct TickInfo {
   pub tick: Tick,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub minted: String,
   pub supply: String,
   pub decimal: u64,
@@ -40,7 +40,7 @@ pub struct TickInfo {
 }
 
 impl TickInfo {
-  pub fn set_inscription_number(&mut self, inscription_number: u64) {
+  pub fn set_inscription_number(&mut self, inscription_number: i64) {
     self.inscription_number = inscription_number;
   }
 }
@@ -58,11 +58,11 @@ impl From<&brc20s::TickInfo> for TickInfo {
       inscription_number: 0,
       minted: tick_info.circulation.to_string(),
       supply: tick_info.supply.to_string(),
-      decimal: tick_info.decimal as u64,
+      decimal: u64::from(tick_info.decimal),
       deployer: tick_info.deployer.clone().into(),
       txid: tick_info.inscription_id.txid.to_string(),
       deploy_height: tick_info.deploy_block,
-      deploy_blocktime: tick_info.deploy_block_time as u64,
+      deploy_blocktime: u64::from(tick_info.deploy_block_time),
     }
   }
 }
@@ -96,7 +96,7 @@ pub struct Pool {
   pub acc_reward_per_share: String,
   pub latest_update_block: u64,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub deployer: ScriptPubkey,
   pub deploy_height: u64,
   pub deploy_blocktime: u64,
@@ -109,7 +109,7 @@ impl Pool {
     self.earn.name = earn_name;
   }
 
-  pub fn set_inscription_num(&mut self, inscription_number: u64) {
+  pub fn set_inscription_num(&mut self, inscription_number: i64) {
     self.inscription_number = inscription_number
   }
 
@@ -146,7 +146,7 @@ impl From<&brc20s::PoolInfo> for Pool {
       inscription_number: 0,
       deployer: ScriptPubkey::default(),
       deploy_height: pool_info.deploy_block,
-      deploy_blocktime: pool_info.deploy_block_time as u64,
+      deploy_blocktime: u64::from(pool_info.deploy_block_time),
       txid: pool_info.inscription_id.txid.to_string(),
     }
   }
@@ -244,7 +244,7 @@ pub struct Transferable {
 pub struct Inscription {
   pub tick: Tick,
   pub inscription_id: String,
-  pub inscription_number: u64,
+  pub inscription_number: i64,
   pub amount: String,
   pub owner: String,
 }
@@ -254,7 +254,7 @@ impl Inscription {
     self.tick.name = name;
   }
 
-  pub fn set_inscription_number(&mut self, inscription_number: u64) {
+  pub fn set_inscription_number(&mut self, inscription_number: i64) {
     self.inscription_number = inscription_number;
   }
 }
@@ -472,7 +472,7 @@ impl DeployPoolEvent {
         tick: event.stake.to_string(),
       },
       earn: Earn {
-        id: tick_info.tick_id.hex().to_string(),
+        id: tick_info.tick_id.hex(),
         name: tick_info.name.as_str().to_string(),
       },
       pool: event.ptype.to_string(),
@@ -612,7 +612,7 @@ impl TransferEvent {
         name: tick_info.name.as_str().to_string(),
       },
       amount: event.amt.to_string(),
-      msg: event.msg.clone(),
+      msg: event.msg,
       from,
       to,
     })

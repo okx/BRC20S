@@ -37,8 +37,8 @@ pub struct ExecutionMessage {
 }
 
 impl ExecutionMessage {
-  pub fn from_message<'a, O: ord_store::OrdDataStoreReadOnly>(
-    ord_store: &'a O,
+  pub fn from_message<O: ord_store::OrdDataStoreReadOnly>(
+    ord_store: &O,
     msg: &Message,
     network: Network,
   ) -> Result<Self> {
@@ -74,13 +74,13 @@ pub fn execute<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStore
   log::debug!("BRC20 execute message: {:?}", msg);
   let event = match &msg.op {
     Operation::Deploy(deploy) => {
-      process_deploy(context, ord_store, brc20_store, &msg, deploy.clone())
+      process_deploy(context, ord_store, brc20_store, msg, deploy.clone())
     }
-    Operation::Mint(mint) => process_mint(context, ord_store, brc20_store, &msg, mint.clone()),
+    Operation::Mint(mint) => process_mint(context, ord_store, brc20_store, msg, mint.clone()),
     Operation::InscribeTransfer(transfer) => {
-      process_inscribe_transfer(context, ord_store, brc20_store, &msg, transfer.clone())
+      process_inscribe_transfer(context, ord_store, brc20_store, msg, transfer.clone())
     }
-    Operation::Transfer(_) => process_transfer(context, ord_store, brc20_store, &msg),
+    Operation::Transfer(_) => process_transfer(context, ord_store, brc20_store, msg),
   };
 
   let receipt = Receipt {
@@ -133,13 +133,13 @@ fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataSt
   if dec > MAX_DECIMAL_WIDTH {
     return Err(Error::BRC20Error(BRC20Error::DecimalsTooLarge(dec)));
   }
-  let base = BIGDECIMAL_TEN.checked_powu(dec as u64)?;
+  let base = BIGDECIMAL_TEN.checked_powu(u64::from(dec))?;
 
   let supply = Num::from_str(&deploy.max_supply)?;
 
   if supply.sign() == Sign::NoSign
     || supply > MAXIMUM_SUPPLY.to_owned()
-    || supply.scale() > dec as i64
+    || supply.scale() > i64::from(dec)
   {
     return Err(Error::BRC20Error(BRC20Error::InvalidSupply(
       supply.to_string(),
@@ -148,7 +148,9 @@ fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataSt
 
   let limit = Num::from_str(&deploy.mint_limit.map_or(deploy.max_supply, |v| v))?;
 
-  if limit.sign() == Sign::NoSign || limit > MAXIMUM_SUPPLY.to_owned() || limit.scale() > dec as i64
+  if limit.sign() == Sign::NoSign
+    || limit > MAXIMUM_SUPPLY.to_owned()
+    || limit.scale() > i64::from(dec)
   {
     return Err(Error::BRC20Error(BRC20Error::MintLimitOutOfRange(
       tick.to_lowercase().to_string(),
@@ -201,11 +203,11 @@ fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStor
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC20Error::TickNotFound(tick.to_string()))?;
 
-  let base = BIGDECIMAL_TEN.checked_powu(token_info.decimal as u64)?;
+  let base = BIGDECIMAL_TEN.checked_powu(u64::from(token_info.decimal))?;
 
   let mut amt = Num::from_str(&mint.amount)?;
 
-  if amt.scale() > token_info.decimal as i64 {
+  if amt.scale() > i64::from(token_info.decimal) {
     return Err(Error::BRC20Error(BRC20Error::AmountOverflow(
       amt.to_string(),
     )));
@@ -235,8 +237,7 @@ fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStor
     let new = supply.checked_sub(&minted)?;
     out_msg = Some(format!(
       "amt has been cut off to fit the supply! origin: {}, now: {}",
-      amt.to_string(),
-      new.to_string()
+      amt, new
     ));
     new
   } else {
@@ -293,11 +294,11 @@ fn process_inscribe_transfer<
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC20Error::TickNotFound(tick.to_string()))?;
 
-  let base = BIGDECIMAL_TEN.checked_powu(token_info.decimal as u64)?;
+  let base = BIGDECIMAL_TEN.checked_powu(u64::from(token_info.decimal))?;
 
   let mut amt = Num::from_str(&transfer.amount)?;
 
-  if amt.scale() > token_info.decimal as i64 {
+  if amt.scale() > i64::from(token_info.decimal) {
     return Err(Error::BRC20Error(BRC20Error::AmountOverflow(
       amt.to_string(),
     )));
@@ -407,10 +408,9 @@ fn process_transfer<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::Data
   // redirect receiver to sender if transfer to conibase.
   let mut out_msg = None;
 
-  let to_script_key = if let None = msg.to.clone() {
-    out_msg = Some(format!(
-      "redirect receiver to sender, reason: transfer inscription to coinbase"
-    ));
+  let to_script_key = if msg.to.clone().is_none() {
+    out_msg =
+      Some("redirect receiver to sender, reason: transfer inscription to coinbase".to_string());
     msg.from.clone()
   } else {
     msg.to.clone().unwrap()

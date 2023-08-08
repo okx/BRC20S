@@ -101,8 +101,8 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
     content_type: inscription_data
       .inscription
       .content_type()
-      .map(|c| String::from(c)),
-    content: inscription_data.inscription.body().map(|c| hex::encode(c)),
+      .map(String::from),
+    content: inscription_data.inscription.body().map(hex::encode),
     owner,
     genesis_height: inscription_data.entry.height,
     location: inscription_data.sat_point,
@@ -156,11 +156,11 @@ pub(super) async fn ord_outpoint(
   let mut inscription_digests = Vec::with_capacity(inscription_ids.len());
   for id in &inscription_ids {
     let ins_data = index
-      .get_inscription_entry(id.clone())?
+      .get_inscription_entry(*id)?
       .ok_or_api_not_found(format!("inscriptionId not found for {id}"))?;
 
     let satpoint = index
-      .get_inscription_satpoint_by_id(id.clone())?
+      .get_inscription_satpoint_by_id(*id)?
       .ok_or_api_not_found(format!("satpoint not found for {id}"))?;
 
     inscription_digests.push(InscriptionDigest {
@@ -256,7 +256,7 @@ fn simulate_index_ord_transaction(
       let initial_inscription_is_cursed = inscribed_offsets
         .get(&offset)
         .and_then(
-          |inscription_id| match index.get_inscription_entry(inscription_id.clone()) {
+          |inscription_id| match index.get_inscription_entry(*inscription_id) {
             Ok(option) => option.map(|entry| entry.number < 0),
             Err(_) => None,
           },

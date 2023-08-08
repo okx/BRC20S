@@ -1,4 +1,7 @@
-use super::*;
+use {
+  super::*,
+  utoipa::{ToResponse, ToSchema},
+};
 
 pub(super) enum ServerError {
   Internal(Error),
@@ -48,8 +51,6 @@ impl From<Error> for ServerError {
 
 #[repr(i32)]
 pub(crate) enum ApiError {
-  #[allow(dead_code)]
-  NoError = 0,
   Internal(String) = 1,
   BadRequest(String) = 2,
   NotFound(String) = 3,
@@ -58,7 +59,6 @@ pub(crate) enum ApiError {
 impl ApiError {
   pub(crate) fn code(&self) -> i32 {
     match self {
-      Self::NoError => 0,
       Self::Internal(_) => 1,
       Self::BadRequest(_) => 2,
       Self::NotFound(_) => 3,
@@ -78,24 +78,20 @@ impl ApiError {
   }
 }
 
-impl<T> From<ApiError> for axum::Json<ApiResponse<T>>
-where
-  T: Serialize,
-{
+impl From<ApiError> for axum::Json<ApiErrorResponse> {
   fn from(val: ApiError) -> Self {
-    axum::Json(ApiResponse::api_err(&val))
+    axum::Json(ApiErrorResponse::api_err(&val))
   }
 }
 
 impl IntoResponse for ApiError {
   fn into_response(self) -> Response {
     let status_code = match &self {
-      Self::NoError => StatusCode::OK,
       Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
       Self::BadRequest(_) => StatusCode::BAD_REQUEST,
       Self::NotFound(_) => StatusCode::NOT_FOUND,
     };
-    let json: axum::Json<ApiResponse<()>> = self.into();
+    let json: axum::Json<ApiErrorResponse> = self.into();
 
     (status_code, json).into_response()
   }
@@ -104,5 +100,30 @@ impl IntoResponse for ApiError {
 impl From<anyhow::Error> for ApiError {
   fn from(error: anyhow::Error) -> Self {
     Self::internal(error)
+  }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, ToSchema, ToResponse)]
+pub(crate) struct ApiErrorResponse {
+  pub code: i32,
+  /// Error message.
+  pub msg: String,
+}
+
+impl ApiErrorResponse {
+  fn new(code: i32, msg: String) -> Self {
+    Self { code, msg }
+  }
+
+  pub fn err(code: i32, msg: String) -> Self {
+    Self::new(code, msg)
+  }
+
+  pub fn api_err(err: &ApiError) -> Self {
+    match err {
+      ApiError::Internal(msg) | ApiError::BadRequest(msg) | ApiError::NotFound(msg) => {
+        Self::err(err.code(), msg.clone())
+      }
+    }
   }
 }

@@ -336,6 +336,7 @@ mod tests {
       serde_json::to_string_pretty(&info).unwrap(),
       r#"{
   "action": "inscribe",
+  "inscriptionNumber": null,
   "inscriptionId": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3i0",
   "from": {
     "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
@@ -343,7 +344,9 @@ mod tests {
   "to": {
     "nonStandard": "df65c8a338dce7900824e7bd18c336656ca19e57"
   },
-  "oldSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000"
+  "oldSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+  "newSatpoint": null,
+  "operation": null
 }"#
     );
     let info = InscriptionInfo {
@@ -402,7 +405,8 @@ mod tests {
     "nonStandard": "df65c8a338dce7900824e7bd18c336656ca19e57"
   },
   "oldSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
-  "newSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000"
+  "newSatpoint": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+  "operation": null
 }"#
     );
     let info = InscriptionInfo {

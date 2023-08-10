@@ -8,10 +8,13 @@ use {
   utoipa::ToSchema,
 };
 
-#[derive(Debug, Clone, PartialEq, Deserialize, ToSchema, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = ord::InscriptionAction)]
 #[serde(rename_all = "camelCase")]
 pub enum InscriptionAction {
+  /// New inscription
   New { cursed: bool, unbound: bool },
+  /// Transfer inscription
   Transfer,
 }
 
@@ -24,15 +27,24 @@ impl From<Action> for InscriptionAction {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, ToSchema, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = ord::TxInscription)]
 #[serde(rename_all = "camelCase")]
 pub struct TxInscription {
+  /// The action of the inscription.
+  #[schema(value_type = ord::InscriptionAction)]
   pub action: InscriptionAction,
+  /// The inscription number.
   pub inscription_number: Option<i64>,
-  pub inscription_id: InscriptionId,
-  pub old_satpoint: SatPoint,
-  pub new_satpoint: Option<SatPoint>,
+  /// The inscription id.
+  pub inscription_id: String,
+  /// The inscription satpoint of the transaction input.
+  pub old_satpoint: String,
+  /// The inscription satpoint of the transaction output.
+  pub new_satpoint: Option<String>,
+  /// The message sender which is an address or script pubkey hash.
   pub from: ScriptPubkey,
+  /// The message receiver which is an address or script pubkey hash.
   pub to: Option<ScriptPubkey>,
 }
 
@@ -70,33 +82,51 @@ impl TxInscription {
       to,
       action: op.action.into(),
       inscription_number: op.inscription_number,
-      inscription_id: op.inscription_id,
-      old_satpoint: op.old_satpoint,
-      new_satpoint: op.new_satpoint,
+      inscription_id: op.inscription_id.to_string(),
+      old_satpoint: op.old_satpoint.to_string(),
+      new_satpoint: op.new_satpoint.map(|v| v.to_string()),
     })
   }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = ord::TxInscriptions)]
 #[serde(rename_all = "camelCase")]
 pub struct TxInscriptions {
+  #[schema(value_type = Vec<ord::TxInscription>)]
   pub inscriptions: Vec<TxInscription>,
   pub txid: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = ord::BlockInscriptions)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockInscriptions {
+  #[schema(value_type = Vec<ord::TxInscriptions>)]
   pub block: Vec<TxInscriptions>,
 }
 
 // ord/tx/:txid/inscriptions
+#[utoipa::path(
+  get,
+  path = "/api/v1/ord/tx/{txid}/inscriptions",
+  operation_id = "get inscription actions by txid",
+  params(
+      ("txid" = String, Path, description = "transaction ID")
+),
+  responses(
+    (status = 200, description = "Obtain inscription actions by txid", body = OrdTxInscriptions),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn ord_txid_inscriptions(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
 ) -> ApiResult<TxInscriptions> {
   log::debug!("rpc: get ord_txid_inscriptions: {}", txid);
-  let txid = Txid::from_str(&txid).unwrap();
+  let txid = Txid::from_str(&txid).map_err(ApiError::bad_request)?;
 
   let ops = index
     .ord_txid_inscriptions(&txid)?
@@ -125,6 +155,20 @@ pub(crate) async fn ord_txid_inscriptions(
 }
 
 // ord/block/:blockhash/inscriptions
+#[utoipa::path(
+  get,
+  path = "/api/v1/ord/block/{blockhash}/inscriptions",
+  operation_id = "get inscription actions by blockhash",
+  params(
+      ("blockhash" = String, Path, description = "block hash")
+),
+  responses(
+    (status = 200, description = "Obtain inscription actions by blockhash", body = OrdBlockInscriptions),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn ord_block_inscriptions(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,
@@ -199,17 +243,20 @@ mod tests {
       inscription_id: InscriptionId {
         txid: txid(1),
         index: 0xFFFFFFFF,
-      },
+      }
+      .to_string(),
       old_satpoint: SatPoint::from_str(
         "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
       )
-      .unwrap(),
+      .unwrap()
+      .to_string(),
 
       new_satpoint: Some(
         SatPoint::from_str(
           "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
         )
-        .unwrap(),
+        .unwrap()
+        .to_string(),
       ),
     };
     assert_eq!(

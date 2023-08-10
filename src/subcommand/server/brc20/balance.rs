@@ -2,33 +2,36 @@ use {super::*, crate::okx::datastore::brc20::Tick, axum::Json, utoipa::ToSchema}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[schema(as = brc20::Balance)]
 pub struct Balance {
   /// Name of the ticker.
   pub tick: String,
   /// Available balance.
+  #[schema(format = "uint64")]
   pub available_balance: String,
   /// Transferable balance.
+  #[schema(format = "uint64")]
   pub transferable_balance: String,
   /// Overall balance.
+  #[schema(format = "uint64")]
   pub overall_balance: String,
 }
 
 #[utoipa::path(
     get,
-    path = "/brc20/tick/{ticker}/address/{address}/balance",
+    path = "/api/v1/brc20/tick/{ticker}/address/{address}/balance",
     operation_id = "get the ticker balance of the address",
     params(
         ("ticker" = String, Path, description = "Token ticker", min_length = 4, max_length = 4),
         ("address" = String, Path, description = "Address")
   ),
     responses(
-      (status = 200, description = "Obtain account balance by query ticker.", body = BRC20BalanceResponse),
-      (status = 400, description = "Bad query.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::bad_request(BRC20Error::IncorrectTickFormat)))),
-      (status = 404, description = "Ticker not found.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::not_found(BRC20Error::TickNotFound)))),
-      (status = 500, description = "Internal server error.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::internal("internal error")))),
+      (status = 200, description = "Obtain account balance by query ticker.", body = BRC20Balance),
+      (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+      (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+      (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
     )
   )]
-
 pub(crate) async fn brc20_balance(
   Extension(index): Extension<Arc<Index>>,
   Path((tick, address)): Path<(String, String)>,
@@ -60,22 +63,24 @@ pub(crate) async fn brc20_balance(
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[schema(as = brc20::AllBalance)]
 pub struct AllBalance {
+  #[schema(value_type = Vec<brc20::Balance>)]
   pub balance: Vec<Balance>,
 }
 
 #[utoipa::path(
     get,
-    path = "/brc20/address/{address}/balance",
+    path = "/api/v1/brc20/address/{address}/balance",
     operation_id = "get all ticker balances of the address",
     params(
         ("address" = String, Path, description = "Address")
   ),
     responses(
-      (status = 200, description = "Obtain account balances by query address.", body = BRC20AllBalanceResponse),
-      (status = 400, description = "Bad query.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::bad_request(BRC20Error::IncorrectTickFormat)))),
-      (status = 404, description = "Ticker not found.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::not_found(BRC20Error::TickNotFound)))),
-      (status = 500, description = "Internal server error.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::internal("internal error")))),
+      (status = 200, description = "Obtain account balances by query address.", body = BRC20AllBalance),
+      (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+      (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+      (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
     )
   )]
 pub(crate) async fn brc20_all_balance(

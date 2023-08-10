@@ -1,12 +1,19 @@
 use {super::*, crate::okx::datastore::brc20 as brc20_store, axum::Json, utoipa::ToSchema};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20::TransferableInscription)]
 #[serde(rename_all = "camelCase")]
 pub struct TransferableInscription {
+  /// The inscription id.
   pub inscription_id: String,
+  /// The inscription number.
   pub inscription_number: i64,
+  /// The amount of the ticker that will be transferred.
+  #[schema(format = "uint64")]
   pub amount: String,
+  /// The ticker name that will be transferred.
   pub tick: String,
+  /// The address to which the transfer will be made.
   pub owner: String,
 }
 
@@ -24,17 +31,17 @@ impl From<&brc20_store::TransferableLog> for TransferableInscription {
 
 #[utoipa::path(
   get,
-  path = "/brc20/tick/{ticker}/address/{address}/transferable",
+  path = "/api/v1/brc20/tick/{ticker}/address/{address}/transferable",
   operation_id = "get transferable inscriptions",
   params(
       ("ticker" = String, Path, description = "Token ticker", min_length = 4, max_length = 4),
       ("address" = String, Path, description = "Address")
 ),
   responses(
-    (status = 200, description = "Obtain account transferable inscriptions of ticker.", body = BRC20TransferableResponse),
-    (status = 400, description = "Bad query.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::bad_request(BRC20Error::IncorrectTickFormat)))),
-    (status = 404, description = "Ticker not found.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::not_found(BRC20Error::TickNotFound)))),
-    (status = 500, description = "Internal server error.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::internal("internal error")))),
+    (status = 200, description = "Obtain account transferable inscriptions of ticker.", body = BRC20Transferable),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
   )
 )]
 pub(crate) async fn brc20_transferable(
@@ -63,23 +70,25 @@ pub(crate) async fn brc20_transferable(
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20::TransferableInscriptions)]
 #[serde(rename_all = "camelCase")]
 pub struct TransferableInscriptions {
+  #[schema(value_type = Vec<brc20::TransferableInscription>)]
   pub inscriptions: Vec<TransferableInscription>,
 }
 
 #[utoipa::path(
   get,
-  path = "/brc20/address/{address}/transferable",
+  path = "/api/v1/brc20/address/{address}/transferable",
   operation_id = "get address ticker balance",
   params(
       ("address" = String, Path, description = "Address")
 ),
   responses(
-    (status = 200, description = "Obtain account all transferable inscriptions.", body = BRC20AllTransferableResponse),
-    (status = 400, description = "Bad query.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::bad_request(BRC20Error::IncorrectTickFormat)))),
-    (status = 404, description = "Ticker not found.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::not_found(BRC20Error::TickNotFound)))),
-    (status = 500, description = "Internal server error.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::internal("internal error")))),
+    (status = 200, description = "Obtain account all transferable inscriptions.", body = BRC20Transferable),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
   )
 )]
 pub(crate) async fn brc20_all_transferable(

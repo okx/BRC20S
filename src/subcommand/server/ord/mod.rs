@@ -3,11 +3,11 @@ use {
   crate::okx::datastore::ord::{Action, InscriptionOp},
 };
 
-mod ord;
+mod inscription;
 mod outpoint;
 mod transaction;
 
-pub(super) use {ord::*, outpoint::*, transaction::*};
+pub(super) use {inscription::*, outpoint::*, transaction::*};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OrdError {

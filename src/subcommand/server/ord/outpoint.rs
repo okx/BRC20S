@@ -6,23 +6,50 @@ use {
 };
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = ord::InscriptionDigest)]
 #[serde(rename_all = "camelCase")]
 pub struct InscriptionDigest {
+  /// The inscription id.
   pub id: String,
+  /// The inscription number.
   pub number: i64,
+  /// The inscription location.
   pub location: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = ord::OutPointData)]
 #[serde(rename_all = "camelCase")]
 pub struct OutPointData {
+  /// The transaction id.
   pub txid: String,
+  /// The script pubkey.
   pub script_pub_key: String,
+  /// The owner of the script pubkey.
   pub owner: ScriptPubkey,
+  /// The value of the transaction output.
+  #[schema(format = "uint64")]
   pub value: u64,
+  #[schema(value_type = Vec<ord::InscriptionDigest>)]
+  /// The inscriptions on the transaction output.
   pub inscription_digest: Vec<InscriptionDigest>,
 }
 
+// /ord/outpoint/:outpoint/info
+#[utoipa::path(
+  get,
+  path = "/api/v1/ord/outpoint/{outpoint}/info",
+  operation_id = "get outpoint infomation",
+  params(
+      ("outpoint" = String, Path, description = "Outpoint")
+),
+  responses(
+    (status = 200, description = "Obtain outpoint infomation", body = OrdOutPointData),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn ord_outpoint(
   Extension(index): Extension<Arc<Index>>,
   Path(outpoint): Path<OutPoint>,

@@ -6,18 +6,43 @@ use {
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = ord::OrdInscription)]
 #[serde(rename_all = "camelCase")]
 pub struct OrdInscription {
-  pub id: InscriptionId,
+  /// The inscription id.
+  pub id: String,
+  /// The inscription number.
   pub number: i64,
+  /// The inscription content type.
   pub content_type: Option<String>,
+  /// The inscription content body.
   pub content: Option<String>,
+  /// The inscription owner.
   pub owner: Option<ScriptPubkey>,
+  /// The inscription genesis block height.
+  #[schema(format = "uint64")]
   pub genesis_height: u64,
-  pub location: SatPoint,
+  /// The inscription location.
+  pub location: String,
+  /// The inscription sat index.  
   pub sat: Option<u64>,
 }
 
+// /ord/id/:id/inscription
+#[utoipa::path(
+  get,
+  path = "/api/v1/ord/id/{id}/inscription",
+  operation_id = "get inscription infomation by inscription ID",
+  params(
+      ("id" = String, Path, description = "inscription ID")
+),
+  responses(
+    (status = 200, description = "Obtain inscription infomation.", body = OrdOrdInscription),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn ord_inscription_id(
   Extension(index): Extension<Arc<Index>>,
   Path(id): Path<String>,
@@ -28,6 +53,21 @@ pub(crate) async fn ord_inscription_id(
   ord_get_inscription_by_id(index, id)
 }
 
+// /ord/number/:number/inscription
+#[utoipa::path(
+  get,
+  path = "/api/v1/ord/number/{number}/inscription",
+  operation_id = "get inscription infomation by inscription number",
+  params(
+      ("number" = i64, Path, description = "inscription number")
+),
+  responses(
+    (status = 200, description = "Obtain inscription infomation.", body = OrdOrdInscription),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn ord_inscription_number(
   Extension(index): Extension<Arc<Index>>,
   Path(number): Path<i64>,
@@ -77,7 +117,7 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
   };
 
   Ok(Json(ApiResponse::ok(OrdInscription {
-    id,
+    id: id.to_string(),
     number: inscription_data.entry.number,
     content_type: inscription_data
       .inscription
@@ -86,7 +126,7 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
     content: inscription_data.inscription.body().map(hex::encode),
     owner,
     genesis_height: inscription_data.entry.height,
-    location: inscription_data.sat_point,
+    location: inscription_data.sat_point.to_string(),
     sat: inscription_data.entry.sat.map(|s| s.0),
   })))
 }
@@ -138,7 +178,8 @@ mod tests {
       id: InscriptionId {
         txid: txid(1),
         index: 0xFFFFFFFF,
-      },
+      }
+      .to_string(),
       number: -100,
       content_type: Some("content_type".to_string()),
       content: Some("content".to_string()),
@@ -156,7 +197,8 @@ mod tests {
       location: SatPoint::from_str(
         "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
       )
-      .unwrap(),
+      .unwrap()
+      .to_string(),
       sat: None,
     };
     assert_eq!(

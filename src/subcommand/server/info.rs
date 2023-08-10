@@ -40,13 +40,13 @@ pub struct NodeInfoQuery {
 
 #[utoipa::path(
     get,
-    path = "/node/info",
+    path = "/api/v1/node/info",
     params(
         NodeInfoQuery
   ),
     responses(
-      (status = 200, description = "Obtain node runtime status.", body = NodeResponse),
-      (status = 500, description = "Internal server error.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::internal("internal error")))),
+      (status = 200, description = "Obtain node runtime status.", body = Node),
+      (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
     )
   )]
 pub(crate) async fn node_info(

@@ -1,8 +1,10 @@
-use super::*;
+use {super::*, utoipa::IntoParams};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct Pagination {
+  /// Start index of the result.
   pub start: Option<usize>,
+  /// Limit of the result.
   pub limit: Option<usize>,
 }
 

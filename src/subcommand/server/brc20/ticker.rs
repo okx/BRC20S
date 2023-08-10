@@ -6,11 +6,11 @@ use {
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20::TickInfo)]
 #[serde(rename_all = "camelCase")]
 /// Description of a BRC20 ticker.
 pub struct TickInfo {
   /// Name of the ticker.
-  #[schema(max_length = 4, min_length = 4)]
   pub tick: String,
   /// Inscription ID of the ticker deployed.
   pub inscription_id: String,
@@ -24,8 +24,10 @@ pub struct TickInfo {
   #[schema(format = "uint64")]
   pub supply: String,
   /// The maximum amount of each mining.
+  #[schema(format = "uint64")]
   pub limit_per_mint: String,
   /// The amount of the ticker that has been minted.
+  #[schema(format = "uint64")]
   pub minted: String,
   /// The decimal of the ticker.<br>
   /// Number of decimals cannot exceed 18 (default).
@@ -70,16 +72,16 @@ impl From<TokenInfo> for TickInfo {
 
 #[utoipa::path(
     get,
-    path = "/brc20/tick/{ticker}",
+    path = "/api/v1/brc20/tick/{ticker}",
     operation_id = "get ticker info",
     params(
       ("ticker" = String, Path, description = "Token ticker", min_length = 4, max_length = 4)
   ),
     responses(
-      (status = 200, description = "Obtain matching BRC20 ticker by query.", body = BRC20TickResponse),
-      (status = 400, description = "Bad query.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::bad_request(BRC20Error::IncorrectTickFormat)))),
-      (status = 404, description = "Ticker not found.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::not_found(BRC20Error::TickNotFound)))),
-      (status = 500, description = "Internal server error.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::internal("internal error")))),
+      (status = 200, description = "Obtain matching BRC20 ticker by query.", body = BRC20Tick),
+      (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request(BRC20Error::IncorrectTickFormat))),
+      (status = 404, description = "Ticker not found.", body = ApiError, example = json!(&ApiError::not_found(BRC20Error::TickNotFound))),
+      (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
     )
   )]
 pub(crate) async fn brc20_tick_info(
@@ -99,23 +101,22 @@ pub(crate) async fn brc20_tick_info(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20::AllTickInfo)]
 #[serde(rename_all = "camelCase")]
 pub struct AllTickInfo {
+  #[schema(value_type = Vec<brc20::TickInfo>)]
   pub tokens: Vec<TickInfo>,
 }
 
 #[utoipa::path(
     get,
-    path = "/brc20/tick",
+    path = "/api/v1/brc20/tick",
     operation_id = "get all tickers info",
-    params(
-      ("ticker" = String, Path, description = "Token ticker", min_length = 4, max_length = 4)
-  ),
     responses(
-      (status = 200, description = "Obtain matching all BRC20 tickers.", body = BRC20AllTickResponse),
-      (status = 400, description = "Bad query.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::bad_request(BRC20Error::IncorrectTickFormat)))),
-      (status = 404, description = "Ticker not found.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::not_found(BRC20Error::TickNotFound)))),
-      (status = 500, description = "Internal server error.", body = ApiErrorResponse, example = json!(ApiErrorResponse::api_err(&ApiError::internal("internal error")))),
+      (status = 200, description = "Obtain matching all BRC20 tickers.", body = BRC20AllTick),
+      (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+      (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+      (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
     )
   )]
 pub(crate) async fn brc20_all_tick_info(

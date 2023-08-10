@@ -1,7 +1,7 @@
 use {
   self::{
     deserialize_from_str::DeserializeFromStr,
-    error::{ApiError, ApiErrorResponse, OptionExt, ServerError, ServerResult},
+    error::{ApiError, OptionExt, ServerError, ServerResult},
   },
   super::*,
   crate::page_config::PageConfig,
@@ -35,7 +35,6 @@ use {
     set_header::SetResponseHeaderLayer,
   },
   utoipa::OpenApi,
-  utoipa_redoc::{Redoc, Servable},
 };
 
 mod api;
@@ -188,9 +187,6 @@ impl Server {
 
       #[derive(OpenApi)]
       #[openapi(
-        servers(
-          (url = "api/v1", description = "Local server"),
-          ),
         paths(
           brc20::brc20_balance,
           brc20::brc20_all_balance,
@@ -200,9 +196,32 @@ impl Server {
           brc20::brc20_block_events,
           brc20::brc20_transferable,
           brc20::brc20_all_transferable,
+
+          brc20s::brc20s_tick_info,
+          brc20s::brc20s_all_tick_info,
+          brc20s::brc20s_balance,
+          brc20s::brc20s_all_balance,
+          brc20s::brc20s_pool_info,
+          brc20s::brc20s_all_pool_info,
+          brc20s::brc20s_all_pools_by_tid,
+          brc20s::brc20s_txid_receipts,
+          brc20s::brc20s_block_receipts,
+          brc20s::brc20s_transferable,
+          brc20s::brc20s_all_transferable,
+          brc20s::brc20s_userinfo,
+          brc20s::brc20s_stake_info,
+
+          ord::ord_inscription_id,
+          ord::ord_inscription_number,
+          ord::ord_outpoint,
+          ord::ord_txid_inscriptions,
+          ord::ord_block_inscriptions,
+
           info::node_info,
         ),
         components(schemas(
+
+          // BRC20 schemas
           brc20::TickInfo,
           brc20::AllTickInfo,
           brc20::Balance,
@@ -217,19 +236,78 @@ impl Server {
           brc20::BlockEvents,
           brc20::TransferableInscription,
           brc20::TransferableInscriptions,
-          response::BRC20TickResponse,
-          response::BRC20AllTickResponse,
-          response::BRC20BalanceResponse,
-          response::BRC20AllBalanceResponse,
-          response::BRC20TxEventsResponse,
-          response::BRC20BlockEventsResponse,
-          response::BRC20TransferableResponse,
-          response::BRC20TransferableResponse,
+
+          // BRC20 responses schemas
+          response::BRC20Tick,
+          response::BRC20AllTick,
+          response::BRC20Balance,
+          response::BRC20AllBalance,
+          response::BRC20TxEvents,
+          response::BRC20BlockEvents,
+          response::BRC20Transferable,
+
+          // BRC20S schemas
+          brc20s::Tick,
+          brc20s::Stake,
+          brc20s::Earn,
+          brc20s::TickInfo,
+          brc20s::AllTickInfo,
+          brc20s::Balance,
+          brc20s::AllBalance,
+          brc20s::Pool,
+          brc20s::AllPoolInfo,
+          brc20s::OperationType,
+          brc20s::Event,
+          brc20s::DeployTickEvent,
+          brc20s::DeployPoolEvent,
+          brc20s::DepositEvent,
+          brc20s::WithdrawEvent,
+          brc20s::PassiveWithdrawEvent,
+          brc20s::MintEvent,
+          brc20s::InscribeTransferEvent,
+          brc20s::TransferEvent,
+          brc20s::Receipt,
+          brc20s::TxReceipts,
+          brc20s::BlockReceipts,
+          brc20s::TransferableInscription,
+          brc20s::Transferable,
+          brc20s::UserInfo,
+          brc20s::StakedInfo,
+          brc20s::StakedPid,
+
+          // BRC20S responses schemas
+          response::BRC20STick,
+          response::BRC20SAllTick,
+          response::BRC20SBalance,
+          response::BRC20SAllBalance,
+          response::BRC20SPool,
+          response::BRC20SAllPool,
+          response::BRC20STxReceipts,
+          response::BRC20SBlockReceipts,
+          response::BRC20Transferable,
+
+          // Ord schemas
+          ord::OrdInscription,
+          ord::InscriptionDigest,
+          ord::OutPointData,
+          ord::InscriptionAction,
+          ord::TxInscription,
+          ord::TxInscriptions,
+          ord::BlockInscriptions,
+
+          // Ord responses schemas
+          response::OrdOrdInscription,
+          response::OrdTxInscriptions,
+          response::OrdBlockInscriptions,
+          response::OrdOutPointData,
+
+
+          // Node Info schemas
           info::NodeInfo,
           info::ChainInfo,
           types::ScriptPubkey,
-          response::NodeResponse,
-          ApiErrorResponse,
+          response::Node,
+          ApiError
         ))
       )]
       struct ApiDoc;
@@ -244,9 +322,8 @@ impl Server {
       let api_v1_router = Router::new()
         .route(
           "/api-docs/openapi.json",
-          get(|| async { format!("{}", ApiDoc::openapi().to_pretty_json().unwrap()) }),
+          get(|| async { ApiDoc::openapi().to_pretty_json().unwrap() }),
         )
-        .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
         .route("/node/info", get(info::node_info))
         .route("/ord/id/:id/inscription", get(ord::ord_inscription_id))
         .route(
@@ -391,10 +468,10 @@ impl Server {
         .layer(Extension(index))
         .layer(Extension(page_config))
         .layer(Extension(Arc::new(config)))
-        // .layer(SetResponseHeaderLayer::if_not_present(
-        //   header::CONTENT_SECURITY_POLICY,
-        //   HeaderValue::from_static("default-src 'self'"),
-        // ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+          header::CONTENT_SECURITY_POLICY,
+          HeaderValue::from_static("default-src 'self'"),
+        ))
         .layer(SetResponseHeaderLayer::overriding(
           header::STRICT_TRANSPORT_SECURITY,
           HeaderValue::from_static("max-age=31536000; includeSubDomains; preload"),

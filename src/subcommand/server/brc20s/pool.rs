@@ -3,25 +3,48 @@ use {
   axum::Json,
   brc20s::{Pid, PoolInfo, TickId},
 };
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::Pool)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Pool {
+  /// Pool id.
   pub pid: String,
+  /// Stake ticker info.
+  #[schema(value_type = brc20s::Stake)]
   pub stake: Stake,
+  /// Earn ticker info.
+  #[schema(value_type = brc20s::Earn)]
   pub earn: Earn,
+  /// Pool type. Such as "pool", "fixed".
   pub pool: String,
+  /// Mining rate.
   pub erate: String,
+  /// The amount of the ticker that has been staked.
   pub staked: String,
+  /// The amount of the ticker that has been minted.
   pub minted: String,
+  /// The total supply of the ticker.
   pub dmax: String,
+  /// Whether the pool is exclusive.
   pub only: u8,
+  /// The accumulated reward per share.
   pub acc_reward_per_share: String,
+  /// The latest update block number.
+  #[schema(format = "uint64")]
   pub latest_update_block: u64,
+  /// Inscription ID of the ticker deployed.
   pub inscription_id: String,
+  /// Inscription number of the ticker deployed.
   pub inscription_number: i64,
+  /// The deployer of the ticker deployed.
   pub deployer: ScriptPubkey,
+  /// The height of the block that the ticker deployed.
+  #[schema(format = "uint64")]
   pub deploy_height: u64,
-  pub deploy_blocktime: u64,
+  /// The timestamp of the block that the ticker deployed.
+  #[schema(format = "uint32")]
+  pub deploy_blocktime: u32,
+  /// A hex encoded 32 byte transaction ID that the ticker deployed.
   pub txid: String,
 }
 
@@ -68,13 +91,27 @@ impl From<&PoolInfo> for Pool {
       inscription_number: 0,
       deployer: ScriptPubkey::default(),
       deploy_height: pool_info.deploy_block,
-      deploy_blocktime: u64::from(pool_info.deploy_block_time),
+      deploy_blocktime: pool_info.deploy_block_time,
       txid: pool_info.inscription_id.txid.to_string(),
     }
   }
 }
 
 // brc20s/pool/:pid
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/pool/{pid}",
+  operation_id = "get the pool infomation by pid",
+  params(
+      ("pid" = String, Path, description = "Pool ID", min_length = 13, max_length = 13, example= "a01234567f#0f"),
+),
+  responses(
+    (status = 200, description = "Obtain pool infomation by pid", body = BRC20SPool),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Path(pid): Path<String>,
@@ -139,14 +176,30 @@ pub(crate) async fn brc20s_debug_pool_info(
   Ok(Json(ApiResponse::ok(pool_info)))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::AllPoolInfo)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AllPoolInfo {
+  #[schema(value_type = Vec<brc20s::Pool>)]
   pub pools: Vec<Pool>,
   pub total: usize,
 }
 
 // brc20s/pool
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/pool",
+  operation_id = "get the all of pool infomations",
+  params(
+    Pagination
+),
+  responses(
+    (status = 200, description = "Obtain all of pool infomations", body = BRC20SAllPool),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_all_pool_info(
   Extension(index): Extension<Arc<Index>>,
   Query(page): Query<Pagination>,
@@ -178,6 +231,20 @@ pub(crate) async fn brc20s_all_pool_info(
 }
 
 // /brc20s/pool/:tick_id
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/pool/{tid}",
+  operation_id = "get the pool infomation by ticker id",
+  params(
+      ("tid" = String, Path, description = "Ticker ID", min_length = 10, max_length = 10, example= "a01234567f"),
+),
+  responses(
+    (status = 200, description = "Obtain pool infomation by ticker ID", body = BRC20SAllPool),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_all_pools_by_tid(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,

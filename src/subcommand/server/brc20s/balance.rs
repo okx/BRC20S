@@ -1,9 +1,16 @@
-use {super::*, axum::Json};
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+use {super::*, axum::Json, utoipa::ToSchema};
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[schema(as = brc20s::Balance)]
 pub(crate) struct Balance {
+  /// Ticker.
+  #[schema(value_type = brc20s::Tick)]
   pub tick: Tick,
+  /// Transferable balance.
+  #[schema(format = "uint64")]
   pub transferable: String,
+  /// Overall balance.
+  #[schema(format = "uint64")]
   pub overall: String,
 }
 
@@ -28,13 +35,22 @@ impl From<&brc20s::Balance> for Balance {
   }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct AllBalance {
-  pub balance: Vec<Balance>,
-}
-
 // brc20s/tick/:tickId/address/:address/balance
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/tick/{tick_id}/address/{address}/balance",
+  operation_id = "get the ticker balance of the address",
+  params(
+      ("tick_id" = String, Path, description = "Token ticker ID", min_length = 10, max_length = 10),
+      ("address" = String, Path, description = "Address")
+),
+  responses(
+    (status = 200, description = "Obtain account balance by query ticker.", body = BRC20SBalance),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_balance(
   Extension(index): Extension<Arc<Index>>,
   Path((tick_id, address)): Path<(String, String)>,
@@ -71,7 +87,28 @@ pub(crate) async fn brc20s_balance(
   Ok(Json(ApiResponse::ok(balance_result)))
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+#[schema(as = brc20s::AllBalance)]
+pub(crate) struct AllBalance {
+  #[schema(value_type = Vec<brc20s::Balance>)]
+  pub balance: Vec<Balance>,
+}
 // brc20s/address/:address/balance
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/address/{address}/balance",
+  operation_id = "get all ticker balances of the address",
+  params(
+      ("address" = String, Path, description = "Address")
+),
+  responses(
+    (status = 200, description = "Obtain account balances by query address.", body = BRC20SAllBalance),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_all_balance(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,

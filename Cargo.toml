@@ -68,6 +68,7 @@ utoipa-redoc = { version = "0.1.0", features = ["axum"] }
 [dev-dependencies]
 executable-path = "1.0.0"
 pretty_assertions = "1.2.1"
+utoipa-swagger-ui = { version = "3.1.5", features = ["axum", "debug-embed"] }
 reqwest = { version = "0.11.10", features = ["blocking"] }
 test-bitcoincore-rpc = { path = "test-bitcoincore-rpc" }
 unindent = "0.2.1"

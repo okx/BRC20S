@@ -1,7 +1,6 @@
-use {
-  super::*,
-  utoipa::{ToResponse, ToSchema},
-};
+use serde::ser::SerializeStruct;
+
+use {super::*, utoipa::ToSchema};
 
 pub(super) enum ServerError {
   Internal(Error),
@@ -50,9 +49,18 @@ impl From<Error> for ServerError {
 }
 
 #[repr(i32)]
+#[derive(ToSchema)]
 pub(crate) enum ApiError {
+  /// Internal server error.
+  #[schema(example = json!(&ApiError::internal("internal error")))]
   Internal(String) = 1,
+
+  /// Bad request.
+  #[schema(example = json!(&ApiError::internal("bad request")))]
   BadRequest(String) = 2,
+
+  /// Resource not found.
+  #[schema(example = json!(&ApiError::internal("not found")))]
   NotFound(String) = 3,
 }
 
@@ -77,10 +85,16 @@ impl ApiError {
     Self::BadRequest(message.to_string())
   }
 }
-
-impl From<ApiError> for axum::Json<ApiErrorResponse> {
-  fn from(val: ApiError) -> Self {
-    axum::Json(ApiErrorResponse::api_err(&val))
+impl Serialize for ApiError {
+  fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    let mut state = serializer.serialize_struct("ApiError", 2)?;
+    match self {
+      ApiError::Internal(msg) | ApiError::BadRequest(msg) | ApiError::NotFound(msg) => {
+        state.serialize_field("code", &self.code())?;
+        state.serialize_field("message", &msg)?;
+        state.end()
+      }
+    }
   }
 }
 
@@ -91,9 +105,8 @@ impl IntoResponse for ApiError {
       Self::BadRequest(_) => StatusCode::BAD_REQUEST,
       Self::NotFound(_) => StatusCode::NOT_FOUND,
     };
-    let json: axum::Json<ApiErrorResponse> = self.into();
 
-    (status_code, json).into_response()
+    (status_code, axum::Json(self)).into_response()
   }
 }
 
@@ -103,27 +116,22 @@ impl From<anyhow::Error> for ApiError {
   }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, ToSchema, ToResponse)]
-pub(crate) struct ApiErrorResponse {
-  pub code: i32,
-  /// Error message.
-  pub msg: String,
-}
+#[cfg(test)]
+mod tests {
+  use super::*;
 
-impl ApiErrorResponse {
-  fn new(code: i32, msg: String) -> Self {
-    Self { code, msg }
-  }
+  #[test]
+  fn test_serialize_api_error() {
+    let api_error = ApiError::internal("internal error");
+    let json = serde_json::to_string(&api_error).unwrap();
+    assert_eq!(json, r#"{"code":1,"message":"internal error"}"#);
 
-  pub fn err(code: i32, msg: String) -> Self {
-    Self::new(code, msg)
-  }
+    let api_error = ApiError::bad_request("bad request");
+    let json = serde_json::to_string(&api_error).unwrap();
+    assert_eq!(json, r#"{"code":2,"message":"bad request"}"#);
 
-  pub fn api_err(err: &ApiError) -> Self {
-    match err {
-      ApiError::Internal(msg) | ApiError::BadRequest(msg) | ApiError::NotFound(msg) => {
-        Self::err(err.code(), msg.clone())
-      }
-    }
+    let api_error = ApiError::not_found("not found");
+    let json = serde_json::to_string(&api_error).unwrap();
+    assert_eq!(json, r#"{"code":3,"message":"not found"}"#);
   }
 }

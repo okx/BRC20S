@@ -5,7 +5,9 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum ScriptPubkey {
+  /// Address.
   Address(String),
+  /// Non-standard script hash.
   NonStandard(String),
 }
 impl Default for ScriptPubkey {

@@ -1,16 +1,30 @@
 use {super::*, crate::okx::datastore::brc20s, axum::Json};
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::Receipt)]
 #[serde(rename_all = "camelCase")]
 pub struct Receipt {
+  /// Operation type.
+  #[schema(value_type = brc20s::OperationType)]
   pub op: OperationType,
+  /// THe inscription number.
   pub inscription_number: Option<i64>,
-  pub inscription_id: Option<InscriptionId>,
-  pub old_satpoint: Option<SatPoint>,
-  pub new_satpoint: Option<SatPoint>,
+  /// The inscription id.
+  pub inscription_id: Option<String>,
+  /// The inscription satpoint of the transaction input.
+  pub old_satpoint: Option<String>,
+  /// The inscription satpoint of the transaction output.
+  pub new_satpoint: Option<String>,
+  /// The message sender which is an address or script pubkey hash.
   pub from: ScriptPubkey,
+  /// The message receiver which is an address or script pubkey hash.
   pub to: Option<ScriptPubkey>,
+  /// Whether the receipt is valid.
   pub valid: bool,
+  /// The message of the receipt.
   pub msg: String,
+  /// The events of the receipt.
+  ///
+  #[schema(value_type = Vec<brc20s::Event>)]
   pub events: Vec<Event>,
 }
 
@@ -24,15 +38,15 @@ impl Receipt {
       },
       inscription_id: match receipt.op {
         brc20s::OperationType::PassiveUnStake => None,
-        _ => Some(receipt.inscription_id),
+        _ => Some(receipt.inscription_id.to_string()),
       },
       old_satpoint: match receipt.op {
         brc20s::OperationType::PassiveUnStake => None,
-        _ => Some(receipt.old_satpoint),
+        _ => Some(receipt.old_satpoint.to_string()),
       },
       new_satpoint: match receipt.op {
         brc20s::OperationType::PassiveUnStake => None,
-        _ => Some(receipt.new_satpoint),
+        _ => Some(receipt.new_satpoint.to_string()),
       },
       from: receipt.from.clone().into(),
       to: match receipt.op {
@@ -90,7 +104,8 @@ impl Receipt {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::OperationType)]
 #[serde(rename_all = "camelCase")]
 pub enum OperationType {
   Deploy,
@@ -115,26 +130,50 @@ impl From<brc20s::OperationType> for OperationType {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::Event)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
 pub enum Event {
+  /// The deployed tick event.
+  #[schema(value_type = brc20s::DeployTickEvent)]
   DeployTick(DeployTickEvent),
+  /// The deployed pool event.
+  #[schema(value_type = brc20s::DeployPoolEvent)]
   DeployPool(DeployPoolEvent),
+  /// The deposit event.
+  #[schema(value_type = brc20s::DepositEvent)]
   Deposit(DepositEvent),
+  /// The withdraw event.
+  #[schema(value_type = brc20s::WithdrawEvent)]
   Withdraw(WithdrawEvent),
+  /// The passive withdraw event.
+  #[schema(value_type = brc20s::PassiveWithdrawEvent)]
   PassiveWithdraw(PassiveWithdrawEvent),
+  /// The mint event.
+  #[schema(value_type = brc20s::MintEvent)]
   Mint(MintEvent),
+  /// The pretransfer event.
+  #[schema(value_type = brc20s::InscribeTransferEvent)]
   InscribeTransfer(InscribeTransferEvent),
+  /// The transfer event.
+  #[schema(value_type = brc20s::TransferEvent)]
   Transfer(TransferEvent),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::DeployTickEvent)]
 #[serde(rename_all = "camelCase")]
 pub struct DeployTickEvent {
+  /// The ticker info.
+  #[schema(value_type = brc20s::Tick)]
   tick: Tick,
+  /// The total supply of the ticker.
+  #[schema(format = "uint64")]
   supply: String,
+  /// The decimal of the ticker.
   decimal: u8,
+  /// The deployer of the ticker deployed.
   deployer: ScriptPubkey,
 }
 
@@ -152,16 +191,28 @@ impl DeployTickEvent {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::DeployPoolEvent)]
 #[serde(rename_all = "camelCase")]
 pub struct DeployPoolEvent {
+  /// The pool id.
   pid: String,
+  /// The pledge ticker info.
+  #[schema(value_type = brc20s::Stake)]
   stake: Stake,
+  /// The earn ticker info.
+  #[schema(value_type = brc20s::Earn)]
   earn: Earn,
+  /// Pool type. Such as "pool", "fixed".
   pool: String,
+  /// Mining rate.
   erate: String,
+  /// Whether the pool is exclusive.
   only: u8,
+  /// The max amount of the pool.
+  #[schema(format = "uint64")]
   dmax: String,
+  /// The deployer of the pool deployed.
   deployer: ScriptPubkey,
 }
 
@@ -195,11 +246,16 @@ impl DeployPoolEvent {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::DepositEvent)]
 #[serde(rename_all = "camelCase")]
 pub struct DepositEvent {
+  /// The pool id.
   pid: String,
+  /// The amount of the deposit.
+  #[schema(format = "uint64")]
   amount: String,
+  /// The owner of the deposit.
   owner: ScriptPubkey,
 }
 
@@ -213,11 +269,16 @@ impl DepositEvent {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::WithdrawEvent)]
 #[serde(rename_all = "camelCase")]
 pub struct WithdrawEvent {
+  /// The pool id.
   pid: String,
+  /// The amount of the withdraw.
+  #[schema(format = "uint64")]
   amount: String,
+  /// The owner of the withdraw.
   owner: ScriptPubkey,
 }
 
@@ -231,11 +292,16 @@ impl WithdrawEvent {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::PassiveWithdrawEvent)]
 #[serde(rename_all = "camelCase")]
 pub struct PassiveWithdrawEvent {
+  /// The pool id.
   pid: String,
+  /// The amount of the passive withdraw.
+  #[schema(format = "uint64")]
   amount: String,
+  /// The owner of the passive withdraw.
   owner: ScriptPubkey,
 }
 
@@ -249,11 +315,16 @@ impl PassiveWithdrawEvent {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::MintEvent)]
 #[serde(rename_all = "camelCase")]
 pub struct MintEvent {
+  /// The pool id.
   pid: String,
+  /// The amount of the mint.
+  #[schema(format = "uint64")]
   amount: String,
+  /// The owner of the mint.
   owner: ScriptPubkey,
 }
 
@@ -267,11 +338,16 @@ impl MintEvent {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::InscribeTransferEvent)]
 #[serde(rename_all = "camelCase")]
 pub struct InscribeTransferEvent {
+  /// The pool id.
+  #[schema(value_type = brc20s::Tick)]
   tick: Tick,
+  /// The amount of the transfer.
   amount: String,
+  /// The owner of the transfer.
   owner: ScriptPubkey,
 }
 
@@ -296,14 +372,21 @@ impl InscribeTransferEvent {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::TransferEvent)]
 #[serde(rename_all = "camelCase")]
 pub struct TransferEvent {
+  /// The pool id.
+  #[schema(value_type = brc20s::Tick)]
   tick: Tick,
+  /// The amount of the transfer.
+  #[schema(format = "uint64")]
   amount: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
+  /// The message of the transfer.
   msg: Option<String>,
+  /// The message sender which is an address or script pubkey hash.
   from: ScriptPubkey,
+  /// The message receiver which is an address or script pubkey hash.
   to: ScriptPubkey,
 }
 
@@ -329,20 +412,36 @@ impl TransferEvent {
     })
   }
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::TxReceipts)]
 #[serde(rename_all = "camelCase")]
 pub struct TxReceipts {
+  #[schema(value_type = Vec<brc20s::Receipt>)]
   pub receipts: Vec<Receipt>,
   pub txid: String,
 }
 
 // brc20s/tx/:txid/receipts
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/tx/{txid}/receipts",
+  operation_id = "get transaction receipts by txid",
+  params(
+      ("txid" = String, Path, description = "transaction ID")
+),
+  responses(
+    (status = 200, description = "Obtain transaction receipts by txid", body = BRC20STxReceipts),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_txid_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(txid): Path<String>,
 ) -> ApiResult<TxReceipts> {
   log::debug!("rpc: get brc20s_txid_receipts: {}", txid);
-  let txid = Txid::from_str(&txid).unwrap();
+  let txid = Txid::from_str(&txid).map_err(ApiError::bad_request)?;
 
   let all_receipt = index
     .brc20s_txid_receipts(&txid)?
@@ -374,7 +473,7 @@ pub(crate) async fn brc20s_debug_txid_receipts(
   Path(txid): Path<String>,
 ) -> ApiResult<Vec<brc20s::Receipt>> {
   log::debug!("rpc: get brc20s_debug_txid_receipts: {}", txid);
-  let txid = Txid::from_str(&txid).unwrap();
+  let txid = Txid::from_str(&txid).map_err(ApiError::bad_request)?;
 
   let all_receipt = index
     .brc20s_txid_receipts(&txid)?
@@ -385,13 +484,29 @@ pub(crate) async fn brc20s_debug_txid_receipts(
   Ok(Json(ApiResponse::ok(all_receipt)))
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::BlockReceipts)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockReceipts {
+  #[schema(value_type = Vec<brc20s::TxReceipts>)]
   pub block: Vec<TxReceipts>,
 }
 
 // brc20s/block/:blockhash/receipts
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/block/{blockhash}/receipts",
+  operation_id = "get block receipts by blockhash",
+  params(
+      ("blockhash" = String, Path, description = "block hash")
+),
+  responses(
+    (status = 200, description = "Obtain block receipts by block hash", body = BRC20SBlockReceipts),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_block_receipts(
   Extension(index): Extension<Arc<Index>>,
   Path(block_hash): Path<String>,

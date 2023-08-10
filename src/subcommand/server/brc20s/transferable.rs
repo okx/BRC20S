@@ -1,21 +1,24 @@
 use {super::*, crate::okx::datastore::brc20s, axum::Json};
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct Transferable {
-  pub inscriptions: Vec<Inscription>,
-}
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::TransferableInscription)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct Inscription {
+pub(crate) struct TransferableInscription {
+  /// Ticker.
+  #[schema(value_type = brc20s::Tick)]
   pub tick: Tick,
+  /// The inscription id.
   pub inscription_id: String,
+  /// The inscription number.
   pub inscription_number: i64,
+  /// The amount.
+  #[schema(format = "uint64")]
   pub amount: String,
+  /// The owner.
   pub owner: String,
 }
 
-impl Inscription {
+impl TransferableInscription {
   pub fn set_tick_name(&mut self, name: String) {
     self.tick.name = name;
   }
@@ -25,7 +28,7 @@ impl Inscription {
   }
 }
 
-impl From<&brc20s::TransferableAsset> for Inscription {
+impl From<&brc20s::TransferableAsset> for TransferableInscription {
   fn from(asset: &brc20s::TransferableAsset) -> Self {
     let tick = Tick {
       id: asset.tick_id.hex(),
@@ -43,6 +46,21 @@ impl From<&brc20s::TransferableAsset> for Inscription {
 }
 
 // brc20s/tick/:tickId/address/:address/transferable
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/tick/{tick_id}/address/{address}/transferable",
+  operation_id = "get transferable inscriptions",
+  params(
+      ("tick_id" = String, Path, description = "Ticker ID", min_length = 10, max_length = 10, example = "a12345678f"),
+      ("address" = String, Path, description = "Address")
+),
+  responses(
+    (status = 200, description = "Obtain account transferable inscriptions of ticker ID.", body = BRC20STransferable),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path((tick_id, address)): Path<(String, String)>,
@@ -67,7 +85,7 @@ pub(crate) async fn brc20s_transferable(
     inscriptions: all_transfer
       .iter()
       .map(|asset| {
-        let mut inscription = Inscription::from(asset);
+        let mut inscription = TransferableInscription::from(asset);
 
         let tick_info = &index.brc20s_tick_info(&asset.tick_id).unwrap().unwrap();
 
@@ -84,7 +102,29 @@ pub(crate) async fn brc20s_transferable(
   })))
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::Transferable)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Transferable {
+  #[schema(value_type = Vec<brc20s::TransferableInscription>)]
+  pub inscriptions: Vec<TransferableInscription>,
+}
+
 // brc20s/address/:address/transferable
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/address/{address}/transferable",
+  operation_id = "get address ticker balance",
+  params(
+      ("address" = String, Path, description = "Address")
+),
+  responses(
+    (status = 200, description = "Obtain account all transferable inscriptions.", body = BRC20STransferable),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_all_transferable(
   Extension(index): Extension<Arc<Index>>,
   Path(address): Path<String>,
@@ -103,7 +143,7 @@ pub(crate) async fn brc20s_all_transferable(
     inscriptions: all
       .iter()
       .map(|asset| {
-        let mut inscription = Inscription::from(asset);
+        let mut inscription = TransferableInscription::from(asset);
 
         let tick_info = &index.brc20s_tick_info(&asset.tick_id).unwrap().unwrap();
 

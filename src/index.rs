@@ -329,7 +329,7 @@ impl Index {
       );
     }
     for outpoint in utxos.keys() {
-      if self.get_outpoint_entry(outpoint.clone())?.is_none() {
+      if self.get_outpoint_entry(*outpoint)?.is_none() {
         return Err(anyhow!(
           "output in Bitcoin Core wallet but not in ord index: {outpoint}"
         ));

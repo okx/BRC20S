@@ -1,17 +1,33 @@
 use {super::*, crate::okx::datastore::brc20s, axum::Json};
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::TickInfo)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct TickInfo {
+  /// Ticker.
+  #[schema(value_type = brc20s::Tick)]
   pub tick: Tick,
+  /// The inscription id.
   pub inscription_id: String,
+  /// The inscription number.
   pub inscription_number: i64,
+  /// The minted amount.
+  #[schema(format = "uint64")]
   pub minted: String,
+  /// The total supply.
+  #[schema(format = "uint64")]
   pub supply: String,
-  pub decimal: u64,
+  /// The decimal.
+  pub decimal: u8,
+  /// The deployer.
   pub deployer: ScriptPubkey,
+  /// The transaction id.
   pub txid: String,
+  /// The height of the block that the ticker deployed.
+  #[schema(format = "uint64")]
   pub deploy_height: u64,
-  pub deploy_blocktime: u64,
+  /// The timestamp of the block that the ticker deployed.
+  #[schema(format = "uint64")]
+  pub deploy_blocktime: u32,
 }
 
 impl TickInfo {
@@ -33,16 +49,30 @@ impl From<&brc20s::TickInfo> for TickInfo {
       inscription_number: 0,
       minted: tick_info.circulation.to_string(),
       supply: tick_info.supply.to_string(),
-      decimal: u64::from(tick_info.decimal),
+      decimal: tick_info.decimal,
       deployer: tick_info.deployer.clone().into(),
       txid: tick_info.inscription_id.txid.to_string(),
       deploy_height: tick_info.deploy_block,
-      deploy_blocktime: u64::from(tick_info.deploy_block_time),
+      deploy_blocktime: tick_info.deploy_block_time,
     }
   }
 }
 
 // brc20s/tick/:tickId
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/tick/{tick_id}",
+  operation_id = "get ticker info",
+  params(
+    ("tick_id" = String, Path, description = "The ticker ID", min_length = 10, max_length = 10, example = "a12345678f")
+),
+  responses(
+    (status = 200, description = "Obtain matching BRC20S ticker by query.", body = BRC20STick),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Path(tick_id): Path<String>,
@@ -96,14 +126,30 @@ pub(crate) async fn brc20s_debug_tick_info(
   Ok(Json(ApiResponse::ok(tick_info)))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = brc20s::AllTickInfo)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AllTickInfo {
+  #[schema(value_type = Vec<brc20s::TickInfo>)]
   pub tokens: Vec<TickInfo>,
   pub total: usize,
 }
 
 // brc20s/tick
+#[utoipa::path(
+  get,
+  path = "/api/v1/brc20s/tick",
+  operation_id = "get all tickers info",
+  params(
+    Pagination
+),
+  responses(
+    (status = 200, description = "Obtain matching all BRC20S tickers.", body = BRC20SAllTick),
+    (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+    (status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+    (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+  )
+)]
 pub(crate) async fn brc20s_all_tick_info(
   Extension(index): Extension<Arc<Index>>,
   Query(page): Query<Pagination>,

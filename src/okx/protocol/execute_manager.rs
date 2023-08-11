@@ -3,6 +3,7 @@ use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
 use crate::okx::datastore::ord as ord_store;
+use crate::okx::datastore::btc as btc_store;
 use crate::okx::protocol::brc20 as brc20_proto;
 use crate::okx::protocol::brc20s as brc20s_proto;
 use crate::Result;
@@ -10,10 +11,12 @@ use crate::Result;
 pub struct CallManager<
   'a,
   O: ord_store::OrdDataStoreReadWrite,
+  L: btc_store::DataStoreReadWrite,
   N: brc20_store::DataStoreReadWrite,
   M: brc20s_store::DataStoreReadWrite,
 > {
   ord_store: &'a O,
+  btc_store: &'a L,
   brc20_store: &'a N,
   brc20s_store: &'a M,
 }
@@ -21,13 +24,15 @@ pub struct CallManager<
 impl<
     'a,
     O: ord_store::OrdDataStoreReadWrite,
+    L: btc_store::DataStoreReadWrite,
     N: brc20_store::DataStoreReadWrite,
     M: brc20s_store::DataStoreReadWrite,
-  > CallManager<'a, O, N, M>
+  > CallManager<'a, O, L, N, M>
 {
-  pub fn new(ord_store: &'a O, brc20_store: &'a N, brc20s_store: &'a M) -> Self {
+  pub fn new(ord_store: &'a O, btc_store: &'a L, brc20_store: &'a N, brc20s_store: &'a M) -> Self {
     Self {
       ord_store,
+      btc_store,
       brc20_store,
       brc20s_store,
     }
@@ -50,6 +55,7 @@ impl<
         &brc20s::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20S))?,
+      //todo
     };
 
     if receipt.is_none() {

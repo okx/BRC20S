@@ -8,6 +8,10 @@ use crate::okx::{
       self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
       DataStoreReadOnly as BRC20SDataStoreReadOnly,
     },
+    btc::{
+      self, redb as btc_db, redb::try_init_tables as try_init_btc,
+      DataStoreReadOnly as BTCDataStoreReadOnly,
+    }
     ord::{self, OrdDataStoreReadOnly},
     ScriptKey,
   },
@@ -274,6 +278,7 @@ impl Index {
     {
       let wtx = database.begin_write()?;
       let rtx = database.begin_read()?;
+      try_init_btc(&wtx, &rtx)?;
       try_init_brc20(&wtx, &rtx)?;
       try_init_brc20s(&wtx, &rtx)?;
       wtx.commit()?;

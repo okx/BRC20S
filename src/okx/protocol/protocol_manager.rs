@@ -107,6 +107,31 @@ impl<
     }
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
+
+      if let Some(tx_operations) = operations.remove(txid) {
+        // save transaction operations.
+        if context.blockheight >= self.first_inscription_height {
+          self
+            .ord_store
+            .save_transaction_operations(txid, &tx_operations)
+            .map_err(|e| {
+              anyhow!("failed to set transaction ordinals operations to state! error: {e}")
+            })?;
+          inscriptions_size += tx_operations.len();
+        }
+
+        // Resolve and execute messages.
+        let messages = self
+          .resolve_man
+          .resolve_message(context, tx, tx_operations)?;
+        for msg in messages.iter() {
+          self.call_man.execute_message(context, msg)?;
+        }
+        messages_size += messages.len();
+
+      }
+      
+      // update btc balance
       for input in &tx.input {
         let prev_output = &self.ord_store
         .get_outpoint_to_txout(input.previous_output)
@@ -147,31 +172,6 @@ impl<
         };
   
         self.btc_store.update_balance(&sk, new_balance).unwrap();
-      }
-
-      if let Some(tx_operations) = operations.remove(txid) {
-        // save transaction operations.
-        if context.blockheight >= self.first_inscription_height {
-          self
-            .ord_store
-            .save_transaction_operations(txid, &tx_operations)
-            .map_err(|e| {
-              anyhow!("failed to set transaction ordinals operations to state! error: {e}")
-            })?;
-          inscriptions_size += tx_operations.len();
-        }
-
-        // Resolve and execute messages.
-        let messages = self
-          .resolve_man
-          .resolve_message(context, tx, tx_operations)?;
-        for msg in messages.iter() {
-          self.call_man.execute_message(context, msg)?;
-        }
-        messages_size += messages.len();
-
-        //todo
-        //
       }
     }
 

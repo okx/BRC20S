@@ -7,6 +7,7 @@ mod script_key;
 
 pub use self::{
   brc20::DataStoreReadWrite as BRC20DataStoreReadWrite,
-  brc20s::DataStoreReadWrite as BRC20SDataStoreReadWrite, ord::OrdDataStoreReadWrite,
+  brc20s::DataStoreReadWrite as BRC20SDataStoreReadWrite,
+  btc::DataStoreReadWrite as BTCDataStoreReadWrite, ord::OrdDataStoreReadWrite,
   script_key::ScriptKey,
 };

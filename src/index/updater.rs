@@ -1,7 +1,7 @@
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
-  crate::okx::datastore::{brc20::redb as brc20_db, brc20s::redb as brc20s_db, ord},
+  crate::okx::datastore::{btc::redb as btc_db, brc20::redb as brc20_db, brc20s::redb as brc20s_db, ord},
   futures::future::try_join_all,
   std::sync::mpsc,
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
@@ -595,9 +595,11 @@ impl Updater {
     ProtocolManager::new(
       &index.client,
       &ord::OrdDbReadWriter::new(wtx),
+      &btc_db::DataStore::new(wtx),
       &brc20_db::DataStore::new(wtx),
       &brc20s_db::DataStore::new(wtx),
       index.first_inscription_height,
+      //todo: maybe we need frist btc height. (0)
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
     )

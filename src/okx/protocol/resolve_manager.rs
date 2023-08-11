@@ -1,6 +1,7 @@
 use super::*;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
+use crate::okx::datastore::btc as btc_store;
 use crate::okx::datastore::ord as ord_store;
 use std::collections::HashMap;
 
@@ -14,12 +15,14 @@ use bitcoincore_rpc::Client;
 pub struct MsgResolveManager<
   'a,
   O: ord_store::OrdDataStoreReadWrite,
+  L: btc_store::DataStoreReadWrite,
   N: brc20_store::DataStoreReadWrite,
   M: brc20s_store::DataStoreReadWrite,
 > {
   protocol_start_height: HashMap<ProtocolKind, u64>,
   client: &'a Client,
   ord_store: &'a O,
+  btc_store: &'a L,
   brc20_store: &'a N,
   brc20s_store: &'a M,
 }
@@ -27,24 +30,28 @@ pub struct MsgResolveManager<
 impl<
     'a,
     O: ord_store::OrdDataStoreReadWrite,
+    L: btc_store::DataStoreReadWrite,
     N: brc20_store::DataStoreReadWrite,
     M: brc20s_store::DataStoreReadWrite,
-  > MsgResolveManager<'a, O, N, M>
+  > MsgResolveManager<'a, O, L, N, M>
 {
   pub fn new(
     client: &'a Client,
     ord_store: &'a O,
+    btc_store: &'a L,
     brc20_store: &'a N,
     brc20s_store: &'a M,
     first_brc20_height: u64,
     first_brc20s_height: u64,
   ) -> Self {
     let mut protocol_start_height: HashMap<ProtocolKind, u64> = HashMap::new();
+    //todo
     protocol_start_height.insert(ProtocolKind::BRC20, first_brc20_height);
     protocol_start_height.insert(ProtocolKind::BRC20S, first_brc20s_height);
     Self {
       client,
       ord_store,
+      btc_store,
       brc20_store,
       brc20s_store,
       protocol_start_height,

@@ -11,7 +11,7 @@ use crate::okx::{
     btc::{
       self, redb as btc_db, redb::try_init_tables as try_init_btc,
       DataStoreReadOnly as BTCDataStoreReadOnly,
-    }
+    },
     ord::{self, OrdDataStoreReadOnly},
     ScriptKey,
   },

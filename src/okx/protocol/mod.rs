@@ -1,5 +1,6 @@
 pub(crate) mod brc20;
 pub(crate) mod brc20s;
+pub(crate) mod btc;
 pub(crate) mod execute_manager;
 pub(crate) mod message;
 pub(crate) mod protocol_manager;

@@ -8,6 +8,7 @@ use crate::okx::protocol::brc20s::params::{
 use crate::okx::protocol::brc20s::{BRC20SError, Error, Num};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
+use bigdecimal::Zero;
 use std::str::FromStr;
 
 pub fn get_user_common_balance<'a, L: brc20s::DataStoreReadWrite, M: brc20::DataStoreReadWrite>(
@@ -17,7 +18,19 @@ pub fn get_user_common_balance<'a, L: brc20s::DataStoreReadWrite, M: brc20::Data
   brc20_ledger: &'a M,
 ) -> Num {
   match token {
-    PledgedTick::Native => Num::from(0_u128),
+    // TODO  for test
+    PledgedTick::Native => {
+      let tick = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
+      let balance = match brc20_ledger.get_balance(script, &tick) {
+        Ok(Some(brc20_balance)) => brc20_balance,
+        _ => brc20::Balance::new(&tick),
+      };
+      if balance.overall_balance.is_zero() {
+        Num::from(0_u128)
+      } else {
+        Num::from(200000000000000_u128)
+      }
+    }
     PledgedTick::BRC20STick(tickid) => {
       let balance = match brc20s_ledger.get_balance(script, tickid) {
         Ok(Some(brc20s_balance)) => brc20s_balance,
@@ -98,7 +111,7 @@ pub fn get_raw_brc20_tick<M: brc20::DataStoreReadWrite>(
 
 pub fn tick_can_staked(token: &PledgedTick) -> bool {
   match token {
-    PledgedTick::Native => false,
+    PledgedTick::Native => true,
     PledgedTick::BRC20STick(_) => false,
     PledgedTick::BRC20Tick(_) => true,
     PledgedTick::Unknown => false,

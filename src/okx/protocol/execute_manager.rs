@@ -1,11 +1,17 @@
 use super::*;
+use crate::inscription_id::InscriptionId;
 use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
+use crate::okx::datastore::brc20s::PledgedTick;
+use crate::okx::datastore::btc as btc_store;
 use crate::okx::datastore::ord as ord_store;
 use crate::okx::protocol::brc20 as brc20_proto;
 use crate::okx::protocol::brc20s as brc20s_proto;
-use crate::Result;
+use crate::okx::protocol::brc20s::params::NATIVE_TOKEN;
+use crate::okx::protocol::btc as btc_proto;
+use crate::{Result, SatPoint};
+use bitcoin::OutPoint;
 
 pub struct CallManager<
   'a,
@@ -50,6 +56,7 @@ impl<
         &brc20s::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20S))?,
+      Message::BTC(msg) => btc_proto::gen_receipt(msg).map(|v| v.map(Receipt::BTC))?,
     };
 
     if receipt.is_none() {
@@ -131,6 +138,40 @@ impl<
         }
         Ok(())
       }
+      Receipt::BTC(btc_receipt) => {
+        if let Ok(btc_store::Event::Transfer(btc_transfer)) = btc_receipt.result {
+          match convert_pledged_tick_without_decimal(
+            &PledgedTick::Native,
+            btc_transfer.amt,
+            self.brc20s_store,
+            self.brc20_store,
+          ) {
+            Ok(amt) => {
+              let passive_unstake = brc20s_proto::PassiveUnStake {
+                stake: NATIVE_TOKEN.to_string(),
+                amount: amt.to_string(),
+              };
+              if let Message::BTC(old_btc_msg) = msg {
+                let passive_msg = convert_msg_btc_to_brc20s(old_btc_msg, passive_unstake);
+                brc20s::execute(
+                  context,
+                  self.brc20_store,
+                  self.brc20s_store,
+                  &brc20s::ExecutionMessage::from_message(
+                    self.ord_store,
+                    &passive_msg,
+                    context.network,
+                  )?,
+                )?;
+              }
+            }
+            Err(e) => {
+              log::error!("brc20s receipt failed: {e}");
+            }
+          }
+        }
+        Ok(())
+      }
     }
   }
 }
@@ -159,5 +200,23 @@ fn convert_msg_brc20s(msg: &brc20s::Message, op: brc20s_proto::PassiveUnStake) -
     new_satpoint: msg.new_satpoint,
     op: brc20s::Operation::PassiveUnStake(op),
     sat_in_outputs: msg.sat_in_outputs,
+  }
+}
+
+fn convert_msg_btc_to_brc20s(
+  msg: &btc::Message,
+  op: brc20s_proto::PassiveUnStake,
+) -> brc20s::Message {
+  brc20s::Message {
+    txid: msg.txid,
+    inscription_id: InscriptionId::from(msg.txid),
+    commit_input_satpoint: None,
+    old_satpoint: SatPoint {
+      outpoint: OutPoint::null(),
+      offset: 0,
+    },
+    new_satpoint: None,
+    op: brc20s::Operation::PassiveUnStake(op),
+    sat_in_outputs: false,
   }
 }

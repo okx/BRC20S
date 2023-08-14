@@ -1,4 +1,3 @@
-use self::storage_balance::StoreBalance;
 use super::*;
 use crate::brc20::ledger::{LedgerRead, LedgerReadWrite};
 use crate::brc20::{ActionReceipt, Balance, ScriptKey, Tick, TokenInfo, TransferableLog};
@@ -19,7 +18,7 @@ impl<'db, 'a> BRC20Database<'db, 'a> {
 impl<'db, 'a> LedgerRead for BRC20Database<'db, 'a> {
   type Error = redb::Error;
 
-  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<(Tick, Balance)>, Self::Error> {
+  fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_balances(script_key)
   }
 
@@ -68,16 +67,11 @@ impl<'db, 'a> LedgerReadWrite for BRC20Database<'db, 'a> {
   fn update_token_balance(
     &self,
     script_key: &ScriptKey,
-    tick: &Tick,
     new_balance: Balance,
   ) -> Result<(), Self::Error> {
-    let bal = StoreBalance {
-      tick: tick.clone(),
-      balance: new_balance,
-    };
     self.wtx.open_table(BRC20_BALANCES)?.insert(
-      script_tick_key(script_key, tick).as_str(),
-      bincode::serialize(&bal).unwrap().as_slice(),
+      script_tick_key(script_key, &new_balance.tick).as_str(),
+      bincode::serialize(&new_balance).unwrap().as_slice(),
     )?;
     Ok(())
   }
@@ -98,7 +92,7 @@ impl<'db, 'a> LedgerReadWrite for BRC20Database<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut info = self
       .get_token_info(tick)?
-      .expect(&format!("token {} not exist", tick.hex()));
+      .expect(&format!("token {} not exist", tick.as_str()));
 
     info.minted = minted_amt;
     info.latest_mint_number = minted_block_number;
@@ -191,48 +185,59 @@ mod tests {
     let tick1 = Tick::from_str("abcd").unwrap();
     let tick2 = Tick::from_str("1234").unwrap();
     let tick3 = Tick::from_str(";23!").unwrap();
-    let expect_balance1 = Balance {
-      overall_balance: 10,
-      transferable_balance: 10,
-    };
-    let expect_balance2 = Balance {
-      overall_balance: 30,
-      transferable_balance: 30,
-    };
-    let expect_balance3 = Balance {
-      overall_balance: 100,
-      transferable_balance: 30,
-    };
-    brc20db
-      .update_token_balance(&script, &tick1, expect_balance1.clone())
-      .unwrap();
-    brc20db
-      .update_token_balance(&script, &tick2, expect_balance2.clone())
-      .unwrap();
-    brc20db
-      .update_token_balance(&script, &tick3, expect_balance3.clone())
-      .unwrap();
+    let tick4 = Tick::from_str("abİ").unwrap();
+    let tick5 = Tick::from_str("İİ").unwrap();
+
+    let mut expect_balances = vec![
+      Balance {
+        tick: tick1.clone(),
+        overall_balance: 10,
+        transferable_balance: 10,
+      },
+      Balance {
+        tick: tick2,
+        overall_balance: 30,
+        transferable_balance: 30,
+      },
+      Balance {
+        tick: tick3,
+        overall_balance: 100,
+        transferable_balance: 30,
+      },
+      Balance {
+        tick: tick4,
+        overall_balance: 100,
+        transferable_balance: 30,
+      },
+      Balance {
+        tick: tick5,
+        overall_balance: 100,
+        transferable_balance: 30,
+      },
+    ];
+
+    for balance in &expect_balances {
+      brc20db
+        .update_token_balance(&script, balance.clone())
+        .unwrap();
+    }
 
     let script2 =
       ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
     assert_ne!(script.to_string(), script2.to_string());
     let expect_balance22 = Balance {
+      tick: tick1,
       overall_balance: 100,
       transferable_balance: 30,
     };
     brc20db
-      .update_token_balance(&script2, &tick1, expect_balance22.clone())
+      .update_token_balance(&script2, expect_balance22.clone())
       .unwrap();
 
     let mut all_balances = brc20db.get_balances(&script).unwrap();
-    all_balances.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
-    let mut expect = vec![
-      (tick2, expect_balance2),
-      (tick1, expect_balance1),
-      (tick3, expect_balance3),
-    ];
-    expect.sort_by(|a, b| a.0.hex().cmp(&b.0.hex()));
-    assert_eq!(all_balances, expect);
+    all_balances.sort_by(|a, b| a.tick.cmp(&b.tick));
+    expect_balances.sort_by(|a, b| a.tick.cmp(&b.tick));
+    assert_eq!(all_balances, expect_balances);
   }
 
   #[test]
@@ -245,19 +250,23 @@ mod tests {
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
     );
-    let lower_tick = Tick::from_str("abcd").unwrap();
+    let tick = Tick::from_str("ABCd").unwrap();
     let expect_balance = Balance {
+      tick: tick.clone(),
       overall_balance: 30,
       transferable_balance: 30,
     };
 
     brc20db
-      .update_token_balance(&script, &lower_tick, expect_balance.clone())
+      .update_token_balance(&script, expect_balance.clone())
       .unwrap();
 
-    let upper_tick = Tick::from_str("ABCd").unwrap();
     assert_eq!(
-      brc20db.get_balance(&script, &upper_tick).unwrap(),
+      brc20db.get_balance(&script, &tick).unwrap(),
+      Some(expect_balance.clone())
+    );
+    assert_eq!(
+      brc20db.get_balance(&script, &tick).unwrap(),
       Some(expect_balance)
     );
     assert_eq!(
@@ -297,8 +306,11 @@ mod tests {
 
     brc20db.insert_token_info(&upper_tick, &expect).unwrap();
 
-    let lower_tick = upper_tick.to_lowercase();
-    assert_eq!(brc20db.get_token_info(&lower_tick).unwrap(), Some(expect));
+    assert_eq!(
+      brc20db.get_token_info(&upper_tick).unwrap(),
+      Some(expect.clone())
+    );
+    assert_eq!(brc20db.get_token_info(&upper_tick).unwrap(), Some(expect));
   }
 
   #[test]
@@ -363,14 +375,34 @@ mod tests {
       latest_mint_number: 3101,
     };
 
+    let expect4 = TokenInfo {
+      tick: Tick::from_str("İİ").unwrap(),
+      inscription_id: InscriptionId::from_str(
+        "4111111111111111111111111111111111111111111111111111111111111111i1",
+      )
+      .unwrap(),
+      inscription_number: 1,
+      supply: 300,
+      minted: 30,
+      limit_per_mint: 20,
+      decimal: 1,
+      deploy_by: ScriptKey::from_address(
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      ),
+      deployed_number: 499,
+      deployed_timestamp: 44222,
+      latest_mint_number: 4101,
+    };
+
     brc20db.insert_token_info(&expect1.tick, &expect1).unwrap();
     brc20db.insert_token_info(&expect2.tick, &expect2).unwrap();
     brc20db.insert_token_info(&expect3.tick, &expect3).unwrap();
+    brc20db.insert_token_info(&expect4.tick, &expect4).unwrap();
 
     let mut infos = brc20db.get_tokens_info().unwrap();
-    infos.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
-    let mut expect = vec![expect1, expect2, expect3];
-    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    infos.sort_by(|a, b| a.tick.cmp(&b.tick));
+    let mut expect = vec![expect1, expect2, expect3, expect4];
+    expect.sort_by(|a, b| a.tick.cmp(&b.tick));
     assert_eq!(infos, expect);
   }
 
@@ -414,6 +446,14 @@ mod tests {
       Some(TokenInfo {
         minted: org_info.minted + mint_amount,
         latest_mint_number: mint_block,
+        ..org_info.clone()
+      })
+    );
+    assert_eq!(
+      brc20db.get_token_info(&tick).unwrap(),
+      Some(TokenInfo {
+        minted: org_info.minted + mint_amount,
+        latest_mint_number: mint_block,
         ..org_info
       })
     );
@@ -448,9 +488,9 @@ mod tests {
         .unwrap(),
         new_satpoint: Some(
           SatPoint::from_str(
-            "2111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
+          "2111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
         ),
         result: Err(BRC20Error::InvalidTickLen("abcde".to_string())),
       },
@@ -473,9 +513,9 @@ mod tests {
         .unwrap(),
         new_satpoint: Some(
           SatPoint::from_str(
-            "3111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
+          "3111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
         ),
         result: Ok(BRC20Event::Mint(MintEvent {
           tick: Tick::from_str("maEd").unwrap(),
@@ -502,9 +542,9 @@ mod tests {
         .unwrap(),
         new_satpoint: Some(
           SatPoint::from_str(
-            "4111111111111111111111111111111111111111111111111111111111111111:1:1",
-          )
-          .unwrap(),
+          "4111111111111111111111111111111111111111111111111111111111111111:1:1",
+        )
+        .unwrap(),
         ),
         result: Ok(BRC20Event::TransferPhase2(TransferPhase2Event {
           tick: Tick::from_str("mmmm").unwrap(),
@@ -823,14 +863,14 @@ mod tests {
       .unwrap();
 
     let mut transferable_logs = brc20db.get_transferable(&script1).unwrap();
-    transferable_logs.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    transferable_logs.sort_by(|a, b| a.tick.cmp(&b.tick));
     let mut expect = vec![
       transferable_log11,
       transferable_log12,
       transferable_log13,
       transferable_log14,
     ]; // there's no transferable_log21
-    expect.sort_by(|a, b| a.tick.hex().cmp(&b.tick.hex()));
+    expect.sort_by(|a, b| a.tick.cmp(&b.tick));
     assert_eq!(transferable_logs, expect);
   }
 

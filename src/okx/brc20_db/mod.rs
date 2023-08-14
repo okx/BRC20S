@@ -1,11 +1,9 @@
 mod read_only;
 mod read_write;
-mod storage_balance;
 
 pub use self::{read_only::BRC20DatabaseReader, read_write::BRC20Database};
 
-use self::storage_balance::StoreBalance;
-use crate::brc20::{ScriptKey, Tick};
+use crate::brc20::{LowerTick, ScriptKey, Tick};
 use crate::InscriptionId;
 use bitcoin::Txid;
 use redb::TableDefinition;
@@ -21,9 +19,9 @@ fn script_tick_key(script: &ScriptKey, tick: &Tick) -> String {
 }
 
 fn min_script_tick_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), Tick::min_hex())
+  format!("{}_{}", script.to_string(), LowerTick::min_hex())
 }
 
 fn max_script_tick_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), Tick::max_hex())
+  format!("{}_{}", script.to_string(), LowerTick::max_hex())
 }

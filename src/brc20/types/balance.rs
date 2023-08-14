@@ -1,15 +1,20 @@
-use serde::{Deserialize, Serialize};
+use {
+  super::*,
+  serde::{Deserialize, Serialize},
+};
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub struct Balance {
+  pub tick: Tick,
   pub overall_balance: u128,
   pub transferable_balance: u128,
 }
 
 impl Balance {
-  pub fn new() -> Self {
+  pub fn new(tick: &Tick) -> Self {
     Self {
-      overall_balance: 0 as u128,
-      transferable_balance: 0 as u128,
+      tick: tick.clone(),
+      overall_balance: 0u128,
+      transferable_balance: 0u128,
     }
   }
 }

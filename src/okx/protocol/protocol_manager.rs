@@ -4,11 +4,16 @@ use super::*;
 use crate::{
   index::BlockData,
   okx::datastore::ord::operation::InscriptionOp,
-  okx::datastore::{brc20, brc20s, btc::{self, Balance}, ord, ScriptKey},
+  okx::datastore::{
+    brc20, brc20s,
+    btc::{self, Balance},
+    ord, ScriptKey,
+  },
+  okx::protocol::btc as btc_proto,
   Instant, Result,
 };
 use anyhow::anyhow;
-use bitcoin::{Network, Txid, Script};
+use bitcoin::{Network, Script, Txid};
 use bitcoincore_rpc::Client;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -88,10 +93,7 @@ impl<
     let (coinbase_tx, _) = block.txdata.get(0).unwrap();
     //todo: coinbase_tx.output.len() must be 1
     for output in &coinbase_tx.output {
-      let sk = ScriptKey::from_script(
-        &output.script_pubkey,
-        context.network,
-      );
+      let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
       // todo: enhanced security
       // record coinbase tx output rewards
       let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
@@ -138,15 +140,13 @@ impl<
 
         // update address balance
         for input in &tx.input {
-          let prev_output = &self.ord_store
+          let prev_output = &self
+            .ord_store
             .get_outpoint_to_txout(input.previous_output)
             .map_err(|e| anyhow!("failed to get tx out from state! error: {e}",))?
             .unwrap();
 
-          let sk = ScriptKey::from_script(
-            &prev_output.script_pubkey,
-            context.network,
-          );
+          let sk = ScriptKey::from_script(&prev_output.script_pubkey, context.network);
 
           // todo: enhanced security
           let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
@@ -167,13 +167,18 @@ impl<
           // );
 
           self.btc_store.update_balance(&sk, new_balance).unwrap();
+
+          // BTC transfer to BRC20S passive withdrawal
+          let msg = Message::BTC(btc_proto::Message {
+            txid: tx.txid(),
+            from: sk,
+            amt: 0_u128, //prev_output.value, // TODO
+          });
+          self.call_man.execute_message(context, &msg)?;
         }
 
         for output in &tx.output {
-          let sk = ScriptKey::from_script(
-            &output.script_pubkey,
-            context.network,
-          );
+          let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
           // todo: enhanced security
           let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
             Some(balance) => balance.overall_balance,

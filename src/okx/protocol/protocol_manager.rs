@@ -98,57 +98,23 @@ impl<
         Some(balance) => balance.overall_balance,
         None => 0u64,
       } + output.value;
-      
+
       let new_balance = Balance {
         overall_balance: new_balance,
       };
+
+      // todo: only for debug, delete later
+      // log::info!(
+      //   "[Increase Coinbase TX balance] Protocol Manager indexed block {}, update key: {}, value: {}!!!!!",
+      //   context.blockheight,
+      //   &sk,
+      //   &new_balance.overall_balance,
+      // );
 
       self.btc_store.update_balance(&sk, new_balance).unwrap();
     }
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
-      for input in &tx.input {
-        let prev_output = &self.ord_store
-        .get_outpoint_to_txout(input.previous_output)
-        .map_err(|e| anyhow!("failed to get tx out from state! error: {e}",))?
-        .unwrap();
-
-        let sk = ScriptKey::from_script(
-          &prev_output.script_pubkey,
-          context.network,
-        );
-
-        // todo: enhanced security
-        let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
-          Some(balance) => balance.overall_balance,
-          None => 0u64,
-        } - prev_output.value;
-        
-        let new_balance = Balance {
-          overall_balance: new_balance,
-        };
-
-        self.btc_store.update_balance(&sk, new_balance).unwrap();
-      }
-
-      for output in &tx.output {
-        let sk = ScriptKey::from_script(
-          &output.script_pubkey,
-          context.network,
-        );
-        // todo: enhanced security
-        let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
-          Some(balance) => balance.overall_balance,
-          None => 0u64,
-        } + output.value;
-        
-        let new_balance = Balance {
-          overall_balance: new_balance,
-        };
-  
-        self.btc_store.update_balance(&sk, new_balance).unwrap();
-      }
-
       if let Some(tx_operations) = operations.remove(txid) {
         // save transaction operations.
         if context.blockheight >= self.first_inscription_height {
@@ -170,8 +136,64 @@ impl<
         }
         messages_size += messages.len();
 
-        //todo
-        //
+        // update address balance
+        for input in &tx.input {
+          let prev_output = &self.ord_store
+            .get_outpoint_to_txout(input.previous_output)
+            .map_err(|e| anyhow!("failed to get tx out from state! error: {e}",))?
+            .unwrap();
+
+          let sk = ScriptKey::from_script(
+            &prev_output.script_pubkey,
+            context.network,
+          );
+
+          // todo: enhanced security
+          let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
+            Some(balance) => balance.overall_balance,
+            None => 0u64,
+          } - prev_output.value;
+
+          let new_balance = Balance {
+            overall_balance: new_balance,
+          };
+
+          // todo: only for debug, delete later
+          // log::info!(
+          //   "###[Decrease Normal TX balance] Protocol Manager indexed block {}, update key: {}, value: {}!!!!!",
+          //   context.blockheight,
+          //   &sk,
+          //   &new_balance.overall_balance,
+          // );
+
+          self.btc_store.update_balance(&sk, new_balance).unwrap();
+        }
+
+        for output in &tx.output {
+          let sk = ScriptKey::from_script(
+            &output.script_pubkey,
+            context.network,
+          );
+          // todo: enhanced security
+          let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
+            Some(balance) => balance.overall_balance,
+            None => 0u64,
+          } + output.value;
+
+          let new_balance = Balance {
+            overall_balance: new_balance,
+          };
+
+          // todo: only for debug, delete later
+          // log::info!(
+          //   "###[Increase Normal TX balance] Protocol Manager indexed block {}, update key: {}, value: {}!!!!!",
+          //   context.blockheight,
+          //   &sk,
+          //   &new_balance.overall_balance,
+          // );
+
+          self.btc_store.update_balance(&sk, new_balance).unwrap();
+        }
       }
     }
 

@@ -29,10 +29,5 @@ pub fn gen_receipt(msg: &Message) -> Result<Option<Receipt>> {
   };
 
   log::debug!("BTC message receipt: {:?}", receipt);
-  // TODO
-  // brc20_store
-  //   .add_transaction_receipt(&msg.txid, &receipt)
-  //   .map_err(|e| anyhow!("failed to add transaction receipt to state! error: {e}"))?;
-
   Ok(Some(receipt))
 }

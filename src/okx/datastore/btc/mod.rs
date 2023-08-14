@@ -1,19 +1,19 @@
+mod balance;
 mod errors;
 mod events;
+pub mod redb;
 
-use crate::okx::datastore::ScriptKey;
+pub use self::{balance::Balance, errors::BTCError, events::*};
+use super::ScriptKey;
 use std::fmt::{Debug, Display};
-
-pub use self::{errors::BTCError, events::*};
 
 pub trait DataStoreReadOnly {
   type Error: Debug + Display;
 
-  // BTC_BALANCE
-  fn get_balance(&self, script_key: &ScriptKey) -> Result<Option<u128>, Self::Error>;
+  fn get_balance(&self, script_key: &ScriptKey) -> Result<Option<Balance>, Self::Error>;
 }
 
 pub trait DataStoreReadWrite: DataStoreReadOnly {
-  // BTC_BALANCE
-  fn set_token_balance(&self, script_key: &ScriptKey, balance: u128) -> Result<(), Self::Error>;
+  fn update_balance(&self, script_key: &ScriptKey, new_balance: Balance)
+    -> Result<(), Self::Error>;
 }

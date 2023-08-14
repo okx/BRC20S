@@ -16,10 +16,12 @@ use bitcoin::OutPoint;
 pub struct CallManager<
   'a,
   O: ord_store::OrdDataStoreReadWrite,
+  L: btc_store::DataStoreReadWrite,
   N: brc20_store::DataStoreReadWrite,
   M: brc20s_store::DataStoreReadWrite,
 > {
   ord_store: &'a O,
+  btc_store: &'a L,
   brc20_store: &'a N,
   brc20s_store: &'a M,
 }
@@ -27,13 +29,15 @@ pub struct CallManager<
 impl<
     'a,
     O: ord_store::OrdDataStoreReadWrite,
+    L: btc_store::DataStoreReadWrite,
     N: brc20_store::DataStoreReadWrite,
     M: brc20s_store::DataStoreReadWrite,
-  > CallManager<'a, O, N, M>
+  > CallManager<'a, O, L, N, M>
 {
-  pub fn new(ord_store: &'a O, brc20_store: &'a N, brc20s_store: &'a M) -> Self {
+  pub fn new(ord_store: &'a O, btc_store: &'a L, brc20_store: &'a N, brc20s_store: &'a M) -> Self {
     Self {
       ord_store,
+      btc_store,
       brc20_store,
       brc20s_store,
     }

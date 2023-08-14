@@ -57,6 +57,7 @@ impl<
         context,
         self.brc20_store,
         self.brc20s_store,
+        self.btc_store,
         &brc20s::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20S))?,
@@ -89,6 +90,7 @@ impl<
                   context,
                   self.brc20_store,
                   self.brc20s_store,
+                  self.btc_store,
                   &brc20s::ExecutionMessage::from_message(
                     self.ord_store,
                     &passive_msg,
@@ -126,6 +128,7 @@ impl<
                     context,
                     self.brc20_store,
                     self.brc20s_store,
+                    self.btc_store,
                     &brc20s::ExecutionMessage::from_message(
                       self.ord_store,
                       &passive_msg,
@@ -161,9 +164,10 @@ impl<
                   context,
                   self.brc20_store,
                   self.brc20s_store,
-                  &brc20s::ExecutionMessage::from_message(
-                    self.ord_store,
+                  self.btc_store,
+                  &brc20s::ExecutionMessage::from_btc_message(
                     &passive_msg,
+                    old_btc_msg.from.clone(),
                     context.network,
                   )?,
                 )?;

@@ -28,6 +28,7 @@ use crate::okx::{
 use crate::okx::datastore::brc20;
 use crate::okx::datastore::brc20s;
 use crate::okx::datastore::brc20s::PledgedTick;
+use crate::okx::datastore::btc;
 use crate::okx::datastore::ord;
 use crate::{InscriptionId, Result, SatPoint};
 use anyhow::anyhow;
@@ -87,12 +88,36 @@ impl ExecutionMessage {
       version: get_version_by_network(network),
     })
   }
+
+  pub fn from_btc_message(msg: &Message, from: ScriptKey, network: Network) -> Result<Self> {
+    Ok(Self {
+      txid: msg.txid,
+      inscription_id: msg.inscription_id,
+      inscription_number: 0,
+      commit_input_satpoint: msg.commit_input_satpoint,
+      old_satpoint: msg.old_satpoint,
+      new_satpoint: msg
+        .new_satpoint
+        .ok_or(anyhow!("new satpoint cannot be None"))?,
+      commit_from: None,
+      from: from.clone(),
+      to: Some(from.clone()),
+      op: msg.op.clone(),
+      version: get_version_by_network(network),
+    })
+  }
 }
 
-pub fn execute<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+pub fn execute<
+  'a,
+  M: brc20::DataStoreReadWrite,
+  N: brc20s::DataStoreReadWrite,
+  L: btc::DataStoreReadWrite,
+>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
+  btc_store: &'a L,
   msg: &ExecutionMessage,
 ) -> Result<Option<Receipt>> {
   log::debug!("BRC20S execute message: {:?}", msg);
@@ -101,9 +126,15 @@ pub fn execute<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
     Operation::Deploy(deploy) => {
       process_deploy(context, brc20_store, brc20s_store, msg, deploy.clone())
     }
-    Operation::Stake(stake) => {
-      process_stake(context, brc20_store, brc20s_store, msg, stake.clone()).map(|event| vec![event])
-    }
+    Operation::Stake(stake) => process_stake(
+      context,
+      brc20_store,
+      brc20s_store,
+      btc_store,
+      msg,
+      stake.clone(),
+    )
+    .map(|event| vec![event]),
     Operation::UnStake(unstake) => {
       process_unstake(context, brc20_store, brc20s_store, msg, unstake.clone())
         .map(|event| vec![event])
@@ -113,6 +144,7 @@ pub fn execute<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
         context,
         brc20_store,
         brc20s_store,
+        btc_store,
         msg,
         passive_unstake.clone(),
       );
@@ -389,10 +421,16 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
   Ok(events)
 }
 
-fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+fn process_stake<
+  'a,
+  M: brc20::DataStoreReadWrite,
+  N: brc20s::DataStoreReadWrite,
+  L: btc::DataStoreReadWrite,
+>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
+  btc_store: &'a L,
   msg: &ExecutionMessage,
   stake_msg: Stake,
 ) -> Result<Event, Error<N>> {
@@ -434,8 +472,13 @@ fn process_stake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite
   )?;
 
   // check user balance of stake is more than ammount to staked
-  let stake_balance =
-    get_user_common_balance(&to_script_key, &stake_tick, brc20s_store, brc20_store);
+  let stake_balance = get_user_common_balance(
+    &to_script_key,
+    &stake_tick,
+    brc20s_store,
+    brc20_store,
+    btc_store,
+  );
 
   let is_first_stake: bool;
   let mut userinfo = match brc20s_store.get_pid_to_use_info(&to_script_key, &pool_id) {
@@ -663,10 +706,16 @@ fn process_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWri
   }))
 }
 
-fn process_passive_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+fn process_passive_unstake<
+  'a,
+  M: brc20::DataStoreReadWrite,
+  N: brc20s::DataStoreReadWrite,
+  L: btc::DataStoreReadWrite,
+>(
   context: BlockContext,
   brc20_store: &'a M,
   brc20s_store: &'a N,
+  btc_store: &'a L,
   msg: &ExecutionMessage,
   passive_unstake: PassiveUnStake,
 ) -> Result<Vec<Event>, Error<N>> {
@@ -693,7 +742,13 @@ fn process_passive_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStor
     }
   };
 
-  let balance = get_user_common_balance(&from_script_key, &stake_tick, brc20s_store, brc20_store);
+  let balance = get_user_common_balance(
+    &from_script_key,
+    &stake_tick,
+    brc20s_store,
+    brc20_store,
+    btc_store,
+  );
   let staked_total =
     Num::from(stake_info.total_only).checked_add(&Num::from(stake_info.max_share))?;
 
@@ -1037,6 +1092,9 @@ mod tests {
   use crate::okx::datastore::brc20s::DataStoreReadWrite as BRC20SDataStoreReadWrite;
   use crate::okx::datastore::brc20s::Event::PassiveWithdraw;
   use crate::okx::datastore::brc20s::PledgedTick;
+  use crate::okx::datastore::btc::redb as btc_db;
+  use crate::okx::datastore::btc::Balance as BTCBalance;
+  use crate::okx::datastore::btc::DataStoreReadWrite as BTCDataStoreReadWrite;
   use crate::okx::protocol::brc20s::test::{
     mock_create_brc20s_message, mock_deploy_msg, mock_passive_unstake_msg, mock_stake_msg,
     mock_unstake_msg,
@@ -1050,9 +1108,15 @@ mod tests {
   use redb::Database;
   use tempfile::NamedTempFile;
 
-  fn execute_for_test<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
+  fn execute_for_test<
+    'a,
+    M: brc20::DataStoreReadWrite,
+    N: brc20s::DataStoreReadWrite,
+    L: btc::DataStoreReadWrite,
+  >(
     brc20_store: &'a M,
     brc20s_store: &'a N,
+    btc_store: &'a L,
     msg: &ExecutionMessage,
     height: u64,
   ) -> Result<Vec<Event>, BRC20SError> {
@@ -1068,7 +1132,7 @@ mod tests {
         Err(e) => Err(e),
       },
       Operation::Stake(stake) => {
-        match process_stake(context, brc20_store, brc20s_store, msg, stake) {
+        match process_stake(context, brc20_store, brc20s_store, btc_store, msg, stake) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
@@ -1079,9 +1143,14 @@ mod tests {
           Err(e) => Err(e),
         }
       }
-      Operation::PassiveUnStake(passive_unstake) => {
-        process_passive_unstake(context, brc20_store, brc20s_store, msg, passive_unstake)
-      }
+      Operation::PassiveUnStake(passive_unstake) => process_passive_unstake(
+        context,
+        brc20_store,
+        brc20s_store,
+        btc_store,
+        msg,
+        passive_unstake,
+      ),
       Operation::InscribeTransfer(inscribe_transfer) => {
         match process_inscribe_transfer(context, brc20_store, brc20s_store, msg, inscribe_transfer)
         {
@@ -1192,6 +1261,7 @@ mod tests {
 
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -1355,6 +1425,7 @@ mod tests {
 
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -1942,6 +2013,7 @@ mod tests {
 
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -2861,6 +2933,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -2970,6 +3043,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -3024,6 +3098,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg,
       );
@@ -3095,6 +3170,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg,
       );
@@ -3131,6 +3207,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg,
       );
@@ -3168,6 +3245,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg,
       );
@@ -3233,6 +3311,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg,
       );
@@ -3363,6 +3442,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3373,6 +3453,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3383,6 +3464,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3393,6 +3475,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3403,6 +3486,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3413,6 +3497,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg.clone(),
       );
@@ -3438,6 +3523,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         stake_msg,
       );
@@ -3466,6 +3552,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -3575,6 +3662,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg,
       stake_msg,
     );
@@ -3685,6 +3773,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -3794,6 +3883,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg,
       stake_msg,
     );
@@ -3960,6 +4050,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -4069,6 +4160,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg,
       stake_msg,
     );
@@ -4133,6 +4225,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         passive_unstake_msg,
       );
@@ -4189,6 +4282,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -4208,29 +4302,12 @@ mod tests {
       InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
 
-    let token = brc20::Tick::from_str("orea".to_string().as_str()).unwrap();
-    // let token_info = TokenInfo {
-    //   tick: token.clone(),
-    //   inscription_id,
-    //   inscription_number: 0,
-    //   supply: 21000000000_u128,
-    //   minted: 2000000000_u128,
-    //   limit_per_mint: 0,
-    //   decimal: 3,
-    //   deploy_by: script.clone(),
-    //   deployed_number: 0,
-    //   deployed_timestamp: 0,
-    //   latest_mint_number: 0,
-    // };
-    // brc20_data_store.insert_token_info(&token, &token_info);
-    let balance = BRC20Balance {
-      tick: token.clone(),
-      overall_balance: 200000000000000_u128,
-      transferable_balance: 100000000000000_u128,
+    let balance = BTCBalance {
+      overall_balance: 200000000000000_u64,
     };
-    let result = brc20_data_store.update_token_balance(&script, balance);
+    let result = btc_data_store.update_balance(&script, balance);
     if let Err(error) = result {
-      panic!("update_token_balance err: {}", error)
+      panic!("update_balance err: {}", error)
     }
 
     let msg = mock_create_brc20s_message(
@@ -4298,6 +4375,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg,
       stake_msg,
     );
@@ -4348,20 +4426,19 @@ mod tests {
         network: Network::Bitcoin,
       };
 
-      //mock brc20 transfer
-      let balance = BRC20Balance {
-        tick: token,
-        overall_balance: 0_u128,
-        transferable_balance: 0_u128,
+      //mock btc transfer
+      let balance = BTCBalance {
+        overall_balance: 0_u64,
       };
-      let result = brc20_data_store.update_token_balance(&script, balance);
+      let result = btc_data_store.update_balance(&script, balance);
       if let Err(error) = result {
-        panic!("update_token_balance err: {}", error)
+        panic!("update_balance err: {}", error)
       }
       let result = process_passive_unstake(
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         passive_unstake_msg,
       );
@@ -4418,6 +4495,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -4527,6 +4605,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg,
       stake_msg,
     );
@@ -4591,6 +4670,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         passive_unstake_msg,
       );
@@ -4628,6 +4708,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         passive_unstake_msg,
       );
@@ -4680,6 +4761,7 @@ mod tests {
         context,
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         &msg,
         passive_unstake_msg,
       );
@@ -4702,6 +4784,7 @@ mod tests {
 
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let (deploy, msg) = mock_deploy_msg(
@@ -4710,7 +4793,13 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
 
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let tick_id = deploy.get_tick_id();
     let tikc_id_str = tick_id.hex();
@@ -4726,7 +4815,13 @@ mod tests {
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
     {
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(Err(BRC20SError::PoolAlreadyExist(deploy.pool_id)), result);
 
       //brc20s stake can not deploy
@@ -4744,13 +4839,25 @@ mod tests {
         addr,
         addr,
       );
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(Err(BRC20SError::StakeNoPermission(tikc_id_str)), result);
       //btc stake can not deploy
       let (_, msg) = mock_deploy_msg(
         "pool", "02", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
       );
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::StakeNoPermission("btc".to_string())),
         result
@@ -4768,7 +4875,13 @@ mod tests {
       );
       deploy.pool_id = tick_id.hex() + "#02";
       msg.op = Operation::Deploy(deploy);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::FromToNotEqual(
           new_addr.to_string(),
@@ -4785,7 +4898,13 @@ mod tests {
       deploy.pool_id = tick_id.hex() + "#02";
       let pool_id = deploy.pool_id.clone();
       msg.op = Operation::Deploy(deploy);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::DeployerNotEqual(
           pool_id,
@@ -4798,7 +4917,13 @@ mod tests {
     let (deploy, msg) = mock_deploy_msg(
       "pool", "02", "orea", "ordi1", "0.1", "9000000", "21000000", 18, true, addr, addr,
     );
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     let tick_id = deploy.get_tick_id();
@@ -4822,6 +4947,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     // deploy brc20
     let script = ScriptKey::from_address(
@@ -4923,6 +5049,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg,
       stake_msg,
     );
@@ -5222,6 +5349,7 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     // deploy brc20
     let script = ScriptKey::from_address(
@@ -5339,6 +5467,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg,
       stake_msg.clone(),
     );
@@ -5347,6 +5476,7 @@ mod tests {
       context,
       &brc20_data_store,
       &brc20s_data_store,
+      &btc_data_store,
       &msg1,
       stake_msg,
     );
@@ -5861,6 +5991,7 @@ mod tests {
 
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -5874,25 +6005,49 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let pid_only1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     print!("only1{}", pid_only1);
@@ -5902,14 +6057,26 @@ mod tests {
     {
       //pool is not exist
       let (stake, msg) = mock_stake_msg("0000000001#11", "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::PoolNotExist("0000000001#11".to_string())),
         result
       );
       //from is not equal to
       let (stake, msg) = mock_stake_msg(pid_only1, "100", new_addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::FromToNotEqual(
           new_addr.to_string(),
@@ -5919,7 +6086,13 @@ mod tests {
       );
       //user balance < amount
       let (stake, msg) = mock_stake_msg(pid_only1, "300", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::InsufficientBalance(
           "300000000000000000000".to_string(),
@@ -5930,7 +6103,13 @@ mod tests {
     }
     //first stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000]],"max_share":0,"total_only":50000000000000000000}"#;
@@ -5947,7 +6126,13 @@ mod tests {
     );
     //first stake to share pool
     let (stake, msg) = mock_stake_msg(pid_share1, "49", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":50000000000000000000}"#;
@@ -5964,11 +6149,23 @@ mod tests {
     );
     {
       let (stake, msg) = mock_stake_msg(pid_only2, "49", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(None, result.err());
 
       let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(None, result.err());
 
       let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,49000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"#;
@@ -5986,7 +6183,13 @@ mod tests {
     }
     //user has stake 2 only pool 2 share pool, then stake to only pool but can_stake < amount
     let (stake, msg) = mock_stake_msg(pid_only2, "51.1", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(
       Some(BRC20SError::InsufficientBalance(
         "51100000000000000000".to_string(),
@@ -5996,7 +6199,13 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then stake to share pool but can_stake < amount
     let (stake, msg) = mock_stake_msg(pid_share2, "102", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(
       Some(BRC20SError::InsufficientBalance(
         "102000000000000000000".to_string(),
@@ -6006,7 +6215,13 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
     assert_eq!(None, result.err());
     let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000]],"max_share":50000000000000000000,"total_only":149000000000000000000}"#;
     let expect_userinfo = r#"{"pid":"7737ed558e#01","staked":99000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":20204081632653061176,"latest_updated_block":1}"#;
@@ -6022,7 +6237,13 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then stake to share pool
     let (stake, msg) = mock_stake_msg(pid_share1, "2", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
     assert_eq!(None, result.err());
     let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000],["fb641f54a2#01",false,51000000000000000000]],"max_share":51000000000000000000,"total_only":149000000000000000000}"#;
     let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":51000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":10408163265306122424,"latest_updated_block":1}"#;
@@ -6046,6 +6267,7 @@ mod tests {
 
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -6059,25 +6281,49 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let pid_only1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     println!("only1  :{}", pid_only1);
@@ -6087,14 +6333,26 @@ mod tests {
     {
       //pool is not exist
       let (stake, msg) = mock_unstake_msg("0000000001#11", "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::PoolNotExist("0000000001#11".to_string())),
         result
       );
       //from is not equal to
       let (stake, msg) = mock_unstake_msg(pid_only1, "100", new_addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::FromToNotEqual(
           new_addr.to_string(),
@@ -6104,7 +6362,13 @@ mod tests {
       );
       //user haven't stake
       let (stake, msg) = mock_unstake_msg(pid_only1, "300", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::InsufficientBalance(
           "0".to_string(),
@@ -6115,12 +6379,24 @@ mod tests {
     }
     //stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     //unstake amt > stake amt
     let (stake, msg) = mock_unstake_msg(pid_only1, "300", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(
       Err(BRC20SError::InsufficientBalance(
         "50000000000000000000".to_string(),
@@ -6131,10 +6407,16 @@ mod tests {
 
     //unstake to only pool
     let (stake, msg) = mock_unstake_msg(pid_only1, "1", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
-    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000]],"max_share":0,"total_only":49000000000000000000}"#;
-    let expect_userinfo = r#"{"pid":"13395c5283#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"#;
-    let expect_poolinfo = r#"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000]],"max_share":0,"total_only":49000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
     assert_stake_info(
       &brc20s_data_store,
       pid_only1,
@@ -6147,14 +6429,26 @@ mod tests {
 
     //stake to share pool
     let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     //unstake to share pool
     let (stake, msg) = mock_unstake_msg(pid_share1, "1", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
-    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":49000000000000000000}"#;
-    let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"#;
-    let expect_poolinfo = r#"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":49000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
     assert_stake_info(
       &brc20s_data_store,
       pid_share1,
@@ -6167,11 +6461,23 @@ mod tests {
 
     {
       let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(None, result.err());
 
       let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(None, result.err());
 
       let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"#;
@@ -6189,10 +6495,16 @@ mod tests {
     }
     //user has stake 2 only pool 2 share pool, then unstake from only pool
     let (stake, msg) = mock_unstake_msg(pid_only2, "2", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
-    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"#;
-    let expect_userinfo = r#"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"#;
-    let expect_poolinfo = r#"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
     assert_stake_info(
       &brc20s_data_store,
       pid_only2,
@@ -6204,10 +6516,16 @@ mod tests {
     );
     //user has stake 2 only pool 2 share pool, then unstake from share pool
     let (stake, msg) = mock_unstake_msg(pid_share2, "2", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
-    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"#;
-    let expect_userinfo = r#"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"#;
-    let expect_poolinfo = r#"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
+    let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
     assert_stake_info(
       &brc20s_data_store,
       pid_share2,
@@ -6220,10 +6538,16 @@ mod tests {
 
     //user has stake 2 only pool 2 share pool, then unstake from share pool to 0
     let (stake, msg) = mock_unstake_msg(pid_share1, "49", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 2);
-    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"#;
-    let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"#;
-    let expect_poolinfo = r#"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"404081632653061224","last_update_block":2,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      2,
+    );
+    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"##;
+    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"##;
+    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"404081632653061224","last_update_block":2,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
     assert_stake_info(
       &brc20s_data_store,
       pid_share1,
@@ -6243,6 +6567,7 @@ mod tests {
 
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -6256,25 +6581,49 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let pid_only1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi2", "10", "12000000", "21000000", 18, true, addr, addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi3", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
       "pool", "01", "btc1", "ordi4", "10", "12000000", "21000000", 18, false, addr, addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     println!("only1  :{}", pid_only1);
@@ -6284,19 +6633,37 @@ mod tests {
     {
       //pool is not exist
       let (stake, msg) = mock_passive_unstake_msg("0000000001", "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(
         Err(BRC20SError::StakeNotFound("0000000001".to_string())),
         result
       );
       //no stake then passive unstake
       let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(Err(BRC20SError::StakeNotFound("btc1".to_string(),)), result);
     }
     //stake to only pool
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     //sum - transfer > amt nothing do
@@ -6304,7 +6671,13 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 50_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "200", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(Ok(vec![]), result);
 
     //sum - transfer > amt passive unstake
@@ -6312,7 +6685,13 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 10_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "190", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
         pid: Pid::from_str(pid_only1).unwrap(),
@@ -6338,7 +6717,13 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 0_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, new_addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 2);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      2,
+    );
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
         pid: Pid::from_str(pid_only1).unwrap(),
@@ -6367,7 +6752,13 @@ mod tests {
 
     //stake to share pool
     let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(None, result.err());
 
     //sum - transfer > amt nothing do
@@ -6375,7 +6766,13 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 50_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "200", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      0,
+    );
     assert_eq!(Ok(vec![]), result);
 
     //sum - transfer > amt passive unstake
@@ -6383,7 +6780,13 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 10_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "190", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
         pid: Pid::from_str(pid_share1).unwrap(),
@@ -6409,7 +6812,13 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 0_u128, 18_u8).err();
     assert_eq!(None, result);
     let (stake, msg) = mock_passive_unstake_msg("btc1", "50", addr, new_addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 2);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      2,
+    );
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
         pid: Pid::from_str(pid_share1).unwrap(),
@@ -6433,9 +6842,15 @@ mod tests {
     );
   }
 
-  fn prepare_env_for_test<'a, L: brc20::DataStoreReadWrite, K: brc20s::DataStoreReadWrite>(
+  fn prepare_env_for_test<
+    'a,
+    L: brc20::DataStoreReadWrite,
+    K: brc20s::DataStoreReadWrite,
+    M: btc::DataStoreReadWrite,
+  >(
     brc20_data_store: &'a L,
     brc20s_data_store: &'a K,
+    btc_data_store: &'a M,
     addr: &str,
     stake: &str,
     earn: &str,
@@ -6466,7 +6881,7 @@ mod tests {
     let pid_only1 = deploy.pool_id.as_str();
     let hehe = deploy.get_pool_id();
 
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let stake_tick_only1 = deploy.get_stake_id();
     results.push((pid_only1.to_string(), stake_tick_only1.clone()));
@@ -6487,7 +6902,7 @@ mod tests {
       addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let stake_tick_only2 = deploy.get_stake_id();
     results.push((pid_only2.to_string(), stake_tick_only2.clone()));
@@ -6508,7 +6923,7 @@ mod tests {
       addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let stake_tick_share1 = deploy.get_stake_id();
     results.push((pid_share1.to_string(), stake_tick_share1.clone()));
@@ -6529,26 +6944,26 @@ mod tests {
       addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let stake_tick_share2 = deploy.get_stake_id();
     results.push((pid_share2.to_string(), stake_tick_share2.clone()));
 
     //stake to
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, &msg, 0);
+    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
     assert_eq!(None, result.err());
     let mut max_share = 0_u128;
     let mut total_only = 0_u128;
@@ -6659,6 +7074,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -6666,6 +7082,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -6683,7 +7100,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 150_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(Ok(vec![]), result);
     }
@@ -6696,6 +7119,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -6703,6 +7127,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -6720,7 +7145,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 100_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -6745,6 +7176,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -6752,6 +7184,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -6769,7 +7202,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 50_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "150", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -6798,6 +7237,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -6805,6 +7245,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -6822,7 +7263,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 0_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "200", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -6855,6 +7302,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -6862,6 +7310,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -6879,7 +7328,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 150_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(Ok(vec![]), result);
     }
@@ -6892,6 +7347,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -6899,6 +7355,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -6916,7 +7373,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 100_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
@@ -6935,6 +7398,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -6942,6 +7406,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -6959,7 +7424,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 50_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "150", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -6988,6 +7459,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -6995,6 +7467,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7012,7 +7485,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 0_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "200", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -7045,6 +7524,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7052,6 +7532,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7069,7 +7550,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 150_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(Ok(vec![]), result);
     }
@@ -7082,6 +7569,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7089,6 +7577,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7106,7 +7595,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 100_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -7131,6 +7626,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7138,6 +7634,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7155,7 +7652,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 50_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "150", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -7184,6 +7687,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7191,6 +7695,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7208,7 +7713,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 0_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "200", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -7241,6 +7752,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7248,6 +7760,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7265,7 +7778,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 150_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
@@ -7284,6 +7803,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7291,6 +7811,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7308,7 +7829,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 100_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -7333,6 +7860,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7340,6 +7868,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7357,7 +7886,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 50_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "150", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -7386,6 +7921,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7393,6 +7929,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7410,7 +7947,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 0_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "200", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -7443,6 +7986,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7450,6 +7994,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7467,7 +8012,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 150_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "50", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(Ok(vec![]), result);
     }
@@ -7480,6 +8031,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7487,6 +8039,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7504,7 +8057,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 100_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "100", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(Ok(vec![]), result);
     }
@@ -7517,6 +8076,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7524,6 +8084,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7541,7 +8102,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 50_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "150", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(Ok(vec![]), result);
     }
@@ -7554,6 +8121,7 @@ mod tests {
 
       let brc20_data_store = brc20_db::DataStore::new(&wtx);
       let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+      let btc_data_store = btc_db::DataStore::new(&wtx);
 
       let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
 
@@ -7561,6 +8129,7 @@ mod tests {
       let result = prepare_env_for_test(
         &brc20_data_store,
         &brc20s_data_store,
+        &btc_data_store,
         addr,
         stake,
         "ord",
@@ -7578,7 +8147,13 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, stake, &from_script, 0_u128, 18_u8).err();
       assert_eq!(None, result);
       let (stake, msg) = mock_passive_unstake_msg(stake, "200", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        1,
+      );
 
       assert_eq!(
         Ok(vec![
@@ -7612,6 +8187,7 @@ mod tests {
 
     let brc20_data_store = brc20_db::DataStore::new(&wtx);
     let brc20s_data_store = brc20s_db::DataStore::new(&wtx);
+    let btc_data_store = btc_db::DataStore::new(&wtx);
 
     let addr = "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e";
     let new_addr = "bc1pvk535u5eedhsx75r7mfvdru7t0kcr36mf9wuku7k68stc0ncss8qwzeahv";
@@ -7644,12 +8220,24 @@ mod tests {
         addr,
         addr,
       );
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        0,
+      );
       assert_eq!(None, result.err());
 
       let pid_only1 = deploy.get_pool_id();
       let (stake, msg) = mock_stake_msg(pid_only1.as_str(), "1", addr, addr);
-      let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 100);
+      let result = execute_for_test(
+        &brc20_data_store,
+        &brc20s_data_store,
+        &btc_data_store,
+        &msg,
+        100,
+      );
       assert_eq!(None, result.err());
     }
     let result = brc20s_data_store
@@ -7666,7 +8254,13 @@ mod tests {
     let old = Local::now();
 
     let (stake, msg) = mock_passive_unstake_msg("btc1", "1", addr, addr);
-    let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
+    let result = execute_for_test(
+      &brc20_data_store,
+      &brc20s_data_store,
+      &btc_data_store,
+      &msg,
+      1,
+    );
     assert_eq!(None, result.err());
     let now = Local::now().sub(old);
     print!("\nend:{}\n", now);

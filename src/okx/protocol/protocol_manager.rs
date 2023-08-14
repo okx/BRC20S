@@ -172,7 +172,7 @@ impl<
           let msg = Message::BTC(btc_proto::Message {
             txid: tx.txid(),
             from: sk,
-            amt: 0_u128, //prev_output.value, // TODO
+            amt: prev_output.value as u128,
           });
           self.call_man.execute_message(context, &msg)?;
         }

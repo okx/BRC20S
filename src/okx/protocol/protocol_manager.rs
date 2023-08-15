@@ -9,12 +9,16 @@ use crate::{
     btc::{self, Balance},
     ord, ScriptKey,
   },
-  okx::protocol::btc as btc_proto,
+  okx::protocol::btc:: {
+    self as btc_proto, num::Num, Error
+  },
   Instant, Result,
 };
 use anyhow::anyhow;
 use bitcoin::{Network, Script, Txid};
 use bitcoincore_rpc::Client;
+use serde_json;
+use crate::okx::datastore::btc::DataStoreReadOnly;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BlockContext {
@@ -89,34 +93,73 @@ impl<
     let start = Instant::now();
     let mut inscriptions_size = 0;
     let mut messages_size = 0;
+    let mut balance_change_map: HashMap<String, i64> = HashMap::new();
 
     let (coinbase_tx, _) = block.txdata.get(0).unwrap();
-    //todo: coinbase_tx.output.len() must be 1
     for output in &coinbase_tx.output {
       let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
-      // todo: enhanced security
-      // record coinbase tx output rewards
-      let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
-        Some(balance) => balance.overall_balance,
-        None => 0u64,
-      } + output.value;
-
-      let new_balance = Balance {
-        overall_balance: new_balance,
-      };
-
-      // todo: only for debug, delete later
-      // log::info!(
-      //   "[Increase Coinbase TX balance] Protocol Manager indexed block {}, update key: {}, value: {}!!!!!",
-      //   context.blockheight,
-      //   &sk,
-      //   &new_balance.overall_balance,
-      // );
-
-      self.btc_store.update_balance(&sk, new_balance).unwrap();
+      let num_difference = balance_change_map.entry(serde_json::to_string(&sk)?).or_insert(0);
+      *num_difference += output.value as i64;
     }
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
+      // update address btc balance
+      for input in &tx.input {
+        let prev_output = &self
+          .ord_store
+          .get_outpoint_to_txout(input.previous_output)
+          .map_err(|e| anyhow!("failed to get tx out from state! error: {e}",))?
+          .unwrap();
+
+        let sk = ScriptKey::from_script(&prev_output.script_pubkey, context.network);
+        let num_difference = balance_change_map.entry(serde_json::to_string(&sk)?).or_insert(0);
+        *num_difference -= prev_output.value as i64;
+      }
+
+      for output in &tx.output {
+        let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
+        let num_difference = balance_change_map.entry(serde_json::to_string(&sk)?).or_insert(0);
+        *num_difference += output.value as i64;
+      }
+
+      for (sk, diff) in balance_change_map.iter() {
+        let sk: ScriptKey = serde_json::from_str(sk)?;
+        let mut balance = self
+          .btc_store
+          .get_balance(&sk)
+          .map_err(|e| anyhow!("failed to get balance from state! error: {e}"))?
+          .map_or(Balance::new(), |v| v);
+
+        let amt = Num::from(diff.clone().abs() as u64);
+
+        if diff.clone() < 0i64 {
+          // sub amount to available balance.
+          balance.overall_balance = Into::<Num>::into(balance.overall_balance)
+            .checked_sub(&amt)?
+            .checked_to_u64()?;
+
+          // BTC transfer to BRC20S passive withdrawal
+          let msg = Message::BTC(btc_proto::Message {
+            txid: tx.txid(),
+            from: sk.clone(),
+            amt: diff.clone().abs() as u128,
+          });
+          self.call_man.execute_message(context, &msg)?;
+        } else {
+          // add amount to available balance.
+          balance.overall_balance = Into::<Num>::into(balance.overall_balance)
+            .checked_add(&amt)?
+            .checked_to_u64()?;
+        }
+
+        // store to database.
+        self
+          .btc_store.update_balance(&sk, balance)
+          .map_err(|e| {
+            anyhow!("failed to update balance to state! error: {e}")
+          })?;
+      }
+
       if let Some(tx_operations) = operations.remove(txid) {
         // save transaction operations.
         if context.blockheight >= self.first_inscription_height {
@@ -138,67 +181,6 @@ impl<
         }
         messages_size += messages.len();
 
-        // update address balance
-        for input in &tx.input {
-          let prev_output = &self
-            .ord_store
-            .get_outpoint_to_txout(input.previous_output)
-            .map_err(|e| anyhow!("failed to get tx out from state! error: {e}",))?
-            .unwrap();
-
-          let sk = ScriptKey::from_script(&prev_output.script_pubkey, context.network);
-
-          // todo: enhanced security
-          let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
-            Some(balance) => balance.overall_balance,
-            None => 0u64,
-          } - prev_output.value;
-
-          let new_balance = Balance {
-            overall_balance: new_balance,
-          };
-
-          // todo: only for debug, delete later
-          // log::info!(
-          //   "###[Decrease Normal TX balance] Protocol Manager indexed block {}, update key: {}, value: {}!!!!!",
-          //   context.blockheight,
-          //   &sk,
-          //   &new_balance.overall_balance,
-          // );
-
-          self.btc_store.update_balance(&sk, new_balance).unwrap();
-
-          // BTC transfer to BRC20S passive withdrawal
-          let msg = Message::BTC(btc_proto::Message {
-            txid: tx.txid(),
-            from: sk,
-            amt: prev_output.value as u128,
-          });
-          self.call_man.execute_message(context, &msg)?;
-        }
-
-        for output in &tx.output {
-          let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
-          // todo: enhanced security
-          let new_balance = match self.btc_store.get_balance(&sk).unwrap() {
-            Some(balance) => balance.overall_balance,
-            None => 0u64,
-          } + output.value;
-
-          let new_balance = Balance {
-            overall_balance: new_balance,
-          };
-
-          // todo: only for debug, delete later
-          // log::info!(
-          //   "###[Increase Normal TX balance] Protocol Manager indexed block {}, update key: {}, value: {}!!!!!",
-          //   context.blockheight,
-          //   &sk,
-          //   &new_balance.overall_balance,
-          // );
-
-          self.btc_store.update_balance(&sk, new_balance).unwrap();
-        }
       }
     }
 

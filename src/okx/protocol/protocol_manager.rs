@@ -121,7 +121,7 @@ impl<
     for (tx, txid) in block.txdata.iter().skip(1) {
       let mut balance_change_map: HashMap<String, i64> = HashMap::new();
 
-      // update address btc balance
+      // update address btc balance by input
       for input in &tx.input {
         let prev_output = &self
           .ord_store
@@ -134,12 +134,15 @@ impl<
         *num_difference -= prev_output.value as i64;
       }
 
+      // update address btc balance by output
       for output in &tx.output {
         let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
         let num_difference = balance_change_map.entry(serde_json::to_string(&sk)?).or_insert(0);
         *num_difference += output.value as i64;
       }
 
+      // Passive withdrawal is triggered by the amount of balance change,
+      // and <sk, balance> is saved to redb.
       for (sk, diff) in balance_change_map.iter() {
         let sk: ScriptKey = serde_json::from_str(sk)?;
         let mut balance = self

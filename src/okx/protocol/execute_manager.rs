@@ -223,7 +223,10 @@ fn convert_msg_btc_to_brc20s(
       outpoint: OutPoint::null(),
       offset: 0,
     },
-    new_satpoint: None,
+    new_satpoint: Some(SatPoint {
+      outpoint: OutPoint::null(),
+      offset: 0,
+    }),
     op: brc20s::Operation::PassiveUnStake(op),
     sat_in_outputs: false,
   }

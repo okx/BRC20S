@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use super::*;
+use crate::okx::datastore::btc::DataStoreReadOnly;
 use crate::{
   index::BlockData,
   okx::datastore::ord::operation::InscriptionOp,
@@ -9,16 +10,13 @@ use crate::{
     btc::{self, Balance},
     ord, ScriptKey,
   },
-  okx::protocol::btc:: {
-    self as btc_proto, num::Num, Error
-  },
+  okx::protocol::btc::{self as btc_proto, num::Num, Error},
   Instant, Result,
 };
 use anyhow::anyhow;
 use bitcoin::{Network, Script, Txid};
 use bitcoincore_rpc::Client;
 use serde_json;
-use crate::okx::datastore::btc::DataStoreReadOnly;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BlockContext {
@@ -111,15 +109,14 @@ impl<
 
       // store to database.
       self
-        .btc_store.update_balance(&sk, balance)
-        .map_err(|e| {
-          anyhow!("failed to update balance to state! error: {e}")
-        })?;
+        .btc_store
+        .update_balance(&sk, balance)
+        .map_err(|e| anyhow!("failed to update balance to state! error: {e}"))?;
     }
 
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
-      let mut balance_change_map: HashMap<String, i64> = HashMap::new();
+      let mut balance_change_map: HashMap<ScriptKey, i64> = HashMap::new();
 
       // update address btc balance by input
       for input in &tx.input {
@@ -130,24 +127,23 @@ impl<
           .unwrap();
 
         let sk = ScriptKey::from_script(&prev_output.script_pubkey, context.network);
-        let num_difference = balance_change_map.entry(serde_json::to_string(&sk)?).or_insert(0);
-        *num_difference -= prev_output.value as i64;
+        let num_difference = balance_change_map.entry(sk).or_insert(0);
+        *num_difference -= i64::try_from(prev_output.value).unwrap();
       }
 
       // update address btc balance by output
       for output in &tx.output {
         let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
-        let num_difference = balance_change_map.entry(serde_json::to_string(&sk)?).or_insert(0);
-        *num_difference += output.value as i64;
+        let num_difference = balance_change_map.entry(sk).or_insert(0);
+        *num_difference += i64::try_from(output.value).unwrap();
       }
 
       // Passive withdrawal is triggered by the amount of balance change,
       // and <sk, balance> is saved to redb.
       for (sk, diff) in balance_change_map.iter() {
-        let sk: ScriptKey = serde_json::from_str(sk)?;
         let mut balance = self
           .btc_store
-          .get_balance(&sk)
+          .get_balance(sk)
           .map_err(|e| anyhow!("failed to get balance from state! error: {e}"))?
           .map_or(Balance::new(), |v| v);
 
@@ -175,10 +171,9 @@ impl<
 
         // store to database.
         self
-          .btc_store.update_balance(&sk, balance)
-          .map_err(|e| {
-            anyhow!("failed to update balance to state! error: {e}")
-          })?;
+          .btc_store
+          .update_balance(&sk, balance)
+          .map_err(|e| anyhow!("failed to update balance to state! error: {e}"))?;
       }
 
       if let Some(tx_operations) = operations.remove(txid) {
@@ -201,7 +196,6 @@ impl<
           self.call_man.execute_message(context, msg)?;
         }
         messages_size += messages.len();
-
       }
     }
 

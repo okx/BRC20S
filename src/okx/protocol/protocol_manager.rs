@@ -93,16 +93,34 @@ impl<
     let start = Instant::now();
     let mut inscriptions_size = 0;
     let mut messages_size = 0;
-    let mut balance_change_map: HashMap<String, i64> = HashMap::new();
 
     let (coinbase_tx, _) = block.txdata.get(0).unwrap();
     for output in &coinbase_tx.output {
       let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
-      let num_difference = balance_change_map.entry(serde_json::to_string(&sk)?).or_insert(0);
-      *num_difference += output.value as i64;
+      let mut balance = self
+        .btc_store
+        .get_balance(&sk)
+        .map_err(|e| anyhow!("failed to get balance from state! error: {e}"))?
+        .map_or(Balance::new(), |v| v);
+
+      let amt = Num::from(output.value);
+
+      balance.overall_balance = Into::<Num>::into(balance.overall_balance)
+        .checked_add(&amt)?
+        .checked_to_u64()?;
+
+      // store to database.
+      self
+        .btc_store.update_balance(&sk, balance)
+        .map_err(|e| {
+          anyhow!("failed to update balance to state! error: {e}")
+        })?;
     }
+
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
+      let mut balance_change_map: HashMap<String, i64> = HashMap::new();
+
       // update address btc balance
       for input in &tx.input {
         let prev_output = &self

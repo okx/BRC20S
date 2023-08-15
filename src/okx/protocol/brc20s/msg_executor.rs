@@ -5758,9 +5758,19 @@ mod tests {
         0,
       );
       assert_eq!(Err(BRC20SError::StakeNoPermission(tikc_id_str)), result);
-      //btc stake can not deploy
+      //btc stake can deploy
       let (_, msg) = mock_deploy_msg(
-        "pool", "02", "btc", "ordi1", "10", "12000000", "21000000", 18, true, addr, addr,
+        "pool",
+        "02",
+        "btc",
+        "ordi1",
+        "10",
+        "12000000",
+        "2100000000000000",
+        18,
+        true,
+        addr,
+        addr,
       );
       let result = execute_for_test(
         &brc20_data_store,
@@ -5769,10 +5779,7 @@ mod tests {
         &msg,
         0,
       );
-      assert_eq!(
-        Err(BRC20SError::StakeNoPermission("btc".to_string())),
-        result
-      );
+      assert_eq!(None, result.err());
     }
 
     let result = set_brc20_token_user(&brc20_data_store, "orea", &msg.from, 200_u128, 18_u8).err();

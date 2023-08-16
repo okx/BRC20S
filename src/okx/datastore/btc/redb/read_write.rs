@@ -1,6 +1,5 @@
-use crate::okx::datastore::btc::{Balance, DataStoreReadOnly, DataStoreReadWrite};
 use super::*;
-use bitcoin::{hashes::Hash, Txid};
+use crate::okx::datastore::btc::{Balance, DataStoreReadOnly, DataStoreReadWrite};
 use redb::WriteTransaction;
 
 pub struct DataStore<'db, 'a> {
@@ -16,10 +15,7 @@ impl<'db, 'a> DataStore<'db, 'a> {
 impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
   type Error = redb::Error;
 
-  fn get_balance(
-    &self,
-    script_key: &ScriptKey,
-  ) -> Result<Option<Balance>, Self::Error> {
+  fn get_balance(&self, script_key: &ScriptKey) -> Result<Option<Balance>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_balance(script_key)
   }
 }
@@ -40,14 +36,12 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
 
 #[cfg(test)]
 mod tests {
-  use crate::okx::datastore::btc::{
-    Balance, DataStoreReadOnly, DataStoreReadWrite,
-  };
   use super::*;
-  use tempfile::NamedTempFile;
-  use redb::Database;
+  use crate::okx::datastore::btc::{Balance, DataStoreReadOnly, DataStoreReadWrite};
   use bitcoin::Address;
+  use redb::Database;
   use std::str::FromStr;
+  use tempfile::NamedTempFile;
 
   #[test]
   fn test_set_get_balance() {
@@ -68,9 +62,7 @@ mod tests {
         .assume_checked(),
     );
 
-    let expect_balance = Balance {
-      overall_balance: 30,
-    };
+    let expect_balance = Balance { balance: 30 };
 
     btcdb
       .update_balance(&script, expect_balance.clone())
@@ -80,13 +72,7 @@ mod tests {
       btcdb.get_balance(&script).unwrap(),
       Some(expect_balance.clone())
     );
-    assert_eq!(
-      btcdb.get_balance(&script).unwrap(),
-      Some(expect_balance)
-    );
-    assert_eq!(
-      btcdb.get_balance(&script2).unwrap(),
-      None
-    )
+    assert_eq!(btcdb.get_balance(&script).unwrap(), Some(expect_balance));
+    assert_eq!(btcdb.get_balance(&script2).unwrap(), None)
   }
 }

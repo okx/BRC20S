@@ -9,7 +9,6 @@ use crate::okx::protocol::brc20s::params::{
 use crate::okx::protocol::brc20s::{BRC20SError, Error, Num};
 use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
-use bigdecimal::Zero;
 use std::str::FromStr;
 
 pub fn get_user_common_balance<
@@ -30,7 +29,7 @@ pub fn get_user_common_balance<
         Ok(Some(btc_balance)) => btc_balance,
         _ => btc::Balance::new(),
       };
-      Num::from(balance.overall_balance)
+      Num::from(balance.balance)
     }
     PledgedTick::BRC20STick(tickid) => {
       let balance = match brc20s_ledger.get_balance(script, tickid) {

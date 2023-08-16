@@ -8,10 +8,7 @@ use crate::okx::{
       self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
       DataStoreReadOnly as BRC20SDataStoreReadOnly,
     },
-    btc::{
-      self, redb as btc_db, redb::try_init_tables as try_init_btc,
-      DataStoreReadOnly as BTCDataStoreReadOnly
-    },
+    btc::redb::try_init_tables as try_init_btc,
     ord::{self, OrdDataStoreReadOnly},
     ScriptKey,
   },
@@ -265,7 +262,7 @@ impl Index {
         tx.open_table(STATISTIC_TO_COUNT)?
           .insert(&Statistic::Schema.key(), &SCHEMA_VERSION)?;
 
-        if options.index_sats {
+        if options.index_sats || options.index_brc20s {
           tx.open_table(OUTPOINT_TO_SAT_RANGES)?
             .insert(&OutPoint::null().store(), [].as_slice())?;
         }

@@ -1,7 +1,6 @@
 use super::*;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
-use crate::okx::datastore::btc as btc_store;
 use crate::okx::datastore::ord as ord_store;
 use std::collections::HashMap;
 
@@ -15,46 +14,36 @@ use bitcoincore_rpc::Client;
 pub struct MsgResolveManager<
   'a,
   O: ord_store::OrdDataStoreReadWrite,
-  L: btc_store::DataStoreReadWrite,
   N: brc20_store::DataStoreReadWrite,
   M: brc20s_store::DataStoreReadWrite,
 > {
-  protocol_start_height: HashMap<ProtocolKind, u64>,
   client: &'a Client,
   ord_store: &'a O,
-  btc_store: &'a L,
   brc20_store: &'a N,
   brc20s_store: &'a M,
+  config: &'a Config,
 }
 
 impl<
     'a,
     O: ord_store::OrdDataStoreReadWrite,
-    L: btc_store::DataStoreReadWrite,
     N: brc20_store::DataStoreReadWrite,
     M: brc20s_store::DataStoreReadWrite,
-  > MsgResolveManager<'a, O, L, N, M>
+  > MsgResolveManager<'a, O, N, M>
 {
   pub fn new(
     client: &'a Client,
     ord_store: &'a O,
-    btc_store: &'a L,
     brc20_store: &'a N,
     brc20s_store: &'a M,
-    first_brc20_height: u64,
-    first_brc20s_height: u64,
+    config: &'a Config,
   ) -> Self {
-    let mut protocol_start_height: HashMap<ProtocolKind, u64> = HashMap::new();
-    //todo
-    protocol_start_height.insert(ProtocolKind::BRC20, first_brc20_height);
-    protocol_start_height.insert(ProtocolKind::BRC20S, first_brc20s_height);
     Self {
       client,
       ord_store,
-      btc_store,
       brc20_store,
       brc20s_store,
-      protocol_start_height,
+      config,
     }
   }
 
@@ -79,12 +68,6 @@ impl<
 
     let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
-      // TODO: BTC transfer to BRC20S passive withdrawal.
-
-      // if self.protocols.contains(&ProtocolKind::BRC20S) {
-      //   messages.push(BTC::resolve_message(txid, block_height, block_time, tx));
-      // }
-
       // "operations" is a list of all the operations in the current block, and they are ordered.
       // We just need to find the operation corresponding to the current transaction here.
       while let Some(operation) = operation_iter.peek() {
@@ -95,9 +78,9 @@ impl<
 
         // Parse BRC20 message through inscription operation.
         if self
-          .protocol_start_height
-          .get(&ProtocolKind::BRC20)
-          .map(|height| context.blockheight >= *height)
+          .config
+          .first_brc20_height
+          .map(|height| context.blockheight >= height)
           .unwrap_or(false)
         {
           if let Some(msg) =
@@ -115,9 +98,9 @@ impl<
 
         // Parse BRC30 message through inscription operation.
         if self
-          .protocol_start_height
-          .get(&ProtocolKind::BRC20S)
-          .map(|height| context.blockheight >= *height)
+          .config
+          .first_brc20s_height
+          .map(|height| context.blockheight >= height)
           .unwrap_or(false)
         {
           if let Some(msg) = brc20s::Message::resolve(

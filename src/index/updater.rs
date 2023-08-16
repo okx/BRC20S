@@ -1,7 +1,10 @@
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
-  crate::okx::datastore::{btc::redb as btc_db, brc20::redb as brc20_db, brc20s::redb as brc20s_db, ord},
+  crate::okx::{
+    datastore::{brc20::redb as brc20_db, brc20s::redb as brc20s_db, btc::redb as btc_db, ord},
+    protocol::{BlockContext, ConfigBuilder, ProtocolManager},
+  },
   futures::future::try_join_all,
   std::sync::mpsc,
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
@@ -9,7 +12,6 @@ use {
 
 #[cfg(feature = "rollback")]
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
-use crate::okx::protocol::{BlockContext, ProtocolManager};
 
 #[cfg(feature = "rollback")]
 const FAST_QUERY_HEIGHT: u64 = 10;
@@ -592,16 +594,22 @@ impl Updater {
     std::mem::drop(inscription_id_to_inscription_entry);
     std::mem::drop(outpoint_to_entry);
     // Create a protocol manager to index the block of brc20, brc20s data.
+
+    let mut config_builder = ConfigBuilder::new(index.options.first_inscription_height());
+    if index.options.index_brc20 {
+      config_builder = config_builder.with_brc20(index.options.first_brc20_height());
+    }
+    if index.options.index_brc20s {
+      config_builder = config_builder.with_brc20s(index.options.first_brc20s_height());
+    }
+
     ProtocolManager::new(
       &index.client,
       &ord::OrdDbReadWriter::new(wtx),
       &btc_db::DataStore::new(wtx),
       &brc20_db::DataStore::new(wtx),
       &brc20s_db::DataStore::new(wtx),
-      index.first_inscription_height,
-      //todo: maybe we need frist btc height. (0)
-      index.options.first_brc20_height(),
-      index.options.first_brc20s_height(),
+      &config_builder.build(),
     )
     .index_block(
       BlockContext {

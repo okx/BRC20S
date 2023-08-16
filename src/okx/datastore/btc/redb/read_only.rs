@@ -1,13 +1,10 @@
 use super::*;
 
-use crate::okx::datastore::btc::{
-  Balance, DataStoreReadOnly,
-};
-use bitcoin::hashes::Hash;
+use crate::okx::datastore::btc::{Balance, DataStoreReadOnly};
 use redb::{
-    AccessGuard, Range, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
-    StorageError, Table, TableDefinition, WriteTransaction,
-  };
+  AccessGuard, Range, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
+  StorageError, Table, TableDefinition, WriteTransaction,
+};
 use std::{borrow::Borrow, ops::RangeBounds};
 
 pub fn try_init_tables<'db, 'a>(
@@ -21,7 +18,7 @@ pub fn try_init_tables<'db, 'a>(
 }
 
 pub struct DataStoreReader<'db, 'a> {
-    wrapper: ReaderWrapper<'db, 'a>,
+  wrapper: ReaderWrapper<'db, 'a>,
 }
 
 pub(in crate::okx) fn new_with_wtx<'db, 'a>(
@@ -67,8 +64,8 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
     &self,
     key: impl Borrow<K::SelfType<'a>>,
   ) -> Result<Option<AccessGuard<'_, V>>, StorageError>
-    where
-      K: 'a,
+  where
+    K: 'a,
   {
     match self {
       Self::RtxTable(rtx_table) => rtx_table.get(key),
@@ -80,9 +77,9 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
     &'a self,
     range: impl RangeBounds<KR> + 'b,
   ) -> Result<Range<'a, K, V>, StorageError>
-    where
-      K: 'a,
-      KR: Borrow<K::SelfType<'b>> + 'b,
+  where
+    K: 'a,
+    KR: Borrow<K::SelfType<'b>> + 'b,
   {
     match self {
       Self::RtxTable(rtx_table) => rtx_table.range(range),

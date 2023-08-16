@@ -1,16 +1,18 @@
-pub mod error;
-pub mod num;
-mod params;
-
-use crate::{
-  okx::datastore::btc::{Event, Receipt, TransferEvent},
-  okx::datastore::ScriptKey,
-  Result,
+use {
+  crate::{
+    okx::{
+      datastore::{
+        btc::{self, Balance, Event, Receipt, TransferEvent},
+        ord, ScriptKey,
+      },
+      protocol::BlockContext,
+    },
+    Result,
+  },
+  anyhow::anyhow,
+  bitcoin::{Transaction, Txid},
+  std::collections::HashMap,
 };
-// use anyhow::anyhow;
-use bitcoin::Txid;
-
-pub use self::error::Error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Message {
@@ -32,4 +34,80 @@ pub fn gen_receipt(msg: &Message) -> Result<Option<Receipt>> {
 
   log::debug!("BTC message receipt: {:?}", receipt);
   Ok(Some(receipt))
+}
+
+/// index transaction and update balance.
+pub fn index_transaction_balance<
+  'store,
+  O: ord::OrdDataStoreReadWrite,
+  L: btc::DataStoreReadWrite,
+>(
+  context: BlockContext,
+  ord_store: &'store O,
+  btc_store: &'store L,
+  tx: &Transaction,
+) -> Result<Vec<Message>> {
+  // update address btc balance by input
+  let mut balance_change_map: HashMap<ScriptKey, i64> = HashMap::new();
+  for tx_in in &tx.input {
+    if tx_in.previous_output.is_null() {
+      // ingore coinbase input.
+      continue;
+    }
+
+    let prev_output = ord_store
+      .get_outpoint_to_txout(tx_in.previous_output)
+      .map_err(|e| anyhow!("failed to get tx out from state! error: {e}"))?
+      .unwrap();
+
+    *balance_change_map
+      .entry(ScriptKey::from_script(
+        &prev_output.script_pubkey,
+        context.network,
+      ))
+      .or_insert(0) -= i64::try_from(prev_output.value).unwrap();
+  }
+
+  // update address btc balance by output
+  for tx_out in &tx.output {
+    *balance_change_map
+      .entry(ScriptKey::from_script(
+        &tx_out.script_pubkey,
+        context.network,
+      ))
+      .or_insert(0) += i64::try_from(tx_out.value).unwrap();
+  }
+
+  let mut messages = Vec::new();
+  // Passive withdrawal is triggered by the amount of balance change,
+  // and <sk, balance> is saved to redb.
+  for (sk, diff) in balance_change_map.into_iter() {
+    let mut btc_balance = btc_store
+      .get_balance(&sk)
+      .map_err(|e| anyhow!("failed to get balance from state! error: {e}"))?
+      .map_or(Balance::new(), |v| v);
+
+    if diff < 0i64 {
+      // BTC transfer to BRC20S passive withdrawal
+      messages.push(Message {
+        txid: tx.txid(),
+        from: sk.clone(),
+        amt: u128::try_from(diff.abs()).unwrap(),
+      });
+    }
+
+    btc_balance.balance = btc_balance.balance.checked_add_signed(diff).ok_or(anyhow!(
+      "balance overflow! {} {} {}",
+      btc_balance.balance,
+      if diff >= 0 { "+" } else { "-" },
+      diff
+    ))?;
+
+    // store to database.
+
+    btc_store
+      .update_balance(&sk, btc_balance)
+      .map_err(|e| anyhow!("failed to update balance to state! error: {e}"))?;
+  }
+  Ok(messages)
 }

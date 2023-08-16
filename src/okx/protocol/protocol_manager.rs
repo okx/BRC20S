@@ -1,35 +1,28 @@
 use std::collections::HashMap;
 
 use super::*;
-use crate::okx::datastore::btc::DataStoreReadOnly;
 use crate::{
   index::BlockData,
   okx::datastore::ord::operation::InscriptionOp,
   okx::datastore::{
     brc20, brc20s,
-    btc::{self, Balance},
-    ord, ScriptKey,
+    btc::{self},
+    ord,
   },
-  okx::protocol::btc::{self as btc_proto, num::Num, Error},
+  okx::protocol::{
+    btc::{self as btc_proto},
+    ord as ord_proto,
+  },
   Instant, Result,
 };
-use anyhow::anyhow;
-use bitcoin::{Network, Script, Txid};
+use bitcoin::{Network, Txid};
 use bitcoincore_rpc::Client;
-use serde_json;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BlockContext {
   pub network: Network,
   pub blockheight: u64,
   pub blocktime: u32,
-}
-
-#[derive(Hash, Eq, PartialEq, Clone)]
-pub enum ProtocolKind {
-  BRC20,
-  BRC20S,
-  BTC,
 }
 
 pub struct ProtocolManager<
@@ -41,9 +34,9 @@ pub struct ProtocolManager<
 > {
   ord_store: &'a O,
   btc_store: &'a L,
-  first_inscription_height: u64,
+  config: &'a Config,
   call_man: CallManager<'a, O, L, P, M>,
-  resolve_man: MsgResolveManager<'a, O, L, P, M>,
+  resolve_man: MsgResolveManager<'a, O, P, M>,
 }
 
 impl<
@@ -61,23 +54,13 @@ impl<
     btc_store: &'a L,
     brc20_store: &'a P,
     brc20s_store: &'a M,
-    first_inscription_height: u64,
-    first_brc20_height: u64,
-    first_brc20s_height: u64,
+    config: &'a Config,
   ) -> Self {
     Self {
-      resolve_man: MsgResolveManager::new(
-        client,
-        ord_store,
-        btc_store,
-        brc20_store,
-        brc20s_store,
-        first_brc20_height,
-        first_brc20s_height,
-      ),
+      resolve_man: MsgResolveManager::new(client, ord_store, brc20_store, brc20s_store, config),
       ord_store,
       btc_store,
-      first_inscription_height,
+      config,
       call_man: CallManager::new(ord_store, btc_store, brc20_store, brc20s_store),
     }
   }
@@ -92,99 +75,40 @@ impl<
     let mut inscriptions_size = 0;
     let mut messages_size = 0;
 
-    let (coinbase_tx, _) = block.txdata.get(0).unwrap();
-    for output in &coinbase_tx.output {
-      let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
-      let mut balance = self
-        .btc_store
-        .get_balance(&sk)
-        .map_err(|e| anyhow!("failed to get balance from state! error: {e}"))?
-        .map_or(Balance::new(), |v| v);
-
-      let amt = Num::from(output.value);
-
-      balance.overall_balance = Into::<Num>::into(balance.overall_balance)
-        .checked_add(&amt)?
-        .checked_to_u64()?;
-
-      // store to database.
-      self
-        .btc_store
-        .update_balance(&sk, balance)
-        .map_err(|e| anyhow!("failed to update balance to state! error: {e}"))?;
-    }
-
     // skip the coinbase transaction.
-    for (tx, txid) in block.txdata.iter().skip(1) {
-      let mut balance_change_map: HashMap<ScriptKey, i64> = HashMap::new();
-
-      // update address btc balance by input
-      for input in &tx.input {
-        let prev_output = &self
-          .ord_store
-          .get_outpoint_to_txout(input.previous_output)
-          .map_err(|e| anyhow!("failed to get tx out from state! error: {e}",))?
-          .unwrap();
-
-        let sk = ScriptKey::from_script(&prev_output.script_pubkey, context.network);
-        let num_difference = balance_change_map.entry(sk).or_insert(0);
-        *num_difference -= i64::try_from(prev_output.value).unwrap();
-      }
-
-      // update address btc balance by output
-      for output in &tx.output {
-        let sk = ScriptKey::from_script(&output.script_pubkey, context.network);
-        let num_difference = balance_change_map.entry(sk).or_insert(0);
-        *num_difference += i64::try_from(output.value).unwrap();
-      }
-
-      // Passive withdrawal is triggered by the amount of balance change,
-      // and <sk, balance> is saved to redb.
-      for (sk, diff) in balance_change_map.iter() {
-        let mut balance = self
-          .btc_store
-          .get_balance(sk)
-          .map_err(|e| anyhow!("failed to get balance from state! error: {e}"))?
-          .map_or(Balance::new(), |v| v);
-
-        let amt = Num::from(diff.clone().abs() as u64);
-
-        if diff.clone() < 0i64 {
-          // sub amount to available balance.
-          balance.overall_balance = Into::<Num>::into(balance.overall_balance)
-            .checked_sub(&amt)?
-            .checked_to_u64()?;
-
-          // BTC transfer to BRC20S passive withdrawal
-          let msg = Message::BTC(btc_proto::Message {
-            txid: tx.txid(),
-            from: sk.clone(),
-            amt: diff.clone().abs() as u128,
-          });
-          self.call_man.execute_message(context, &msg)?;
-        } else {
-          // add amount to available balance.
-          balance.overall_balance = Into::<Num>::into(balance.overall_balance)
-            .checked_add(&amt)?
-            .checked_to_u64()?;
+    for (tx, txid) in block.txdata.iter() {
+      // index btc balance.
+      if self.config.index_btc_balance {
+        for msg in
+          btc_proto::index_transaction_balance(context, self.ord_store, self.btc_store, tx)?
+        {
+          // Passive withdrawal executed by BTC transaction.
+          if self
+            .config
+            .first_brc20s_height
+            .map(|height| context.blockheight >= height)
+            .unwrap_or(false)
+          {
+            self.call_man.execute_message(context, &Message::BTC(msg))?;
+          }
         }
-
-        // store to database.
-        self
-          .btc_store
-          .update_balance(&sk, balance)
-          .map_err(|e| anyhow!("failed to update balance to state! error: {e}"))?;
       }
 
+      // skip coinbase transaction.
+      if tx
+        .input
+        .first()
+        .map(|tx_in| tx_in.previous_output.is_null())
+        .unwrap_or_default()
+      {
+        continue;
+      }
+
+      // index inscription operations.
       if let Some(tx_operations) = operations.remove(txid) {
-        // save transaction operations.
-        if context.blockheight >= self.first_inscription_height {
-          self
-            .ord_store
-            .save_transaction_operations(txid, &tx_operations)
-            .map_err(|e| {
-              anyhow!("failed to set transaction ordinals operations to state! error: {e}")
-            })?;
+        // save all transaction operations to ord database.
+        if context.blockheight >= self.config.first_inscription_height {
+          ord_proto::save_transaction_operations(self.ord_store, txid, &tx_operations)?;
           inscriptions_size += tx_operations.len();
         }
 

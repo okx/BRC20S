@@ -3678,7 +3678,7 @@ mod tests {
         .unwrap();
 
     let balance = BTCBalance {
-      overall_balance: 300000000000000_u64,
+      balance: 300000000000000_u64,
     };
     let result = btc_data_store.update_balance(&script, balance);
     if let Err(error) = result {
@@ -4501,7 +4501,7 @@ mod tests {
         .unwrap();
 
     let balance = BTCBalance {
-      overall_balance: 200000000000000_u64,
+      balance: 200000000000000_u64,
     };
     let result = btc_data_store.update_balance(&script, balance);
     if let Err(error) = result {
@@ -5214,7 +5214,7 @@ mod tests {
         .unwrap();
 
     let balance = BTCBalance {
-      overall_balance: 200000000000000_u64,
+      balance: 200000000000000_u64,
     };
     let result = btc_data_store.update_balance(&script, balance);
     if let Err(error) = result {
@@ -5338,9 +5338,7 @@ mod tests {
       };
 
       //mock btc transfer
-      let balance = BTCBalance {
-        overall_balance: 0_u64,
-      };
+      let balance = BTCBalance { balance: 0_u64 };
       let result = btc_data_store.update_balance(&script, balance);
       if let Err(error) = result {
         panic!("update_balance err: {}", error)

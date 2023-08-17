@@ -2,7 +2,7 @@ use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
   crate::okx::{
-    datastore::{brc20::redb as brc20_db, brc20s::redb as brc20s_db, btc::redb as btc_db, ord},
+    datastore::StateReadWrite,
     protocol::{BlockContext, ConfigBuilder, ProtocolManager},
   },
   futures::future::try_join_all,
@@ -605,10 +605,7 @@ impl Updater {
 
     ProtocolManager::new(
       &index.client,
-      &ord::OrdDbReadWriter::new(wtx),
-      &btc_db::DataStore::new(wtx),
-      &brc20_db::DataStore::new(wtx),
-      &brc20s_db::DataStore::new(wtx),
+      &StateReadWrite::new(wtx),
       &config_builder.build(),
     )
     .index_block(

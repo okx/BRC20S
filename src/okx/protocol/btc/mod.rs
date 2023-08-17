@@ -2,8 +2,9 @@ use {
   crate::{
     okx::{
       datastore::{
-        btc::{self, Balance, Event, Receipt, TransferEvent},
-        ord, ScriptKey,
+        btc::{Balance, DataStoreReadOnly, DataStoreReadWrite, Event, Receipt, TransferEvent},
+        ord::DataStoreReadOnly as OrdDataStoreReadOnly,
+        ScriptKey, StateRWriter,
       },
       protocol::BlockContext,
     },
@@ -37,14 +38,9 @@ pub fn gen_receipt(msg: &Message) -> Result<Option<Receipt>> {
 }
 
 /// index transaction and update balance.
-pub fn index_transaction_balance<
-  'store,
-  O: ord::OrdDataStoreReadWrite,
-  L: btc::DataStoreReadWrite,
->(
+pub fn index_transaction_balance<'store, RW: StateRWriter>(
   context: BlockContext,
-  ord_store: &'store O,
-  btc_store: &'store L,
+  state_store: &'store RW,
   tx: &Transaction,
 ) -> Result<Vec<Message>> {
   // update address btc balance by input
@@ -55,7 +51,8 @@ pub fn index_transaction_balance<
       continue;
     }
 
-    let prev_output = ord_store
+    let prev_output = state_store
+      .ord()
       .get_outpoint_to_txout(tx_in.previous_output)
       .map_err(|e| anyhow!("failed to get tx out from state! error: {e}"))?
       .unwrap();
@@ -82,7 +79,8 @@ pub fn index_transaction_balance<
   // Passive withdrawal is triggered by the amount of balance change,
   // and <sk, balance> is saved to redb.
   for (sk, diff) in balance_change_map.into_iter() {
-    let mut btc_balance = btc_store
+    let mut btc_balance = state_store
+      .btc()
       .get_balance(&sk)
       .map_err(|e| anyhow!("failed to get balance from state! error: {e}"))?
       .map_or(Balance::new(), |v| v);
@@ -105,7 +103,8 @@ pub fn index_transaction_balance<
 
     // store to database.
 
-    btc_store
+    state_store
+      .btc()
       .update_balance(&sk, btc_balance)
       .map_err(|e| anyhow!("failed to update balance to state! error: {e}"))?;
   }

@@ -56,7 +56,7 @@ pub struct ExecutionMessage {
 }
 
 impl ExecutionMessage {
-  pub fn from_message<O: ord::OrdDataStoreReadOnly>(
+  pub fn from_message<O: ord::DataStoreReadOnly>(
     ord_store: &O,
     msg: &Message,
     network: Network,

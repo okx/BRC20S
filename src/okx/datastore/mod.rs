@@ -6,37 +6,51 @@ pub mod ord;
 mod redb;
 mod script_key;
 
-use std::{
-  fmt::{Debug, Display},
-  sync::Arc,
-};
-
 pub use self::{
-  brc20::{
-    DataStoreReadOnly as BRC20DataStoreReadOnly, DataStoreReadWrite as BRC20DataStoreReadWrite,
-  },
-  brc20s::{
-    DataStoreReadOnly as BRC20SDataStoreReadOnly, DataStoreReadWrite as BRC20SDataStoreReadWrite,
-  },
-  btc::{DataStoreReadOnly as BTCDataStoreReadOnly, DataStoreReadWrite as BTCDataStoreReadWrite},
-  ord::{OrdDataStoreReadOnly, OrdDataStoreReadWrite},
+  redb::{StateReadOnly, StateReadWrite},
   script_key::ScriptKey,
 };
 
-pub trait DataStoreReader<'a> {
-  type Error: Debug + Display;
-  fn ord_store(&self) -> Arc<dyn OrdDataStoreReadOnly<Error = Self::Error> + 'a>;
-  fn btc_store(&self) -> Arc<dyn BTCDataStoreReadOnly<Error = Self::Error> + 'a>;
-  fn brc20_store(&self) -> Arc<dyn BRC20DataStoreReadOnly<Error = Self::Error> + 'a>;
-  fn brc20s_store(&self) -> Arc<dyn BRC20SDataStoreReadOnly<Error = Self::Error> + 'a>;
+/// StateReader is a collection of multiple readonly storages.
+///
+/// There are multiple categories in the storage, and they can be obtained separately.
+pub trait StateReader {
+  type OrdReader: ord::DataStoreReadOnly;
+  type BTCReader: btc::DataStoreReadOnly;
+  type BRC20Reader: brc20::DataStoreReadOnly;
+  type BRC20SReader: brc20s::DataStoreReadOnly;
+
+  // Returns a reference to the readonly Ord store.
+  fn ord(&self) -> &Self::OrdReader;
+
+  // Returns a reference to the readonly BTC store.
+  fn btc(&self) -> &Self::BTCReader;
+
+  // Returns a reference to the readonly BRC20 store.
+  fn brc20(&self) -> &Self::BRC20Reader;
+
+  // Returns a reference to the readonly BRC20S store.
+  fn brc20s(&self) -> &Self::BRC20SReader;
 }
 
-pub trait DataStoreReadWriter<'a> {
-  type Error: Debug + Display;
-  fn ord_store(&self) -> Arc<dyn OrdDataStoreReadWrite<Error = Self::Error> + 'a>;
-  fn btc_store(&self) -> Arc<dyn BTCDataStoreReadWrite<Error = Self::Error> + 'a>;
-  fn brc20_store(&self) -> Arc<dyn BRC20DataStoreReadWrite<Error = Self::Error> + 'a>;
-  fn brc20s_store(&self) -> Arc<dyn BRC20SDataStoreReadWrite<Error = Self::Error> + 'a>;
+/// StateRWriter is a collection of multiple read-write storages.
+///
+/// There are multiple categories in the storage, and they can be obtained separately.
+pub trait StateRWriter {
+  type OrdRWriter: ord::DataStoreReadWrite;
+  type BTCRWriter: btc::DataStoreReadWrite;
+  type BRC20RWriter: brc20::DataStoreReadWrite;
+  type BRC20SRWriter: brc20s::DataStoreReadWrite;
 
-  // fn read(&self) -> dyn DataStoreReader<Error = Self::Error>;
+  // Returns a reference to the read-write ord store.
+  fn ord(&self) -> &Self::OrdRWriter;
+
+  // Returns a reference to the read-write BTC store.
+  fn btc(&self) -> &Self::BTCRWriter;
+
+  // Returns a reference to the read-write BRC20 store.
+  fn brc20(&self) -> &Self::BRC20RWriter;
+
+  // Returns a reference to the read-write BRC20S store.
+  fn brc20s(&self) -> &Self::BRC20SRWriter;
 }

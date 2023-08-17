@@ -8,7 +8,7 @@ use std::fmt::{Debug, Display};
 pub mod operation;
 pub mod redb;
 
-pub trait OrdDataStoreReadOnly {
+pub trait DataStoreReadOnly {
   type Error: Debug + Display;
   fn get_number_by_inscription_id(
     &self,
@@ -20,7 +20,7 @@ pub trait OrdDataStoreReadOnly {
   fn get_transaction_operations(&self, txid: &Txid) -> Result<Vec<InscriptionOp>, Self::Error>;
 }
 
-pub trait OrdDataStoreReadWrite: OrdDataStoreReadOnly {
+pub trait DataStoreReadWrite: DataStoreReadOnly {
   fn set_outpoint_to_txout(&self, outpoint: OutPoint, tx_out: &TxOut) -> Result<(), Self::Error>;
 
   fn save_transaction_operations(

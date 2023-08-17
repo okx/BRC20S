@@ -1,13 +1,13 @@
 use {
   crate::{
-    okx::datastore::ord::{InscriptionOp, OrdDataStoreReadWrite},
+    okx::datastore::ord::{DataStoreReadWrite, InscriptionOp},
     Result,
   },
   anyhow::anyhow,
   bitcoin::Txid,
 };
 
-pub fn save_transaction_operations<'store, O: OrdDataStoreReadWrite>(
+pub fn save_transaction_operations<'store, O: DataStoreReadWrite>(
   ord_store: &'store O,
   txid: &Txid,
   tx_operations: &Vec<InscriptionOp>,

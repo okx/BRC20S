@@ -1,67 +1,36 @@
-use std::collections::HashMap;
-
-use super::*;
-use crate::{
-  index::BlockData,
-  okx::datastore::ord::operation::InscriptionOp,
-  okx::datastore::{
-    brc20, brc20s,
-    btc::{self},
-    ord,
+use {
+  super::*,
+  crate::{
+    index::BlockData,
+    okx::{
+      datastore::{ord::operation::InscriptionOp, StateRWriter},
+      protocol::{
+        btc::{self as btc_proto},
+        ord as ord_proto,
+      },
+    },
+    Instant, Result,
   },
-  okx::protocol::{
-    btc::{self as btc_proto},
-    ord as ord_proto,
-  },
-  Instant, Result,
+  bitcoin::Txid,
+  bitcoincore_rpc::Client,
+  std::collections::HashMap,
 };
-use bitcoin::{Network, Txid};
-use bitcoincore_rpc::Client;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct BlockContext {
-  pub network: Network,
-  pub blockheight: u64,
-  pub blocktime: u32,
-}
-
-pub struct ProtocolManager<
-  'a,
-  O: ord::OrdDataStoreReadWrite,
-  L: btc::DataStoreReadWrite,
-  P: brc20::DataStoreReadWrite,
-  M: brc20s::DataStoreReadWrite,
-> {
-  ord_store: &'a O,
-  btc_store: &'a L,
+pub struct ProtocolManager<'a, RW: StateRWriter> {
+  state_store: &'a RW,
   config: &'a Config,
-  call_man: CallManager<'a, O, L, P, M>,
-  resolve_man: MsgResolveManager<'a, O, P, M>,
+  call_man: CallManager<'a, RW>,
+  resolve_man: MsgResolveManager<'a, RW>,
 }
 
-impl<
-    'a,
-    O: ord::OrdDataStoreReadWrite,
-    L: btc::DataStoreReadWrite,
-    P: brc20::DataStoreReadWrite,
-    M: brc20s::DataStoreReadWrite,
-  > ProtocolManager<'a, O, L, P, M>
-{
+impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(
-    client: &'a Client,
-    ord_store: &'a O,
-    btc_store: &'a L,
-    brc20_store: &'a P,
-    brc20s_store: &'a M,
-    config: &'a Config,
-  ) -> Self {
+  pub fn new(client: &'a Client, state_store: &'a RW, config: &'a Config) -> Self {
     Self {
-      resolve_man: MsgResolveManager::new(client, ord_store, brc20_store, brc20s_store, config),
-      ord_store,
-      btc_store,
+      state_store,
+      resolve_man: MsgResolveManager::new(client, state_store, config),
       config,
-      call_man: CallManager::new(ord_store, btc_store, brc20_store, brc20s_store),
+      call_man: CallManager::new(state_store),
     }
   }
 
@@ -79,9 +48,7 @@ impl<
     for (tx, txid) in block.txdata.iter() {
       // index btc balance.
       if self.config.index_btc_balance {
-        for msg in
-          btc_proto::index_transaction_balance(context, self.ord_store, self.btc_store, tx)?
-        {
+        for msg in btc_proto::index_transaction_balance(context, self.state_store, tx)? {
           // Passive withdrawal executed by BTC transaction.
           if self
             .config
@@ -108,7 +75,7 @@ impl<
       if let Some(tx_operations) = operations.remove(txid) {
         // save all transaction operations to ord database.
         if context.blockheight >= self.config.first_inscription_height {
-          ord_proto::save_transaction_operations(self.ord_store, txid, &tx_operations)?;
+          ord_proto::save_transaction_operations(self.state_store.ord(), txid, &tx_operations)?;
           inscriptions_size += tx_operations.len();
         }
 

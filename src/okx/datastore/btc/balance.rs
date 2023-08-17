@@ -7,8 +7,6 @@ pub struct Balance {
 
 impl Balance {
   pub fn new() -> Self {
-    Self {
-      balance: 0u64,
-    }
+    Self { balance: 0u64 }
   }
 }

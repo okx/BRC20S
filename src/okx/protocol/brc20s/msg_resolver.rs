@@ -1,25 +1,27 @@
-use super::*;
-use crate::{
-  inscription::Inscription,
-  okx::{
-    datastore::{
-      brc20s::DataStoreReadOnly,
-      ord::{Action, InscriptionOp, OrdDataStoreReadOnly},
+use {
+  super::*,
+  crate::{
+    inscription::Inscription,
+    okx::{
+      datastore::{
+        brc20s,
+        ord::{self, Action, InscriptionOp},
+      },
+      protocol::brc20s::{deserialize_brc20s_operation, operation::Transfer},
     },
-    protocol::brc20s::{deserialize_brc20s_operation, operation::Transfer},
+    Index, Result,
   },
-  Index, Result,
+  anyhow::anyhow,
+  bitcoin::{OutPoint, TxOut},
+  bitcoincore_rpc::Client,
+  std::collections::HashMap,
 };
-use anyhow::anyhow;
-use bitcoin::{OutPoint, TxOut};
-use bitcoincore_rpc::Client;
-use std::collections::HashMap;
 
 impl Message {
-  pub(crate) fn resolve<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>(
+  pub(crate) fn resolve<'a, O: ord::DataStoreReadOnly, M: brc20s::DataStoreReadOnly>(
     client: &Client,
     ord_store: &'a O,
-    brc30_store: &'a M,
+    brc20s_store: &'a M,
     new_inscriptions: &[Inscription],
     op: &InscriptionOp,
     outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
@@ -47,7 +49,7 @@ impl Message {
       }
       // Transfered inscription operation.
       // Attempt to retrieve the `InscribeTransfer` Inscription information from the data store of BRC20S.
-      Action::Transfer => match brc30_store.get_inscribe_transfer_inscription(op.inscription_id) {
+      Action::Transfer => match brc20s_store.get_inscribe_transfer_inscription(op.inscription_id) {
         // Ignore non-first transfer operations.
         Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
           Operation::Transfer(Transfer {
@@ -86,7 +88,7 @@ impl Message {
   }
 }
 
-fn get_commit_input_satpoint<O: OrdDataStoreReadOnly>(
+fn get_commit_input_satpoint<O: ord::DataStoreReadOnly>(
   client: &Client,
   ord_store: &O,
   satpoint: SatPoint,

@@ -1,24 +1,3 @@
-use crate::okx::{
-  datastore::{
-    brc20::{
-      self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
-      DataStoreReadOnly as BRC20DataStoreReadOnly,
-    },
-    brc20s::{
-      self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
-      DataStoreReadOnly as BRC20SDataStoreReadOnly,
-    },
-    btc::redb::try_init_tables as try_init_btc,
-    ord::{self, OrdDataStoreReadOnly},
-    ScriptKey,
-  },
-  protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
-  reward,
-};
-
-#[cfg(feature = "rollback")]
-use once_cell::sync::OnceCell;
-
 use {
   self::{
     entry::{BlockHashValue, Entry, InscriptionIdValue, OutPointValue, SatPointValue, SatRange},
@@ -30,6 +9,23 @@ use {
   chrono::SubsecRound,
   indicatif::{ProgressBar, ProgressStyle},
   log::log_enabled,
+  okx::{
+    datastore::{
+      brc20::{
+        self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
+        DataStoreReadOnly as BRC20DataStoreReadOnly,
+      },
+      brc20s::{
+        self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
+        DataStoreReadOnly as BRC20SDataStoreReadOnly,
+      },
+      btc::redb::try_init_tables as try_init_btc,
+      ord::{self, DataStoreReadOnly},
+      ScriptKey,
+    },
+    protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
+    reward,
+  },
   redb::{
     Database, MultimapTable, MultimapTableDefinition, ReadableMultimapTable, ReadableTable, Table,
     TableDefinition, WriteTransaction,
@@ -38,6 +34,9 @@ use {
   std::io::{BufWriter, Write},
   std::sync::atomic::{self, AtomicBool},
 };
+
+#[cfg(feature = "rollback")]
+use once_cell::sync::OnceCell;
 
 pub(super) use self::{
   entry::{InscriptionEntry, InscriptionEntryValue},

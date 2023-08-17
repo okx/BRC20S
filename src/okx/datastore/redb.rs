@@ -1,51 +1,105 @@
-use super::{
-  brc20::redb::DataStore as BRC20DataStore, brc20s::redb::DataStore as BRC20SDataStore,
-  btc::redb::DataStore as BTCDataStore, ord::OrdDbReadWriter, BRC20DataStoreReadWrite,
-  BRC20SDataStoreReadWrite, BTCDataStoreReadWrite, DataStoreReadWriter, OrdDataStoreReadWrite,
+use {
+  super::{
+    brc20::redb::{DataStore as BRC20StateRW, DataStoreReader as BRC20StateReader},
+    brc20s::redb::{DataStore as BRC20SStateRW, DataStoreReader as BRC20SStateReader},
+    btc::redb::{DataStore as BTCStateRW, DataStoreReader as BTCStateReader},
+    ord::redb::{OrdDbReadWriter as OrdStateRW, OrdDbReader as OrdStateReader},
+    StateRWriter, StateReader,
+  },
+  redb::{ReadTransaction, WriteTransaction},
 };
-use redb::WriteTransaction;
-use std::sync::Arc;
 
-pub struct DataEngineReadWriter<'a> {
-  ord_store: Arc<dyn OrdDataStoreReadWrite<Error = redb::Error> + 'a>,
-  btc_store: Arc<dyn BTCDataStoreReadWrite<Error = redb::Error> + 'a>,
-  brc20_store: Arc<dyn BRC20DataStoreReadWrite<Error = redb::Error> + 'a>,
-  brc20s_store: Arc<dyn BRC20SDataStoreReadWrite<Error = redb::Error> + 'a>,
+/// StateReadOnly, based on `redb`, is an implementation of the StateRWriter trait.
+pub struct StateReadOnly<'db, 'a> {
+  ord: OrdStateReader<'db, 'a>,
+  btc: BTCStateReader<'db, 'a>,
+  brc20: BRC20StateReader<'db, 'a>,
+  brc20s: BRC20SStateReader<'db, 'a>,
 }
 
-impl<'a> DataStoreReadWriter<'a> for DataEngineReadWriter<'a> {
-  type Error = redb::Error;
-  fn ord_store(&self) -> Arc<dyn OrdDataStoreReadWrite<Error = Self::Error> + 'a> {
-    self.ord_store.clone()
-  }
-
-  fn btc_store(&self) -> Arc<dyn BTCDataStoreReadWrite<Error = Self::Error> + 'a> {
-    self.btc_store.clone()
-  }
-
-  fn brc20_store(&self) -> Arc<dyn BRC20DataStoreReadWrite<Error = Self::Error> + 'a> {
-    self.brc20_store.clone()
-  }
-  fn brc20s_store(&self) -> Arc<dyn BRC20SDataStoreReadWrite<Error = Self::Error> + 'a> {
-    self.brc20s_store.clone()
+impl<'db, 'a> StateReadOnly<'db, 'a> {
+  pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
+    Self {
+      ord: OrdStateReader::new(rtx),
+      btc: BTCStateReader::new(rtx),
+      brc20: BRC20StateReader::new(rtx),
+      brc20s: BRC20SStateReader::new(rtx),
+    }
   }
 }
 
-impl<'a, 'db: 'a> DataEngineReadWriter<'a> {
+impl<'db, 'a> StateReader for StateReadOnly<'db, 'a> {
+  type OrdReader = OrdStateReader<'db, 'a>;
+  type BTCReader = BTCStateReader<'db, 'a>;
+  type BRC20Reader = BRC20StateReader<'db, 'a>;
+  type BRC20SReader = BRC20SStateReader<'db, 'a>;
+
+  fn ord(&self) -> &Self::OrdReader {
+    &self.ord
+  }
+
+  fn btc(&self) -> &Self::BTCReader {
+    &self.btc
+  }
+
+  fn brc20(&self) -> &Self::BRC20Reader {
+    &self.brc20
+  }
+
+  fn brc20s(&self) -> &Self::BRC20SReader {
+    &self.brc20s
+  }
+}
+
+/// StateReadWrite, based on `redb`, is an implementation of the StateRWriter trait.
+pub struct StateReadWrite<'db, 'a> {
+  ord: OrdStateRW<'db, 'a>,
+  btc: BTCStateRW<'db, 'a>,
+  brc20: BRC20StateRW<'db, 'a>,
+  brc20s: BRC20SStateRW<'db, 'a>,
+}
+
+impl<'db, 'a> StateReadWrite<'db, 'a> {
   pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
     Self {
-      ord_store: Arc::new(OrdDbReadWriter::new(wtx)),
-      btc_store: Arc::new(BTCDataStore::new(wtx)),
-      brc20_store: Arc::new(BRC20DataStore::new(wtx)),
-      brc20s_store: Arc::new(BRC20SDataStore::new(wtx)),
+      ord: OrdStateRW::new(wtx),
+      btc: BTCStateRW::new(wtx),
+      brc20: BRC20StateRW::new(wtx),
+      brc20s: BRC20SStateRW::new(wtx),
     }
+  }
+}
+
+impl<'db, 'a> StateRWriter for StateReadWrite<'db, 'a> {
+  type OrdRWriter = OrdStateRW<'db, 'a>;
+  type BTCRWriter = BTCStateRW<'db, 'a>;
+  type BRC20RWriter = BRC20StateRW<'db, 'a>;
+  type BRC20SRWriter = BRC20SStateRW<'db, 'a>;
+
+  fn ord(&self) -> &Self::OrdRWriter {
+    &self.ord
+  }
+
+  fn btc(&self) -> &Self::BTCRWriter {
+    &self.btc
+  }
+
+  fn brc20(&self) -> &Self::BRC20RWriter {
+    &self.brc20
+  }
+
+  fn brc20s(&self) -> &Self::BRC20SRWriter {
+    &self.brc20s
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::okx::datastore::{btc::Balance, ScriptKey};
+  use crate::okx::datastore::{
+    btc::{Balance, DataStoreReadOnly, DataStoreReadWrite},
+    ScriptKey,
+  };
   use bitcoin::Address;
   use redb::Database;
   use std::str::FromStr;
@@ -55,7 +109,7 @@ mod tests {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let store = DataEngineReadWriter::new(&wtx);
+    let store = StateReadWrite::new(&wtx);
 
     let script = ScriptKey::from_address(
       Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
@@ -65,12 +119,12 @@ mod tests {
 
     let expect_balance = Balance { balance: 30 };
     store
-      .btc_store()
+      .btc()
       .update_balance(&script, expect_balance.clone())
       .unwrap();
 
     assert_eq!(
-      store.btc_store().get_balance(&script).unwrap(),
+      store.btc().get_balance(&script).unwrap(),
       Some(expect_balance.clone())
     );
   }

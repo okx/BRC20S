@@ -8,13 +8,23 @@ pub(crate) mod protocol_manager;
 pub(crate) mod resolve_manager;
 mod utils;
 
-pub use self::protocol_manager::{BlockContext, ProtocolManager};
-use self::{
-  execute_manager::CallManager,
-  message::{Message, Receipt},
-  resolve_manager::MsgResolveManager,
+pub use self::protocol_manager::ProtocolManager;
+
+use {
+  self::{
+    execute_manager::CallManager,
+    message::{Message, Receipt},
+    resolve_manager::MsgResolveManager,
+  },
+  bitcoin::Network,
 };
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct BlockContext {
+  pub network: Network,
+  pub blockheight: u64,
+  pub blocktime: u32,
+}
 #[derive(Debug, Clone)]
 pub struct Config {
   first_inscription_height: u64,

@@ -1,46 +1,29 @@
-use super::*;
-use crate::inscription_id::InscriptionId;
-use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
-use crate::okx::datastore::brc20 as brc20_store;
-use crate::okx::datastore::brc20s as brc20s_store;
-use crate::okx::datastore::brc20s::PledgedTick;
-use crate::okx::datastore::btc as btc_store;
-use crate::okx::datastore::ord as ord_store;
-use crate::okx::protocol::brc20 as brc20_proto;
-use crate::okx::protocol::brc20s as brc20s_proto;
-use crate::okx::protocol::brc20s::params::NATIVE_TOKEN;
-use crate::okx::protocol::btc as btc_proto;
-use crate::{Result, SatPoint};
-use bitcoin::OutPoint;
+use {
+  super::*,
+  crate::{
+    inscription_id::InscriptionId,
+    okx::{
+      datastore::{
+        balance::convert_pledged_tick_without_decimal, brc20 as brc20_store,
+        brc20s as brc20s_store, brc20s::PledgedTick, btc as btc_store, StateRWriter,
+      },
+      protocol::{
+        brc20 as brc20_proto, brc20s as brc20s_proto, brc20s::params::NATIVE_TOKEN,
+        btc as btc_proto,
+      },
+    },
+    Result, SatPoint,
+  },
+  bitcoin::OutPoint,
+};
 
-pub struct CallManager<
-  'a,
-  O: ord_store::OrdDataStoreReadWrite,
-  L: btc_store::DataStoreReadWrite,
-  N: brc20_store::DataStoreReadWrite,
-  M: brc20s_store::DataStoreReadWrite,
-> {
-  ord_store: &'a O,
-  btc_store: &'a L,
-  brc20_store: &'a N,
-  brc20s_store: &'a M,
+pub struct CallManager<'a, RW: StateRWriter> {
+  state_store: &'a RW,
 }
 
-impl<
-    'a,
-    O: ord_store::OrdDataStoreReadWrite,
-    L: btc_store::DataStoreReadWrite,
-    N: brc20_store::DataStoreReadWrite,
-    M: brc20s_store::DataStoreReadWrite,
-  > CallManager<'a, O, L, N, M>
-{
-  pub fn new(ord_store: &'a O, btc_store: &'a L, brc20_store: &'a N, brc20s_store: &'a M) -> Self {
-    Self {
-      ord_store,
-      btc_store,
-      brc20_store,
-      brc20s_store,
-    }
+impl<'a, RW: StateRWriter> CallManager<'a, RW> {
+  pub fn new(state_store: &'a RW) -> Self {
+    Self { state_store }
   }
 
   pub fn execute_message(&self, context: BlockContext, msg: &Message) -> Result {
@@ -48,17 +31,17 @@ impl<
     let receipt = match msg {
       Message::BRC20(msg) => brc20_proto::execute(
         context,
-        self.ord_store,
-        self.brc20_store,
-        &brc20_proto::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
+        self.state_store.ord(),
+        self.state_store.brc20(),
+        &brc20_proto::ExecutionMessage::from_message(self.state_store.ord(), msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20))?,
       Message::BRC20S(msg) => brc20s::execute(
         context,
-        self.brc20_store,
-        self.brc20s_store,
-        self.btc_store,
-        &brc20s::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
+        self.state_store.brc20(),
+        self.state_store.brc20s(),
+        self.state_store.btc(),
+        &brc20s::ExecutionMessage::from_message(self.state_store.ord(), msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20S))?,
       Message::BTC(msg) => btc_proto::gen_receipt(msg).map(|v| v.map(Receipt::BTC))?,
@@ -76,8 +59,8 @@ impl<
           match convert_pledged_tick_without_decimal(
             &ptick,
             brc20_transfer.amount,
-            self.brc20s_store,
-            self.brc20_store,
+            self.state_store.brc20s(),
+            self.state_store.brc20(),
           ) {
             Ok(amt) => {
               let passive_unstake = brc20s_proto::PassiveUnStake {
@@ -88,11 +71,11 @@ impl<
                 let passive_msg = convert_msg_brc20_to_brc20s(old_brc20_msg, passive_unstake);
                 brc20s::execute(
                   context,
-                  self.brc20_store,
-                  self.brc20s_store,
-                  self.btc_store,
+                  self.state_store.brc20(),
+                  self.state_store.brc20s(),
+                  self.state_store.btc(),
                   &brc20s::ExecutionMessage::from_message(
-                    self.ord_store,
+                    self.state_store.ord(),
                     &passive_msg,
                     context.network,
                   )?,
@@ -114,8 +97,8 @@ impl<
             match convert_pledged_tick_without_decimal(
               &ptick,
               brc20s_transfer.amt,
-              self.brc20s_store,
-              self.brc20_store,
+              self.state_store.brc20s(),
+              self.state_store.brc20(),
             ) {
               Ok(amt) => {
                 let passive_unstake = brc20s_proto::PassiveUnStake {
@@ -126,11 +109,11 @@ impl<
                   let passive_msg = convert_msg_brc20s(old_brc20s_msg, passive_unstake);
                   brc20s::execute(
                     context,
-                    self.brc20_store,
-                    self.brc20s_store,
-                    self.btc_store,
+                    self.state_store.brc20(),
+                    self.state_store.brc20s(),
+                    self.state_store.btc(),
                     &brc20s::ExecutionMessage::from_message(
-                      self.ord_store,
+                      self.state_store.ord(),
                       &passive_msg,
                       context.network,
                     )?,
@@ -150,8 +133,8 @@ impl<
           match convert_pledged_tick_without_decimal(
             &PledgedTick::Native,
             btc_transfer.amt,
-            self.brc20s_store,
-            self.brc20_store,
+            self.state_store.brc20s(),
+            self.state_store.brc20(),
           ) {
             Ok(amt) => {
               let passive_unstake = brc20s_proto::PassiveUnStake {
@@ -162,9 +145,9 @@ impl<
                 let passive_msg = convert_msg_btc_to_brc20s(old_btc_msg, passive_unstake);
                 brc20s::execute(
                   context,
-                  self.brc20_store,
-                  self.brc20s_store,
-                  self.btc_store,
+                  self.state_store.brc20(),
+                  self.state_store.brc20s(),
+                  self.state_store.btc(),
                   &brc20s::ExecutionMessage::from_btc_message(
                     &passive_msg,
                     old_btc_msg.from.clone(),

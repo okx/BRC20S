@@ -25,7 +25,7 @@ impl Mint {
   }
 
   pub fn get_tick_id(&self) -> Result<TickId, BRC20SError> {
-    let tick_str = self.pool_id.as_str().split("#").next().unwrap_or("");
+    let tick_str = self.pool_id.as_str().split('#').next().unwrap_or("");
     TickId::from_str(tick_str)
   }
 
@@ -75,22 +75,20 @@ mod tests {
 
   #[test]
   fn test_deserialize() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "mint",
         "pid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(!deserialize_brc20s(&json_str).is_err());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "tid".to_string(),
@@ -101,36 +99,32 @@ mod tests {
 
   #[test]
   fn test_loss_require_key() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "mint",
         "tick": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap_err(),
+      deserialize_brc20s(json_str).unwrap_err(),
       JSONError::ParseOperationJsonError("missing field `pid`".to_string())
     );
   }
 
   #[test]
   fn test_duplicate_key() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "mint",
         "pid": "pid-2",
         "tick": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "pid-2".to_string(),

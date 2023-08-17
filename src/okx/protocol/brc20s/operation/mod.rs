@@ -83,10 +83,9 @@ pub(crate) fn deserialize_brc20s_operation(
     && content_type != "text/plain;charset=utf-8"
     && content_type != "text/plain;charset=UTF-8"
     && content_type != "application/json"
+    && !content_type.starts_with("text/plain;")
   {
-    if !content_type.starts_with("text/plain;") {
-      return Err(JSONError::UnSupportContentType.into());
-    }
+    return Err(JSONError::UnSupportContentType.into());
   }
 
   let raw_operation = match deserialize_brc20s(content_body) {
@@ -118,7 +117,7 @@ pub fn deserialize_brc20s(s: &str) -> Result<RawOperation, JSONError> {
     return Err(JSONError::NotBRC20SJson);
   }
 
-  Ok(serde_json::from_value(value).map_err(|e| JSONError::ParseOperationJsonError(e.to_string()))?)
+  serde_json::from_value(value).map_err(|e| JSONError::ParseOperationJsonError(e.to_string()))
 }
 
 #[allow(unused)]
@@ -128,13 +127,11 @@ mod tests {
 
   #[test]
   fn test_deploy_deserialize() {
-    let json_str = format!(
-      r##"{{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}}"##
-    );
+    let json_str = r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##.to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
-    assert!(!deserialize_brc20s(&json_str).is_err());
+    assert!(deserialize_brc20s(&json_str).is_ok());
 
     assert_eq!(
       deserialize_brc20s(&json_str).unwrap(),
@@ -154,21 +151,19 @@ mod tests {
 
   #[test]
   fn test_stake_deserialize() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "deposit",
         "pid": "pid",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    let result = deserialize_brc20s(&json_str);
+    let result = deserialize_brc20s(json_str);
 
-    assert!(!deserialize_brc20s(&json_str).is_err());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Stake(Stake {
         pool_id: "pid".to_string(),
         amount: "amt".to_string(),
@@ -178,22 +173,20 @@ mod tests {
 
   #[test]
   fn test_mint_deserialize() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "mint",
         "pid": "pid",
         "tick": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(!deserialize_brc20s(&json_str).is_err());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Mint(Mint {
         tick: "tick".to_string(),
         pool_id: "pid".to_string(),
@@ -204,21 +197,19 @@ mod tests {
 
   #[test]
   fn test_unstake_deserialize() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "withdraw",
         "pid": "pid",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(!deserialize_brc20s(&json_str).is_err());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::UnStake(UnStake {
         pool_id: "pid".to_string(),
         amount: "amt".to_string(),
@@ -228,22 +219,20 @@ mod tests {
 
   #[test]
   fn test_transfer_deserialize() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(!deserialize_brc20s(&json_str).is_err());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Transfer(Transfer {
         tick: "tick".to_string(),
         tick_id: "tid".to_string(),
@@ -254,17 +243,15 @@ mod tests {
 
   #[test]
   fn test_json_duplicate_field() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "deposit",
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Stake(Stake {
         pool_id: "pid-2".to_string(),
         amount: "amt".to_string(),
@@ -274,56 +261,48 @@ mod tests {
 
   #[test]
   fn test_json_non_brc20s() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc-40",
         "op": "stake",
         "pid": "pid",
         "amt": "amt"
-      }}"##
-    );
-    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC20SJson))
+      }"##;
+    assert_eq!(deserialize_brc20s(json_str), Err(JSONError::NotBRC20SJson))
   }
 
   #[test]
   fn test_json_non_string() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "stake",
         "pid": "pid",
         "amt": "amt",
-      }}"##
-    );
-    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::InvalidJson))
+      }"##;
+    assert_eq!(deserialize_brc20s(json_str), Err(JSONError::InvalidJson))
   }
 
   #[test]
   fn test_deserialize_case_insensitive() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "P": "brc20-s",
         "OP": "transfer",
         "Pid": "pid",
         "ticK": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    assert_eq!(deserialize_brc20s(&json_str), Err(JSONError::NotBRC20SJson));
+    assert_eq!(deserialize_brc20s(json_str), Err(JSONError::NotBRC20SJson));
 
-    let json_str1 = format!(
-      r##"{{
+    let json_str1 = r##"{
         "p": "brc20-s",
         "OP": "transfer",
         "Pid": "pid",
         "ticK": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
     assert_eq!(
-      deserialize_brc20s(&json_str1),
+      deserialize_brc20s(json_str1),
       Err(JSONError::ParseOperationJsonError(
         "missing field `op`".to_string()
       ))
@@ -455,7 +434,7 @@ mod tests {
     assert_eq!(
       deserialize_brc20s_operation(
         &Inscription::new(
-          Some(content_type.clone()),
+          Some(content_type),
           Some(
             r##"{"p":"brc20-s","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"##
               .as_bytes()

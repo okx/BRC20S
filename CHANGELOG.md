@@ -1,9 +1,28 @@
 Changelog
 =========
 
+[0.8.2](https://github.com/okx/ord/releases/tag/0.8.2) - 2023-08-17
+---------------------------------------------------------------------
+### Added
+- feat: Add transaction index inscription history record (#132)
+- api: get pools by tickid (#133)
+
+### Performance
+- perf: generate with OpenAPI (#144)
+
+### Fixed
+- fix ord unbound inscription issue (#140)
+- fix unicode (#137)
+
+### Changed
+- merge from ordinals 0.8.1 (#139)
+- update max staked pool num (#134)
+
+### Misc
+- update CI workflows (#141)
+
 [0.8.1](https://github.com/okx/ord/releases/tag/0.8.1) - 2023-07-19
 ---------------------------------------------------------------------
-
 ### Performance
 - Optimize lowercase (#128)
 - Save block number and time in database (#127)

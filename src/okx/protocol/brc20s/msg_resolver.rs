@@ -20,7 +20,7 @@ impl Message {
     client: &Client,
     ord_store: &'a O,
     brc30_store: &'a M,
-    new_inscriptions: &Vec<Inscription>,
+    new_inscriptions: &[Inscription],
     op: &InscriptionOp,
     outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
   ) -> Result<Option<Self>> {
@@ -86,9 +86,9 @@ impl Message {
   }
 }
 
-fn get_commit_input_satpoint<'a, O: OrdDataStoreReadOnly>(
+fn get_commit_input_satpoint<O: OrdDataStoreReadOnly>(
   client: &Client,
-  ord_store: &'a O,
+  ord_store: &O,
   satpoint: SatPoint,
   outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
 ) -> Result<SatPoint> {
@@ -141,7 +141,7 @@ fn get_commit_input_satpoint<'a, O: OrdDataStoreReadOnly>(
       });
     }
   }
-  return Err(anyhow!("no match found for the commit offset!"));
+  Err(anyhow!("no match found for the commit offset!"))
 }
 #[cfg(test)]
 mod tests {
@@ -220,7 +220,7 @@ mod tests {
 
   #[test]
   fn test_invalid_protocol() {
-    let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+    let client = Client::new("http://localhost/", Auth::None).unwrap();
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
@@ -247,7 +247,7 @@ mod tests {
 
   #[test]
   fn test_cursed_or_unbound_inscription() {
-    let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+    let client = Client::new("http://localhost/", Auth::None).unwrap();
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
@@ -264,7 +264,7 @@ mod tests {
         cursed: true,
         unbound: false,
       },
-      ..op.clone()
+      ..op
     };
     assert_matches!(
       Message::resolve(
@@ -318,7 +318,7 @@ mod tests {
 
   #[test]
   fn test_invalid_transfer() {
-    let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+    let client = Client::new("http://localhost/", Auth::None).unwrap();
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
@@ -333,7 +333,7 @@ mod tests {
         &client,
         &ord_store,
         &brc30_store,
-        &vec![],
+        &[],
         &op,
         &mut outpoint_to_txout_cache,
       ),
@@ -357,7 +357,7 @@ mod tests {
         &client,
         &ord_store,
         &brc30_store,
-        &vec![],
+        &[],
         &op1,
         &mut outpoint_to_txout_cache,
       ),
@@ -367,7 +367,7 @@ mod tests {
 
   #[test]
   fn test_valid_transfer() {
-    let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+    let client = Client::new("http://localhost/", Auth::None).unwrap();
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
@@ -407,7 +407,7 @@ mod tests {
         &client,
         &ord_store,
         &brc30_store,
-        &vec![],
+        &[],
         &op,
         &mut outpoint_to_txout_cache,
       ),

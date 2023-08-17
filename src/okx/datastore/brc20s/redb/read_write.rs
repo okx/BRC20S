@@ -6,7 +6,7 @@ use crate::{
   },
   InscriptionId,
 };
-use bitcoin::{hashes::Hash, Txid};
+use bitcoin::Txid;
 use redb::WriteTransaction;
 
 pub struct DataStore<'db, 'a> {
@@ -46,6 +46,10 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
   // BRC20S_PID_TO_POOLINFO
   fn get_pid_to_poolinfo(&self, pid: &Pid) -> Result<Option<PoolInfo>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_pid_to_poolinfo(pid)
+  }
+
+  fn get_all_pools_by_tid(&self, tick_id: &TickId) -> Result<Vec<PoolInfo>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_all_pools_by_tid(tick_id)
   }
 
   fn get_all_poolinfo(
@@ -158,7 +162,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   fn set_txid_to_inscription_receipts(
     &self,
     tx_id: &Txid,
-    inscription_operations: &Vec<InscriptionOperation>,
+    inscription_operations: &[InscriptionOperation],
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(TXID_TO_INSCRIPTION_RECEIPTS)?.insert(
       tx_id.to_string().as_str(),
@@ -209,7 +213,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
     user_info: &UserInfo,
   ) -> Result<(), Self::Error> {
     self.wtx.open_table(BRC20S_PID_TO_USERINFO)?.insert(
-      script_pid_key(&script_key, &pid).as_str(),
+      script_pid_key(script_key, pid).as_str(),
       bincode::serialize(user_info).unwrap().as_slice(),
     )?;
     Ok(())
@@ -302,7 +306,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
 
     self.wtx.open_table(BRC20S_INSCRIBE_TRANSFER)?.insert(
@@ -318,7 +322,7 @@ impl<'db, 'a> DataStoreReadWrite for DataStore<'db, 'a> {
   ) -> Result<(), Self::Error> {
     let mut value = [0; 36];
     let (txid, index) = value.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
 
     self
@@ -350,34 +354,36 @@ mod tests {
     let brc20s_db = DataStore::new(&wtx);
 
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
     let tick1 = TickId::from_str("f7c515d6b1").unwrap();
     let tick2 = TickId::from_str("f7c515d6b2").unwrap();
     let tick3 = TickId::from_str("f7c515d6b3").unwrap();
     let expect_balance1 = Balance {
-      tick_id: tick1.clone(),
+      tick_id: tick1,
       overall_balance: 10,
       transferable_balance: 10,
     };
     let expect_balance2 = Balance {
-      tick_id: tick2.clone(),
+      tick_id: tick2,
       overall_balance: 30,
       transferable_balance: 30,
     };
     let expect_balance3 = Balance {
-      tick_id: tick3.clone(),
+      tick_id: tick3,
       overall_balance: 100,
       transferable_balance: 30,
     };
     brc20s_db
-      .set_token_balance(&script, &tick1, expect_balance1.clone())
+      .set_token_balance(&script, &tick1, expect_balance1)
       .unwrap();
     brc20s_db
-      .set_token_balance(&script, &tick2, expect_balance2.clone())
+      .set_token_balance(&script, &tick2, expect_balance2)
       .unwrap();
     brc20s_db
-      .set_token_balance(&script, &tick3, expect_balance3.clone())
+      .set_token_balance(&script, &tick3, expect_balance3)
       .unwrap();
 
     assert_eq!(
@@ -385,16 +391,19 @@ mod tests {
       expect_balance1
     );
 
-    let script2 =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script2 = ScriptKey::from_address(
+      Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+        .unwrap()
+        .assume_checked(),
+    );
     assert_ne!(script.to_string(), script2.to_string());
     let expect_balance22 = Balance {
-      tick_id: tick2.clone(),
+      tick_id: tick2,
       overall_balance: 100,
       transferable_balance: 30,
     };
     brc20s_db
-      .set_token_balance(&script2, &tick2, expect_balance22.clone())
+      .set_token_balance(&script2, &tick2, expect_balance22)
       .unwrap();
 
     let mut all_balances = brc20s_db.get_balances(&script).unwrap();
@@ -459,11 +468,13 @@ mod tests {
     let pid_3 = Pid::from_str("1234567890#03").unwrap();
     let pid_4 = Pid::from_str("1234567890#04").unwrap();
     let pid_5 = Pid::from_str("1234567890#05").unwrap();
+    let pid_6 = Pid::from_str("a234567890#01").unwrap();
+    let pid_7 = Pid::from_str("b234567890#01").unwrap();
 
     let pool_info_1 = PoolInfo {
       pid: pid_1.clone(),
       ptype: PoolType::Pool,
-      inscription_id: inscription_id.clone(),
+      inscription_id,
       stake: PledgedTick::Native,
       erate: 0,
       minted: 0,
@@ -559,12 +570,45 @@ mod tests {
     );
 
     assert_eq!(brc20s_db.get_all_poolinfo(5, Some(9)).unwrap(), (vec![], 5));
+
+    // test for all_pools_by_tid
+    brc20s_db.set_pid_to_poolinfo(&pid_6, &pool_info_5).unwrap();
+    brc20s_db.set_pid_to_poolinfo(&pid_7, &pool_info_5).unwrap();
+
+    let tid = TickId::from_str("a234567890").unwrap();
+    assert_eq!(
+      brc20s_db.get_all_pools_by_tid(&tid).unwrap(),
+      vec![pool_info_5.clone()]
+    );
+
+    let tid = TickId::from_str("b234567890").unwrap();
+    assert_eq!(
+      brc20s_db.get_all_pools_by_tid(&tid).unwrap(),
+      vec![pool_info_5.clone()]
+    );
+
+    let tid = TickId::from_str("0234567890").unwrap();
+    assert_eq!(brc20s_db.get_all_pools_by_tid(&tid).unwrap(), vec![]);
+
+    let tid = TickId::from_str("1234567890").unwrap();
+    assert_eq!(
+      brc20s_db.get_all_pools_by_tid(&tid).unwrap(),
+      vec![
+        pool_info_1,
+        pool_info_2,
+        pool_info_3,
+        pool_info_4,
+        pool_info_5
+      ]
+    );
   }
 
   #[test]
   fn test_user_stakeinfo() {
     let script = ScriptKey::from_address(
-      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+      Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+        .unwrap()
+        .assume_checked(),
     );
 
     let dbfile = NamedTempFile::new().unwrap();
@@ -576,7 +620,7 @@ mod tests {
     let pid_20 = Pid::from_str("0000000000#01").unwrap();
     let stake_info_20 = StakeInfo {
       stake: pledged_tick_20.clone(),
-      pool_stakes: vec![(pid_20.clone(), true, 123)],
+      pool_stakes: vec![(pid_20, true, 123)],
       max_share: 0,
       total_only: 0,
     };
@@ -585,7 +629,7 @@ mod tests {
     let pid_30 = Pid::from_str("0000000000#02").unwrap();
     let stake_info_30 = StakeInfo {
       stake: pledged_tick_30.clone(),
-      pool_stakes: vec![(pid_30.clone(), true, 123)],
+      pool_stakes: vec![(pid_30, true, 123)],
       max_share: 0,
       total_only: 0,
     };
@@ -594,7 +638,7 @@ mod tests {
     let pid_btc = Pid::from_str("0000000000#03").unwrap();
     let stake_info_btc = StakeInfo {
       stake: pledged_tick_btc.clone(),
-      pool_stakes: vec![(pid_btc.clone(), true, 123)],
+      pool_stakes: vec![(pid_btc, true, 123)],
       max_share: 0,
       total_only: 0,
     };
@@ -603,7 +647,7 @@ mod tests {
     let pid_btc = Pid::from_str("0000000000#03").unwrap();
     let stake_info_unknown = StakeInfo {
       stake: pledged_tick_unknown.clone(),
-      pool_stakes: vec![(pid_btc.clone(), true, 123)],
+      pool_stakes: vec![(pid_btc, true, 123)],
       max_share: 0,
       total_only: 0,
     };
@@ -679,15 +723,17 @@ mod tests {
 
     let pid = Pid::from_str("1234567890#01").unwrap();
     let tick_info1 = TickInfo {
-      tick_id: tick_id_1.clone(),
+      tick_id: tick_id_1,
       name: Tick::from_str("aBc1ab").unwrap(),
-      inscription_id: inscription_id.clone(),
+      inscription_id,
       allocated: 100,
       decimal: 1,
       circulation: 100,
       supply: 100,
       deployer: ScriptKey::from_address(
-        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap(),
+        Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+          .unwrap()
+          .assume_checked(),
       ),
       deploy_block: 100,
       deploy_block_time: 100000,
@@ -712,7 +758,7 @@ mod tests {
 
     assert_eq!(
       brc20s_db.get_tick_info(&tick_id_1).unwrap().unwrap(),
-      tick_info1.clone()
+      tick_info1
     );
 
     assert_eq!(
@@ -754,9 +800,9 @@ mod tests {
       brc20s_db.get_all_tick_info(0, Some(9)).unwrap(),
       (
         vec![
-          tick_info1.clone(),
-          tick_info2.clone(),
-          tick_info3.clone(),
+          tick_info1,
+          tick_info2,
+          tick_info3,
           tick_info4.clone(),
           tick_info5.clone()
         ],
@@ -771,7 +817,7 @@ mod tests {
 
     assert_eq!(
       brc20s_db.get_all_tick_info(3, Some(9)).unwrap(),
-      (vec![tick_info4.clone(), tick_info5.clone()], 5)
+      (vec![tick_info4, tick_info5], 5)
     );
 
     assert_eq!(
@@ -796,8 +842,11 @@ mod tests {
       reward_debt: 0,
       latest_updated_block: 0,
     };
-    let script_key =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script_key = ScriptKey::from_address(
+      Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+        .unwrap()
+        .assume_checked(),
+    );
 
     brc20s_db
       .set_pid_to_use_info(&script_key, &pid, &user_info)
@@ -819,8 +868,11 @@ mod tests {
     let wtx = db.begin_write().unwrap();
     let brc20s_db = DataStore::new(&wtx);
 
-    let script_key =
-      ScriptKey::from_address(Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap());
+    let script_key = ScriptKey::from_address(
+      Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k")
+        .unwrap()
+        .assume_checked(),
+    );
     let tick_id = TickId::from_str("f7c515d6b7").unwrap();
     let inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
@@ -828,17 +880,12 @@ mod tests {
     let transferable_asset = TransferableAsset {
       inscription_id,
       amount: 100,
-      tick_id: tick_id.clone(),
+      tick_id,
       owner: script_key.clone(),
     };
 
     brc20s_db
-      .set_transferable_assets(
-        &script_key,
-        &tick_id,
-        &inscription_id,
-        &transferable_asset.clone(),
-      )
+      .set_transferable_assets(&script_key, &tick_id, &inscription_id, &transferable_asset)
       .unwrap();
 
     assert_eq!(
@@ -868,7 +915,7 @@ mod tests {
 
     let op_vec = vec![
       Receipt {
-        inscription_id: inscription_id.clone(),
+        inscription_id,
         inscription_number: 0,
         old_satpoint: SatPoint {
           outpoint: Default::default(),
@@ -884,7 +931,7 @@ mod tests {
         result: Err(BRC20SError::InvalidTickLen("abcde".to_string())),
       },
       Receipt {
-        inscription_id: inscription_id.clone(),
+        inscription_id,
         inscription_number: 0,
         old_satpoint: SatPoint {
           outpoint: Default::default(),
@@ -900,7 +947,7 @@ mod tests {
         result: Err(BRC20SError::InvalidTickLen("abcde".to_string())),
       },
       Receipt {
-        inscription_id: inscription_id.clone(),
+        inscription_id,
         inscription_number: 0,
         old_satpoint: SatPoint {
           outpoint: Default::default(),
@@ -912,7 +959,7 @@ mod tests {
         },
         op: OperationType::Transfer,
         from: ScriptKey::Address(addr.clone()),
-        to: ScriptKey::Address(addr.clone()),
+        to: ScriptKey::Address(addr),
         result: Err(BRC20SError::InvalidTickLen("abcde".to_string())),
       },
     ];
@@ -1091,31 +1138,31 @@ mod tests {
         pid_unknown.clone(),
         pid_btc.clone(),
         pid_20.clone(),
-        pid_30_1.clone(),
+        pid_30_1,
         pid_30.clone(),
       ]
     );
 
     assert_eq!(
       brc20s_db.get_stake_to_all_pid(&pledged_tick_30).unwrap(),
-      vec![pid_30.clone(), pid_30.clone(), pid_30.clone()]
+      vec![pid_30.clone(), pid_30.clone(), pid_30]
     );
 
     assert_eq!(
       brc20s_db.get_stake_to_all_pid(&pledged_tick_btc).unwrap(),
-      vec![pid_btc.clone()]
+      vec![pid_btc]
     );
 
     assert_eq!(
       brc20s_db.get_stake_to_all_pid(&pledged_tick_20).unwrap(),
-      vec![pid_20.clone(), pid_20.clone(), pid_20.clone()]
+      vec![pid_20.clone(), pid_20.clone(), pid_20]
     );
 
     assert_eq!(
       brc20s_db
         .get_stake_to_all_pid(&pledged_tick_unknown)
         .unwrap(),
-      vec![pid_unknown.clone()]
+      vec![pid_unknown]
     );
   }
 
@@ -1127,7 +1174,9 @@ mod tests {
     let brc20s_db = DataStore::new(&wtx);
 
     let script_key1 = ScriptKey::from_address(
-      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e").unwrap(),
+      Address::from_str("bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e")
+        .unwrap()
+        .assume_checked(),
     );
     let tick_id1 = TickId::from_str("17c515d6b7").unwrap();
     let inscription_id1 =
@@ -1136,7 +1185,7 @@ mod tests {
     let transferable_asset1 = TransferableAsset {
       inscription_id: inscription_id1,
       amount: 100,
-      tick_id: tick_id1.clone(),
+      tick_id: tick_id1,
       owner: script_key1.clone(),
     };
 
@@ -1145,7 +1194,7 @@ mod tests {
         &script_key1,
         &tick_id1,
         &inscription_id1,
-        &transferable_asset1.clone(),
+        &transferable_asset1,
       )
       .unwrap();
 
@@ -1164,7 +1213,7 @@ mod tests {
     let transferable_asset2 = TransferableAsset {
       inscription_id: inscription_id2,
       amount: 100,
-      tick_id: tick_id2.clone(),
+      tick_id: tick_id2,
       owner: script_key1.clone(),
     };
 
@@ -1173,7 +1222,7 @@ mod tests {
         &script_key1,
         &tick_id2,
         &inscription_id2,
-        &transferable_asset2.clone(),
+        &transferable_asset2,
       )
       .unwrap();
 
@@ -1187,7 +1236,7 @@ mod tests {
 
     assert_eq!(
       brc20s_db.get_transferable(&script_key1).unwrap(),
-      vec![transferable_asset1.clone(), transferable_asset2.clone()]
+      vec![transferable_asset1, transferable_asset2]
     );
   }
 }

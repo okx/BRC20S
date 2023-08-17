@@ -32,7 +32,7 @@ pub struct TransferableAsset {
 impl Balance {
   pub fn default(tick_id: &TickId) -> Balance {
     Balance {
-      tick_id: tick_id.clone(),
+      tick_id: *tick_id,
       overall_balance: 0,
       transferable_balance: 0,
     }

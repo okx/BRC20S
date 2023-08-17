@@ -67,8 +67,22 @@ impl Deploy {
     match stake {
       NATIVE_TOKEN => PledgedTick::Native,
       _ => match self.stake.len() {
-        TICK_BYTE_COUNT => PledgedTick::BRC20Tick(brc20::Tick::from_str(stake).unwrap()),
-        TICK_ID_STR_COUNT => PledgedTick::BRC20STick(TickId::from_str(stake).unwrap()),
+        TICK_BYTE_COUNT => {
+          let tick = brc20::Tick::from_str(stake);
+          if let Ok(tick) = tick {
+            PledgedTick::BRC20Tick(tick)
+          } else {
+            PledgedTick::Unknown
+          }
+        }
+        TICK_ID_STR_COUNT => {
+          let tick_id = TickId::from_str(stake);
+          if let Ok(tick_id) = tick_id {
+            PledgedTick::BRC20STick(tick_id)
+          } else {
+            PledgedTick::Unknown
+          }
+        }
         _ => PledgedTick::Unknown,
       },
     }
@@ -83,7 +97,7 @@ impl Deploy {
   }
 
   pub fn get_tick_id(&self) -> TickId {
-    let tick_str = self.pool_id.as_str().split("#").next().unwrap();
+    let tick_str = self.pool_id.as_str().split('#').next().unwrap();
     TickId::from_str(tick_str).unwrap()
   }
   pub fn validate_basic(&self) -> Result<(), BRC20SError> {
@@ -91,8 +105,8 @@ impl Deploy {
       return Err(BRC20SError::UnknownPoolType);
     }
     let iserr = validate_pool_str(self.pool_id.as_str()).err();
-    if None != iserr {
-      return Err(iserr.unwrap());
+    if let Some(iserr) = iserr {
+      return Err(iserr);
     }
 
     if self.get_stake_id() == PledgedTick::Unknown {
@@ -302,16 +316,13 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(
-      (),
-      deploy
-        .validate_basic()
-        .map_err(|e| {
-          println!("{}", e);
-          e
-        })
-        .unwrap()
-    );
+    assert!(deploy
+      .validate_basic()
+      .map_err(|e| {
+        println!("{}", e);
+        e
+      })
+      .is_ok());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -324,7 +335,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true, deploy.validate_basic().is_err());
+    assert!(deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -337,7 +348,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true, deploy.validate_basic().is_err());
+    assert!(deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -350,7 +361,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true, deploy.validate_basic().is_err());
+    assert!(deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -363,7 +374,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true, deploy.validate_basic().is_err());
+    assert!(deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -376,7 +387,7 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true, deploy.validate_basic().is_err());
+    assert!(deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -389,7 +400,7 @@ mod tests {
       total_supply: Some("abc".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true, deploy.validate_basic().is_err());
+    assert!(deploy.validate_basic().is_err());
 
     let deploy = Deploy {
       pool_type: "pool".to_string(),
@@ -402,6 +413,6 @@ mod tests {
       total_supply: Some("21000000".to_string()),
       only: Some("1".to_string()),
     };
-    assert_eq!(true, deploy.validate_basic().is_err());
+    assert!(deploy.validate_basic().is_err());
   }
 }

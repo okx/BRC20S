@@ -6,15 +6,16 @@ use std::{borrow::Borrow, io};
 
 use bitcoin::{
   consensus::{Decodable, Encodable},
-  hashes::Hash,
-  OutPoint, TxOut,
+  OutPoint, TxOut, Txid,
 };
 
 use crate::{
   index::{INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, OUTPOINT_TO_ENTRY},
-  okx::datastore::ord::OrdDataStoreReadOnly,
+  okx::datastore::ord::{InscriptionOp, OrdDataStoreReadOnly},
   InscriptionId, Result,
 };
+
+use super::ORD_TX_TO_OPERATIONS;
 
 pub struct OrdDbReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
@@ -80,7 +81,7 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
   ) -> Result<Option<i64>, Self::Error> {
     let mut key = [0; 36];
     let (txid, index) = key.split_at_mut(32);
-    txid.copy_from_slice(inscription_id.txid.as_inner());
+    txid.copy_from_slice(inscription_id.txid.as_ref());
     index.copy_from_slice(&inscription_id.index.to_be_bytes());
     Ok(
       self
@@ -102,6 +103,18 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
         .open_table(OUTPOINT_TO_ENTRY)?
         .get(&value)?
         .map(|x| Decodable::consensus_decode(&mut io::Cursor::new(x.value())).unwrap()),
+    )
+  }
+
+  fn get_transaction_operations(&self, txid: &Txid) -> Result<Vec<InscriptionOp>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(ORD_TX_TO_OPERATIONS)?
+        .get(txid.to_string().as_str())?
+        .map_or(Vec::new(), |v| {
+          bincode::deserialize::<Vec<InscriptionOp>>(v.value()).unwrap()
+        }),
     )
   }
 }

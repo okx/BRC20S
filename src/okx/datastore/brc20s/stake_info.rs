@@ -14,14 +14,14 @@ pub struct StakeInfo {
 
 impl StakeInfo {
   pub fn new(
-    pool_stakes: &Vec<(Pid, bool, u128)>,
+    pool_stakes: Vec<(Pid, bool, u128)>,
     stake: &PledgedTick,
     max_share: u128,
     total_only: u128,
   ) -> Self {
     Self {
       stake: stake.clone(),
-      pool_stakes: pool_stakes.clone(),
+      pool_stakes,
       max_share,
       total_only,
     }
@@ -48,7 +48,7 @@ impl StakeInfo {
     for (pid, only, pool_stake) in self.pool_stakes.iter() {
       let current_staked = max_share_alter.checked_add(&total_only)?; // the sum stake of share and only pools
       let pool_stake_num = Num::from(*pool_stake);
-      if current_staked.ge(&stake_alterive) {
+      if current_staked.ge(stake_alterive) {
         // if current_stake > stake_alterive, then only change share pool
         if !*only && !max_share_alter.eq(&ZERO_NUM) {
           if max_share_alter.gt(&pool_stake_num) {
@@ -57,25 +57,23 @@ impl StakeInfo {
             pids.push((pid.clone(), max_share_alter.checked_to_u128()?))
           }
         }
-      } else {
-        if *only {
-          let remain = stake_alterive.checked_sub(&current_staked)?;
-          if remain.gt(&pool_stake_num) {
-            total_only = total_only.checked_add(&pool_stake_num)?;
-            pids.push((pid.clone(), pool_stake_num.checked_to_u128()?));
-          } else {
-            total_only = total_only.checked_add(&remain)?;
-            pids.push((pid.clone(), remain.checked_to_u128()?));
-          }
+      } else if *only {
+        let remain = stake_alterive.checked_sub(&current_staked)?;
+        if remain.gt(&pool_stake_num) {
+          total_only = total_only.checked_add(&pool_stake_num)?;
+          pids.push((pid.clone(), pool_stake_num.checked_to_u128()?));
         } else {
-          let remain = stake_alterive.checked_sub(&total_only)?;
-          if remain.gt(&pool_stake_num) {
-            max_share_alter = Num::max(&max_share_alter, &pool_stake_num);
-            pids.push((pid.clone(), pool_stake_num.checked_to_u128()?));
-          } else {
-            max_share_alter = Num::max(&max_share_alter, &remain);
-            pids.push((pid.clone(), remain.checked_to_u128()?));
-          }
+          total_only = total_only.checked_add(&remain)?;
+          pids.push((pid.clone(), remain.checked_to_u128()?));
+        }
+      } else {
+        let remain = stake_alterive.checked_sub(&total_only)?;
+        if remain.gt(&pool_stake_num) {
+          max_share_alter = Num::max(&max_share_alter, &pool_stake_num);
+          pids.push((pid.clone(), pool_stake_num.checked_to_u128()?));
+        } else {
+          max_share_alter = Num::max(&max_share_alter, &remain);
+          pids.push((pid.clone(), remain.checked_to_u128()?));
         }
       }
     }
@@ -101,7 +99,7 @@ mod tests {
   // 1        1           1
   #[test]
   fn test_calculate_withdraw_pools_000() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -138,15 +136,14 @@ mod tests {
       //change is more than third pool
       let change = Num::from(35_u128);
       let result: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&change).unwrap();
-      let expect: Vec<(Pid, u128)> =
-        vec![(pid1.clone(), 10), (pid2.clone(), 20), (pid3.clone(), 30)];
+      let expect: Vec<(Pid, u128)> = vec![(pid1, 10), (pid2, 20), (pid3, 30)];
       assert_eq!(result, expect);
     }
   }
 
   #[test]
   fn test_calculate_withdraw_pools_001() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -209,15 +206,14 @@ mod tests {
       //change is more than third pool
       let change = Num::from(65_u128);
       let result: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&change).unwrap();
-      let expect: Vec<(Pid, u128)> =
-        vec![(pid1.clone(), 10), (pid2.clone(), 20), (pid3.clone(), 30)];
+      let expect: Vec<(Pid, u128)> = vec![(pid1, 10), (pid2, 20), (pid3, 30)];
       assert_eq!(result, expect);
     }
   }
 
   #[test]
   fn test_calculate_withdraw_pools_010() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -281,15 +277,14 @@ mod tests {
       //change is more than third pool
       let change = Num::from(65_u128);
       let result: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&change).unwrap();
-      let expect: Vec<(Pid, u128)> =
-        vec![(pid1.clone(), 10), (pid2.clone(), 20), (pid3.clone(), 30)];
+      let expect: Vec<(Pid, u128)> = vec![(pid1, 10), (pid2, 20), (pid3, 30)];
       assert_eq!(result, expect);
     }
   }
 
   #[test]
   fn test_calculate_withdraw_pools_100() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -352,15 +347,14 @@ mod tests {
       //change is more than third pool
       let change = Num::from(65_u128);
       let result: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&change).unwrap();
-      let expect: Vec<(Pid, u128)> =
-        vec![(pid1.clone(), 10), (pid2.clone(), 20), (pid3.clone(), 30)];
+      let expect: Vec<(Pid, u128)> = vec![(pid1, 10), (pid2, 20), (pid3, 30)];
       assert_eq!(result, expect);
     }
   }
 
   #[test]
   fn test_calculate_withdraw_pools_011() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -422,15 +416,14 @@ mod tests {
       //change is more than third pool
       let change = Num::from(65_u128);
       let result: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&change).unwrap();
-      let expect: Vec<(Pid, u128)> =
-        vec![(pid1.clone(), 10), (pid2.clone(), 20), (pid3.clone(), 30)];
+      let expect: Vec<(Pid, u128)> = vec![(pid1, 10), (pid2, 20), (pid3, 30)];
       assert_eq!(result, expect);
     }
   }
 
   #[test]
   fn test_calculate_withdraw_pools_110() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -492,15 +485,14 @@ mod tests {
       //change is more than third pool
       let change = Num::from(65_u128);
       let result: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&change).unwrap();
-      let expect: Vec<(Pid, u128)> =
-        vec![(pid1.clone(), 10), (pid2.clone(), 20), (pid3.clone(), 30)];
+      let expect: Vec<(Pid, u128)> = vec![(pid1, 10), (pid2, 20), (pid3, 30)];
       assert_eq!(result, expect);
     }
   }
 
   #[test]
   fn test_calculate_withdraw_pools_101() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -562,15 +554,14 @@ mod tests {
       //change is more than third pool
       let change = Num::from(65_u128);
       let result: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&change).unwrap();
-      let expect: Vec<(Pid, u128)> =
-        vec![(pid1.clone(), 10), (pid2.clone(), 20), (pid3.clone(), 30)];
+      let expect: Vec<(Pid, u128)> = vec![(pid1, 10), (pid2, 20), (pid3, 30)];
       assert_eq!(result, expect);
     }
   }
 
   #[test]
   fn test_calculate_withdraw_pools_111() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
@@ -632,20 +623,19 @@ mod tests {
       //change is more than third pool
       let change = Num::from(65_u128);
       let result: Vec<(Pid, u128)> = stake_info.calculate_withdraw_pools(&change).unwrap();
-      let expect: Vec<(Pid, u128)> =
-        vec![(pid1.clone(), 10), (pid2.clone(), 20), (pid3.clone(), 30)];
+      let expect: Vec<(Pid, u128)> = vec![(pid1, 10), (pid2, 20), (pid3, 30)];
       assert_eq!(result, expect);
     }
   }
   #[test]
   fn test_remove_withdraw_pools() {
-    let mut stake_info = StakeInfo::new(&vec![], &PledgedTick::Unknown, 0, 0);
+    let mut stake_info = StakeInfo::new(vec![], &PledgedTick::Unknown, 0, 0);
     let pid1 = Pid::from_str("0000000000#01").unwrap();
     let pid2 = Pid::from_str("0000000000#02").unwrap();
     let pid3 = Pid::from_str("0000000000#03").unwrap();
     stake_info.pool_stakes.push((pid1.clone(), false, 10));
-    stake_info.pool_stakes.push((pid2.clone(), false, 0));
-    stake_info.pool_stakes.push((pid3.clone(), false, 30));
+    stake_info.pool_stakes.push((pid2, false, 0));
+    stake_info.pool_stakes.push((pid3, false, 30));
 
     for pool_stake in stake_info.pool_stakes.iter_mut() {
       if pool_stake.0 == pid1 {

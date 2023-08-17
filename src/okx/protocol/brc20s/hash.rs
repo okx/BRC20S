@@ -1,7 +1,6 @@
 use crate::okx::datastore::brc20s::TickId;
 use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::brc20s::params::TICK_ID_BYTE_COUNT;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::hashes::{sha256, Hash, HashEngine};
 use std::str::FromStr;
 
@@ -19,7 +18,8 @@ pub fn caculate_tick_id(
   enc.input(from.to_string().as_bytes());
   enc.input(to.to_string().as_bytes());
   let hash = sha256::Hash::from_engine(enc);
-  TickId::from_str(hash[0..TICK_ID_BYTE_COUNT].to_hex().as_str()).unwrap()
+
+  TickId::from_str(&hash.to_string()[..2 * (TICK_ID_BYTE_COUNT)]).unwrap()
 }
 
 #[cfg(test)]
@@ -37,8 +37,8 @@ mod tests {
       "ordi",
       40000000,
       2,
-      &ScriptKey::from_address(addr1),
-      &ScriptKey::from_address(addr2),
+      &ScriptKey::from_address(addr1.assume_checked()),
+      &ScriptKey::from_address(addr2.assume_checked()),
     );
     println!("tick_id:{}", tick_id.hex());
 
@@ -51,8 +51,8 @@ mod tests {
       "ordi",
       10,
       18,
-      &ScriptKey::from_address(addr1),
-      &ScriptKey::from_address(addr2),
+      &ScriptKey::from_address(addr1.assume_checked()),
+      &ScriptKey::from_address(addr2.assume_checked()),
     );
     println!("tick_id:{}", tick_id.hex());
 
@@ -65,8 +65,8 @@ mod tests {
       "ordi",
       100,
       1,
-      &ScriptKey::from_address(addr1),
-      &ScriptKey::from_address(addr2),
+      &ScriptKey::from_address(addr1.assume_checked()),
+      &ScriptKey::from_address(addr2.assume_checked()),
     );
     println!("tick_id:{}", tick_id.hex());
   }

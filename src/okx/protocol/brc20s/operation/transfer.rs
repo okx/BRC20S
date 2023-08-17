@@ -40,22 +40,20 @@ mod tests {
 
   #[test]
   fn test_deserialize() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    let reuslt = deserialize_brc20s(&json_str);
+    let reuslt = deserialize_brc20s(json_str);
 
-    assert!(!deserialize_brc20s(&json_str).is_err());
+    assert!(deserialize_brc20s(json_str).is_ok());
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Transfer(Transfer {
         tick: "tick".to_string(),
         tick_id: "tid".to_string(),
@@ -66,37 +64,33 @@ mod tests {
 
   #[test]
   fn test_loss_require_key() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "transfer",
         "tick": "tick",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
 
-    let result = deserialize_brc20s(&json_str);
+    let result = deserialize_brc20s(json_str);
 
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap_err(),
+      deserialize_brc20s(json_str).unwrap_err(),
       JSONError::ParseOperationJsonError("missing field `tid`".to_string())
     );
   }
 
   #[test]
   fn test_duplicate_key() {
-    let json_str = format!(
-      r##"{{
+    let json_str = r##"{
         "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick-1",
         "tick": "tick-2",
         "amt": "amt"
-      }}"##
-    );
+      }"##;
     assert_eq!(
-      deserialize_brc20s(&json_str).unwrap(),
+      deserialize_brc20s(json_str).unwrap(),
       RawOperation::Transfer(Transfer {
         tick: "tick-2".to_string(),
         tick_id: "tid".to_string(),

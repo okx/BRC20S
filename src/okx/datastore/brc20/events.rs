@@ -81,10 +81,14 @@ mod tests {
       .unwrap(),
       op: OperationType::Deploy,
       from: ScriptKey::from_address(
-        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .assume_checked(),
       ),
       to: ScriptKey::from_address(
-        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap(),
+        Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4")
+          .unwrap()
+          .assume_checked(),
       ),
       result: Err(BRC20Error::InvalidTickLen("abcde".to_string())),
     };

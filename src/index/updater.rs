@@ -1,10 +1,7 @@
-use crate::okx::datastore::brc20::redb as brc20_db;
-use crate::okx::datastore::brc20s::redb as brc20s_db;
-use crate::okx::datastore::ord;
-
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
+  crate::okx::datastore::{brc20::redb as brc20_db, brc20s::redb as brc20s_db, ord},
   futures::future::try_join_all,
   std::sync::mpsc,
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
@@ -20,7 +17,7 @@ const FAST_QUERY_HEIGHT: u64 = 10;
 mod inscription_updater;
 
 pub(crate) struct BlockData {
-  pub(crate) header: BlockHeader,
+  pub(crate) header: Header,
   pub(crate) txdata: Vec<(Transaction, Txid)>,
 }
 
@@ -57,8 +54,7 @@ impl Updater {
     let height = wtx
       .open_table(HEIGHT_TO_BLOCK_HASH)?
       .range(0..)?
-      .rev()
-      .next()
+      .next_back()
       .and_then(|result| result.ok())
       .map(|(height, _hash)| height.value() + 1)
       .unwrap_or(0);
@@ -113,12 +109,7 @@ impl Updater {
     let (mut outpoint_sender, mut tx_out_receiver) = Self::spawn_fetcher(index)?;
 
     let mut uncommitted = 0;
-    loop {
-      let block = match rx.recv() {
-        Ok(block) => block,
-        Err(mpsc::RecvError) => break,
-      };
-
+    while let Ok(block) = rx.recv() {
       self.index_block(
         index,
         &mut outpoint_sender,
@@ -187,8 +178,7 @@ impl Updater {
         let height = wtx
           .open_table(HEIGHT_TO_BLOCK_HASH)?
           .range(0..)?
-          .rev()
-          .next()
+          .next_back()
           .and_then(|result| result.ok())
           .map(|(height, _hash)| height.value() + 1)
           .unwrap_or(0);
@@ -447,7 +437,7 @@ impl Updater {
     if let Some(prev_height) = self.height.checked_sub(1) {
       let prev_hash = height_to_block_hash.get(&prev_height)?.unwrap();
 
-      if prev_hash.value() != block.header.prev_blockhash.as_ref() {
+      if prev_hash.value() != &block.header.prev_blockhash.as_raw_hash().to_byte_array() {
         index.reorged.store(true, atomic::Ordering::Relaxed);
         return Err(anyhow!("reorg detected at or before {prev_height}"));
       }
@@ -604,6 +594,7 @@ impl Updater {
       &ord::OrdDbReadWriter::new(wtx),
       &brc20_db::DataStore::new(wtx),
       &brc20s_db::DataStore::new(wtx),
+      index.first_inscription_height,
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
     )

@@ -1,36 +1,53 @@
-use super::error::ApiError;
-use super::*;
+use {
+  super::{info::NodeInfo, *},
+  utoipa::ToSchema,
+};
+#[derive(Default, Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[aliases(
+  BRC20Tick = ApiResponse<brc20::TickInfo>,
+  BRC20AllTick = ApiResponse<brc20::AllTickInfo>,
+  BRC20Balance = ApiResponse<brc20::Balance>,
+  BRC20AllBalance = ApiResponse<brc20::AllBalance>,
+  BRC20TxEvents = ApiResponse<brc20::TxEvents>,
+  BRC20BlockEvents = ApiResponse<brc20::BlockEvents>,
+  BRC20Transferable = ApiResponse<brc20::TransferableInscriptions>,
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+  BRC20STick = ApiResponse<brc20s::TickInfo>,
+  BRC20SAllTick = ApiResponse<brc20s::AllTickInfo>,
+  BRC20SBalance = ApiResponse<brc20s::Balance>,
+  BRC20SAllBalance = ApiResponse<brc20s::AllBalance>,
+  BRC20SPool = ApiResponse<brc20s::Pool>,
+  BRC20SAllPool = ApiResponse<brc20s::AllPoolInfo>,
+  BRC20STxReceipts = ApiResponse<brc20s::TxReceipts>,
+  BRC20SBlockReceipts = ApiResponse<brc20s::BlockReceipts>,
+  BRC20STransferable = ApiResponse<brc20s::Transferable>,
+  BRC20SUserInfo = ApiResponse<brc20s::UserInfo>,
+  BRC20SStakedInfo = ApiResponse<brc20s::StakedInfo>,
+
+  OrdOrdInscription = ApiResponse<ord::OrdInscription>,
+  OrdOutPointData = ApiResponse<ord::OutPointData>,
+  OrdTxInscriptions = ApiResponse<ord::TxInscriptions>,
+  OrdBlockInscriptions = ApiResponse<ord::BlockInscriptions>,
+
+  Node = ApiResponse<NodeInfo>
+)]
 pub(crate) struct ApiResponse<T: Serialize> {
   pub code: i32,
+  /// ok
+  #[schema(example = "ok")]
   pub msg: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub data: Option<T>,
+  pub data: T,
 }
 
 impl<T> ApiResponse<T>
 where
   T: Serialize,
 {
-  pub fn new(code: i32, msg: String, data: Option<T>) -> Self {
+  fn new(code: i32, msg: String, data: T) -> Self {
     Self { code, msg, data }
   }
 
   pub fn ok(data: T) -> Self {
-    Self::new(0, "ok".to_string(), Some(data))
-  }
-
-  pub fn err(code: i32, msg: String) -> Self {
-    Self::new(code, msg, None)
-  }
-
-  pub fn api_err(err: &ApiError) -> Self {
-    match err {
-      ApiError::NoError => Self::new(0, "ok".to_string(), None),
-      ApiError::Internal(msg) | ApiError::BadRequest(msg) | ApiError::NotFound(msg) => {
-        Self::err(err.code(), msg.clone())
-      }
-    }
+    Self::new(0, "ok".to_string(), data)
   }
 }

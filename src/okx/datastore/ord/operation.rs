@@ -1,8 +1,9 @@
 use crate::{InscriptionId, SatPoint};
 use bitcoin::Txid;
+use serde::{Deserialize, Serialize};
 
 // collect the inscription operation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct InscriptionOp {
   pub txid: Txid,
   pub action: Action,
@@ -13,7 +14,7 @@ pub struct InscriptionOp {
 }
 
 // the act of marking an inscription.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum Action {
   New { cursed: bool, unbound: bool },
   Transfer,

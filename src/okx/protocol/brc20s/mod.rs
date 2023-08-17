@@ -13,7 +13,7 @@ mod util;
 #[cfg(test)]
 #[macro_use]
 mod test;
-mod vesion;
+mod version;
 
 pub(crate) use self::operation::deserialize_brc20s_operation;
 pub use self::{

@@ -8,7 +8,7 @@ use {
   serde_json::{json, Value},
 };
 
-#[allow(dead_code)]
+#[allow(unused)]
 pub(crate) struct Fetcher {
   auth: String,
   client: Client<HttpConnector>,
@@ -16,7 +16,7 @@ pub(crate) struct Fetcher {
 }
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
+#[allow(unused)]
 struct JsonResponse<T> {
   error: Option<JsonError>,
   id: usize,
@@ -24,14 +24,14 @@ struct JsonResponse<T> {
 }
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
+#[allow(unused)]
 struct JsonError {
   code: i32,
   message: String,
 }
 
 impl Fetcher {
-  #[allow(dead_code)]
+  #[allow(unused)]
   pub(crate) fn new(options: &Options) -> Result<Self> {
     let client = Client::new();
 
@@ -69,23 +69,38 @@ impl Fetcher {
     }
 
     let body = Value::Array(reqs).to_string();
-    let req = Request::builder()
-      .method(Method::POST)
-      .uri(&self.url)
-      .header(hyper::header::AUTHORIZATION, &self.auth)
-      .header(hyper::header::CONTENT_TYPE, "application/json")
-      .body(Body::from(body))?;
 
-    let response = self.client.request(req).await?;
+    let mut results: Vec<JsonResponse<String>>;
+    let mut retries = 0;
 
-    let buf = hyper::body::to_bytes(response).await?;
+    loop {
+      results = match self.try_get_transactions(body.clone()).await {
+        Ok(results) => results,
+        Err(error) => {
+          if retries >= 5 {
+            return Err(anyhow!(
+              "failed to fetch raw transactions after 5 retries: {}",
+              error
+            ));
+          }
 
-    let mut results: Vec<JsonResponse<String>> = serde_json::from_slice(&buf)?;
+          log::info!("failed to fetch raw transactions, retrying: {}", error);
+
+          tokio::time::sleep(tokio::time::Duration::from_millis(
+            100 * u64::pow(2, retries),
+          ))
+          .await;
+          retries += 1;
+          continue;
+        }
+      };
+      break;
+    }
 
     // Return early on any error, because we need all results to proceed
     if let Some(err) = results.iter().find_map(|res| res.error.as_ref()) {
       return Err(anyhow!(
-        "Failed to fetch raw transaction: code {} message {}",
+        "failed to fetch raw transaction: code {} message {}",
         err.code,
         err.message
       ));
@@ -112,5 +127,31 @@ impl Fetcher {
       })
       .collect::<Result<Vec<Transaction>>>()?;
     Ok(txs)
+  }
+
+  async fn try_get_transactions(&self, body: String) -> Result<Vec<JsonResponse<String>>> {
+    let req = Request::builder()
+      .method(Method::POST)
+      .uri(&self.url)
+      .header(hyper::header::AUTHORIZATION, &self.auth)
+      .header(hyper::header::CONTENT_TYPE, "application/json")
+      .body(Body::from(body))?;
+
+    let response = self.client.request(req).await?;
+
+    let buf = hyper::body::to_bytes(response).await?;
+
+    let results: Vec<JsonResponse<String>> = match serde_json::from_slice(&buf) {
+      Ok(results) => results,
+      Err(e) => {
+        return Err(anyhow!(
+          "failed to parse JSON-RPC response: {e}. response: {response}",
+          e = e,
+          response = String::from_utf8_lossy(&buf)
+        ))
+      }
+    };
+
+    Ok(results)
   }
 }

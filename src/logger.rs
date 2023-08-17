@@ -54,5 +54,5 @@ pub fn init<P: AsRef<Path>>(level: log::LevelFilter, log_dir: P) -> anyhow::Resu
     )
     .context("build log config failed")?;
 
-  Ok(log4rs::init_config(cfg).context("log4rs init config error")?)
+  log4rs::init_config(cfg).context("log4rs init config error")
 }

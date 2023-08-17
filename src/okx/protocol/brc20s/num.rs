@@ -51,7 +51,7 @@ impl Num {
       exp => {
         let mut result = self.0.clone();
         for _ in 1..exp {
-          result = result * &self.0;
+          result *= &self.0;
         }
 
         Ok(Self(result))
@@ -63,11 +63,11 @@ impl Num {
     if !self.0.is_integer() {
       return Err(BRC20SError::InvalidInteger(self.clone().to_string()));
     }
-    Ok(self.0.clone().to_u8().ok_or(BRC20SError::Overflow {
+    self.0.clone().to_u8().ok_or(BRC20SError::Overflow {
       op: String::from("to_u8"),
       org: self.clone().to_string(),
       other: Self(BigDecimal::from(u8::MAX)).to_string(),
-    })?)
+    })
   }
 
   pub fn sign(&self) -> Sign {
@@ -83,53 +83,49 @@ impl Num {
     if !self.0.is_integer() {
       return Err(BRC20SError::InvalidInteger(self.clone().to_string()));
     }
-    Ok(
-      self
-        .0
-        .to_bigint()
-        .ok_or(BRC20SError::InternalError(format!(
-          "convert {} to bigint failed",
-          self.0
-        )))?
-        .to_u128()
-        .ok_or(BRC20SError::Overflow {
-          op: String::from("to_u128"),
-          org: self.clone().to_string(),
-          other: Self(BigDecimal::from(BigInt::from(u128::MAX))).to_string(), // TODO: change overflow error to others
-        })?,
-    )
+    self
+      .0
+      .to_bigint()
+      .ok_or(BRC20SError::InternalError(format!(
+        "convert {} to bigint failed",
+        self.0
+      )))?
+      .to_u128()
+      .ok_or(BRC20SError::Overflow {
+        op: String::from("to_u128"),
+        org: self.clone().to_string(),
+        other: Self(BigDecimal::from(BigInt::from(u128::MAX))).to_string(), // TODO: change overflow error to others
+      })
   }
 
   pub fn truncate_to_u128(&self) -> Result<u128, BRC20SError> {
-    Ok(
-      self
-        .0
-        .to_bigint()
-        .ok_or(BRC20SError::InternalError(format!(
-          "convert {} to bigint failed",
-          self.0
-        )))?
-        .to_u128()
-        .ok_or(BRC20SError::Overflow {
-          op: String::from("to_u128"),
-          org: self.clone().to_string(),
-          other: Self(BigDecimal::from(BigInt::from(u128::MAX))).to_string(), // TODO: change overflow error to others
-        })?,
-    )
+    self
+      .0
+      .to_bigint()
+      .ok_or(BRC20SError::InternalError(format!(
+        "convert {} to bigint failed",
+        self.0
+      )))?
+      .to_u128()
+      .ok_or(BRC20SError::Overflow {
+        op: String::from("to_u128"),
+        org: self.clone().to_string(),
+        other: Self(BigDecimal::from(BigInt::from(u128::MAX))).to_string(), // TODO: change overflow error to others
+      })
   }
 
   pub fn truncate_to_str(&self) -> Result<String, BRC20SError> {
     let big_str = self.0.clone().to_string();
-    let parts: Vec<&str> = big_str.split(".").collect();
+    let parts: Vec<&str> = big_str.split('.').collect();
     let result = parts[0].to_string();
     Ok(result)
   }
 
   pub fn max(a: &Num, b: &Num) -> Self {
     if a.gt(b) {
-      Num::from(a.clone())
+      a.clone()
     } else {
-      Num::from(b.clone())
+      b.clone()
     }
   }
 
@@ -161,13 +157,13 @@ impl From<u128> for Num {
 impl FromStr for Num {
   type Err = BRC20SError;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    if s.starts_with(".") || s.ends_with(".") || s.find(&['e', 'E', '+', '-']).is_some() {
+    if s.starts_with('.') || s.ends_with('.') || s.find(['e', 'E', '+', '-']).is_some() {
       return Err(BRC20SError::InvalidNum(s.to_string()));
     }
     let num = BigDecimal::from_str(s).map_err(|_| BRC20SError::InvalidNum(s.to_string()))?;
 
     let (_, scale) = num.as_bigint_and_exponent();
-    if scale > MAX_DECIMAL_WIDTH as i64 {
+    if scale > i64::from(MAX_DECIMAL_WIDTH) {
       return Err(BRC20SError::InvalidNum(s.to_string()));
     }
 
@@ -284,7 +280,10 @@ mod tests {
 
     // number of decimal fractional can not exceed 18
     assert_eq!(
-      Num(BigDecimal::new(BigInt::from(1_0000000000_00000001u64), 18)),
+      Num(BigDecimal::new(
+        BigInt::from(1_000_000_000_000_000_001_u64),
+        18
+      )),
       Num::from_str("1.000000000000000001").unwrap()
     );
     assert!(Num::from_str("1.0000000000000000001").is_err());
@@ -407,7 +406,7 @@ mod tests {
     let a = Num::from_str(format!("{}.999999999999999999", u128::MAX).as_str()).unwrap();
     let b = a.checked_mul(&a).unwrap();
 
-    println!("{},{}", a.to_string(), b.to_string());
+    println!("{},{}", a, b);
     assert_eq!(
       a.truncate_to_str().unwrap(),
       "340282366920938463463374607431768211455"
@@ -454,7 +453,7 @@ mod tests {
     let n = Num::from_str(&format!("{}", u128::MAX)).unwrap();
     assert_eq!(n.truncate_to_u128().unwrap(), u128::MAX);
 
-    let n = Num::from_str(&format!("0")).unwrap();
+    let n = Num::from_str("0").unwrap();
     assert_eq!(n.truncate_to_u128().unwrap(), 0);
 
     let n = Num::from_str(&format!("{}{}", u128::MAX, 1)).unwrap();
@@ -472,10 +471,7 @@ mod tests {
 
     let n = Num::from_str(&format!("{}.{}", 0, "33333")).unwrap();
     assert_eq!(n.truncate_to_u128().unwrap(), 0);
-    let a = BigDecimal::from_str(&format!("0.333"))
-      .unwrap()
-      .to_bigint()
-      .unwrap();
+    let a = BigDecimal::from_str("0.333").unwrap().to_bigint().unwrap();
 
     let n = Num::from_str("3140000000000000000.1230").unwrap();
     assert_eq!(n.truncate_to_u128().unwrap(), 3140000000000000000u128);
@@ -494,8 +490,6 @@ mod tests {
       Num::from_str("100E2").unwrap_err(),
       BRC20SError::InvalidNum("100E2".to_string())
     );
-
-    return;
   }
 
   #[test]
@@ -503,10 +497,10 @@ mod tests {
     let n = Num::from_str(&format!("{}", u128::MAX)).unwrap();
     assert_eq!(n.truncate_to_str().unwrap(), u128::MAX.to_string());
 
-    let n = Num::from_str(&format!("0")).unwrap();
+    let n = Num::from_str("0").unwrap();
     assert_eq!(n.truncate_to_str().unwrap(), "0".to_string());
 
-    let n = Num::from_str(&format!("")).unwrap_err();
+    let n = Num::from_str("").unwrap_err();
     assert_eq!(n, BRC20SError::InvalidNum("".to_string()));
 
     let n = Num::from_str(&format!("{}{}", u128::MAX, 1)).unwrap();
@@ -520,10 +514,7 @@ mod tests {
 
     let n = Num::from_str(&format!("{}.{}", 0, "33333")).unwrap();
     assert_eq!(n.truncate_to_str().unwrap(), "0".to_string());
-    let a = BigDecimal::from_str(&format!("0.333"))
-      .unwrap()
-      .to_bigint()
-      .unwrap();
+    let a = BigDecimal::from_str("0.333").unwrap().to_bigint().unwrap();
 
     let n = Num::from_str("3140000000000000000.1230").unwrap();
     assert_eq!(
@@ -570,8 +561,6 @@ mod tests {
       .unwrap(),
       "115792089237316195423570985008687907852589419931798687112530834793049593217025".to_string()
     );
-
-    return;
   }
 
   #[test]
@@ -579,7 +568,7 @@ mod tests {
     let n = Num::from_str(&format!("{}", u128::MAX)).unwrap();
     assert_eq!(n.checked_to_u128().unwrap(), u128::MAX);
 
-    let n = Num::from_str(&format!("0")).unwrap();
+    let n = Num::from_str("0").unwrap();
     assert_eq!(n.checked_to_u128().unwrap(), 0);
 
     let n = Num::from_str(&format!("{}{}", u128::MAX, 1)).unwrap();
@@ -603,10 +592,7 @@ mod tests {
       n.checked_to_u128().unwrap_err(),
       BRC20SError::InvalidInteger(n.to_string())
     );
-    let a = BigDecimal::from_str(&format!("0.333"))
-      .unwrap()
-      .to_bigint()
-      .unwrap();
+    let a = BigDecimal::from_str("0.333").unwrap().to_bigint().unwrap();
 
     let n = Num::from_str("3140000000000000000.00").unwrap();
     assert_eq!(n.checked_to_u128().unwrap(), 3140000000000000000u128);

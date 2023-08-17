@@ -1,9 +1,7 @@
-use crate::okx::protocol::brc20s::vesion::VERSION_KEY_ENABLE_SHARE;
-use std::collections::HashMap;
+use crate::okx::protocol::brc20s::version::UNIT_TEST_VERSION;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
-  crate::okx::protocol::brc20s::vesion::Version, crate::SatPoint, bitcoin::Address,
-  std::str::FromStr,
+  crate::SatPoint, bitcoin::Address, std::str::FromStr,
 };
 
 pub(crate) fn mock_create_brc20s_message(
@@ -14,22 +12,16 @@ pub(crate) fn mock_create_brc20s_message(
   let inscription_id =
     InscriptionId::from_str("1111111111111111111111111111111111111111111111111111111111111111i1")
       .unwrap();
-  let txid = inscription_id.txid.clone();
+  let txid = inscription_id.txid;
   let old_satpoint =
     SatPoint::from_str("1111111111111111111111111111111111111111111111111111111111111111:1:1")
       .unwrap();
   let new_satpoint =
     SatPoint::from_str("1111111111111111111111111111111111111111111111111111111111111111:2:1")
       .unwrap();
-  let mut version = HashMap::new();
-  version.insert(
-    VERSION_KEY_ENABLE_SHARE.to_string(),
-    Version {
-      name: VERSION_KEY_ENABLE_SHARE.to_string(),
-      start_height: 0,
-    },
-  );
-  let msg = ExecutionMessage {
+  let version = UNIT_TEST_VERSION.clone();
+
+  ExecutionMessage {
     txid,
     inscription_id,
     inscription_number: 0,
@@ -37,12 +29,11 @@ pub(crate) fn mock_create_brc20s_message(
     old_satpoint,
     new_satpoint,
     commit_from: Some(from.clone()),
-    from: from.clone(),
-    to: Some(to.clone()),
+    from,
+    to: Some(to),
     op,
     version,
-  };
-  msg
+  }
 }
 
 pub(crate) fn mock_deploy_msg(
@@ -62,11 +53,11 @@ pub(crate) fn mock_deploy_msg(
 
   let supply_128 = Num::from_str(supply).unwrap().checked_to_u128().unwrap();
 
-  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
-  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap().assume_checked());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let tickid = hash::caculate_tick_id(earn, supply_128, dec, &from_script_key, &to_script_key);
-  let pid = tickid.hex().to_string() + "#" + poll_number;
+  let pid = tickid.hex() + "#" + poll_number;
   let msg = Deploy {
     pool_type: pool_type.to_string(),
     pool_id: pid,
@@ -93,8 +84,8 @@ pub(crate) fn mock_stake_msg(
   from: &str,
   to: &str,
 ) -> (Stake, ExecutionMessage) {
-  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
-  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap().assume_checked());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let msg = Stake {
     pool_id: pid.to_string(),
@@ -115,8 +106,8 @@ pub(crate) fn mock_unstake_msg(
   from: &str,
   to: &str,
 ) -> (UnStake, ExecutionMessage) {
-  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
-  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap().assume_checked());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let msg = UnStake {
     pool_id: pid.to_string(),
@@ -137,8 +128,8 @@ pub(crate) fn mock_passive_unstake_msg(
   from: &str,
   to: &str,
 ) -> (PassiveUnStake, ExecutionMessage) {
-  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap());
-  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap());
+  let from_script_key = ScriptKey::from_address(Address::from_str(from).unwrap().assume_checked());
+  let to_script_key = ScriptKey::from_address(Address::from_str(to).unwrap().assume_checked());
 
   let msg = PassiveUnStake {
     stake: stake.to_string(),

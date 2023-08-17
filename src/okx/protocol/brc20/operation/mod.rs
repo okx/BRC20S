@@ -56,10 +56,9 @@ pub(crate) fn deserialize_brc20_operation(
     && content_type != "text/plain;charset=utf-8"
     && content_type != "text/plain;charset=UTF-8"
     && content_type != "application/json"
+    && !content_type.starts_with("text/plain;")
   {
-    if !content_type.starts_with("text/plain;") {
-      return Err(JSONError::UnSupportContentType.into());
-    }
+    return Err(JSONError::UnSupportContentType.into());
   }
   let raw_operation = match deserialize_brc20(content_body) {
     Ok(op) => op,
@@ -87,7 +86,7 @@ fn deserialize_brc20(s: &str) -> Result<RawOperation, JSONError> {
     return Err(JSONError::NotBRC20Json);
   }
 
-  Ok(serde_json::from_value(value).map_err(|e| JSONError::ParseOperationJsonError(e.to_string()))?)
+  serde_json::from_value(value).map_err(|e| JSONError::ParseOperationJsonError(e.to_string()))
 }
 
 #[cfg(test)]
@@ -299,7 +298,7 @@ mod tests {
     assert_eq!(
       deserialize_brc20_operation(
         &Inscription::new(
-          Some(content_type.clone()),
+          Some(content_type),
           Some(
             r##"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"##
               .as_bytes()

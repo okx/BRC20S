@@ -31,7 +31,7 @@ const BRC20S_INSCRIBE_TRANSFER: TableDefinition<&[u8; 36], &[u8]> =
   TableDefinition::new("BRC20S_INSCRIBE_TRANSFER");
 
 fn script_tickid_key(script: &ScriptKey, tick_id: &TickId) -> String {
-  format!("{}_{}", script.to_string(), tick_id.hex())
+  format!("{}_{}", script, tick_id.hex())
 }
 
 fn script_tickid_inscriptionid_key(
@@ -39,84 +39,52 @@ fn script_tickid_inscriptionid_key(
   tick_id: &TickId,
   inscriptionid: &InscriptionId,
 ) -> String {
-  format!(
-    "{}_{}_{}",
-    script.to_string(),
-    tick_id.hex(),
-    inscriptionid.to_string()
-  )
+  format!("{}_{}_{}", script, tick_id.hex(), inscriptionid)
 }
 
 fn script_pid_key(script: &ScriptKey, pid: &Pid) -> String {
-  format!("{}_{}", script.to_string(), pid.hex(),)
+  format!("{}_{}", script, pid.hex(),)
 }
 
 fn script_pledged_key(script: &ScriptKey, pledged_tick: &PledgedTick) -> String {
-  let pledged_key: String;
-  match pledged_tick {
-    PledgedTick::Native => {
-      pledged_key = hex::encode("btc").to_string();
-    }
-    PledgedTick::BRC20Tick(tick) => {
-      pledged_key = tick.to_lowercase().hex();
-    }
-    PledgedTick::BRC20STick(tick_id) => {
-      pledged_key = tick_id.hex();
-    }
-    PledgedTick::Unknown => {
-      pledged_key = hex::encode("!@#$%").to_string();
-    }
-  }
+  let pledged_key = match pledged_tick {
+    PledgedTick::Native => hex::encode("btc"),
+    PledgedTick::BRC20Tick(tick) => tick.to_lowercase().hex(),
+    PledgedTick::BRC20STick(tick_id) => tick_id.hex(),
+    PledgedTick::Unknown => hex::encode("!@#$%"),
+  };
 
-  format!("{}_{}", script.to_string(), pledged_key)
+  format!("{}_{}", script, pledged_key)
 }
 
 fn stake_tickid_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
-  let pledged_key: String;
-  match pledged_tick {
-    PledgedTick::Native => {
-      pledged_key = hex::encode("btc").to_string();
-    }
-    PledgedTick::BRC20Tick(tick) => {
-      pledged_key = tick.to_lowercase().hex();
-    }
-    PledgedTick::BRC20STick(tick_id) => {
-      pledged_key = tick_id.hex();
-    }
-    PledgedTick::Unknown => {
-      pledged_key = hex::encode("!@#$%").to_string();
-    }
-  }
+  let pledged_key = match pledged_tick {
+    PledgedTick::Native => hex::encode("btc"),
+    PledgedTick::BRC20Tick(tick) => tick.to_lowercase().hex(),
+    PledgedTick::BRC20STick(tick_id) => tick_id.hex(),
+    PledgedTick::Unknown => hex::encode("!@#$%"),
+  };
 
-  format!("{}_{}", pledged_key.to_string(), tick_id.hex())
+  format!("{}_{}", pledged_key, tick_id.hex())
 }
 
 fn tickid_stake_key(pledged_tick: &PledgedTick, tick_id: &TickId) -> String {
-  let pledged_key: String;
-  match pledged_tick {
-    PledgedTick::Native => {
-      pledged_key = hex::encode("btc").to_string();
-    }
-    PledgedTick::BRC20Tick(tick) => {
-      pledged_key = tick.to_lowercase().hex();
-    }
-    PledgedTick::BRC20STick(tick_id) => {
-      pledged_key = tick_id.hex();
-    }
-    PledgedTick::Unknown => {
-      pledged_key = hex::encode("!@#$%").to_string();
-    }
-  }
+  let pledged_key = match pledged_tick {
+    PledgedTick::Native => hex::encode("btc"),
+    PledgedTick::BRC20Tick(tick) => tick.to_lowercase().hex(),
+    PledgedTick::BRC20STick(tick_id) => tick_id.hex(),
+    PledgedTick::Unknown => hex::encode("!@#$%"),
+  };
 
-  format!("{}_{}", tick_id.hex(), pledged_key.to_string())
+  format!("{}_{}", tick_id.hex(), pledged_key)
 }
 
 fn min_script_tick_id_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), TickId::min_hex())
+  format!("{}_{}", script, TickId::min_hex())
 }
 
 fn max_script_tick_id_key(script: &ScriptKey) -> String {
-  format!("{}_{}", script.to_string(), TickId::max_hex())
+  format!("{}_{}", script, TickId::max_hex())
 }
 
 fn min_tickid_stake_key(tick_id: &TickId) -> String {
@@ -128,41 +96,31 @@ fn max_tickid_stake_key(tick_id: &TickId) -> String {
 }
 
 fn min_stake_tickid_key(pledged: &PledgedTick) -> String {
-  let pledged_key: String;
-  match pledged {
-    PledgedTick::Native => {
-      pledged_key = hex::encode("btc").to_string();
-    }
-    PledgedTick::BRC20Tick(tick) => {
-      pledged_key = tick.to_lowercase().hex();
-    }
-    PledgedTick::BRC20STick(tick_id) => {
-      pledged_key = tick_id.hex();
-    }
-    PledgedTick::Unknown => {
-      pledged_key = hex::encode("!@#$%").to_string();
-    }
-  }
+  let pledged_key = match pledged {
+    PledgedTick::Native => hex::encode("btc"),
+    PledgedTick::BRC20Tick(tick) => tick.to_lowercase().hex(),
+    PledgedTick::BRC20STick(tick_id) => tick_id.hex(),
+    PledgedTick::Unknown => hex::encode("!@#$%"),
+  };
 
-  format!("{}_{}", pledged_key.to_string(), TickId::min_hex())
+  format!("{}_{}", pledged_key, TickId::min_hex())
 }
 
 fn max_stake_tickid_key(pledged: &PledgedTick) -> String {
-  let pledged_key: String;
-  match pledged {
-    PledgedTick::Native => {
-      pledged_key = hex::encode("btc").to_string();
-    }
-    PledgedTick::BRC20Tick(tick) => {
-      pledged_key = tick.to_lowercase().hex();
-    }
-    PledgedTick::BRC20STick(tick_id) => {
-      pledged_key = tick_id.hex();
-    }
-    PledgedTick::Unknown => {
-      pledged_key = hex::encode("!@#$%").to_string();
-    }
-  }
+  let pledged_key = match pledged {
+    PledgedTick::Native => hex::encode("btc"),
+    PledgedTick::BRC20Tick(tick) => tick.to_lowercase().hex(),
+    PledgedTick::BRC20STick(tick_id) => tick_id.hex(),
+    PledgedTick::Unknown => hex::encode("!@#$%"),
+  };
 
-  format!("{}_{}", pledged_key.to_string(), TickId::max_hex())
+  format!("{}_{}", pledged_key, TickId::max_hex())
+}
+
+fn min_tid_to_pid_key(tick_id: &TickId) -> String {
+  format!("{}000000", hex::encode(tick_id.hex()).as_str())
+}
+
+fn max_tid_to_pid_key(tick_id: &TickId) -> String {
+  format!("{}ffffff", hex::encode(tick_id.hex()).as_str())
 }

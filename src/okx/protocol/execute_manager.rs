@@ -3,6 +3,7 @@ use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
 use crate::okx::datastore::ord as ord_store;
+use crate::okx::protocol::brc0 as brc0_proto;
 use crate::okx::protocol::brc20 as brc20_proto;
 use crate::okx::protocol::brc20s as brc20s_proto;
 use crate::Result;
@@ -50,6 +51,11 @@ impl<
         &brc20s::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20S))?,
+      Message::BRC0(msg) => brc0_proto::execute(
+        context,
+        &brc0_proto::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
+      )
+      .map(|v| v.map(Receipt::BRC0))?,
     };
 
     if receipt.is_none() {
@@ -131,6 +137,7 @@ impl<
         }
         Ok(())
       }
+      Receipt::BRC0(_brc20s_receipt) => Ok(()),
     }
   }
 }

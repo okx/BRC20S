@@ -1,3 +1,4 @@
+pub(crate) mod brc0;
 pub(crate) mod brc20;
 pub(crate) mod brc20s;
 pub(crate) mod execute_manager;

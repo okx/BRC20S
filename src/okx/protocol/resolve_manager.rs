@@ -130,6 +130,17 @@ impl<
             continue;
           }
         }
+
+        // Parse BRC0 message through inscription operation.
+        if let Some(msg) = brc0::Message::resolve(&new_inscriptions, &operation)? {
+          log::debug!(
+            "BRC0 resolved the message from {:?}, msg {:?}",
+            operation,
+            msg
+          );
+          messages.push(Message::BRC0(msg));
+          continue;
+        }
       }
     }
     self.update_outpoint_to_txout(outpoint_to_txout_cache)?;

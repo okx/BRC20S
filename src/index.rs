@@ -329,7 +329,7 @@ impl Index {
       );
     }
     for outpoint in utxos.keys() {
-      if self.get_outpoint_entry(outpoint)?.is_none() {
+      if self.get_outpoint_entry(*outpoint)?.is_none() {
         return Err(anyhow!(
           "output in Bitcoin Core wallet but not in ord index: {outpoint}"
         ));
@@ -338,7 +338,7 @@ impl Index {
 
     Ok(utxos)
   }
-  pub(crate) fn get_outpoint_entry(&self, outpoint: &OutPoint) -> Result<Option<TxOut>> {
+  pub(crate) fn get_outpoint_entry(&self, outpoint: OutPoint) -> Result<Option<TxOut>> {
     Ok(
       self
         .database
@@ -567,8 +567,11 @@ impl Index {
       if query_btc {
         let btc_height = match self.client.get_blockchain_info() {
           Ok(info) => Height(info.headers),
-          Err(_) => {
-            return Ok((Some(height), None));
+          Err(e) => {
+            return Err(anyhow!(
+              "failed to get blockchain info from bitcoin node: {}",
+              e.to_string()
+            ));
           }
         };
         return Ok((Some(height), Some(btc_height)));
@@ -1308,15 +1311,12 @@ impl Index {
 
   pub(crate) fn brc20_get_tick_transferable_by_address(
     &self,
-    tick: &str,
+    tick: &brc20::Tick,
     address: &bitcoin::Address,
   ) -> Result<Vec<brc20::TransferableLog>> {
     let rtx = self.database.begin_read().unwrap();
     let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let res = brc20_db.get_transferable_by_tick(
-      &ScriptKey::from_address(address.clone()),
-      &brc20::Tick::from_str(tick)?,
-    )?;
+    let res = brc20_db.get_transferable_by_tick(&ScriptKey::from_address(address.clone()), tick)?;
 
     Ok(res)
   }

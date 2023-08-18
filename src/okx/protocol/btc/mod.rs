@@ -38,9 +38,9 @@ pub fn gen_receipt(msg: &Message) -> Result<Option<Receipt>> {
 }
 
 /// index transaction and update balance.
-pub fn index_transaction_balance<'store, RW: StateRWriter>(
+pub fn index_transaction_balance<RW: StateRWriter>(
   context: BlockContext,
-  state_store: &'store RW,
+  state_store: &RW,
   tx: &Transaction,
 ) -> Result<Vec<Message>> {
   // update address btc balance by input

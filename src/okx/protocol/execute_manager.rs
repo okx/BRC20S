@@ -64,11 +64,11 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
           ) {
             Ok(amt) => {
               let passive_unstake = brc20s_proto::PassiveUnStake {
-                stake: brc20_transfer.tick.as_str().to_string(),
+                stake: brc20_transfer.tick.to_string(),
                 amount: amt.to_string(),
               };
-              if let Message::BRC20(old_brc20_msg) = msg {
-                let passive_msg = convert_msg_brc20_to_brc20s(old_brc20_msg, passive_unstake);
+              if let Message::BRC20(_) = msg {
+                let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
                 brc20s::execute(
                   context,
                   self.state_store.brc20(),
@@ -105,8 +105,8 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
                   stake: ptick.to_string(),
                   amount: amt.to_string(),
                 };
-                if let Message::BRC20S(old_brc20s_msg) = msg {
-                  let passive_msg = convert_msg_brc20s(old_brc20s_msg, passive_unstake);
+                if let Message::BRC20S(_) = msg {
+                  let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
                   brc20s::execute(
                     context,
                     self.state_store.brc20(),
@@ -142,7 +142,7 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
                 amount: amt.to_string(),
               };
               if let Message::BTC(old_btc_msg) = msg {
-                let passive_msg = convert_msg_btc_to_brc20s(old_btc_msg, passive_unstake);
+                let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
                 brc20s::execute(
                   context,
                   self.state_store.brc20(),
@@ -167,50 +167,43 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
   }
 }
 
-fn convert_msg_brc20_to_brc20s(
-  msg: &brc20_proto::Message,
+fn convert_receipt_to_passive_msg(
+  msg: &Message,
   op: brc20s_proto::PassiveUnStake,
 ) -> brc20s::Message {
-  brc20s::Message {
-    txid: msg.txid,
-    inscription_id: msg.inscription_id,
-    commit_input_satpoint: None,
-    old_satpoint: msg.old_satpoint,
-    new_satpoint: msg.new_satpoint,
-    op: brc20s::Operation::PassiveUnStake(op),
-    sat_in_outputs: msg.sat_in_outputs,
-  }
-}
-
-fn convert_msg_brc20s(msg: &brc20s::Message, op: brc20s_proto::PassiveUnStake) -> brc20s::Message {
-  brc20s::Message {
-    txid: msg.txid,
-    inscription_id: msg.inscription_id,
-    commit_input_satpoint: None,
-    old_satpoint: msg.old_satpoint,
-    new_satpoint: msg.new_satpoint,
-    op: brc20s::Operation::PassiveUnStake(op),
-    sat_in_outputs: msg.sat_in_outputs,
-  }
-}
-
-fn convert_msg_btc_to_brc20s(
-  msg: &btc::Message,
-  op: brc20s_proto::PassiveUnStake,
-) -> brc20s::Message {
-  brc20s::Message {
-    txid: msg.txid,
-    inscription_id: InscriptionId::from(msg.txid),
-    commit_input_satpoint: None,
-    old_satpoint: SatPoint {
-      outpoint: OutPoint::null(),
-      offset: 0,
+  match msg {
+    Message::BRC20(msg) => brc20s::Message {
+      txid: msg.txid,
+      inscription_id: msg.inscription_id,
+      commit_input_satpoint: None,
+      old_satpoint: msg.old_satpoint,
+      new_satpoint: msg.new_satpoint,
+      op: brc20s::Operation::PassiveUnStake(op),
+      sat_in_outputs: msg.sat_in_outputs,
     },
-    new_satpoint: Some(SatPoint {
-      outpoint: OutPoint::null(),
-      offset: 0,
-    }),
-    op: brc20s::Operation::PassiveUnStake(op),
-    sat_in_outputs: false,
+    Message::BRC20S(msg) => brc20s::Message {
+      txid: msg.txid,
+      inscription_id: msg.inscription_id,
+      commit_input_satpoint: None,
+      old_satpoint: msg.old_satpoint,
+      new_satpoint: msg.new_satpoint,
+      op: brc20s::Operation::PassiveUnStake(op),
+      sat_in_outputs: msg.sat_in_outputs,
+    },
+    Message::BTC(msg) => brc20s::Message {
+      txid: msg.txid,
+      inscription_id: InscriptionId::from(msg.txid),
+      commit_input_satpoint: None,
+      old_satpoint: SatPoint {
+        outpoint: OutPoint::null(),
+        offset: 0,
+      },
+      new_satpoint: Some(SatPoint {
+        outpoint: OutPoint::null(),
+        offset: 0,
+      }),
+      op: brc20s::Operation::PassiveUnStake(op),
+      sat_in_outputs: false,
+    },
   }
 }

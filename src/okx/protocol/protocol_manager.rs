@@ -28,9 +28,9 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
   pub fn new(client: &'a Client, state_store: &'a RW, config: &'a Config) -> Self {
     Self {
       state_store,
-      resolve_man: MsgResolveManager::new(client, state_store, config),
       config,
       call_man: CallManager::new(state_store),
+      resolve_man: MsgResolveManager::new(client, state_store, config),
     }
   }
 

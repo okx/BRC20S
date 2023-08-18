@@ -19,7 +19,7 @@ use {
         self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
         DataStoreReadOnly as BRC20SDataStoreReadOnly,
       },
-      btc::redb::try_init_tables as try_init_btc,
+      btc::{redb::try_init_tables as try_init_btc, DataStoreReadOnly as BTCDataStoreReadOnly},
       ord::{self, DataStoreReadOnly},
       ScriptKey,
     },
@@ -48,7 +48,7 @@ mod fetcher;
 mod rtx;
 mod updater;
 
-use crate::okx::datastore::brc20s::PledgedTick;
+use crate::okx::datastore::{brc20s::PledgedTick, btc};
 #[cfg(feature = "rollback")]
 use redb::Savepoint;
 
@@ -1445,6 +1445,13 @@ impl Index {
     let rtx = self.database.begin_read().unwrap();
     let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
     let info = brc20s_db.get_balance(&ScriptKey::from_address(address.clone()), tick_id)?;
+    Ok(info)
+  }
+
+  pub(crate) fn btc_balance(&self, address: &bitcoin::Address) -> Result<Option<btc::Balance>> {
+    let rtx = self.database.begin_read().unwrap();
+    let btc_db = btc::DataStoreReader::new(&rtx);
+    let info = btc_db.get_balance(&ScriptKey::from_address(address.clone()))?;
     Ok(info)
   }
 

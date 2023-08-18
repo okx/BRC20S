@@ -169,7 +169,7 @@ impl PledgedTick {
   pub fn to_type(&self) -> String {
     match self {
       PledgedTick::Unknown => "Unknown".to_string(),
-      PledgedTick::Native => NATIVE_TOKEN.to_uppercase(),
+      PledgedTick::Native => NATIVE_TOKEN.to_string(),
       PledgedTick::BRC20Tick(_) => "BRC20".to_string(),
       PledgedTick::BRC20STick(_) => "BRC20-S".to_string(),
     }

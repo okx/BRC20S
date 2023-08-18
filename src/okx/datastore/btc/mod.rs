@@ -3,7 +3,7 @@ mod errors;
 mod events;
 pub mod redb;
 
-pub use self::{balance::Balance, errors::BTCError, events::*};
+pub use self::{balance::Balance, errors::BTCError, events::*, redb::*};
 use super::ScriptKey;
 use std::fmt::{Debug, Display};
 

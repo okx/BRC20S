@@ -7,12 +7,12 @@ use {
   bitcoin::Txid,
 };
 
-pub fn save_transaction_operations<'store, O: DataStoreReadWrite>(
-  ord_store: &'store O,
+pub fn save_transaction_operations<O: DataStoreReadWrite>(
+  ord_store: &O,
   txid: &Txid,
-  tx_operations: &Vec<InscriptionOp>,
+  tx_operations: &[InscriptionOp],
 ) -> Result<()> {
   ord_store
-    .save_transaction_operations(txid, &tx_operations)
+    .save_transaction_operations(txid, tx_operations)
     .map_err(|e| anyhow!("failed to set transaction ordinals operations to state! error: {e}"))
 }

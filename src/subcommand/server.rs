@@ -40,6 +40,7 @@ use {
 mod api;
 mod brc20;
 mod brc20s;
+mod btc;
 mod info;
 mod ord;
 mod types;
@@ -430,7 +431,8 @@ impl Server {
         .route(
           "/brc20s/stake/:address/:tick",
           get(brc20s::brc20s_stake_info),
-        );
+        )
+        .route("/btc/address/:address/balance", get(btc::btc_debug_balance));
 
       let api_router = Router::new().nest("/v1", api_v1_router);
 

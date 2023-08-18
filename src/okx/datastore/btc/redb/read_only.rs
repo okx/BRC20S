@@ -11,10 +11,10 @@ pub fn try_init_tables<'db, 'a>(
   wtx: &'a WriteTransaction<'db>,
   rtx: &'a ReadTransaction<'db>,
 ) -> Result<bool, redb::Error> {
-  if let Err(_) = rtx.open_table(BTC_BALANCE) {
+  if rtx.open_table(BTC_BALANCE).is_err() {
     wtx.open_table(BTC_BALANCE)?;
   }
-  return Ok(true);
+  Ok(true)
 }
 
 pub struct DataStoreReader<'db, 'a> {
@@ -73,6 +73,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
     }
   }
 
+  #[allow(dead_code)]
   fn range<'a: 'b, 'b, KR>(
     &'a self,
     range: impl RangeBounds<KR> + 'b,
@@ -87,6 +88,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
     }
   }
 
+  #[allow(dead_code)]
   fn len(&self) -> Result<u64, StorageError> {
     match self {
       Self::RtxTable(rtx_table) => rtx_table.len(),

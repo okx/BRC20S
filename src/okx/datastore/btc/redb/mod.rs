@@ -7,5 +7,5 @@ use redb::TableDefinition;
 const BTC_BALANCE: TableDefinition<&str, &[u8]> = TableDefinition::new("BTC_BALANCES");
 
 fn btc_script_key(script: &ScriptKey) -> String {
-  format!("{}", script.to_string())
+  format!("{}", script)
 }

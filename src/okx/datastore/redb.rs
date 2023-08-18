@@ -18,6 +18,7 @@ pub struct StateReadOnly<'db, 'a> {
 }
 
 impl<'db, 'a> StateReadOnly<'db, 'a> {
+  #[allow(dead_code)]
   pub fn new(rtx: &'a ReadTransaction<'db>) -> Self {
     Self {
       ord: OrdStateReader::new(rtx),

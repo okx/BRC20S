@@ -10,6 +10,8 @@ use {
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
 };
 
+use redb::ReadableMultimapTable;
+
 #[cfg(feature = "rollback")]
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
 
@@ -390,6 +392,19 @@ impl Updater {
 
     let mut fetching_outputs_count = 0;
     let mut total_outputs_count = 0;
+
+    // Store outpoint to entry each transaction outputs.
+    for (tx, txid) in &block.txdata {
+      for (index, output) in tx.output.iter().enumerate() {
+        let mut entry = Vec::new();
+        output.consensus_encode(&mut entry)?;
+        outpoint_to_entry.insert(
+          &OutPoint::new(*txid, u32::try_from(index).unwrap()).store(),
+          entry.as_slice(),
+        )?;
+      }
+    }
+
     if index_inscriptions {
       // Send all missing input outpoints to be fetched right away
       let txids = block

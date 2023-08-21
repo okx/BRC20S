@@ -28,6 +28,10 @@ use cosmrs::{
   AccountId, Coin,
 };
 
+use std::process::Command;
+use std::fs;
+use std::io::{BufRead, BufReader, Write};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExecutionMessage {
   pub(self) txid: Txid,
@@ -85,7 +89,31 @@ fn process_deploy(
 ) -> Result<Event, Error> {
   // TODO send okbc proposal tx
   println!("-----------{}", evm.d);
-  //
+
+  // CLI
+  replace_evm_data(evm.d);
+  let output = Command::new("okbchaincli")
+      .args(&["tx", "gov", "submit-proposal", "brczero-evm-data"])
+      .args(&["/Users/oker/Downloads/brczero_evm_data.json"])
+      .args(&["--from", "captain"])
+      .args(&["--fees", "0.01okb"])
+      .args(&["--gas", "3000000"])
+      .args(&["--chain-id", "okbchain-67"])
+      .args(&["--node", "http://127.0.0.1:26657"])
+      .args(&["-b", "block"])
+      .args(&["-y"])
+      .output()
+      .expect("Failed to execute command");
+
+  if output.status.success() {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    println!("Command output:\n{}", stdout);
+  } else {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    println!("Command failed with error:\n{}", stderr);
+  }
+
+  // TODO
   // let sender_private_key = secp256k1::SigningKey::random();
   // let sender_public_key = sender_private_key.public_key();
   // let sender_account_id = sender_public_key.account_id("ex").unwrap();
@@ -136,24 +164,26 @@ fn process_deploy(
   // Serialize the raw transaction as bytes (i.e. `Vec<u8>`).
   // let tx_bytes = tx_signed.to_bytes()?;
 
-  let http = Http::new("http://localhost:8545").unwrap();
+  // send_raw_transaction
+  // let http = Http::new("http://localhost:8545").unwrap();
+  //
+  // let web3 = Web3::new(http);
+  //
+  // let bytes_tx = Vec::from_hex(evm.d).unwrap();
+  // init_tokio_runtime().block_on(async {
+  //   let tx_res = web3.eth().send_raw_transaction(Bytes::from(bytes_tx)).await;
+  //
+  //   match tx_res {
+  //     Ok(tx_hash) => {
+  //       println!("Transaction sent. Hash: {}", tx_hash.to_string());
+  //     }
+  //     Err(err) => {
+  //       println!("Transaction sent. Errror: {}", err);
+  //     }
+  //   }
+  // });
 
-  let web3 = Web3::new(http);
-
-  let bytes_tx = Vec::from_hex(evm.d).unwrap();
-  init_tokio_runtime().block_on(async {
-    let tx_res = web3.eth().send_raw_transaction(Bytes::from(bytes_tx)).await;
-
-    match tx_res {
-      Ok(tx_hash) => {
-        println!("Transaction sent. Hash: {}", tx_hash.to_string());
-      }
-      Err(err) => {
-        println!("Transaction sent. Errror: {}", err);
-      }
-    }
-  });
-
+  // TODO
   // let rpc_url = "http://localhost:26657"; // Replace with your Tendermint RPC URL
   // let client = HttpClient::new(rpc_url).expect("Failed to create HTTP client");
   // // let tendermint_client = Client::new(http_client);
@@ -228,4 +258,30 @@ fn init_tokio_runtime() -> tokio::runtime::Runtime {
     .enable_all()
     .build()
     .unwrap()
+}
+
+fn replace_evm_data(data: String){
+  // read file
+  let file_path = "/Users/oker/Downloads/brczero_evm_data.json";
+  let mut lines = vec![];
+
+  let file = fs::File::open(&file_path).unwrap();
+  let reader = BufReader::new(file);
+
+  for line in reader.lines() {
+    lines.push(line);
+  }
+
+  // replacing a specific line
+  let line_number_to_replace = 4; // Counting from 1
+
+  let new_line = format!("  \"tx\": \"{}\",",data);
+  lines[line_number_to_replace - 1] = Ok(new_line);
+
+  // write to file
+  let mut file = fs::File::create(&file_path).unwrap();
+  for line in &lines {
+    let _ = file.write_all(line.as_ref().unwrap().as_bytes());
+    let _ = file.write_all(b"\n");
+  }
 }

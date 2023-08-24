@@ -3,7 +3,7 @@ use crate::okx::{
     balance::{
       convert_amount_with_decimal, convert_amount_without_decimal,
       convert_pledged_tick_with_decimal, convert_pledged_tick_without_decimal, get_raw_brc20_tick,
-      get_stake_dec, get_user_common_balance, stake_is_exist, tick_can_staked,
+      get_stake_dec, get_user_common_balance, stake_is_exist,
     },
     brc20s::{
       Balance, DeployPoolEvent, DeployTickEvent, DepositEvent, Event, InscribeTransferEvent,
@@ -16,9 +16,9 @@ use crate::okx::{
     brc20s::{
       hash::caculate_tick_id,
       operation::Operation,
-      params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, MAX_STAKED_POOL_NUM},
-      version::{enable_version_by_key, get_version_by_network, Version, VERSION_KEY_ENABLE_SHARE},
-      BRC20SError, Deploy, Error, Message, Mint, Num, PassiveUnStake, Stake, Transfer, UnStake,
+      params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH},
+      version, BRC20SError, Deploy, Error, Message, Mint, Num, PassiveUnStake, Stake, Transfer,
+      UnStake,
     },
     utils, BlockContext,
   },
@@ -35,10 +35,7 @@ use anyhow::anyhow;
 use bigdecimal::num_bigint::Sign;
 use bitcoin::{Network, Txid};
 use std::cmp;
-use std::collections::HashMap;
 use std::str::FromStr;
-
-use super::{params::MAX_STAKED_POOL_NUM_V1, version::VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExecutionMessage {
@@ -52,7 +49,6 @@ pub struct ExecutionMessage {
   pub(crate) from: ScriptKey,
   pub(crate) to: Option<ScriptKey>,
   pub(crate) op: Operation,
-  pub(crate) version: HashMap<String, Version>,
 }
 
 impl ExecutionMessage {
@@ -85,11 +81,10 @@ impl ExecutionMessage {
         None
       },
       op: msg.op.clone(),
-      version: get_version_by_network(network),
     })
   }
 
-  pub fn from_btc_message(msg: &Message, from: ScriptKey, network: Network) -> Result<Self> {
+  pub fn from_btc_message(msg: &Message, from: ScriptKey) -> Result<Self> {
     Ok(Self {
       txid: msg.txid,
       inscription_id: msg.inscription_id,
@@ -103,7 +98,6 @@ impl ExecutionMessage {
       from: from.clone(),
       to: Some(from.clone()),
       op: msg.op.clone(),
-      version: get_version_by_network(network),
     })
   }
 }
@@ -115,6 +109,7 @@ pub fn execute<
   L: btc::DataStoreReadWrite,
 >(
   context: BlockContext,
+  config: version::Config,
   brc20_store: &'a M,
   brc20s_store: &'a N,
   btc_store: &'a L,
@@ -123,11 +118,17 @@ pub fn execute<
   log::debug!("BRC20S execute message: {:?}", msg);
   let mut is_save_receipt = true;
   let event = match &msg.op {
-    Operation::Deploy(deploy) => {
-      process_deploy(context, brc20_store, brc20s_store, msg, deploy.clone())
-    }
+    Operation::Deploy(deploy) => process_deploy(
+      context,
+      config.clone(),
+      brc20_store,
+      brc20s_store,
+      msg,
+      deploy.clone(),
+    ),
     Operation::Stake(stake) => process_stake(
       context,
+      config.clone(),
       brc20_store,
       brc20s_store,
       btc_store,
@@ -135,13 +136,19 @@ pub fn execute<
       stake.clone(),
     )
     .map(|event| vec![event]),
-    Operation::UnStake(unstake) => {
-      process_unstake(context, brc20_store, brc20s_store, msg, unstake.clone())
-        .map(|event| vec![event])
-    }
+    Operation::UnStake(unstake) => process_unstake(
+      context,
+      config.clone(),
+      brc20_store,
+      brc20s_store,
+      msg,
+      unstake.clone(),
+    )
+    .map(|event| vec![event]),
     Operation::PassiveUnStake(passive_unstake) => {
       let events = process_passive_unstake(
         context,
+        config,
         brc20_store,
         brc20s_store,
         btc_store,
@@ -161,15 +168,26 @@ pub fn execute<
       };
       events
     }
-    Operation::Mint(mint) => {
-      process_mint(context, brc20_store, brc20s_store, msg, mint.clone()).map(|event| vec![event])
-    }
-    Operation::InscribeTransfer(transfer) => {
-      process_inscribe_transfer(context, brc20_store, brc20s_store, msg, transfer.clone())
-        .map(|event| vec![event])
-    }
+    Operation::Mint(mint) => process_mint(
+      context,
+      config.clone(),
+      brc20_store,
+      brc20s_store,
+      msg,
+      mint.clone(),
+    )
+    .map(|event| vec![event]),
+    Operation::InscribeTransfer(transfer) => process_inscribe_transfer(
+      context,
+      config.clone(),
+      brc20_store,
+      brc20s_store,
+      msg,
+      transfer.clone(),
+    )
+    .map(|event| vec![event]),
     Operation::Transfer(_) => {
-      process_transfer(context, brc20_store, brc20s_store, msg).map(|event| vec![event])
+      process_transfer(context, config, brc20_store, brc20s_store, msg).map(|event| vec![event])
     }
   };
 
@@ -201,6 +219,7 @@ pub fn execute<
 
 pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
+  config: version::Config,
   brc20_store: &'a M,
   brc20s_store: &'a N,
   msg: &ExecutionMessage,
@@ -230,14 +249,14 @@ pub fn process_deploy<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreRead
   let mut stake = deploy.get_stake_id();
   // temp disable
   // brc20-s can not be staked
-  if !tick_can_staked(&stake) {
+  if !version::tick_can_staked(&stake, &config) {
     return Err(Error::BRC20SError(BRC20SError::StakeNoPermission(
       stake.to_string(),
     )));
   }
 
   // share pool can not be deploy
-  if !only && !enable_version_by_key(&msg.version, VERSION_KEY_ENABLE_SHARE, context.blockheight) {
+  if !only && !config.allow_share_pool {
     return Err(Error::BRC20SError(BRC20SError::ShareNoPermission()));
   }
   //check stake
@@ -428,6 +447,7 @@ fn process_stake<
   L: btc::DataStoreReadWrite,
 >(
   context: BlockContext,
+  config: version::Config,
   brc20_store: &'a M,
   brc20s_store: &'a N,
   btc_store: &'a L,
@@ -499,12 +519,8 @@ fn process_stake<
 
   // Verifying weather more than max_staked_pool_num at there is a bug which user deposit up to max_staked_pool_num use can not staked any pool.
   // So we disable follow code after update max_staked_pool_num
-  if !enable_version_by_key(
-    &msg.version,
-    VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1,
-    context.blockheight,
-  ) && user_stakeinfo.pool_stakes.len() == MAX_STAKED_POOL_NUM
-  {
+
+  if u64::try_from(user_stakeinfo.pool_stakes.len()).unwrap() == config.max_staked_pool_num {
     return Err(Error::BRC20SError(BRC20SError::InternalError(
       "the number of stake pool is full".to_string(),
     )));
@@ -559,14 +575,9 @@ fn process_stake<
   }
 
   // Verifying weather more than max_staked_pool_num.
-  if enable_version_by_key(
-    &msg.version,
-    VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1,
-    context.blockheight,
-  ) && user_stakeinfo.pool_stakes.len() > MAX_STAKED_POOL_NUM_V1
-  {
+  if u64::try_from(user_stakeinfo.pool_stakes.len()).unwrap() > config.max_staked_pool_num {
     return Err(Error::BRC20SError(BRC20SError::InternalError(
-      "the number of stake pool is full".to_string(),
+      "the number of stake pool ".to_string(),
     )));
   }
 
@@ -596,6 +607,7 @@ fn process_stake<
 
 fn process_unstake<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
+  _config: version::Config,
   brc20_store: &'a M,
   brc20s_store: &'a N,
   msg: &ExecutionMessage,
@@ -713,6 +725,7 @@ fn process_passive_unstake<
   L: btc::DataStoreReadWrite,
 >(
   context: BlockContext,
+  config: version::Config,
   brc20_store: &'a M,
   brc20s_store: &'a N,
   btc_store: &'a L,
@@ -768,7 +781,14 @@ fn process_passive_unstake<
       convert_pledged_tick_without_decimal(&stake_tick, *stake, brc20s_store, brc20_store)?;
     let stake_msg = UnStake::new(pid.as_str(), withdraw_stake.to_string().as_str());
     passive_msg.op = Operation::UnStake(stake_msg.clone());
-    process_unstake(context, brc20_store, brc20s_store, &passive_msg, stake_msg)?;
+    process_unstake(
+      context,
+      config.clone(),
+      brc20_store,
+      brc20s_store,
+      &passive_msg,
+      stake_msg,
+    )?;
     events.push(Event::PassiveWithdraw(PassiveWithdrawEvent {
       pid: pid.clone(),
       amt: *stake,
@@ -779,6 +799,7 @@ fn process_passive_unstake<
 }
 fn process_mint<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   context: BlockContext,
+  _config: version::Config,
   brc20_store: &'a M,
   brc20s_store: &'a N,
   msg: &ExecutionMessage,
@@ -897,6 +918,7 @@ fn process_mint<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>
 
 fn process_inscribe_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   _context: BlockContext,
+  _config: version::Config,
   _brc20_store: &'a M,
   brc20s_store: &'a N,
   msg: &ExecutionMessage,
@@ -990,6 +1012,7 @@ fn process_inscribe_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataSt
 
 fn process_transfer<'a, M: brc20::DataStoreReadWrite, N: brc20s::DataStoreReadWrite>(
   _context: BlockContext,
+  _config: version::Config,
   _brc20_store: &'a M,
   brc20s_store: &'a N,
   msg: &ExecutionMessage,
@@ -1120,6 +1143,7 @@ mod tests {
     btc_store: &'a L,
     msg: &ExecutionMessage,
     height: u64,
+    config: version::Config,
   ) -> Result<Vec<Event>, BRC20SError> {
     let context = BlockContext {
       blockheight: height,
@@ -1127,25 +1151,38 @@ mod tests {
       network: Network::Bitcoin,
     };
     let result = match msg.clone().op {
-      Operation::Deploy(deploy) => process_deploy(context, brc20_store, brc20s_store, msg, deploy),
-      Operation::Mint(mint) => match process_mint(context, brc20_store, brc20s_store, msg, mint) {
-        Ok(event) => Ok(vec![event]),
-        Err(e) => Err(e),
-      },
+      Operation::Deploy(deploy) => {
+        process_deploy(context, config, brc20_store, brc20s_store, msg, deploy)
+      }
+      Operation::Mint(mint) => {
+        match process_mint(context, config, brc20_store, brc20s_store, msg, mint) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
       Operation::Stake(stake) => {
-        match process_stake(context, brc20_store, brc20s_store, btc_store, msg, stake) {
+        match process_stake(
+          context,
+          config,
+          brc20_store,
+          brc20s_store,
+          btc_store,
+          msg,
+          stake,
+        ) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
       Operation::UnStake(unstake) => {
-        match process_unstake(context, brc20_store, brc20s_store, msg, unstake) {
+        match process_unstake(context, config, brc20_store, brc20s_store, msg, unstake) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
       Operation::PassiveUnStake(passive_unstake) => process_passive_unstake(
         context,
+        config,
         brc20_store,
         brc20s_store,
         btc_store,
@@ -1153,16 +1190,24 @@ mod tests {
         passive_unstake,
       ),
       Operation::InscribeTransfer(inscribe_transfer) => {
-        match process_inscribe_transfer(context, brc20_store, brc20s_store, msg, inscribe_transfer)
-        {
+        match process_inscribe_transfer(
+          context,
+          config,
+          brc20_store,
+          brc20s_store,
+          msg,
+          inscribe_transfer,
+        ) {
           Ok(event) => Ok(vec![event]),
           Err(e) => Err(e),
         }
       }
-      Operation::Transfer(_) => match process_transfer(context, brc20_store, brc20s_store, msg) {
-        Ok(event) => Ok(vec![event]),
-        Err(e) => Err(e),
-      },
+      Operation::Transfer(_) => {
+        match process_transfer(context, config, brc20_store, brc20s_store, msg) {
+          Ok(event) => Ok(vec![event]),
+          Err(e) => Err(e),
+        }
+      }
     };
 
     match result {
@@ -1294,8 +1339,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -1339,8 +1386,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -1389,8 +1438,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -1457,8 +1508,39 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+
+    // no btc staking permission
+    let config = version::koala();
     let result = process_deploy(
       context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &msg,
+      deploy.clone(),
+    );
+
+    let result: Result<Vec<Event>, BRC20SError> = match result {
+      Ok(event) => Ok(event),
+      Err(Error::BRC20SError(e)) => Err(e),
+      Err(e) => Err(BRC20SError::InternalError(e.to_string())),
+    };
+
+    match result {
+      Ok(event) => {
+        println!("success:{}", serde_json::to_string_pretty(&event).unwrap());
+      }
+      Err(e) => {
+        assert_eq!(e, BRC20SError::StakeNoPermission("btc".to_string()))
+      }
+    }
+
+    // with btc staking permission
+    let mut config = version::koala();
+    config.allow_btc_staking = true;
+    let result = process_deploy(
+      context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -1502,8 +1584,11 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let mut config = version::koala();
+    config.allow_btc_staking = true;
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -1563,8 +1648,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -1659,8 +1746,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -1694,8 +1783,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -1739,8 +1830,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -1785,8 +1878,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -1823,8 +1918,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -1860,8 +1957,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -1898,8 +1997,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -1945,8 +2046,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -1982,8 +2085,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2018,14 +2123,16 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
 
-      msg.version = HashMap::new();
       let context = BlockContext {
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let mut config = version::get_config_by_network(context.network, context.blockheight);
+      config.allow_share_pool = false;
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2055,8 +2162,10 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
 
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2090,8 +2199,10 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
 
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2155,8 +2266,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2188,8 +2301,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2225,8 +2340,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2261,8 +2378,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2296,8 +2415,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2328,8 +2449,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2362,8 +2485,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2396,8 +2521,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2431,8 +2558,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2465,8 +2594,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2499,8 +2630,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2533,8 +2666,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2567,8 +2702,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2604,8 +2741,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2632,8 +2771,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2660,8 +2801,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2688,8 +2831,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2716,8 +2861,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2744,8 +2891,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2772,8 +2921,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2800,8 +2951,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2836,8 +2989,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2864,8 +3019,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2895,8 +3052,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2923,8 +3082,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2951,8 +3112,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -2988,8 +3151,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -3013,8 +3178,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_deploy(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -3093,8 +3260,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -3144,8 +3313,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -3199,8 +3370,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3271,8 +3444,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3308,8 +3483,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3346,8 +3523,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3380,8 +3559,10 @@ mod tests {
         blocktime: 1687245486,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -3412,8 +3593,10 @@ mod tests {
         blocktime: 1687245486,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3487,6 +3670,7 @@ mod tests {
       msg.op = Operation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -3497,6 +3681,7 @@ mod tests {
       msg.op = Operation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -3507,6 +3692,7 @@ mod tests {
       msg.op = Operation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -3517,6 +3703,7 @@ mod tests {
       msg.op = Operation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -3526,7 +3713,14 @@ mod tests {
       deploy.pool_id = "fa48a823af#01".to_string();
       deploy.decimals = Some("12".to_string());
       msg.op = Operation::Deploy(deploy.clone());
-      let result = process_deploy(context, &brc20_data_store, &brc20s_data_store, &msg, deploy);
+      let result = process_deploy(
+        context,
+        config.clone(),
+        &brc20_data_store,
+        &brc20s_data_store,
+        &msg,
+        deploy,
+      );
 
       let stake_tick = PledgedTick::BRC20Tick(token);
       let mut stake_msg = Stake {
@@ -3543,8 +3737,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::zebra();
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3556,6 +3752,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3567,6 +3764,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3578,6 +3776,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3589,6 +3788,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3600,6 +3800,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3623,9 +3824,10 @@ mod tests {
       stake_msg.pool_id = "fa48a823af#01".to_string();
       msg.op = Operation::Stake(stake_msg.clone());
       let mut context = context;
-      context.blockheight = 20_u64;
+      let config = version::koala();
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3695,8 +3897,11 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let mut config = version::koala();
+    config.allow_btc_staking = true;
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -3746,8 +3951,11 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let mut config = version::koala();
+    config.allow_btc_staking = true;
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -3801,8 +4009,11 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let mut config = version::koala();
+      config.allow_btc_staking = true;
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3873,8 +4084,11 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let mut config = version::koala();
+      config.allow_btc_staking = true;
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3910,8 +4124,11 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let mut config = version::koala();
+      config.allow_btc_staking = true;
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3948,8 +4165,11 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let mut config = version::koala();
+      config.allow_btc_staking = true;
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -3982,8 +4202,11 @@ mod tests {
         blocktime: 1687245486,
         network: Network::Bitcoin,
       };
+      let mut config = version::koala();
+      config.allow_btc_staking = true;
       let result = process_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4014,8 +4237,11 @@ mod tests {
         blocktime: 1687245486,
         network: Network::Bitcoin,
       };
+      let mut config = version::koala();
+      config.allow_btc_staking = true;
       let result = process_stake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -4089,6 +4315,7 @@ mod tests {
       msg.op = Operation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4099,6 +4326,7 @@ mod tests {
       msg.op = Operation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4109,6 +4337,7 @@ mod tests {
       msg.op = Operation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4119,6 +4348,7 @@ mod tests {
       msg.op = Operation::Deploy(deploy.clone());
       let result = process_deploy(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4128,7 +4358,14 @@ mod tests {
       deploy.pool_id = "fa48a823af#01".to_string();
       deploy.decimals = Some("12".to_string());
       msg.op = Operation::Deploy(deploy.clone());
-      let result = process_deploy(context, &brc20_data_store, &brc20s_data_store, &msg, deploy);
+      let result = process_deploy(
+        context,
+        config,
+        &brc20_data_store,
+        &brc20s_data_store,
+        &msg,
+        deploy,
+      );
 
       let stake_tick = PledgedTick::Native;
       let mut stake_msg = Stake {
@@ -4145,8 +4382,11 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let mut config = version::zebra();
+      config.allow_btc_staking = true;
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -4158,6 +4398,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -4169,6 +4410,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -4180,6 +4422,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -4191,6 +4434,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -4202,6 +4446,7 @@ mod tests {
       msg.op = Operation::Stake(stake_msg.clone());
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -4225,9 +4470,10 @@ mod tests {
       stake_msg.pool_id = "fa48a823af#01".to_string();
       msg.op = Operation::Stake(stake_msg.clone());
       let mut context = context;
-      context.blockheight = 20_u64;
+      let config = version::koala();
       let result = process_stake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -4314,8 +4560,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -4365,8 +4613,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -4420,8 +4670,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4518,8 +4770,11 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let mut config = version::koala();
+    config.allow_btc_staking = true;
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -4569,8 +4824,11 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let mut config = version::koala();
+    config.allow_btc_staking = true;
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -4624,8 +4882,11 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let mut config = version::koala();
+      config.allow_btc_staking = true;
       let result = process_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4739,8 +5000,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -4790,8 +5053,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -4845,8 +5110,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4869,6 +5136,7 @@ mod tests {
       msg.to = None;
       let result = process_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4901,8 +5169,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -4936,8 +5206,10 @@ mod tests {
         blocktime: 1687245485,
         network: Network::Bitcoin,
       };
+      let config = version::get_config_by_network(context.network, context.blockheight);
       let result = process_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &msg,
@@ -5016,8 +5288,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -5067,8 +5341,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -5134,6 +5410,7 @@ mod tests {
       }
       let result = process_passive_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -5231,8 +5508,11 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let mut config = version::koala();
+    config.allow_btc_staking = true;
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -5282,8 +5562,11 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let mut config = version::koala();
+    config.allow_btc_staking = true;
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -5345,6 +5628,7 @@ mod tests {
       }
       let result = process_passive_unstake(
         context,
+        config,
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -5459,8 +5743,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -5510,8 +5796,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -5577,6 +5865,7 @@ mod tests {
       }
       let result = process_passive_unstake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -5615,6 +5904,7 @@ mod tests {
       }
       let result = process_passive_unstake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -5668,6 +5958,7 @@ mod tests {
       }
       let result = process_passive_unstake(
         context,
+        config.clone(),
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
@@ -5708,6 +5999,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let tick_id = deploy.get_tick_id();
@@ -5730,6 +6022,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(Err(BRC20SError::PoolAlreadyExist(deploy.pool_id)), result);
 
@@ -5754,8 +6047,10 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(Err(BRC20SError::StakeNoPermission(tikc_id_str)), result);
+
       //btc stake can deploy
       let (_, msg) = mock_deploy_msg(
         "pool",
@@ -5770,12 +6065,15 @@ mod tests {
         addr,
         addr,
       );
+      let mut config = version::zebra();
+      config.allow_btc_staking = true;
       let result = execute_for_test(
         &brc20_data_store,
         &brc20s_data_store,
         &btc_data_store,
         &msg,
         0,
+        config,
       );
       assert_eq!(None, result.err());
     }
@@ -5797,6 +6095,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::FromToNotEqual(
@@ -5820,6 +6119,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::DeployerNotEqual(
@@ -5839,6 +6139,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -5920,8 +6221,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -5961,8 +6264,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -6030,6 +6335,7 @@ mod tests {
     ));
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &error_msg,
@@ -6048,6 +6354,7 @@ mod tests {
     error_msg.to = None;
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &error_msg,
@@ -6066,6 +6373,7 @@ mod tests {
     error_msg.commit_from = None;
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &error_msg,
@@ -6084,6 +6392,7 @@ mod tests {
     error_mint_msg.amount = "12000000.01".to_string();
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6105,6 +6414,7 @@ mod tests {
     error_mint_msg.amount = "11.0111111111".to_string();
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6126,6 +6436,7 @@ mod tests {
     error_mint_msg.tick = "orda".to_string();
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6147,6 +6458,7 @@ mod tests {
     error_mint_msg.pool_id = "fea607ea9e#11".to_string();
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6168,6 +6480,7 @@ mod tests {
     error_mint_msg.amount = "-1".to_string();
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6189,6 +6502,7 @@ mod tests {
     error_mint_msg.amount = "0".to_string();
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6208,6 +6522,7 @@ mod tests {
     // brc20-s mint, ok
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6234,6 +6549,7 @@ mod tests {
     // brc20-s mint, ok
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6330,8 +6646,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_deploy(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6379,8 +6697,10 @@ mod tests {
       blocktime: 1687245485,
       network: Network::Bitcoin,
     };
+    let config = version::get_config_by_network(context.network, context.blockheight);
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -6390,6 +6710,7 @@ mod tests {
 
     let result = process_stake(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &btc_data_store,
@@ -6456,6 +6777,7 @@ mod tests {
     // mint ok
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6482,6 +6804,7 @@ mod tests {
     // mint script1 ok
     match process_mint(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg1,
@@ -6537,6 +6860,7 @@ mod tests {
     error_msg.to = None;
     match process_inscribe_transfer(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &error_msg,
@@ -6555,6 +6879,7 @@ mod tests {
     error_transfer_msg.amount = "11.0111111111".to_string();
     match process_inscribe_transfer(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6573,6 +6898,7 @@ mod tests {
     error_transfer_msg.tick = "orda".to_string();
     match process_inscribe_transfer(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6591,6 +6917,7 @@ mod tests {
     error_transfer_msg.amount = "10.2".to_string();
     match process_inscribe_transfer(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6607,6 +6934,7 @@ mod tests {
     // brc20s-inscribe-transfer, ok
     match process_inscribe_transfer(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6633,6 +6961,7 @@ mod tests {
     // brc20s-inscribe-transfer, ok
     match process_inscribe_transfer(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg1,
@@ -6675,7 +7004,13 @@ mod tests {
         .unwrap()
         .assume_checked(),
     );
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &error_msg,
+    ) {
       Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -6689,7 +7024,13 @@ mod tests {
     error_msg.inscription_id =
       InscriptionId::from_str("2111111111111111111111111111111111111111111111111111111111111111i1")
         .unwrap();
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &error_msg,
+    ) {
       Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 2111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -6702,7 +7043,13 @@ mod tests {
     let mut error_msg = msg.clone();
     error_msg.new_satpoint.outpoint.txid =
       Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111").unwrap();
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &error_msg,
+    ) {
       Ok(event) => {
         let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
@@ -6725,7 +7072,13 @@ mod tests {
     let mut error_msg = msg.clone();
     error_msg.new_satpoint.outpoint.txid =
       Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111").unwrap();
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &error_msg,
+    ) {
       Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -6737,6 +7090,7 @@ mod tests {
     // brc20s-inscribe-transfer, second, ok
     match process_inscribe_transfer(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6761,7 +7115,13 @@ mod tests {
     };
 
     // normal, ok
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &msg,
+    ) {
       Ok(event) => {
         let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
@@ -6781,7 +7141,13 @@ mod tests {
     };
 
     // normal, second
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &msg,
+    ) {
       Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -6793,6 +7159,7 @@ mod tests {
     // brc20s-inscribe-transfer, address to diff from, ok
     match process_inscribe_transfer(
       context,
+      config.clone(),
       &brc20_data_store,
       &brc20s_data_store,
       &msg,
@@ -6827,7 +7194,13 @@ mod tests {
     // normal, ok
     let mut error_msg = msg.clone();
     error_msg.to = Some(script1.clone());
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &error_msg,
+    ) {
       Ok(event) => {
         let balance = brc20s_data_store
           .get_balance(&script, &tick_id)
@@ -6855,7 +7228,13 @@ mod tests {
     };
 
     // normal, second
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &msg,
+    ) {
       Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable inscriptionId not found: 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -6889,7 +7268,13 @@ mod tests {
 
     let mut error_msg = msg;
     error_msg.from = script1;
-    match process_transfer(context, &brc20_data_store, &brc20s_data_store, &error_msg) {
+    match process_transfer(
+      context,
+      config.clone(),
+      &brc20_data_store,
+      &brc20s_data_store,
+      &error_msg,
+    ) {
       Err(Error::BRC20SError(e)) => {
         assert_eq!("transferable owner not match 1111111111111111111111111111111111111111111111111111111111111111i1", e.to_string())
       }
@@ -6927,6 +7312,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -6939,6 +7325,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -6951,6 +7338,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -6963,6 +7351,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -6979,6 +7368,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::PoolNotExist("0000000001#11".to_string())),
@@ -6992,6 +7382,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::FromToNotEqual(
@@ -7008,6 +7399,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::InsufficientBalance(
@@ -7025,6 +7417,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -7048,6 +7441,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -7071,6 +7465,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(None, result.err());
 
@@ -7081,6 +7476,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(None, result.err());
 
@@ -7105,6 +7501,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(
       Some(BRC20SError::InsufficientBalance(
@@ -7121,6 +7518,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(
       Some(BRC20SError::InsufficientBalance(
@@ -7137,6 +7535,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000]],"max_share":50000000000000000000,"total_only":149000000000000000000}"#;
@@ -7159,6 +7558,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000],["fb641f54a2#01",false,51000000000000000000]],"max_share":51000000000000000000,"total_only":149000000000000000000}"#;
@@ -7203,6 +7603,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -7215,6 +7616,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -7227,6 +7629,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -7239,6 +7642,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -7255,6 +7659,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::PoolNotExist("0000000001#11".to_string())),
@@ -7268,6 +7673,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::FromToNotEqual(
@@ -7284,6 +7690,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::InsufficientBalance(
@@ -7301,6 +7708,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -7312,6 +7720,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(
       Err(BRC20SError::InsufficientBalance(
@@ -7329,6 +7738,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::zebra(),
     );
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000]],"max_share":0,"total_only":49000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"13395c5283#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
@@ -7351,6 +7761,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     //unstake to share pool
@@ -7361,6 +7772,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::zebra(),
     );
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":49000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
@@ -7383,6 +7795,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(None, result.err());
 
@@ -7393,6 +7806,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(None, result.err());
 
@@ -7417,6 +7831,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::zebra(),
     );
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
@@ -7438,6 +7853,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::zebra(),
     );
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
@@ -7460,6 +7876,7 @@ mod tests {
       &btc_data_store,
       &msg,
       2,
+      version::zebra(),
     );
     let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"##;
     let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"##;
@@ -7503,6 +7920,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -7515,6 +7933,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -7527,6 +7946,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
     let (deploy, msg) = mock_deploy_msg(
@@ -7539,6 +7959,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -7555,6 +7976,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(
         Err(BRC20SError::StakeNotFound("0000000001".to_string())),
@@ -7568,6 +7990,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::zebra(),
       );
       assert_eq!(Err(BRC20SError::StakeNotFound("btc1".to_string(),)), result);
     }
@@ -7579,6 +8002,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -7593,6 +8017,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(Ok(vec![]), result);
 
@@ -7607,6 +8032,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::zebra(),
     );
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
@@ -7639,6 +8065,7 @@ mod tests {
       &btc_data_store,
       &msg,
       2,
+      version::zebra(),
     );
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
@@ -7674,6 +8101,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(None, result.err());
 
@@ -7688,6 +8116,7 @@ mod tests {
       &btc_data_store,
       &msg,
       0,
+      version::zebra(),
     );
     assert_eq!(Ok(vec![]), result);
 
@@ -7702,6 +8131,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::zebra(),
     );
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
@@ -7734,6 +8164,7 @@ mod tests {
       &btc_data_store,
       &msg,
       2,
+      version::zebra(),
     );
     assert_eq!(
       Ok(vec![PassiveWithdraw(PassiveWithdrawEvent {
@@ -7797,7 +8228,14 @@ mod tests {
     let pid_only1 = deploy.pool_id.as_str();
     let hehe = deploy.get_pool_id();
 
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
+    let result = execute_for_test(
+      brc20_data_store,
+      brc20s_data_store,
+      btc_data_store,
+      &msg,
+      0,
+      version::zebra(),
+    );
     assert_eq!(None, result.err());
     let stake_tick_only1 = deploy.get_stake_id();
     results.push((pid_only1.to_string(), stake_tick_only1.clone()));
@@ -7818,7 +8256,14 @@ mod tests {
       addr,
     );
     let pid_only2 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
+    let result = execute_for_test(
+      brc20_data_store,
+      brc20s_data_store,
+      btc_data_store,
+      &msg,
+      0,
+      version::zebra(),
+    );
     assert_eq!(None, result.err());
     let stake_tick_only2 = deploy.get_stake_id();
     results.push((pid_only2.to_string(), stake_tick_only2.clone()));
@@ -7839,7 +8284,14 @@ mod tests {
       addr,
     );
     let pid_share1 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
+    let result = execute_for_test(
+      brc20_data_store,
+      brc20s_data_store,
+      btc_data_store,
+      &msg,
+      0,
+      version::zebra(),
+    );
     assert_eq!(None, result.err());
     let stake_tick_share1 = deploy.get_stake_id();
     results.push((pid_share1.to_string(), stake_tick_share1.clone()));
@@ -7860,26 +8312,61 @@ mod tests {
       addr,
     );
     let pid_share2 = deploy.pool_id.as_str();
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
+    let result = execute_for_test(
+      brc20_data_store,
+      brc20s_data_store,
+      btc_data_store,
+      &msg,
+      0,
+      version::zebra(),
+    );
     assert_eq!(None, result.err());
     let stake_tick_share2 = deploy.get_stake_id();
     results.push((pid_share2.to_string(), stake_tick_share2.clone()));
 
     //stake to
     let (stake, msg) = mock_stake_msg(pid_only1, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
+    let result = execute_for_test(
+      brc20_data_store,
+      brc20s_data_store,
+      btc_data_store,
+      &msg,
+      0,
+      version::zebra(),
+    );
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_share1, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
+    let result = execute_for_test(
+      brc20_data_store,
+      brc20s_data_store,
+      btc_data_store,
+      &msg,
+      0,
+      version::zebra(),
+    );
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
+    let result = execute_for_test(
+      brc20_data_store,
+      brc20s_data_store,
+      btc_data_store,
+      &msg,
+      0,
+      version::zebra(),
+    );
     assert_eq!(None, result.err());
 
     let (stake, msg) = mock_stake_msg(pid_share2, "50", addr, addr);
-    let result = execute_for_test(brc20_data_store, brc20s_data_store, btc_data_store, &msg, 0);
+    let result = execute_for_test(
+      brc20_data_store,
+      brc20s_data_store,
+      btc_data_store,
+      &msg,
+      0,
+      version::zebra(),
+    );
     assert_eq!(None, result.err());
     let mut max_share = 0_u128;
     let mut total_only = 0_u128;
@@ -8022,6 +8509,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(Ok(vec![]), result);
@@ -8067,6 +8555,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8124,6 +8613,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8185,6 +8675,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8250,6 +8741,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(Ok(vec![]), result);
@@ -8295,6 +8787,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8346,6 +8839,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8407,6 +8901,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8472,6 +8967,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(Ok(vec![]), result);
@@ -8517,6 +9013,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8574,6 +9071,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8635,6 +9133,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8700,6 +9199,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8751,6 +9251,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8808,6 +9309,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8869,6 +9371,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -8934,6 +9437,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(Ok(vec![]), result);
@@ -8979,6 +9483,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(Ok(vec![]), result);
@@ -9024,6 +9529,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(Ok(vec![]), result);
@@ -9069,6 +9575,7 @@ mod tests {
         &btc_data_store,
         &msg,
         1,
+        version::zebra(),
       );
 
       assert_eq!(
@@ -9142,6 +9649,7 @@ mod tests {
         &btc_data_store,
         &msg,
         0,
+        version::koala(),
       );
       assert_eq!(None, result.err());
 
@@ -9153,6 +9661,7 @@ mod tests {
         &btc_data_store,
         &msg,
         100,
+        version::koala(),
       );
       assert_eq!(None, result.err());
     }
@@ -9176,6 +9685,7 @@ mod tests {
       &btc_data_store,
       &msg,
       1,
+      version::koala(),
     );
     assert_eq!(None, result.err());
     let now = Local::now().sub(old);

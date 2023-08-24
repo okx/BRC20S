@@ -38,6 +38,7 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
       .map(|v| v.map(Receipt::BRC20))?,
       Message::BRC20S(msg) => brc20s::execute(
         context,
+        brc20s::get_config_by_network(context.network, context.blockheight),
         self.state_store.brc20(),
         self.state_store.brc20s(),
         self.state_store.btc(),
@@ -71,6 +72,7 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
                 let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
                 brc20s::execute(
                   context,
+                  brc20s::get_config_by_network(context.network, context.blockheight),
                   self.state_store.brc20(),
                   self.state_store.brc20s(),
                   self.state_store.btc(),
@@ -109,6 +111,7 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
                   let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
                   brc20s::execute(
                     context,
+                    brc20s::get_config_by_network(context.network, context.blockheight),
                     self.state_store.brc20(),
                     self.state_store.brc20s(),
                     self.state_store.btc(),
@@ -145,13 +148,13 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
                 let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
                 brc20s::execute(
                   context,
+                  brc20s::get_config_by_network(context.network, context.blockheight),
                   self.state_store.brc20(),
                   self.state_store.brc20s(),
                   self.state_store.btc(),
                   &brc20s::ExecutionMessage::from_btc_message(
                     &passive_msg,
                     old_btc_msg.from.clone(),
-                    context.network,
                   )?,
                 )?;
               }

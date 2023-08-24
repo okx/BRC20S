@@ -109,15 +109,6 @@ pub fn get_raw_brc20_tick<M: brc20::DataStoreReadWrite>(
   }
 }
 
-pub fn tick_can_staked(token: &PledgedTick) -> bool {
-  match token {
-    PledgedTick::Native => true,
-    PledgedTick::BRC20STick(_) => false,
-    PledgedTick::BRC20Tick(_) => true,
-    PledgedTick::Unknown => false,
-  }
-}
-
 pub fn convert_pledged_tick_with_decimal<
   'a,
   L: brc20s::DataStoreReadWrite,

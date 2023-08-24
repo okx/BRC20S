@@ -432,7 +432,10 @@ impl Server {
           "/brc20s/stake/:address/:tick",
           get(brc20s::brc20s_stake_info),
         )
-        .route("/btc/address/:address/balance", get(btc::btc_debug_balance));
+        .route(
+          "/btc/debug/address/:address/balance",
+          get(btc::btc_debug_balance),
+        );
 
       let api_router = Router::new().nest("/v1", api_v1_router);
 

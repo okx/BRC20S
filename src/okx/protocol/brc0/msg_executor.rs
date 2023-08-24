@@ -13,12 +13,15 @@ use crate::{
 };
 use anyhow::anyhow;
 use bitcoin::Network;
+use reqwest::{Client, Error};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use futures::TryFutureExt;
 use hex::FromHex;
 use std::convert::TryInto;
 use web3::transports::Http;
 use web3::types::Bytes;
-use web3::Web3;
+use web3::{Web3, block_on};
 
 use cosmrs::{
   bank::MsgSend,
@@ -31,6 +34,22 @@ use cosmrs::{
 use std::process::Command;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
+
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RpcRequest {
+  jsonrpc: String,
+  method: String,
+  params: Vec<String>,
+  id: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RpcResponse {
+  jsonrpc: String,
+  result: String,
+  id: u64,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExecutionMessage {
@@ -76,13 +95,13 @@ impl ExecutionMessage {
 pub fn execute(context: BlockContext, msg: &ExecutionMessage) -> Result<Option<Receipt>> {
   log::debug!("BRC0 execute message: {:?}", msg);
   let _event = match &msg.op {
-    Operation::Evm(evm) => process_deploy(context, msg, evm.clone()),
+    Operation::Evm(evm) => block_on(process_deploy(context, msg, evm.clone())),
   };
-
+  
   Ok(None)
 }
 
-fn process_deploy(
+async fn process_deploy(
   _context: BlockContext,
   _msg: &ExecutionMessage,
   evm: Evm,
@@ -91,27 +110,27 @@ fn process_deploy(
   println!("-----------{}", evm.d);
 
   // CLI
-  replace_evm_data(evm.d);
-  let output = Command::new("okbchaincli")
-      .args(&["tx", "gov", "submit-proposal", "brczero-evm-data"])
-      .args(&["/Users/oker/Downloads/brczero_evm_data.json"])
-      .args(&["--from", "captain"])
-      .args(&["--fees", "0.01okb"])
-      .args(&["--gas", "3000000"])
-      .args(&["--chain-id", "okbchain-67"])
-      .args(&["--node", "http://127.0.0.1:26657"])
-      .args(&["-b", "block"])
-      .args(&["-y"])
-      .output()
-      .expect("Failed to execute command");
-
-  if output.status.success() {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    println!("Command output:\n{}", stdout);
-  } else {
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    println!("Command failed with error:\n{}", stderr);
-  }
+  // replace_evm_data(evm.d);
+  // let output = Command::new("okbchaincli")
+  //     .args(&["tx", "gov", "submit-proposal", "brczero-evm-data"])
+  //     .args(&["/Users/oker/lrpData/brczero_evm_data.json"])
+  //     .args(&["--from", "captain"])
+  //     .args(&["--fees", "0.01okb"])
+  //     .args(&["--gas", "3000000"])
+  //     .args(&["--chain-id", "okbchain-67"])
+  //     .args(&["--node", "http://127.0.0.1:26657"])
+  //     .args(&["-b", "block"])
+  //     .args(&["-y"])
+  //     .output()
+  //     .expect("Failed to execute command");
+  //
+  // if output.status.success() {
+  //   let stdout = String::from_utf8_lossy(&output.stdout);
+  //   println!("Command output:\n{}", stdout);
+  // } else {
+  //   let stderr = String::from_utf8_lossy(&output.stderr);
+  //   println!("Command failed with error:\n{}", stderr);
+  // }
 
   // TODO
   // let sender_private_key = secp256k1::SigningKey::random();
@@ -247,6 +266,27 @@ fn process_deploy(
   //   }
   // }
 
+  //todo: call debug api
+  let client = Client::new();
+  let request = RpcRequest {
+    jsonrpc: "2.0".to_string(),
+    method: "eth_submitBrczeroData".to_string(),
+    params: vec![evm.d],
+    id: 1,
+  };
+
+  let response: RpcResponse = client
+    .post("http://localhost:8545")
+    .header("Content-Type", "application/json")
+    .json(&request)
+    .send()
+    .await?
+    .json()
+    .await?;
+
+  //todo: postprocess
+  println!("Response: {:?}", response);
+
   Ok(Event::Evm(EvmEvent {
     txhash: "tx_hash".to_string(),
   }))
@@ -262,7 +302,7 @@ fn init_tokio_runtime() -> tokio::runtime::Runtime {
 
 fn replace_evm_data(data: String){
   // read file
-  let file_path = "/Users/oker/Downloads/brczero_evm_data.json";
+  let file_path = "/Users/oker/lrpData/brczero_evm_data.json";
   let mut lines = vec![];
 
   let file = fs::File::open(&file_path).unwrap();

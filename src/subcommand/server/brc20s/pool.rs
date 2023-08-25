@@ -98,10 +98,13 @@ impl From<&PoolInfo> for Pool {
 }
 
 // brc20s/pool/:pid
+
+/// Get the pool infomation by pid.
+///
+/// Retrieve information about the pledge pool.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/pool/{pid}",
-  operation_id = "get the pool infomation by pid",
   params(
       ("pid" = String, Path, description = "Pool ID", min_length = 13, max_length = 13, example= "a01234567f#0f"),
 ),
@@ -186,10 +189,10 @@ pub(crate) struct AllPoolInfo {
 }
 
 // brc20s/pool
+/// Get the all of pool infomations.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/pool",
-  operation_id = "get the all of pool infomations",
   params(
     Pagination
 ),
@@ -231,10 +234,12 @@ pub(crate) async fn brc20s_all_pool_info(
 }
 
 // /brc20s/pool/:tick_id
+/// Get the all of pool infomations by ticker ID.
+///
+/// Get all pool information for the Ticker ID.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/pool/{tid}",
-  operation_id = "get the pool infomation by ticker id",
   params(
       ("tid" = String, Path, description = "Ticker ID", min_length = 10, max_length = 10, example= "a01234567f"),
 ),

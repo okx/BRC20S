@@ -70,10 +70,12 @@ impl From<TokenInfo> for TickInfo {
   }
 }
 
+/// Get the ticker info.
+///
+/// Retrieve detailed information about the ticker.
 #[utoipa::path(
     get,
     path = "/api/v1/brc20/tick/{ticker}",
-    operation_id = "get ticker info",
     params(
       ("ticker" = String, Path, description = "Token ticker", min_length = 4, max_length = 4)
   ),
@@ -108,10 +110,12 @@ pub struct AllTickInfo {
   pub tokens: Vec<TickInfo>,
 }
 
+/// Get all tickers info.
+///
+/// Retrieve detailed information about all tickers.
 #[utoipa::path(
     get,
     path = "/api/v1/brc20/tick",
-    operation_id = "get all tickers info",
     responses(
       (status = 200, description = "Obtain matching all BRC20 tickers.", body = BRC20AllTick),
       (status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),

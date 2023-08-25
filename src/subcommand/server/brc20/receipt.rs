@@ -255,10 +255,12 @@ pub struct TxEvents {
   pub txid: String,
 }
 
+/// Get transaction events by txid.
+///
+/// Retrieve all BRC20 events associated with a transaction.
 #[utoipa::path(
     get,
     path = "/api/v1/brc20/tx/{txid}/events",
-    operation_id = "get transaction events by txid",
     params(
         ("txid" = String, Path, description = "transaction ID")
   ),
@@ -294,10 +296,13 @@ pub struct BlockEvents {
   #[schema(value_type = Vec<brc20::TxEvents>)]
   pub block: Vec<TxEvents>,
 }
+
+/// Get block events by blockhash.
+///
+/// Retrieve all BRC20 events associated with a block.
 #[utoipa::path(
     get,
     path = "/api/v1/brc20/block/{blockhash}/events",
-    operation_id = "get block events by blockhash",
     params(
         ("blockhash" = String, Path, description = "block hash")
   ),

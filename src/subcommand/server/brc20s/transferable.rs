@@ -46,10 +46,11 @@ impl From<&brc20s::TransferableAsset> for TransferableInscription {
 }
 
 // brc20s/tick/:tickId/address/:address/transferable
+
+/// Retrieve the transferable inscriptions with the specified ticker from the given address.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/tick/{tick_id}/address/{address}/transferable",
-  operation_id = "get transferable inscriptions",
   params(
       ("tick_id" = String, Path, description = "Ticker ID", min_length = 10, max_length = 10, example = "a12345678f"),
       ("address" = String, Path, description = "Address")
@@ -111,10 +112,10 @@ pub(crate) struct Transferable {
 }
 
 // brc20s/address/:address/transferable
+/// Retrieve the balance from the given address.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/address/{address}/transferable",
-  operation_id = "get address ticker balance",
   params(
       ("address" = String, Path, description = "Address")
 ),

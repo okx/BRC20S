@@ -36,10 +36,13 @@ impl From<&brc20s::Balance> for Balance {
 }
 
 // brc20s/tick/:tickId/address/:address/balance
+
+/// Get the ticker balance of the address.
+///
+/// The balance is the sum of the transferable balance and the available balance.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/tick/{tick_id}/address/{address}/balance",
-  operation_id = "get the ticker balance of the address",
   params(
       ("tick_id" = String, Path, description = "Token ticker ID", min_length = 10, max_length = 10),
       ("address" = String, Path, description = "Address")
@@ -95,10 +98,12 @@ pub(crate) struct AllBalance {
   pub balance: Vec<Balance>,
 }
 // brc20s/address/:address/balance
+/// Get all ticker balances of the address.
+///
+/// Retrieve all asset balances of the address.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/address/{address}/balance",
-  operation_id = "get all ticker balances of the address",
   params(
       ("address" = String, Path, description = "Address")
 ),

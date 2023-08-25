@@ -29,10 +29,12 @@ impl From<&brc20_store::TransferableLog> for TransferableInscription {
   }
 }
 
+/// Get the transferable inscriptions of the address.
+///
+/// Retrieve the transferable inscriptions with the ticker from the given address.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20/tick/{ticker}/address/{address}/transferable",
-  operation_id = "get transferable inscriptions",
   params(
       ("ticker" = String, Path, description = "Token ticker", min_length = 4, max_length = 4),
       ("address" = String, Path, description = "Address")
@@ -77,10 +79,12 @@ pub struct TransferableInscriptions {
   pub inscriptions: Vec<TransferableInscription>,
 }
 
+/// Get the balance of ticker of the address.
+///
+/// Retrieve the balance of the ticker from the given address.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20/address/{address}/transferable",
-  operation_id = "get address ticker balance",
   params(
       ("address" = String, Path, description = "Address")
 ),

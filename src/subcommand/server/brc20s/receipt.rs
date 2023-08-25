@@ -422,10 +422,12 @@ pub struct TxReceipts {
 }
 
 // brc20s/tx/:txid/receipts
+/// Get the transaction receipts by txid.
+///
+/// Get all receipts of the transaction.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/tx/{txid}/receipts",
-  operation_id = "get transaction receipts by txid",
   params(
       ("txid" = String, Path, description = "transaction ID")
 ),
@@ -493,10 +495,12 @@ pub struct BlockReceipts {
 }
 
 // brc20s/block/:blockhash/receipts
+/// Get the block receipts by blockhash.
+///
+/// Get all receipts of the block.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/block/{blockhash}/receipts",
-  operation_id = "get block receipts by blockhash",
   params(
       ("blockhash" = String, Path, description = "block hash")
 ),

@@ -141,10 +141,10 @@ pub(crate) async fn brc20s_user_pending_reward(
 
 // brc20s/pool/:pid/address/:address/userinfo
 
+/// Get the user info of the pool.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/pool/{pid}/address/{address}/userinfo",
-  operation_id = "get the user info of the pool",
   params(
       ("pid" = String, Path, description = "Pool ID", min_length = 13, max_length = 13, example= "a01234567f#0f"),
       ("address" = String, Path, description = "Address"),
@@ -217,10 +217,10 @@ pub(crate) async fn brc20s_debug_userinfo(
 
 // brc20s/stake/:address/:tick
 
+/// Get the stake info of the ticker.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/stake/{address}/{tick}",
-  operation_id = "get stake info of a BRC20 ticker",
   params(
       ("address" = String, Path, description = "Address"),
       ("tick" = String, Path, description = "The BRC20 ticker name", min_length = 4, max_length = 4, example = "ordi")

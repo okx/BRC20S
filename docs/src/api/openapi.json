@@ -6,7 +6,7 @@
     "license": {
       "name": "CC0-1.0"
     },
-    "version": "0.8.2"
+    "version": "0.8.1"
   },
   "paths": {
     "/api/v1/brc20/address/{address}/balance": {
@@ -3881,6 +3881,39 @@
         }
       },
       "brc20s.Stake": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Stake native token.",
+            "enum": [
+              "native"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "bRC20"
+            ],
+            "properties": {
+              "bRC20": {
+                "$ref": "#/components/schemas/brc20s.StakeValue"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bRC20S"
+            ],
+            "properties": {
+              "bRC20S": {
+                "$ref": "#/components/schemas/brc20s.StakeValue"
+              }
+            }
+          }
+        ]
+      },
+      "brc20s.StakeValue": {
         "type": "object",
         "required": [
           "type",
@@ -3888,12 +3921,10 @@
         ],
         "properties": {
           "tick": {
-            "type": "string",
-            "description": "Name of the ticker."
+            "type": "string"
           },
           "type": {
-            "type": "string",
-            "description": "Type of the ticker. such as \"brc20\"."
+            "type": "string"
           }
         }
       },

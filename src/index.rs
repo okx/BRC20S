@@ -1413,12 +1413,15 @@ impl Index {
     let rtx = self.database.begin_read().unwrap();
     let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
     let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let user_info =
-      brc20s_db.get_pid_to_use_info(&ScriptKey::from_address(address.clone()), pid)?;
+    let user_info = brc20s_db
+      .get_pid_to_use_info(&ScriptKey::from_address(address.clone()), pid)?
+      .ok_or(anyhow!("user info not found from state!"))?;
 
-    let pool_info = brc20s_db.get_pid_to_poolinfo(pid)?;
+    let pool_info = brc20s_db
+      .get_pid_to_poolinfo(pid)?
+      .ok_or(anyhow!("pool info not found from state!"))?;
 
-    let dec = match pool_info.clone().unwrap().stake {
+    let dec = match pool_info.clone().stake {
       PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
       PledgedTick::BRC20STick(tickid) => brc20s_db.get_tick_info(&tickid).unwrap().unwrap().decimal,
       PledgedTick::BRC20Tick(tick) => brc20_db.get_token_info(&tick).unwrap().unwrap().decimal,
@@ -1428,8 +1431,8 @@ impl Index {
     let block = self.height().unwrap().unwrap_or(Height(0)).n();
 
     let result = reward::query_reward(
-      user_info.unwrap(),
-      pool_info.unwrap(),
+      user_info,
+      pool_info,
       self.height().unwrap().unwrap_or(Height(0)).n(),
       dec,
     )?;

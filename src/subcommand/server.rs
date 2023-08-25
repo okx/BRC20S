@@ -249,6 +249,7 @@ impl Server {
 
           // BRC20S schemas
           brc20s::Tick,
+          brc20s::StakeValue,
           brc20s::Stake,
           brc20s::Earn,
           brc20s::TickInfo,

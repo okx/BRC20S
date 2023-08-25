@@ -229,10 +229,7 @@ impl DeployPoolEvent {
 
     Ok(Self {
       pid: event.pid.as_str().to_string(),
-      stake: Stake {
-        type_field: event.stake.to_type(),
-        tick: event.stake.to_string(),
-      },
+      stake: Stake::from(event.stake),
       earn: Earn {
         id: tick_info.tick_id.hex(),
         name: tick_info.name.as_str().to_string(),

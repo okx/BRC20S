@@ -34,6 +34,7 @@ use cosmrs::{
 use std::process::Command;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
+use shadow_rs::pmr::respan_to;
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -95,19 +96,19 @@ impl ExecutionMessage {
 pub fn execute(context: BlockContext, msg: &ExecutionMessage) -> Result<Option<Receipt>> {
   log::debug!("BRC0 execute message: {:?}", msg);
   let _event = match &msg.op {
-    Operation::Evm(evm) => block_on(process_deploy(context, msg, evm.clone())),
+    Operation::Evm(evm) => process_deploy(context, msg, evm.clone()),
   };
-  
+
   Ok(None)
 }
 
-async fn process_deploy(
+fn process_deploy(
   _context: BlockContext,
   _msg: &ExecutionMessage,
   evm: Evm,
 ) -> Result<Event, Error> {
   // TODO send okbc proposal tx
-  println!("-----------{}", evm.d);
+  println!("EVM Data-----------{}", evm.d);
 
   // CLI
   // replace_evm_data(evm.d);
@@ -274,18 +275,19 @@ async fn process_deploy(
     params: vec![evm.d],
     id: 1,
   };
+  println!("Request: {:#?}", request);
 
-  let response: RpcResponse = client
-    .post("http://localhost:8545")
-    .header("Content-Type", "application/json")
-    .json(&request)
-    .send()
-    .await?
-    .json()
-    .await?;
+  init_tokio_runtime().block_on(async {
+    let response = client
+      .post("http://localhost:8545")
+      .header("Content-Type", "application/json")
+      .json(&request)
+      .send()
+      .await;
 
-  //todo: postprocess
-  println!("Response: {:?}", response);
+    //todo: postprocess
+    println!("Response: {:#?}", response);
+  });
 
   Ok(Event::Evm(EvmEvent {
     txhash: "tx_hash".to_string(),

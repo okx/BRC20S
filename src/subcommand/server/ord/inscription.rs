@@ -203,7 +203,7 @@ mod tests {
     };
     assert_eq!(
       serde_json::to_string_pretty(&ord_inscription).unwrap(),
-      r###"{
+      r#"{
   "id": "1111111111111111111111111111111111111111111111111111111111111111i4294967295",
   "number": -100,
   "contentType": "content_type",
@@ -214,12 +214,12 @@ mod tests {
   "genesisHeight": 1,
   "location": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
   "sat": null
-}"###,
+}"#,
     );
     ord_inscription.owner = None;
     assert_eq!(
       serde_json::to_string_pretty(&ord_inscription).unwrap(),
-      r###"{
+      r#"{
   "id": "1111111111111111111111111111111111111111111111111111111111111111i4294967295",
   "number": -100,
   "contentType": "content_type",
@@ -228,7 +228,7 @@ mod tests {
   "genesisHeight": 1,
   "location": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
   "sat": null
-}"###,
+}"#,
     );
   }
 }

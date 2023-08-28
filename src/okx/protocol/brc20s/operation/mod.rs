@@ -127,7 +127,7 @@ mod tests {
 
   #[test]
   fn test_deploy_deserialize() {
-    let json_str = r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##.to_string();
+    let json_str = r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#.to_string();
 
     let reuslt = deserialize_brc20s(&json_str);
 
@@ -151,12 +151,12 @@ mod tests {
 
   #[test]
   fn test_stake_deserialize() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "deposit",
         "pid": "pid",
         "amt": "amt"
-      }"##;
+      }"#;
 
     let result = deserialize_brc20s(json_str);
 
@@ -173,13 +173,13 @@ mod tests {
 
   #[test]
   fn test_mint_deserialize() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "mint",
         "pid": "pid",
         "tick": "tick",
         "amt": "amt"
-      }"##;
+      }"#;
 
     let reuslt = deserialize_brc20s(json_str);
 
@@ -197,12 +197,12 @@ mod tests {
 
   #[test]
   fn test_unstake_deserialize() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "withdraw",
         "pid": "pid",
         "amt": "amt"
-      }"##;
+      }"#;
 
     let reuslt = deserialize_brc20s(json_str);
 
@@ -219,13 +219,13 @@ mod tests {
 
   #[test]
   fn test_transfer_deserialize() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }"##;
+      }"#;
 
     let reuslt = deserialize_brc20s(json_str);
 
@@ -243,13 +243,13 @@ mod tests {
 
   #[test]
   fn test_json_duplicate_field() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "deposit",
         "pid": "pid-1",
         "pid": "pid-2",
         "amt": "amt"
-      }"##;
+      }"#;
     assert_eq!(
       deserialize_brc20s(json_str).unwrap(),
       RawOperation::Stake(Stake {
@@ -261,45 +261,45 @@ mod tests {
 
   #[test]
   fn test_json_non_brc20s() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc-40",
         "op": "stake",
         "pid": "pid",
         "amt": "amt"
-      }"##;
+      }"#;
     assert_eq!(deserialize_brc20s(json_str), Err(JSONError::NotBRC20SJson))
   }
 
   #[test]
   fn test_json_non_string() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "stake",
         "pid": "pid",
         "amt": "amt",
-      }"##;
+      }"#;
     assert_eq!(deserialize_brc20s(json_str), Err(JSONError::InvalidJson))
   }
 
   #[test]
   fn test_deserialize_case_insensitive() {
-    let json_str = r##"{
+    let json_str = r#"{
         "P": "brc20-s",
         "OP": "transfer",
         "Pid": "pid",
         "ticK": "tick",
         "amt": "amt"
-      }"##;
+      }"#;
 
     assert_eq!(deserialize_brc20s(json_str), Err(JSONError::NotBRC20SJson));
 
-    let json_str1 = r##"{
+    let json_str1 = r#"{
         "p": "brc20-s",
         "OP": "transfer",
         "Pid": "pid",
         "ticK": "tick",
         "amt": "amt"
-      }"##;
+      }"#;
 
     assert_eq!(
       deserialize_brc20s(json_str1),
@@ -317,7 +317,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##
+            r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#
               .as_bytes()
               .to_vec(),
           ),
@@ -343,7 +343,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc20-s","op":"deposit","pid":"pool_id","amt":"12000"}"##
+            r#"{"p":"brc20-s","op":"deposit","pid":"pool_id","amt":"12000"}"#
               .as_bytes()
               .to_vec(),
           ),
@@ -365,7 +365,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc20-s","op":"mint","tick":"tick","pid":"pool_id","amt":"12000"}"##
+            r#"{"p":"brc20-s","op":"mint","tick":"tick","pid":"pool_id","amt":"12000"}"#
               .as_bytes()
               .to_vec(),
           ),
@@ -388,7 +388,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc20-s","op":"withdraw","pid":"pool_id","amt":"12000"}"##
+            r#"{"p":"brc20-s","op":"withdraw","pid":"pool_id","amt":"12000"}"#
               .as_bytes()
               .to_vec(),
           ),
@@ -409,7 +409,7 @@ mod tests {
       &Inscription::new(
         Some(content_type.clone()),
         Some(
-          r##"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"##
+          r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#
             .as_bytes()
             .to_vec(),
         ),
@@ -422,7 +422,7 @@ mod tests {
       &Inscription::new(
         Some(content_type.clone()),
         Some(
-          r##"{"p":"brc20-s","op":"mint","tick":"abcd","amt":"12000"}"##
+          r#"{"p":"brc20-s","op":"mint","tick":"abcd","amt":"12000"}"#
             .as_bytes()
             .to_vec(),
         ),
@@ -436,7 +436,7 @@ mod tests {
         &Inscription::new(
           Some(content_type),
           Some(
-            r##"{"p":"brc20-s","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"##
+            r#"{"p":"brc20-s","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"#
               .as_bytes()
               .to_vec(),
           ),

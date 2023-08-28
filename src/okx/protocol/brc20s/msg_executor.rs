@@ -1253,8 +1253,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f"]}"#;
+    let expect_pool_info = r#"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -1341,8 +1341,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#11"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#11","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":20,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#11"]}"#;
+    let expect_pool_info = r#"{"pid":"13395c5283#11","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":20,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
   }
@@ -1417,8 +1417,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f"]}"#;
+    let expect_pool_info = r#"{"pid":"13395c5283#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
     //add brc20 tokeninfo
@@ -1540,8 +1540,8 @@ mod tests {
         .unwrap()
         .unwrap();
 
-      let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01"]}"##;
-      let expect_pool_info = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":8000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+      let expect_tick_info = r#"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01"]}"#;
+      let expect_pool_info = r#"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":8000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
       assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
       assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
     }
@@ -1585,8 +1585,8 @@ mod tests {
         .unwrap()
         .unwrap();
 
-      let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20100000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01","13395c5283#02"]}"##;
-      let expect_pool_info = r##"{"pid":"13395c5283#02","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore2"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":100000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+      let expect_tick_info = r#"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20100000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01","13395c5283#02"]}"#;
+      let expect_pool_info = r#"{"pid":"13395c5283#02","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore2"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":100000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
       assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
       assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
     }
@@ -1744,8 +1744,8 @@ mod tests {
         .unwrap()
         .unwrap();
 
-      let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20200000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01","13395c5283#02","13395c5283#03"]}"##;
-      let expect_pool_info = r##"{"pid":"13395c5283#03","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore3"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":100000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+      let expect_tick_info = r#"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":20200000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#1f","13395c5283#01","13395c5283#02","13395c5283#03"]}"#;
+      let expect_pool_info = r#"{"pid":"13395c5283#03","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"ore3"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":100000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
       assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
       assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
     }
@@ -2945,8 +2945,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"deploy_block_time":1687245485,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"deploy_block_time":1687245485,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"#;
+    let expect_pool_info = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -2996,9 +2996,9 @@ mod tests {
       .get_pid_to_use_info(&script, &pid)
       .unwrap();
     let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
-    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"#;
+    let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"#;
+    let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
@@ -3050,9 +3050,9 @@ mod tests {
         .get_pid_to_use_info(&script, &pid)
         .unwrap();
       let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"##;
-      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":1000000,"reward_debt":2000000,"latest_updated_block":30}"##;
-      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+      let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"#;
+      let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":1000000,"reward_debt":2000000,"latest_updated_block":30}"#;
+      let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&pool_info).unwrap()
@@ -3250,9 +3250,9 @@ mod tests {
         .get_pid_to_use_info(&script, &pid)
         .unwrap();
       let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"##;
-      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":1000000,"reward_debt":2000000,"latest_updated_block":30}"##;
-      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+      let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,2000000000]],"max_share":0,"total_only":2000000000}"#;
+      let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":2000000000,"minted":0,"pending_reward":1000000,"reward_debt":2000000,"latest_updated_block":30}"#;
+      let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&pool_info).unwrap()
@@ -3550,8 +3550,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"deploy_block_time":1687245485,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"deploy_block_time":1687245485,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"#;
+    let expect_pool_info = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -3601,9 +3601,9 @@ mod tests {
       .get_pid_to_use_info(&script, &pid)
       .unwrap();
     let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
-    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"#;
+    let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"#;
+    let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
@@ -3656,9 +3656,9 @@ mod tests {
         .unwrap();
       let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo =
-        r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
-      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":1000000,"reward_debt":0,"latest_updated_block":30}"##;
-      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":0,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+        r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[],"max_share":0,"total_only":0}"#;
+      let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":1000000,"reward_debt":0,"latest_updated_block":30}"#;
+      let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":0,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&pool_info).unwrap()
@@ -3769,8 +3769,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"#;
+    let expect_pool_info = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -3820,9 +3820,9 @@ mod tests {
       .get_pid_to_use_info(&script, &pid)
       .unwrap();
     let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"#;
+    let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
+    let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
@@ -4044,8 +4044,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"deploy_block_time":1687245485,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":10,"deploy_block_time":1687245485,"latest_mint_block":10,"pids":["fea607ea9e#1f"]}"#;
+    let expect_pool_info = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":10,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -4095,9 +4095,9 @@ mod tests {
       .get_pid_to_use_info(&script, &pid)
       .unwrap();
     let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
-    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"#;
+    let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"#;
+    let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
@@ -4160,9 +4160,9 @@ mod tests {
         .unwrap();
       let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
       let expect_stakeinfo =
-        r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
-      let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":1000000,"reward_debt":0,"latest_updated_block":30}"##;
-      let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":0,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+        r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[],"max_share":0,"total_only":0}"#;
+      let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":0,"minted":0,"pending_reward":1000000,"reward_debt":0,"latest_updated_block":30}"#;
+      let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":1000000,"staked":0,"dmax":1200000000,"acc_reward_per_share":"1000000000000000","last_update_block":30,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
       println!(
         "expect_poolinfo:{}",
         serde_json::to_string(&pool_info).unwrap()
@@ -4273,8 +4273,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"fea607ea9e","name":"ordi","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":1200000000,"decimal":2,"circulation":0,"supply":2100000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["fea607ea9e#1f"]}"#;
+    let expect_pool_info = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":0,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -4324,9 +4324,9 @@ mod tests {
       .get_pid_to_use_info(&script, &pid)
       .unwrap();
     let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_poolinfo = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"#;
+    let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
+    let expect_poolinfo = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
 
     assert_eq!(expect_poolinfo, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_stakeinfo, serde_json::to_string(&stakeinfo).unwrap());
@@ -4491,8 +4491,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#01"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":12000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#01"]}"#;
+    let expect_pool_info = r#"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
 
@@ -4580,8 +4580,8 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    let expect_tick_info = r##"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#01","13395c5283#02"]}"##;
-    let expect_pool_info = r##"{"pid":"13395c5283#02","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_tick_info = r#"{"tick_id":"13395c5283","name":"ordi1","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","allocated":21000000000000000000000000,"decimal":18,"circulation":0,"supply":21000000000000000000000000,"deployer":{"Address":"bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e"},"deploy_block":0,"deploy_block_time":1687245485,"latest_mint_block":0,"pids":["13395c5283#01","13395c5283#02"]}"#;
+    let expect_pool_info = r#"{"pid":"13395c5283#02","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000000000000000,"minted":0,"staked":0,"dmax":9000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(expect_tick_info, serde_json::to_string(&tick_info).unwrap());
   }
@@ -4720,9 +4720,9 @@ mod tests {
       .get_pid_to_use_info(&script, &pid)
       .unwrap();
     let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stake_info = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_userinfo = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+    let expect_stake_info = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"#;
+    let expect_userinfo = r#"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"#;
+    let expect_pool_info = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":1000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
 
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(
@@ -5144,9 +5144,9 @@ mod tests {
       .get_pid_to_use_info(&script, &pid)
       .unwrap();
     let pool_info = brc20s_data_store.get_pid_to_poolinfo(&pid).unwrap();
-    let expect_stake_info = r##"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"##;
-    let expect_user_info = r##"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"##;
-    let expect_pool_info = r##"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"##;
+    let expect_stake_info = r#"{"stake":{"BRC20Tick":"orea"},"pool_stakes":[["fea607ea9e#1f",true,1000000000]],"max_share":0,"total_only":1000000000}"#;
+    let expect_user_info = r#"{"pid":"fea607ea9e#1f","staked":1000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":20}"#;
+    let expect_pool_info = r#"{"pid":"fea607ea9e#1f","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"orea"},"erate":100000,"minted":0,"staked":2000000000,"dmax":1200000000,"acc_reward_per_share":"0","last_update_block":20,"only":true,"deploy_block":10,"deploy_block_time":1687245485}"#;
 
     assert_eq!(expect_pool_info, serde_json::to_string(&pool_info).unwrap());
     assert_eq!(
@@ -5704,9 +5704,9 @@ mod tests {
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000]],"max_share":0,"total_only":50000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000]],"max_share":0,"total_only":50000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"13395c5283#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
+    let expect_poolinfo = r#"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_only1,
@@ -5721,9 +5721,9 @@ mod tests {
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
     assert_eq!(None, result.err());
 
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":50000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":50000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
+    let expect_poolinfo = r#"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_share1,
@@ -5742,9 +5742,9 @@ mod tests {
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(None, result.err());
 
-      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,49000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"##;
-      let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-      let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+      let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,49000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"#;
+      let expect_userinfo = r#"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
+      let expect_poolinfo = r#"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
       assert_stake_info(
         &brc20s_data_store,
         pid_share2,
@@ -5779,9 +5779,9 @@ mod tests {
     let (stake, msg) = mock_stake_msg(pid_only2, "50", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     assert_eq!(None, result.err());
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000]],"max_share":50000000000000000000,"total_only":149000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":99000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":20204081632653061176,"latest_updated_block":1}"##;
-    let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":99000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["fb641f54a2#01",false,49000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000]],"max_share":50000000000000000000,"total_only":149000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"7737ed558e#01","staked":99000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":20204081632653061176,"latest_updated_block":1}"#;
+    let expect_poolinfo = r#"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":99000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_only2,
@@ -5795,9 +5795,9 @@ mod tests {
     let (stake, msg) = mock_stake_msg(pid_share1, "2", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
     assert_eq!(None, result.err());
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000],["fb641f54a2#01",false,51000000000000000000]],"max_share":51000000000000000000,"total_only":149000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":51000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":10408163265306122424,"latest_updated_block":1}"##;
-    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":51000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000],["7737ed558e#01",true,99000000000000000000],["fb641f54a2#01",false,51000000000000000000]],"max_share":51000000000000000000,"total_only":149000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":51000000000000000000,"minted":0,"pending_reward":9999999999999999976,"reward_debt":10408163265306122424,"latest_updated_block":1}"#;
+    let expect_poolinfo = r#"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":51000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"204081632653061224","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_share1,
@@ -5903,9 +5903,9 @@ mod tests {
     //unstake to only pool
     let (stake, msg) = mock_unstake_msg(pid_only1, "1", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000]],"max_share":0,"total_only":49000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
-    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000]],"max_share":0,"total_only":49000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"13395c5283#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"#;
+    let expect_poolinfo = r#"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_only1,
@@ -5923,9 +5923,9 @@ mod tests {
     //unstake to share pool
     let (stake, msg) = mock_unstake_msg(pid_share1, "1", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":49000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"##;
-    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000]],"max_share":49000000000000000000,"total_only":49000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":49000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9800000000000000000,"latest_updated_block":1}"#;
+    let expect_poolinfo = r#"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":49000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_share1,
@@ -5945,9 +5945,9 @@ mod tests {
       let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 0);
       assert_eq!(None, result.err());
 
-      let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"##;
-      let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
-      let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+      let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,50000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":99000000000000000000}"#;
+      let expect_userinfo = r#"{"pid":"b25c7ef626#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
+      let expect_poolinfo = r#"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
       assert_stake_info(
         &brc20s_data_store,
         pid_share2,
@@ -5961,9 +5961,9 @@ mod tests {
     //user has stake 2 only pool 2 share pool, then unstake from only pool
     let (stake, msg) = mock_unstake_msg(pid_only2, "2", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
-    let expect_poolinfo = r##"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,50000000000000000000]],"max_share":50000000000000000000,"total_only":97000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"7737ed558e#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"#;
+    let expect_poolinfo = r#"{"pid":"7737ed558e#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_only2,
@@ -5976,9 +5976,9 @@ mod tests {
     //user has stake 2 only pool 2 share pool, then unstake from share pool
     let (stake, msg) = mock_unstake_msg(pid_share2, "2", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 1);
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"##;
-    let expect_poolinfo = r##"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["fb641f54a2#01",false,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":49000000000000000000,"total_only":97000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"b25c7ef626#01","staked":48000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":9600000000000000000,"latest_updated_block":1}"#;
+    let expect_poolinfo = r#"{"pid":"b25c7ef626#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":48000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_share2,
@@ -5992,9 +5992,9 @@ mod tests {
     //user has stake 2 only pool 2 share pool, then unstake from share pool to 0
     let (stake, msg) = mock_unstake_msg(pid_share1, "49", addr, addr);
     let result = execute_for_test(&brc20_data_store, &brc20s_data_store, &msg, 2);
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"##;
-    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"404081632653061224","last_update_block":2,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,49000000000000000000],["7737ed558e#01",true,48000000000000000000],["b25c7ef626#01",false,48000000000000000000]],"max_share":48000000000000000000,"total_only":97000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":19999999999999999976,"reward_debt":0,"latest_updated_block":2}"#;
+    let expect_poolinfo = r#"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"404081632653061224","last_update_block":2,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_share1,
@@ -6092,9 +6092,9 @@ mod tests {
       result
     );
 
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,10000000000000000000]],"max_share":0,"total_only":10000000000000000000}"##;
-    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":10000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":2000000000000000000,"latest_updated_block":1}"##;
-    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":10000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["13395c5283#01",true,10000000000000000000]],"max_share":0,"total_only":10000000000000000000}"#;
+    let expect_userinfo = r#"{"pid":"13395c5283#01","staked":10000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":2000000000000000000,"latest_updated_block":1}"#;
+    let expect_poolinfo = r#"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":10000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_only1,
@@ -6119,9 +6119,9 @@ mod tests {
     );
 
     let expect_stakeinfo =
-      r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
-    let expect_userinfo = r##"{"pid":"13395c5283#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"##;
-    let expect_poolinfo = r##"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"##;
+      r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[],"max_share":0,"total_only":0}"#;
+    let expect_userinfo = r#"{"pid":"13395c5283#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"#;
+    let expect_poolinfo = r#"{"pid":"13395c5283#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":true,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_only1,
@@ -6163,9 +6163,9 @@ mod tests {
       result
     );
 
-    let expect_stakeinfo = r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["fb641f54a2#01",false,10000000000000000000]],"max_share":10000000000000000000,"total_only":0}"##;
-    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":10000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":2000000000000000000,"latest_updated_block":1}"##;
-    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":10000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+    let expect_stakeinfo = r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[["fb641f54a2#01",false,10000000000000000000]],"max_share":10000000000000000000,"total_only":0}"#;
+    let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":10000000000000000000,"minted":0,"pending_reward":10000000000000000000,"reward_debt":2000000000000000000,"latest_updated_block":1}"#;
+    let expect_poolinfo = r#"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":10000000000000000000,"staked":10000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"200000000000000000","last_update_block":1,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_share1,
@@ -6190,9 +6190,9 @@ mod tests {
     );
 
     let expect_stakeinfo =
-      r##"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[],"max_share":0,"total_only":0}"##;
-    let expect_userinfo = r##"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"##;
-    let expect_poolinfo = r##"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"##;
+      r#"{"stake":{"BRC20Tick":"btc1"},"pool_stakes":[],"max_share":0,"total_only":0}"#;
+    let expect_userinfo = r#"{"pid":"fb641f54a2#01","staked":0,"minted":0,"pending_reward":20000000000000000000,"reward_debt":0,"latest_updated_block":2}"#;
+    let expect_poolinfo = r#"{"pid":"fb641f54a2#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{"BRC20Tick":"btc1"},"erate":10000000000000000000,"minted":20000000000000000000,"staked":0,"dmax":12000000000000000000000000,"acc_reward_per_share":"1200000000000000000","last_update_block":2,"only":false,"deploy_block":0,"deploy_block_time":1687245485}"#;
     assert_stake_info(
       &brc20s_data_store,
       pid_share1,
@@ -6353,7 +6353,7 @@ mod tests {
       total_only
     );
     let expect_stakeinfo = temp.as_str();
-    let expect_userinfo = r##"{"pid":"a2c6a6a614#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_userinfo = r#"{"pid":"a2c6a6a614#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
     let temp = format!(
       r##"{{"pid":"a2c6a6a614#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{{"BRC20Tick":"btc1"}},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":{},"deploy_block":0,"deploy_block_time":1687245485}}"##,
       pool_only1.clone()
@@ -6369,7 +6369,7 @@ mod tests {
       expect_userinfo,
     );
 
-    let expect_userinfo = r##"{"pid":"83050baa2b#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_userinfo = r#"{"pid":"83050baa2b#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
     let temp = format!(
       r##"{{"pid":"83050baa2b#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{{"BRC20Tick":"btc1"}},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":{},"deploy_block":0,"deploy_block_time":1687245485}}"##,
       pool_only2.clone()
@@ -6385,7 +6385,7 @@ mod tests {
       expect_userinfo,
     );
 
-    let expect_userinfo = r##"{"pid":"934a4f7aff#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_userinfo = r#"{"pid":"934a4f7aff#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
     let temp = format!(
       r##"{{"pid":"934a4f7aff#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{{"BRC20Tick":"btc1"}},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":{},"deploy_block":0,"deploy_block_time":1687245485}}"##,
       pool_only3.clone()
@@ -6401,7 +6401,7 @@ mod tests {
       expect_userinfo,
     );
 
-    let expect_userinfo = r##"{"pid":"92c3f0f4ab#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"##;
+    let expect_userinfo = r#"{"pid":"92c3f0f4ab#01","staked":50000000000000000000,"minted":0,"pending_reward":0,"reward_debt":0,"latest_updated_block":0}"#;
     let temp = format!(
       r##"{{"pid":"92c3f0f4ab#01","ptype":"Pool","inscription_id":"1111111111111111111111111111111111111111111111111111111111111111i1","stake":{{"BRC20Tick":"btc1"}},"erate":10000000000000000000,"minted":0,"staked":50000000000000000000,"dmax":12000000000000000000000000,"acc_reward_per_share":"0","last_update_block":0,"only":{},"deploy_block":0,"deploy_block_time":1687245485}}"##,
       pool_only4.clone()

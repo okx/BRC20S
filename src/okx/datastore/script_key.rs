@@ -77,14 +77,14 @@ mod tests {
       ScriptKey::Address(Address::from_str("bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4").unwrap());
     assert_eq!(
       serde_json::to_string(&script_key).unwrap(),
-      r##"{"Address":"bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"}"##
+      r#"{"Address":"bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"}"#
     );
     let script_key = ScriptKey::ScriptHash(
       ScriptHash::from_str("df65c8a338dce7900824e7bd18c336656ca19e57").unwrap(),
     );
     assert_eq!(
       serde_json::to_string(&script_key).unwrap(),
-      r##"{"ScriptHash":"df65c8a338dce7900824e7bd18c336656ca19e57"}"##
+      r#"{"ScriptHash":"df65c8a338dce7900824e7bd18c336656ca19e57"}"#
     );
   }
 
@@ -95,7 +95,7 @@ mod tests {
     assert_eq!(
       script_key,
       serde_json::from_str::<ScriptKey>(
-        r##"{"Address":"bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"}"##
+        r#"{"Address":"bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"}"#
       )
       .unwrap()
     );
@@ -104,7 +104,7 @@ mod tests {
     );
     assert_eq!(
       serde_json::from_str::<ScriptKey>(
-        r##"{"ScriptHash":"df65c8a338dce7900824e7bd18c336656ca19e57"}"##
+        r#"{"ScriptHash":"df65c8a338dce7900824e7bd18c336656ca19e57"}"#
       )
       .unwrap(),
       script_key

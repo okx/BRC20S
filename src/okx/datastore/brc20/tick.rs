@@ -160,13 +160,13 @@ mod tests {
   #[test]
   fn test_tick_serialize() {
     let obj = Tick::from_str("Ab1;").unwrap();
-    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""Ab1;""##);
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r#""Ab1;""#);
   }
 
   #[test]
   fn test_tick_deserialize() {
     assert_eq!(
-      serde_json::from_str::<Tick>(r##""Ab1;""##).unwrap(),
+      serde_json::from_str::<Tick>(r#""Ab1;""#).unwrap(),
       Tick::from_str("Ab1;").unwrap()
     );
   }

@@ -40,13 +40,13 @@ mod tests {
 
   #[test]
   fn test_deserialize() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick",
         "amt": "amt"
-      }"##;
+      }"#;
 
     let reuslt = deserialize_brc20s(json_str);
 
@@ -64,12 +64,12 @@ mod tests {
 
   #[test]
   fn test_loss_require_key() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "transfer",
         "tick": "tick",
         "amt": "amt"
-      }"##;
+      }"#;
 
     let result = deserialize_brc20s(json_str);
 
@@ -81,14 +81,14 @@ mod tests {
 
   #[test]
   fn test_duplicate_key() {
-    let json_str = r##"{
+    let json_str = r#"{
         "p": "brc20-s",
         "op": "transfer",
         "tid": "tid",
         "tick": "tick-1",
         "tick": "tick-2",
         "amt": "amt"
-      }"##;
+      }"#;
     assert_eq!(
       deserialize_brc20s(json_str).unwrap(),
       RawOperation::Transfer(Transfer {

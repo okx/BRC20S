@@ -127,7 +127,7 @@ mod tests {
     };
     assert_eq!(
       serde_json::to_string_pretty(&action_receipt).unwrap(),
-      r##"{
+      r#"{
   "inscription_id": "9991111111111111111111111111111111111111111111111111111111111111i1",
   "inscription_number": 0,
   "old_satpoint": "0000000000000000000000000000000000000000000000000000000000000000:4294967295:0",
@@ -144,7 +144,7 @@ mod tests {
       "InvalidTickLen": "abcde"
     }
   }
-}"##
+}"#
     );
   }
 }

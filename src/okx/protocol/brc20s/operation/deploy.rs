@@ -205,7 +205,7 @@ mod tests {
   fn test_deserialize() {
     assert_eq!(
       deserialize_brc20s(
-        r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##
+        r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#
       )
         .unwrap(),
       RawOperation::Deploy(Deploy {
@@ -225,7 +225,7 @@ mod tests {
   #[test]
   fn test_loss_require_key() {
     assert_eq!(
-      deserialize_brc20s(r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##)
+      deserialize_brc20s(r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#)
         .unwrap_err(),
       JSONError::ParseOperationJsonError("missing field `stake`".to_string())
     );
@@ -235,7 +235,7 @@ mod tests {
   fn test_loss_option_key() {
     // loss only
     assert_eq!(
-      deserialize_brc20s(r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000"}"##)
+      deserialize_brc20s(r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000"}"#)
         .unwrap(),
       RawOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
@@ -252,7 +252,7 @@ mod tests {
 
     // loss dec
     assert_eq!(
-      deserialize_brc20s(r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","only":"1"}"##)
+      deserialize_brc20s(r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","only":"1"}"#)
         .unwrap(),
       RawOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
@@ -269,7 +269,7 @@ mod tests {
 
     // loss all option
     assert_eq!(
-      deserialize_brc20s(r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","total":"21000000","only":"1"}"##).unwrap(),
+      deserialize_brc20s(r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","total":"21000000","only":"1"}"#).unwrap(),
       RawOperation::Deploy(Deploy {
         pool_type: "pool".to_string(),
         pool_id: "a3668daeaa#1f".to_string(),
@@ -286,7 +286,7 @@ mod tests {
 
   #[test]
   fn test_duplicate_key() {
-    let json_str = r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","dec":"20","total":"21000000","only":"1"}"##;
+    let json_str = r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","dec":"20","total":"21000000","only":"1"}"#;
     assert_eq!(
       deserialize_brc20s(json_str).unwrap(),
       RawOperation::Deploy(Deploy {

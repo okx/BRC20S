@@ -42,7 +42,7 @@ mod tests {
   fn test_deserialize() {
     assert_eq!(
       deserialize_brc20(
-        r##"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"##
+        r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#
       )
       .unwrap(),
       RawOperation::Deploy(Deploy {
@@ -57,7 +57,7 @@ mod tests {
   #[test]
   fn test_loss_require_key() {
     assert_eq!(
-      deserialize_brc20(r##"{"p":"brc-20","op":"deploy","tick":"11","lim":"22","dec":"11"}"##)
+      deserialize_brc20(r#"{"p":"brc-20","op":"deploy","tick":"11","lim":"22","dec":"11"}"#)
         .unwrap_err(),
       JSONError::ParseOperationJsonError("missing field `max`".to_string())
     );
@@ -67,7 +67,7 @@ mod tests {
   fn test_loss_option_key() {
     // loss lim
     assert_eq!(
-      deserialize_brc20(r##"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","dec":"10"}"##)
+      deserialize_brc20(r#"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","dec":"10"}"#)
         .unwrap(),
       RawOperation::Deploy(Deploy {
         tick: "smol".to_string(),
@@ -79,7 +79,7 @@ mod tests {
 
     // loss dec
     assert_eq!(
-      deserialize_brc20(r##"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","lim":"10"}"##)
+      deserialize_brc20(r#"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","lim":"10"}"#)
         .unwrap(),
       RawOperation::Deploy(Deploy {
         tick: "smol".to_string(),
@@ -91,7 +91,7 @@ mod tests {
 
     // loss all option
     assert_eq!(
-      deserialize_brc20(r##"{"p":"brc-20","op":"deploy","tick":"smol","max":"100"}"##).unwrap(),
+      deserialize_brc20(r#"{"p":"brc-20","op":"deploy","tick":"smol","max":"100"}"#).unwrap(),
       RawOperation::Deploy(Deploy {
         tick: "smol".to_string(),
         max_supply: "100".to_string(),
@@ -103,7 +103,7 @@ mod tests {
 
   #[test]
   fn test_duplicate_key() {
-    let json_str = r##"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","lim":"10","dec":"17","max":"200","lim":"20","max":"300"}"##;
+    let json_str = r#"{"p":"brc-20","op":"deploy","tick":"smol","max":"100","lim":"10","dec":"17","max":"200","lim":"20","max":"300"}"#;
     assert_eq!(
       deserialize_brc20(json_str).unwrap(),
       RawOperation::Deploy(Deploy {

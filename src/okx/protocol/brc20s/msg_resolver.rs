@@ -230,7 +230,7 @@ mod tests {
     let mut outpoint_to_txout_cache = HashMap::new();
 
     let (inscriptions, op) = create_inscribe_operation(
-      r##"{"p":"brc30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##,
+      r#"{"p":"brc30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#,
     );
     assert_matches!(
       Message::resolve(
@@ -257,7 +257,7 @@ mod tests {
     let mut outpoint_to_txout_cache = HashMap::new();
 
     let (inscriptions, op) = create_inscribe_operation(
-      r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"##,
+      r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#,
     );
     let op = InscriptionOp {
       action: Action::New {

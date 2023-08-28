@@ -271,13 +271,13 @@ mod tests {
   #[test]
   fn test_tickid_serialize() {
     let obj = TickId::from_str("f7c515d6b7").unwrap();
-    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""f7c515d6b7""##);
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r#""f7c515d6b7""#);
   }
 
   #[test]
   fn test_tickid_deserialize() {
     assert_eq!(
-      serde_json::from_str::<TickId>(r##""f7c515d6b7""##).unwrap(),
+      serde_json::from_str::<TickId>(r#""f7c515d6b7""#).unwrap(),
       TickId::from_str("f7c515d6b7").unwrap()
     );
   }
@@ -323,13 +323,13 @@ mod tests {
   #[test]
   fn test_tick_serialize() {
     let obj = TickId::from_str("f7c515d6b7").unwrap();
-    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""f7c515d6b7""##);
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r#""f7c515d6b7""#);
   }
 
   #[test]
   fn test_tick_deserialize() {
     assert_eq!(
-      serde_json::from_str::<TickId>(r##""f7c515d6b7""##).unwrap(),
+      serde_json::from_str::<TickId>(r#""f7c515d6b7""#).unwrap(),
       TickId::from_str("f7c515d6b7").unwrap()
     );
   }
@@ -375,7 +375,7 @@ mod tests {
     assert_eq!(Tick::from_str("btc"), Tick::from_str("Btc"));
     assert_ne!(Tick::from_str("btc123"), Tick::from_str("btc"));
     assert_eq!(
-      serde_json::from_str::<Tick>(r##""btc""##).unwrap(),
+      serde_json::from_str::<Tick>(r#""btc""#).unwrap(),
       Tick::from_str("btc").unwrap()
     );
   }

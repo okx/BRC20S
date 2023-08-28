@@ -193,13 +193,13 @@ mod tests {
   #[test]
   fn test_pid_serialize() {
     let obj = Pid::from_str("a012345679#01").unwrap();
-    assert_eq!(serde_json::to_string(&obj).unwrap(), r##""a012345679#01""##);
+    assert_eq!(serde_json::to_string(&obj).unwrap(), r#""a012345679#01""#);
   }
 
   #[test]
   fn test_pid_deserialize() {
     assert_eq!(
-      serde_json::from_str::<Pid>(r##""a012345679#01""##).unwrap(),
+      serde_json::from_str::<Pid>(r#""a012345679#01""#).unwrap(),
       Pid::from_str("a012345679#01").unwrap()
     );
   }

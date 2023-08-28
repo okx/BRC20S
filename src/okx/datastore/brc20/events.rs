@@ -95,7 +95,7 @@ mod tests {
     println!("{}", serde_json::to_string_pretty(&action_receipt).unwrap());
     assert_eq!(
       serde_json::to_string_pretty(&action_receipt).unwrap(),
-      r##"{
+      r#"{
   "inscription_id": "9991111111111111111111111111111111111111111111111111111111111111i1",
   "inscription_number": 1,
   "old_satpoint": "1111111111111111111111111111111111111111111111111111111111111111:1:1",
@@ -112,7 +112,7 @@ mod tests {
       "InvalidTickLen": "abcde"
     }
   }
-}"##
+}"#
     );
   }
 }

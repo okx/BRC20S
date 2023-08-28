@@ -165,7 +165,7 @@ mod tests {
   }
   #[test]
   fn test_json_duplicate_field() {
-    let json_str = r##"{"p":"brc-20","op":"mint","tick":"smol","amt":"333","amt":"33"}"##;
+    let json_str = r#"{"p":"brc-20","op":"mint","tick":"smol","amt":"333","amt":"33"}"#;
     assert_eq!(
       deserialize_brc20(json_str).unwrap(),
       RawOperation::Mint(Mint {
@@ -177,7 +177,7 @@ mod tests {
 
   #[test]
   fn test_json_non_string() {
-    let json_str = r##"{"p":"brc-20","op":"mint","tick":"smol","amt":33}"##;
+    let json_str = r#"{"p":"brc-20","op":"mint","tick":"smol","amt":33}"#;
     assert!(deserialize_brc20(json_str).is_err())
   }
 
@@ -206,7 +206,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"##
+            r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#
               .as_bytes()
               .to_vec(),
           ),
@@ -230,7 +230,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"##
+            r#"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"#
               .as_bytes()
               .to_vec(),
           ),
@@ -252,7 +252,7 @@ mod tests {
         &Inscription::new(
           Some(content_type.clone()),
           Some(
-            r##"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"##
+            r#"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"#
               .as_bytes()
               .to_vec(),
           ),
@@ -273,7 +273,7 @@ mod tests {
       &Inscription::new(
         Some(content_type.clone()),
         Some(
-          r##"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"##
+          r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#
             .as_bytes()
             .to_vec(),
         ),
@@ -286,7 +286,7 @@ mod tests {
       &Inscription::new(
         Some(content_type.clone()),
         Some(
-          r##"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"##
+          r#"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"#
             .as_bytes()
             .to_vec(),
         ),
@@ -300,7 +300,7 @@ mod tests {
         &Inscription::new(
           Some(content_type),
           Some(
-            r##"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"##
+            r#"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"#
               .as_bytes()
               .to_vec(),
           ),

@@ -261,7 +261,7 @@ mod tests {
     };
     assert_eq!(
       serde_json::to_string_pretty(&tx_inscription).unwrap(),
-      r###"{
+      r#"{
   "action": {
     "new": {
       "cursed": false,
@@ -278,12 +278,12 @@ mod tests {
   "to": {
     "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
   }
-}"###,
+}"#,
     );
     tx_inscription.action = InscriptionAction::Transfer;
     assert_eq!(
       serde_json::to_string_pretty(&tx_inscription).unwrap(),
-      r###"{
+      r#"{
   "action": "transfer",
   "inscriptionNumber": 100,
   "inscriptionId": "1111111111111111111111111111111111111111111111111111111111111111i4294967295",
@@ -295,7 +295,7 @@ mod tests {
   "to": {
     "address": "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4"
   }
-}"###,
+}"#,
     );
   }
 }

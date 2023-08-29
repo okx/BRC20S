@@ -132,35 +132,37 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
         Ok(())
       }
       Receipt::BTC(btc_receipt) => {
-        if let Ok(btc_store::Event::Transfer(btc_transfer)) = btc_receipt.result {
-          match convert_pledged_tick_without_decimal(
-            &PledgedTick::Native,
-            btc_transfer.amt,
-            self.state_store.brc20s(),
-            self.state_store.brc20(),
-          ) {
-            Ok(amt) => {
-              let passive_unstake = brc20s_proto::PassiveUnStake {
-                stake: NATIVE_TOKEN.to_string(),
-                amount: amt.to_string(),
-              };
-              if let Message::BTC(old_btc_msg) = msg {
-                let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
-                brc20s::execute(
-                  context,
-                  brc20s::get_config_by_network(context.network, context.blockheight),
-                  self.state_store.brc20(),
-                  self.state_store.brc20s(),
-                  self.state_store.btc(),
-                  &brc20s::ExecutionMessage::from_btc_message(
-                    &passive_msg,
-                    old_btc_msg.from.clone(),
-                  )?,
-                )?;
+        match btc_receipt.result {
+          btc_store::Event::Transfer(btc_transfer) => {
+            match convert_pledged_tick_without_decimal(
+              &PledgedTick::Native,
+              btc_transfer.amt,
+              self.state_store.brc20s(),
+              self.state_store.brc20(),
+            ) {
+              Ok(amt) => {
+                let passive_unstake = brc20s_proto::PassiveUnStake {
+                  stake: NATIVE_TOKEN.to_string(),
+                  amount: amt.to_string(),
+                };
+                if let Message::BTC(old_btc_msg) = msg {
+                  let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
+                  brc20s::execute(
+                    context,
+                    brc20s::get_config_by_network(context.network, context.blockheight),
+                    self.state_store.brc20(),
+                    self.state_store.brc20s(),
+                    self.state_store.btc(),
+                    &brc20s::ExecutionMessage::from_btc_message(
+                      &passive_msg,
+                      old_btc_msg.from.clone(),
+                    )?,
+                  )?;
+                }
               }
-            }
-            Err(e) => {
-              log::error!("brc20s receipt failed: {e}");
+              Err(e) => {
+                log::error!("brc20s receipt failed: {e}");
+              }
             }
           }
         }

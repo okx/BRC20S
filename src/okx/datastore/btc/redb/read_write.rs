@@ -1,6 +1,8 @@
-use super::*;
-use crate::okx::datastore::btc::{Balance, DataStoreReadOnly, DataStoreReadWrite};
-use redb::WriteTransaction;
+use {
+  super::*,
+  crate::okx::datastore::btc::{Balance, DataStoreReadOnly, DataStoreReadWrite},
+  redb::WriteTransaction,
+};
 
 pub struct DataStore<'db, 'a> {
   wtx: &'a WriteTransaction<'db>,

@@ -17,9 +17,11 @@ use {
       },
       brc20s::{
         self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
-        DataStoreReadOnly as BRC20SDataStoreReadOnly,
+        DataStoreReadOnly as BRC20SDataStoreReadOnly, PledgedTick,
       },
-      btc::{redb::try_init_tables as try_init_btc, DataStoreReadOnly as BTCDataStoreReadOnly},
+      btc::{
+        self, redb::try_init_tables as try_init_btc, DataStoreReadOnly as BTCDataStoreReadOnly,
+      },
       ord::{self, DataStoreReadOnly},
       ScriptKey,
     },
@@ -48,7 +50,6 @@ mod fetcher;
 mod rtx;
 mod updater;
 
-use crate::okx::datastore::{brc20s::PledgedTick, btc};
 #[cfg(feature = "rollback")]
 use redb::Savepoint;
 

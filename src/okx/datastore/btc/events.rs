@@ -1,10 +1,12 @@
-use super::*;
-use serde::{Deserialize, Serialize};
+use {
+  super::*,
+  serde::{Deserialize, Serialize},
+};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Receipt {
   pub from: ScriptKey,
-  pub result: Result<Event, BTCError>,
+  pub result: Event,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

@@ -305,7 +305,7 @@ mod tests {
 
   #[test]
   fn test_btc_case_sensitive() {
-    let json_str = r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","dec":"20","total":"21000000","only":"1"}"##;
+    let json_str = r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","dec":"20","total":"21000000","only":"1"}"#;
     assert_eq!(
       deserialize_brc20s(json_str).unwrap(),
       RawOperation::Deploy(Deploy {
@@ -320,7 +320,7 @@ mod tests {
         only: Some("1".to_string()),
       })
     );
-    let json_str = r##"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"Btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","dec":"20","total":"21000000","only":"1"}"##;
+    let json_str = r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"Btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","dec":"20","total":"21000000","only":"1"}"#;
     if let RawOperation::Deploy(deploy) = deserialize_brc20s(json_str).unwrap() {
       assert!(matches!(deploy.get_stake_id(), PledgedTick::Unknown));
     }

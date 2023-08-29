@@ -1,11 +1,12 @@
-use super::*;
-
-use crate::okx::datastore::btc::{Balance, DataStoreReadOnly};
-use redb::{
-  AccessGuard, Range, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
-  StorageError, Table, TableDefinition, WriteTransaction,
+use {
+  super::*,
+  crate::okx::datastore::btc::{Balance, DataStoreReadOnly},
+  redb::{
+    AccessGuard, Range, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue,
+    StorageError, Table, TableDefinition, WriteTransaction,
+  },
+  std::{borrow::Borrow, ops::RangeBounds},
 };
-use std::{borrow::Borrow, ops::RangeBounds};
 
 pub fn try_init_tables<'db, 'a>(
   wtx: &'a WriteTransaction<'db>,

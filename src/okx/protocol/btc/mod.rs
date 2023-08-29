@@ -30,7 +30,7 @@ pub fn gen_receipt(msg: &Message) -> Result<Option<Receipt>> {
 
   let receipt = Receipt {
     from: msg.from.clone(),
-    result: Ok(event),
+    result: event,
   };
 
   log::debug!("BTC message receipt: {:?}", receipt);

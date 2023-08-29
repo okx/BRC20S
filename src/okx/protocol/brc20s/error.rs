@@ -115,7 +115,7 @@ pub enum BRC20SError {
   #[error("from {0} must equal to to {1}")]
   FromToNotEqual(String, String),
 
-  #[error("pool {0}  only be deployed by {1},but got {2}")]
+  #[error("pool {0} only be deployed by {1},but got {2}")]
   DeployerNotEqual(String, String, String),
 
   #[error("transferable owner not match {0}")]

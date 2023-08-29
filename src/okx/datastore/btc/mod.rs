@@ -1,11 +1,12 @@
 mod balance;
-mod errors;
 mod events;
 pub mod redb;
 
-pub use self::{balance::Balance, errors::BTCError, events::*, redb::*};
-use super::ScriptKey;
-use std::fmt::{Debug, Display};
+pub use self::{balance::Balance, events::*, redb::*};
+use {
+  super::ScriptKey,
+  std::fmt::{Debug, Display},
+};
 
 pub trait DataStoreReadOnly {
   type Error: Debug + Display;

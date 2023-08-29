@@ -36,10 +36,10 @@ pub struct OutPointData {
 }
 
 // /ord/outpoint/:outpoint/info
+/// Retrieve the outpoint infomation with the specified outpoint.
 #[utoipa::path(
   get,
   path = "/api/v1/ord/outpoint/{outpoint}/info",
-  operation_id = "get outpoint infomation",
   params(
       ("outpoint" = String, Path, description = "Outpoint")
 ),

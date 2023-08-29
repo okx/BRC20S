@@ -14,7 +14,9 @@
         "tags": [
           "brc20"
         ],
-        "operationId": "get all ticker balances of the address",
+        "summary": "Get all ticker balances of the address.",
+        "description": "Get all ticker balances of the address.\n\nRetrieve all BRC20 protocol asset balances associated with a address.",
+        "operationId": "brc20_all_balance",
         "parameters": [
           {
             "name": "address",
@@ -87,7 +89,9 @@
         "tags": [
           "brc20"
         ],
-        "operationId": "get address ticker balance",
+        "summary": "Get the balance of ticker of the address.",
+        "description": "Get the balance of ticker of the address.\n\nRetrieve the balance of the ticker from the given address.",
+        "operationId": "brc20_all_transferable",
         "parameters": [
           {
             "name": "address",
@@ -160,7 +164,9 @@
         "tags": [
           "brc20"
         ],
-        "operationId": "get block events by blockhash",
+        "summary": "Get block events by blockhash.",
+        "description": "Get block events by blockhash.\n\nRetrieve all BRC20 events associated with a block.",
+        "operationId": "brc20_block_events",
         "parameters": [
           {
             "name": "blockhash",
@@ -233,7 +239,9 @@
         "tags": [
           "brc20"
         ],
-        "operationId": "get all tickers info",
+        "summary": "Get all tickers info.",
+        "description": "Get all tickers info.\n\nRetrieve detailed information about all tickers.",
+        "operationId": "brc20_all_tick_info",
         "responses": {
           "200": {
             "description": "Obtain matching all BRC20 tickers.",
@@ -295,7 +303,9 @@
         "tags": [
           "brc20"
         ],
-        "operationId": "get ticker info",
+        "summary": "Get the ticker info.",
+        "description": "Get the ticker info.\n\nRetrieve detailed information about the ticker.",
+        "operationId": "brc20_tick_info",
         "parameters": [
           {
             "name": "ticker",
@@ -368,7 +378,9 @@
         "tags": [
           "brc20"
         ],
-        "operationId": "get the ticker balance of the address",
+        "summary": "Get the ticker balance of the address.",
+        "description": "Get the ticker balance of the address.\n\nRetrieve the asset balance of the 'ticker' for the address.",
+        "operationId": "brc20_balance",
         "parameters": [
           {
             "name": "ticker",
@@ -450,7 +462,9 @@
         "tags": [
           "brc20"
         ],
-        "operationId": "get transferable inscriptions",
+        "summary": "Get the transferable inscriptions of the address.",
+        "description": "Get the transferable inscriptions of the address.\n\nRetrieve the transferable inscriptions with the ticker from the given address.",
+        "operationId": "brc20_transferable",
         "parameters": [
           {
             "name": "ticker",
@@ -532,7 +546,9 @@
         "tags": [
           "brc20"
         ],
-        "operationId": "get transaction events by txid",
+        "summary": "Get transaction events by txid.",
+        "description": "Get transaction events by txid.\n\nRetrieve all BRC20 events associated with a transaction.",
+        "operationId": "brc20_tx_events",
         "parameters": [
           {
             "name": "txid",
@@ -605,7 +621,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get all ticker balances of the address",
+        "summary": "Get all ticker balances of the address.",
+        "description": "Get all ticker balances of the address.\n\nRetrieve all asset balances of the address.",
+        "operationId": "brc20s_all_balance",
         "parameters": [
           {
             "name": "address",
@@ -678,7 +696,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get address ticker balance",
+        "summary": "Retrieve the balance from the given address.",
+        "description": "Retrieve the balance from the given address.",
+        "operationId": "brc20s_all_transferable",
         "parameters": [
           {
             "name": "address",
@@ -751,7 +771,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get block receipts by blockhash",
+        "summary": "Get the block receipts by blockhash.",
+        "description": "Get the block receipts by blockhash.\n\nGet all receipts of the block.",
+        "operationId": "brc20s_block_receipts",
         "parameters": [
           {
             "name": "blockhash",
@@ -824,7 +846,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get the all of pool infomations",
+        "summary": "Get the all of pool infomations.",
+        "description": "Get the all of pool infomations.",
+        "operationId": "brc20s_all_pool_info",
         "parameters": [
           {
             "name": "start",
@@ -910,7 +934,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get the pool infomation by pid",
+        "summary": "Get the pool infomation by pid.",
+        "description": "Get the pool infomation by pid.\n\nRetrieve information about the pledge pool.",
+        "operationId": "brc20s_pool_info",
         "parameters": [
           {
             "name": "pid",
@@ -984,7 +1010,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get the user info of the pool",
+        "summary": "Get the user info of the pool.",
+        "description": "Get the user info of the pool.",
+        "operationId": "brc20s_userinfo",
         "parameters": [
           {
             "name": "pid",
@@ -1067,7 +1095,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get the pool infomation by ticker id",
+        "summary": "Get the all of pool infomations by ticker ID.",
+        "description": "Get the all of pool infomations by ticker ID.\n\nGet all pool information for the Ticker ID.",
+        "operationId": "brc20s_all_pools_by_tid",
         "parameters": [
           {
             "name": "tid",
@@ -1141,7 +1171,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get stake info of a BRC20 ticker",
+        "summary": "Get the stake info of the ticker.",
+        "description": "Get the stake info of the ticker.",
+        "operationId": "brc20s_stake_info",
         "parameters": [
           {
             "name": "address",
@@ -1224,7 +1256,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get all tickers info",
+        "summary": "Get all BRC20S tickers info.",
+        "description": "Get all BRC20S tickers info.",
+        "operationId": "brc20s_all_tick_info",
         "parameters": [
           {
             "name": "start",
@@ -1310,7 +1344,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get ticker info",
+        "summary": "Get information of a specified BRC20S protocol ticker.",
+        "description": "Get information of a specified BRC20S protocol ticker.",
+        "operationId": "brc20s_tick_info",
         "parameters": [
           {
             "name": "tick_id",
@@ -1384,7 +1420,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get the ticker balance of the address",
+        "summary": "Get the ticker balance of the address.",
+        "description": "Get the ticker balance of the address.\n\nThe balance is the sum of the transferable balance and the available balance.",
+        "operationId": "brc20s_balance",
         "parameters": [
           {
             "name": "tick_id",
@@ -1466,7 +1504,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get transferable inscriptions",
+        "summary": "Retrieve the transferable inscriptions with the specified ticker from the given address.",
+        "description": "Retrieve the transferable inscriptions with the specified ticker from the given address.",
+        "operationId": "brc20s_transferable",
         "parameters": [
           {
             "name": "tick_id",
@@ -1549,7 +1589,9 @@
         "tags": [
           "brc20s"
         ],
-        "operationId": "get transaction receipts by txid",
+        "summary": "Get the transaction receipts by txid.",
+        "description": "Get the transaction receipts by txid.\n\nGet all receipts of the transaction.",
+        "operationId": "brc20s_txid_receipts",
         "parameters": [
           {
             "name": "txid",
@@ -1622,6 +1664,8 @@
         "tags": [
           "info"
         ],
+        "summary": "Retrieve the indexer status.",
+        "description": "Retrieve the indexer status.\n\nDisplay indexer synchronization information, including indexer version, blockchain network, indexer height, blockchain network height, and other information.",
         "operationId": "node_info",
         "parameters": [
           {
@@ -1668,7 +1712,9 @@
         "tags": [
           "ord"
         ],
-        "operationId": "get inscription actions by blockhash",
+        "summary": "Retrieve the inscription actions from the given block.",
+        "description": "Retrieve the inscription actions from the given block.",
+        "operationId": "ord_block_inscriptions",
         "parameters": [
           {
             "name": "blockhash",
@@ -1741,7 +1787,9 @@
         "tags": [
           "ord"
         ],
-        "operationId": "get inscription infomation by inscription ID",
+        "summary": "Retrieve the inscription infomation with the specified inscription id.",
+        "description": "Retrieve the inscription infomation with the specified inscription id.",
+        "operationId": "ord_inscription_id",
         "parameters": [
           {
             "name": "id",
@@ -1814,7 +1862,9 @@
         "tags": [
           "ord"
         ],
-        "operationId": "get inscription infomation by inscription number",
+        "summary": "Retrieve the inscription infomation with the specified inscription number.",
+        "description": "Retrieve the inscription infomation with the specified inscription number.",
+        "operationId": "ord_inscription_number",
         "parameters": [
           {
             "name": "number",
@@ -1888,7 +1938,9 @@
         "tags": [
           "ord"
         ],
-        "operationId": "get outpoint infomation",
+        "summary": "Retrieve the outpoint infomation with the specified outpoint.",
+        "description": "Retrieve the outpoint infomation with the specified outpoint.",
+        "operationId": "ord_outpoint",
         "parameters": [
           {
             "name": "outpoint",
@@ -1961,7 +2013,9 @@
         "tags": [
           "ord"
         ],
-        "operationId": "get inscription actions by txid",
+        "summary": "Retrieve the inscription actions from the given transaction.",
+        "description": "Retrieve the inscription actions from the given transaction.",
+        "operationId": "ord_txid_inscriptions",
         "parameters": [
           {
             "name": "txid",

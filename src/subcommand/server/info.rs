@@ -38,6 +38,9 @@ pub struct NodeInfoQuery {
   btc: Option<bool>,
 }
 
+/// Retrieve the indexer status.
+///
+/// Display indexer synchronization information, including indexer version, blockchain network, indexer height, blockchain network height, and other information.
 #[utoipa::path(
     get,
     path = "/api/v1/node/info",

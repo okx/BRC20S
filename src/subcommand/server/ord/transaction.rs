@@ -107,10 +107,10 @@ pub struct BlockInscriptions {
 }
 
 // ord/tx/:txid/inscriptions
+/// Retrieve the inscription actions from the given transaction.
 #[utoipa::path(
   get,
   path = "/api/v1/ord/tx/{txid}/inscriptions",
-  operation_id = "get inscription actions by txid",
   params(
       ("txid" = String, Path, description = "transaction ID")
 ),
@@ -155,10 +155,10 @@ pub(crate) async fn ord_txid_inscriptions(
 }
 
 // ord/block/:blockhash/inscriptions
+/// Retrieve the inscription actions from the given block.
 #[utoipa::path(
   get,
   path = "/api/v1/ord/block/{blockhash}/inscriptions",
-  operation_id = "get inscription actions by blockhash",
   params(
       ("blockhash" = String, Path, description = "block hash")
 ),

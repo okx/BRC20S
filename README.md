@@ -148,6 +148,15 @@ the server and show `info`-level log messages and above:
 $ cargo run server --log-level info
 ```
 
+SnapShot
+--------
+Use a snapshot to quickly synchronize the BRC20S indexer database.
+
+1. Download the specified height snapshot database from this web page.
+- <https://static.okex.org/cdn/chain/brc20s/snapshot/history-brc20s.html>
+
+2. Extract and Unzip the `.tar.gz` file and replace the database file.
+
 New Releases
 ------------
 

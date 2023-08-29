@@ -29,10 +29,10 @@ pub struct OrdInscription {
 }
 
 // /ord/id/:id/inscription
+/// Retrieve the inscription infomation with the specified inscription id.
 #[utoipa::path(
   get,
   path = "/api/v1/ord/id/{id}/inscription",
-  operation_id = "get inscription infomation by inscription ID",
   params(
       ("id" = String, Path, description = "inscription ID")
 ),
@@ -54,10 +54,10 @@ pub(crate) async fn ord_inscription_id(
 }
 
 // /ord/number/:number/inscription
+/// Retrieve the inscription infomation with the specified inscription number.
 #[utoipa::path(
   get,
   path = "/api/v1/ord/number/{number}/inscription",
-  operation_id = "get inscription infomation by inscription number",
   params(
       ("number" = i64, Path, description = "inscription number")
 ),

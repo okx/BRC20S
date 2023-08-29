@@ -59,10 +59,10 @@ impl From<&brc20s::TickInfo> for TickInfo {
 }
 
 // brc20s/tick/:tickId
+/// Get information of a specified BRC20S protocol ticker.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/tick/{tick_id}",
-  operation_id = "get ticker info",
   params(
     ("tick_id" = String, Path, description = "The ticker ID", min_length = 10, max_length = 10, example = "a12345678f")
 ),
@@ -136,10 +136,10 @@ pub(crate) struct AllTickInfo {
 }
 
 // brc20s/tick
+/// Get all BRC20S tickers info.
 #[utoipa::path(
   get,
   path = "/api/v1/brc20s/tick",
-  operation_id = "get all tickers info",
   params(
     Pagination
 ),

@@ -17,10 +17,12 @@ pub struct Balance {
   pub overall_balance: String,
 }
 
+/// Get the ticker balance of the address.
+///
+/// Retrieve the asset balance of the 'ticker' for the address.
 #[utoipa::path(
     get,
     path = "/api/v1/brc20/tick/{ticker}/address/{address}/balance",
-    operation_id = "get the ticker balance of the address",
     params(
         ("ticker" = String, Path, description = "Token ticker", min_length = 4, max_length = 4),
         ("address" = String, Path, description = "Address")
@@ -69,10 +71,12 @@ pub struct AllBalance {
   pub balance: Vec<Balance>,
 }
 
+/// Get all ticker balances of the address.
+///
+/// Retrieve all BRC20 protocol asset balances associated with a address.
 #[utoipa::path(
     get,
     path = "/api/v1/brc20/address/{address}/balance",
-    operation_id = "get all ticker balances of the address",
     params(
         ("address" = String, Path, description = "Address")
   ),

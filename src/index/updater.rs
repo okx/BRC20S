@@ -1,7 +1,10 @@
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
-  crate::okx::datastore::{brc20::redb as brc20_db, brc20s::redb as brc20s_db, ord},
+  crate::okx::{
+    datastore::StateReadWrite,
+    protocol::{BlockContext, ConfigBuilder, ProtocolManager},
+  },
   futures::future::try_join_all,
   std::sync::mpsc,
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
@@ -9,7 +12,6 @@ use {
 
 #[cfg(feature = "rollback")]
 use crate::index::{GLOBAL_SAVEPOINTS, MAX_SAVEPOINTS, SAVEPOINT_INTERVAL};
-use crate::okx::protocol::{BlockContext, ProtocolManager};
 
 #[cfg(feature = "rollback")]
 const FAST_QUERY_HEIGHT: u64 = 10;
@@ -388,6 +390,19 @@ impl Updater {
 
     let mut fetching_outputs_count = 0;
     let mut total_outputs_count = 0;
+
+    // Store outpoint to entry each transaction outputs.
+    for (tx, txid) in &block.txdata {
+      for (index, output) in tx.output.iter().enumerate() {
+        let mut entry = Vec::new();
+        output.consensus_encode(&mut entry)?;
+        outpoint_to_entry.insert(
+          &OutPoint::new(*txid, u32::try_from(index).unwrap()).store(),
+          entry.as_slice(),
+        )?;
+      }
+    }
+
     if index_inscriptions {
       // Send all missing input outpoints to be fetched right away
       let txids = block
@@ -592,14 +607,19 @@ impl Updater {
     std::mem::drop(inscription_id_to_inscription_entry);
     std::mem::drop(outpoint_to_entry);
     // Create a protocol manager to index the block of brc20, brc20s data.
+
+    let mut config_builder = ConfigBuilder::new(index.options.first_inscription_height());
+    if index.options.index_brc20 {
+      config_builder = config_builder.with_brc20(index.options.first_brc20_height());
+    }
+    if index.options.index_brc20s {
+      config_builder = config_builder.with_brc20s(index.options.first_brc20s_height());
+    }
+
     ProtocolManager::new(
       &index.client,
-      &ord::OrdDbReadWriter::new(wtx),
-      &brc20_db::DataStore::new(wtx),
-      &brc20s_db::DataStore::new(wtx),
-      index.first_inscription_height,
-      index.options.first_brc20_height(),
-      index.options.first_brc20s_height(),
+      &StateReadWrite::new(wtx),
+      &config_builder.build(),
     )
     .index_block(
       BlockContext {

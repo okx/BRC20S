@@ -2,7 +2,7 @@ use bitcoin::{address, Address, Network, Script, ScriptHash};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub enum ScriptKey {
   Address(Address<address::NetworkUnchecked>),
   ScriptHash(ScriptHash),

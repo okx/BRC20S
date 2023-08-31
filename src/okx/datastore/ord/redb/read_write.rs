@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
   index::OUTPOINT_TO_ENTRY,
-  okx::datastore::ord::{InscriptionOp, OrdDataStoreReadOnly, OrdDataStoreReadWrite},
+  okx::datastore::ord::{DataStoreReadOnly, DataStoreReadWrite, InscriptionOp},
   InscriptionId, Result,
 };
 use bitcoin::{consensus::Encodable, OutPoint, TxOut, Txid};
@@ -20,7 +20,7 @@ where
   }
 }
 
-impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
   type Error = redb::Error;
   fn get_number_by_inscription_id(
     &self,
@@ -41,7 +41,7 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
   }
 }
 
-impl<'db, 'a> OrdDataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
+impl<'db, 'a> DataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
   // OUTPOINT_TO_SCRIPT
 
   fn set_outpoint_to_txout(&self, outpoint: OutPoint, tx_out: &TxOut) -> Result<(), Self::Error> {

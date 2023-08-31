@@ -1,23 +1,40 @@
-use crate::okx::datastore::brc20;
-use crate::okx::datastore::brc20s;
-use crate::okx::datastore::brc20s::PledgedTick;
-use crate::okx::datastore::ScriptKey;
-use crate::okx::protocol::brc20s::params::{
-  BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, NATIVE_TOKEN_DECIMAL,
+use {
+  crate::okx::{
+    datastore::{
+      brc20,
+      brc20s::{self, PledgedTick},
+      btc, ScriptKey,
+    },
+    protocol::brc20s::{
+      params::{BIGDECIMAL_TEN, MAX_DECIMAL_WIDTH, NATIVE_TOKEN_DECIMAL},
+      BRC20SError, Error, Num,
+    },
+  },
+  anyhow::anyhow,
+  bigdecimal::num_bigint::Sign,
+  std::str::FromStr,
 };
-use crate::okx::protocol::brc20s::{BRC20SError, Error, Num};
-use anyhow::anyhow;
-use bigdecimal::num_bigint::Sign;
-use std::str::FromStr;
 
-pub fn get_user_common_balance<'a, L: brc20s::DataStoreReadWrite, M: brc20::DataStoreReadWrite>(
+pub fn get_user_common_balance<
+  'a,
+  L: brc20s::DataStoreReadWrite,
+  M: brc20::DataStoreReadWrite,
+  N: btc::DataStoreReadWrite,
+>(
   script: &ScriptKey,
   token: &PledgedTick,
   brc20s_ledger: &'a L,
   brc20_ledger: &'a M,
+  btc_ledger: &'a N,
 ) -> Num {
   match token {
-    PledgedTick::Native => Num::from(0_u128),
+    PledgedTick::Native => {
+      let balance = match btc_ledger.get_balance(script) {
+        Ok(Some(btc_balance)) => btc_balance,
+        _ => btc::Balance::new(),
+      };
+      Num::from(balance.balance)
+    }
     PledgedTick::BRC20STick(tickid) => {
       let balance = match brc20s_ledger.get_balance(script, tickid) {
         Ok(Some(brc20s_balance)) => brc20s_balance,
@@ -93,15 +110,6 @@ pub fn get_raw_brc20_tick<M: brc20::DataStoreReadWrite>(
       }
     }
     _ => None,
-  }
-}
-
-pub fn tick_can_staked(token: &PledgedTick) -> bool {
-  match token {
-    PledgedTick::Native => false,
-    PledgedTick::BRC20STick(_) => false,
-    PledgedTick::BRC20Tick(_) => true,
-    PledgedTick::Unknown => false,
   }
 }
 

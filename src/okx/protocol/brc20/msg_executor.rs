@@ -37,7 +37,7 @@ pub struct ExecutionMessage {
 }
 
 impl ExecutionMessage {
-  pub fn from_message<O: ord_store::OrdDataStoreReadOnly>(
+  pub fn from_message<O: ord_store::DataStoreReadOnly>(
     ord_store: &O,
     msg: &Message,
     network: Network,
@@ -65,7 +65,7 @@ impl ExecutionMessage {
   }
 }
 
-pub fn execute<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
+pub fn execute<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
   context: BlockContext,
   ord_store: &'a O,
   brc20_store: &'a N,
@@ -107,7 +107,7 @@ pub fn execute<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStore
   Ok(Some(receipt))
 }
 
-fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
+fn process_deploy<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
   context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
@@ -186,7 +186,7 @@ fn process_deploy<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataSt
   }))
 }
 
-fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
+fn process_mint<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
   context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,
@@ -275,7 +275,7 @@ fn process_mint<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStor
 
 fn process_inscribe_transfer<
   'a,
-  O: ord_store::OrdDataStoreReadOnly,
+  O: ord_store::DataStoreReadOnly,
   N: brc20_store::DataStoreReadWrite,
 >(
   _context: BlockContext,
@@ -360,7 +360,7 @@ fn process_inscribe_transfer<
   }))
 }
 
-fn process_transfer<'a, O: ord_store::OrdDataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
+fn process_transfer<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
   _context: BlockContext,
   _ord_store: &'a O,
   brc20_store: &'a N,

@@ -1,23 +1,3 @@
-use crate::okx::{
-  datastore::{
-    brc20::{
-      self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
-      DataStoreReadOnly as BRC20DataStoreReadOnly,
-    },
-    brc20s::{
-      self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
-      DataStoreReadOnly as BRC20SDataStoreReadOnly,
-    },
-    ord::{self, OrdDataStoreReadOnly},
-    ScriptKey,
-  },
-  protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
-  reward,
-};
-
-#[cfg(feature = "rollback")]
-use once_cell::sync::OnceCell;
-
 use {
   self::{
     entry::{BlockHashValue, Entry, InscriptionIdValue, OutPointValue, SatPointValue, SatRange},
@@ -29,6 +9,25 @@ use {
   chrono::SubsecRound,
   indicatif::{ProgressBar, ProgressStyle},
   log::log_enabled,
+  okx::{
+    datastore::{
+      brc20::{
+        self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
+        DataStoreReadOnly as BRC20DataStoreReadOnly,
+      },
+      brc20s::{
+        self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
+        DataStoreReadOnly as BRC20SDataStoreReadOnly, PledgedTick,
+      },
+      btc::{
+        self, redb::try_init_tables as try_init_btc, DataStoreReadOnly as BTCDataStoreReadOnly,
+      },
+      ord::{self, DataStoreReadOnly},
+      ScriptKey,
+    },
+    protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
+    reward,
+  },
   redb::{
     Database, MultimapTable, MultimapTableDefinition, ReadableMultimapTable, ReadableTable, Table,
     TableDefinition, WriteTransaction,
@@ -37,6 +36,9 @@ use {
   std::io::{BufWriter, Write},
   std::sync::atomic::{self, AtomicBool},
 };
+
+#[cfg(feature = "rollback")]
+use once_cell::sync::OnceCell;
 
 pub(super) use self::{
   entry::{InscriptionEntry, InscriptionEntryValue},
@@ -48,7 +50,6 @@ mod fetcher;
 mod rtx;
 mod updater;
 
-use crate::okx::datastore::brc20s::PledgedTick;
 #[cfg(feature = "rollback")]
 use redb::Savepoint;
 
@@ -261,7 +262,7 @@ impl Index {
         tx.open_table(STATISTIC_TO_COUNT)?
           .insert(&Statistic::Schema.key(), &SCHEMA_VERSION)?;
 
-        if options.index_sats {
+        if options.index_sats || options.index_brc20s {
           tx.open_table(OUTPOINT_TO_SAT_RANGES)?
             .insert(&OutPoint::null().store(), [].as_slice())?;
         }
@@ -274,6 +275,7 @@ impl Index {
     {
       let wtx = database.begin_write()?;
       let rtx = database.begin_read()?;
+      try_init_btc(&wtx, &rtx)?;
       try_init_brc20(&wtx, &rtx)?;
       try_init_brc20s(&wtx, &rtx)?;
       wtx.commit()?;
@@ -1412,12 +1414,15 @@ impl Index {
     let rtx = self.database.begin_read().unwrap();
     let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
     let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let user_info =
-      brc20s_db.get_pid_to_use_info(&ScriptKey::from_address(address.clone()), pid)?;
+    let user_info = brc20s_db
+      .get_pid_to_use_info(&ScriptKey::from_address(address.clone()), pid)?
+      .ok_or(anyhow!("user info not found from state!"))?;
 
-    let pool_info = brc20s_db.get_pid_to_poolinfo(pid)?;
+    let pool_info = brc20s_db
+      .get_pid_to_poolinfo(pid)?
+      .ok_or(anyhow!("pool info not found from state!"))?;
 
-    let dec = match pool_info.clone().unwrap().stake {
+    let dec = match pool_info.clone().stake {
       PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
       PledgedTick::BRC20STick(tickid) => brc20s_db.get_tick_info(&tickid).unwrap().unwrap().decimal,
       PledgedTick::BRC20Tick(tick) => brc20_db.get_token_info(&tick).unwrap().unwrap().decimal,
@@ -1427,8 +1432,8 @@ impl Index {
     let block = self.height().unwrap().unwrap_or(Height(0)).n();
 
     let result = reward::query_reward(
-      user_info.unwrap(),
-      pool_info.unwrap(),
+      user_info,
+      pool_info,
       self.height().unwrap().unwrap_or(Height(0)).n(),
       dec,
     )?;
@@ -1444,6 +1449,13 @@ impl Index {
     let rtx = self.database.begin_read().unwrap();
     let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
     let info = brc20s_db.get_balance(&ScriptKey::from_address(address.clone()), tick_id)?;
+    Ok(info)
+  }
+
+  pub(crate) fn btc_balance(&self, address: &bitcoin::Address) -> Result<Option<btc::Balance>> {
+    let rtx = self.database.begin_read().unwrap();
+    let btc_db = btc::DataStoreReader::new(&rtx);
+    let info = btc_db.get_balance(&ScriptKey::from_address(address.clone()))?;
     Ok(info)
   }
 

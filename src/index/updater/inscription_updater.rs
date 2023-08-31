@@ -329,14 +329,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       }
 
       output_value = end;
-
-      self.tx_out_cache.insert(
-        OutPoint {
-          vout: vout.try_into().unwrap(),
-          txid,
-        },
-        tx_out.clone(),
-      );
     }
 
     if is_coinbase {

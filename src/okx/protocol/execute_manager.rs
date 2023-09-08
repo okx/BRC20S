@@ -140,6 +140,20 @@ impl<
       Receipt::BRC0(_brc20s_receipt) => Ok(()),
     }
   }
+
+  pub fn execute_block_message(&self, context: BlockContext, messages: Vec<Message>) -> Result {
+    let mut exe_msgs: Vec<brc0_proto::ExecutionMessage> = Vec::new();
+    for msg in messages.iter() {
+      match msg {
+        Message::BRC0(msg) =>{
+          exe_msgs.push(brc0_proto::ExecutionMessage::from_message(self.ord_store, msg, context.network)?)
+        }
+        _ =>{}
+      }
+    }
+
+    brc0_proto::execute_msgs(context, exe_msgs)
+  }
 }
 
 fn convert_msg_brc20_to_brc20s(

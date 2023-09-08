@@ -40,9 +40,15 @@ use shadow_rs::pmr::respan_to;
 #[derive(Debug, Serialize, Deserialize)]
 struct RpcRequest {
   jsonrpc: String,
-  method: String,
-  params: Vec<String>,
   id: u64,
+  method: String,
+  params: RpcParams,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RpcParams{
+  height: String,
+  txs: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -102,13 +108,52 @@ pub fn execute(context: BlockContext, msg: &ExecutionMessage) -> Result<Option<R
   Ok(None)
 }
 
+pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Result {
+  log::debug!("BRC0 execute messages: {:?}", msgs);
+  println!("{:?}",msgs);
+  let mut txs: Vec<String> = Vec::new();
+  for msg in msgs.iter(){
+    let _event = match &msg.op {
+      Operation::Evm(evm) => {
+        // println!("{:?}",evm.clone().d);
+        txs.push(evm.clone().d);
+      }
+    };
+  }
+
+  let client = Client::new();
+  let request = RpcRequest {
+    jsonrpc: "2.0".to_string(),
+    id: 3,
+    method: "broadcast_brczero_txs_async".to_string(),
+    params: RpcParams{
+      height:context.blockheight.to_string(),
+      txs,
+    },
+  };
+  println!("Request: {:#?}", request);
+
+  init_tokio_runtime().block_on(async {
+    let response = client
+        .post("http://localhost:26657")
+        .header("Content-Type", "application/json")
+        .json(&request)
+        .send()
+        .await;
+
+    println!("Response: {:#?}", response);
+  });
+
+  Ok(())
+}
+
 fn process_deploy(
   _context: BlockContext,
   _msg: &ExecutionMessage,
   evm: Evm,
 ) -> Result<Event, Error> {
   // TODO send okbc proposal tx
-  println!("EVM Data-----------{}", evm.d);
+  // println!("EVM Data-----------{}", evm.d);
 
   // CLI
   // replace_evm_data(evm.d);
@@ -133,57 +178,6 @@ fn process_deploy(
   //   println!("Command failed with error:\n{}", stderr);
   // }
 
-  // TODO
-  // let sender_private_key = secp256k1::SigningKey::random();
-  // let sender_public_key = sender_private_key.public_key();
-  // let sender_account_id = sender_public_key.account_id("ex").unwrap();
-  //
-  // let recipient_private_key = secp256k1::SigningKey::random();
-  // let recipient_account_id = recipient_private_key.public_key().account_id("ex").unwrap();
-  //
-  // let amount = Coin {
-  //   amount: 1u8.into(),
-  //   denom: "okb".parse().unwrap(),
-  // };
-  //
-  // let msg_send = MsgSend {
-  //   from_address: sender_account_id.clone(),
-  //   to_address: recipient_account_id,
-  //   amount: vec![amount.clone()],
-  // }
-  // .to_any()
-  // .unwrap();
-  //
-  // let chain_id = "okbchain-67".parse().unwrap();
-  // let sequence_number = 0;
-  // let gas = 100_000u64;
-  // let fee = Fee::from_amount_and_gas(amount, gas);
-  //
-  // let tx_body = tx::BodyBuilder::new().msg(msg_send).memo("MEMO").finish();
-  // let auth_info =
-  //   SignerInfo::single_direct(Some(sender_public_key), sequence_number).auth_info(fee);
-  // let sign_doc = SignDoc::new(&tx_body, &auth_info, &chain_id, 1).unwrap();
-  // let tx_signed = sign_doc.sign(&sender_private_key).unwrap();
-  // println!("{:?}", tx_signed.to_bytes());
-  //
-  // init_tokio_runtime().block_on(async {
-  //   let rpc_address = "http://localhost:26657";
-  //   let rpc_client = rpc::HttpClient::new(rpc_address).unwrap();
-  //
-  //   let tx_commit_response = tx_signed.broadcast_commit(&rpc_client).await.unwrap();
-  //
-  //   if tx_commit_response.check_tx.code.is_err() {
-  //     panic!("check_tx failed: {:?}", tx_commit_response.check_tx);
-  //   }
-  //
-  //   if tx_commit_response.deliver_tx.code.is_err() {
-  //     panic!("deliver_tx failed: {:?}", tx_commit_response.deliver_tx);
-  //   }
-  // });
-
-  // Serialize the raw transaction as bytes (i.e. `Vec<u8>`).
-  // let tx_bytes = tx_signed.to_bytes()?;
-
   // send_raw_transaction
   // let http = Http::new("http://localhost:8545").unwrap();
   //
@@ -203,91 +197,28 @@ fn process_deploy(
   //   }
   // });
 
-  // TODO
-  // let rpc_url = "http://localhost:26657"; // Replace with your Tendermint RPC URL
-  // let client = HttpClient::new(rpc_url).expect("Failed to create HTTP client");
-  // // let tendermint_client = Client::new(http_client);
-  //
-  // let priv_key = "YOUR_PRIVATE_KEY"; // Replace with your private key
-  // let from_address = HumanAddr::from("YOUR_SENDER_ADDRESS"); // Replace with your sender address
-  // let to_address = HumanAddr::from("GOVERNANCE_CONTRACT_ADDRESS"); // Replace with the governance contract address
-  // let amount = Coin::new(100, "okb"); // Replace with the desired amount and token
-  //
-  // let msg = BankMsg::Send {
-  //   to_address: to_address.clone(),
-  //   amount: vec![amount.clone()],
-  // };
-  //
-  // let std_msgs = vec![CosmosMsg::Bank(msg)];
-  //
-  // let fee = Coin::new(1000, "uatom"); // Replace with the desired fee amount and token
-  // let gas_limit = 200_000; // Replace with the desired gas limit
-  //
-  // let tx = StdTx {
-  //   msg: std_msgs.clone(),
-  //   fee: StdFee {
-  //     amount: vec![fee.clone()],
-  //     gas: gas_limit.clone(),
-  //   },
-  //   signatures: vec![],
-  //   memo: None,
-  // };
-  //
-  // let key = PrivateKey::from_base64(priv_key).expect("Failed to parse private key");
-  //
-  // let sign_doc = tx.get_sign_doc(key.chain_id());
-  //
-  // let signature = key.sign(sign_doc);
-  //
-  // let signed_tx = tx.clone().with_signature(signature);
-  //
-  // let tx_bytes = to_binary(&signed_tx).expect("Failed to serialize transaction");
-  //
-  // let tx_commit_request = Request::new(Binary::from(tx_bytes), None);
-  // let tx_commit_result = client.broadcast_tx_commit(&tx_commit_request);
-  //
-  // match tx_commit_result {
-  //   Ok(response) => {
-  //     if let Some(tx_result) = response.check_tx {
-  //       if let Some(code) = tx_result.code {
-  //         if code == 0 {
-  //           println!("Transaction successful. Hash: {:?}", tx_result.hash);
-  //         } else {
-  //           println!("Transaction failed with code: {}", code);
-  //         }
-  //       } else {
-  //         println!("Transaction failed with unknown code");
-  //       }
-  //     } else {
-  //       println!("Transaction check failed");
-  //     }
-  //   }
-  //   Err(err) => {
-  //     eprintln!("Transaction error: {:?}", err);
-  //   }
-  // }
 
   //todo: call debug api
-  let client = Client::new();
-  let request = RpcRequest {
-    jsonrpc: "2.0".to_string(),
-    method: "eth_submitBrczeroData".to_string(),
-    params: vec![evm.d],
-    id: 1,
-  };
-  println!("Request: {:#?}", request);
-
-  init_tokio_runtime().block_on(async {
-    let response = client
-      .post("http://localhost:8545")
-      .header("Content-Type", "application/json")
-      .json(&request)
-      .send()
-      .await;
-
-    //todo: postprocess
-    println!("Response: {:#?}", response);
-  });
+  // let client = Client::new();
+  // let request = RpcRequest {
+  //   jsonrpc: "2.0".to_string(),
+  //   method: "eth_submitBrczeroData".to_string(),
+  //   params: vec![evm.d],
+  //   id: 1,
+  // };
+  // println!("Request: {:#?}", request);
+  //
+  // init_tokio_runtime().block_on(async {
+  //   let response = client
+  //     .post("http://localhost:8545")
+  //     .header("Content-Type", "application/json")
+  //     .json(&request)
+  //     .send()
+  //     .await;
+  //
+  //   //todo: postprocess
+  //   println!("Response: {:#?}", response);
+  // });
 
   Ok(Event::Evm(EvmEvent {
     txhash: "tx_hash".to_string(),

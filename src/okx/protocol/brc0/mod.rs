@@ -13,7 +13,7 @@ mod params;
 use self::error::Error;
 pub(crate) use self::{
   error::JSONError,
-  msg_executor::{execute, ExecutionMessage},
+  msg_executor::{execute, execute_msgs, ExecutionMessage},
   operation::{deserialize_brc0_operation, Evm, Operation},
 };
 

@@ -5,11 +5,13 @@ use crate::{
   index::BlockData,
   okx::datastore::ord::operation::InscriptionOp,
   okx::datastore::{brc20, brc20s, ord},
+  okx::protocol::Message,
   Instant, Result,
 };
 use anyhow::anyhow;
 use bitcoin::{Network, Txid};
 use bitcoincore_rpc::Client;
+// use web3::error::TransportError::Message;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BlockContext {
@@ -77,6 +79,7 @@ impl<
     let start = Instant::now();
     let mut inscriptions_size = 0;
     let mut messages_size = 0;
+    let mut messages_in_block: Vec<Message> = Vec::new();
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
       if let Some(tx_operations) = operations.remove(txid) {
@@ -91,15 +94,21 @@ impl<
           inscriptions_size += tx_operations.len();
         }
 
-        // Resolve and execute messages.
-        let messages = self
+        // Resolve messages.
+        let mut messages_in_tx = self
           .resolve_man
           .resolve_message(context, tx, tx_operations)?;
-        for msg in messages.iter() {
-          self.call_man.execute_message(context, msg)?;
-        }
-        messages_size += messages.len();
+        // for msg in messages.iter() {
+        //   self.call_man.execute_message(context, msg)?;
+        // }
+        messages_size += messages_in_tx.len();
+        messages_in_block.append(&mut messages_in_tx);
       }
+    }
+
+    // Execute messages.
+    if messages_in_block.len()>0 {
+      self.call_man.execute_block_message(context, messages_in_block)?;
     }
 
     log::info!(

@@ -65,6 +65,7 @@ shadow-rs = "0.21.0"
 web3 = "0.18.0"
 cosmrs = {version = "0.14.0", features = ["rpc"]}
 reqwest = {version = "0.11", features = ["json", "blocking"]}
+rlp = "0.5.2"
 
 [dev-dependencies]
 executable-path = "1.0.0"
@@ -72,6 +73,7 @@ pretty_assertions = "1.2.1"
 reqwest = { version = "0.11.10", features = ["blocking"] }
 test-bitcoincore-rpc = { path = "test-bitcoincore-rpc" }
 unindent = "0.2.1"
+rlp = "0.5.2"
 
 [[bin]]
 name = "ord"

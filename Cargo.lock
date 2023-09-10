@@ -2679,6 +2679,7 @@ dependencies = [
  "redb",
  "regex",
  "reqwest",
+ "rlp",
  "rss",
  "rust-embed",
  "rustls 0.21.5",

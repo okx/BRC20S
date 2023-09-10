@@ -115,8 +115,7 @@ pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Resul
   for msg in msgs.iter(){
     let _event = match &msg.op {
       Operation::Evm(evm) => {
-        // println!("{:?}",evm.clone().d);
-        txs.push(evm.clone().d);
+        txs.push(hex::encode(evm.clone().d.encode_rlp()));
       }
     };
   }

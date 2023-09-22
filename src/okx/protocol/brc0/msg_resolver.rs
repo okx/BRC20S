@@ -12,6 +12,7 @@ impl Message {
   pub(crate) fn resolve(
     new_inscriptions: &[Inscription],
     op: &InscriptionOp,
+    btc_fee: u128,
   ) -> Result<Option<Message>> {
     log::debug!("BRC0 resolving the message from {:?}", op);
     let sat_in_outputs = op
@@ -44,6 +45,7 @@ impl Message {
       new_satpoint: op.new_satpoint,
       op: brc0_operation,
       sat_in_outputs,
+      btc_fee,
     }))
   }
 }

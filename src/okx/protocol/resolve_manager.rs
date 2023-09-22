@@ -69,6 +69,7 @@ impl<
       .into_iter()
       .map(|v| v.inscription)
       .collect::<Vec<Inscription>>();
+    let btc_fee = self.get_btc_transaction_fee(tx);
 
     let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
@@ -132,7 +133,7 @@ impl<
         }
 
         // Parse BRC0 message through inscription operation.
-        if let Some(msg) = brc0::Message::resolve(&new_inscriptions, &operation)? {
+        if let Some(msg) = brc0::Message::resolve(&new_inscriptions, &operation, btc_fee)? {
           log::debug!(
             "BRC0 resolved the message from {:?}, msg {:?}",
             operation,
@@ -158,5 +159,30 @@ impl<
         )))?;
     }
     Ok(())
+  }
+
+  fn get_btc_transaction_fee(&self, tx: &Transaction) -> u128 {
+    let mut input_value = 0_u128;
+    let mut output_value = 0_u128;
+    for input in &tx.input {
+      let value = self.ord_store.get_outpoint_to_txout(input.previous_output);
+      match value {
+        Ok(op_txout) => match op_txout {
+          Some(txout) => input_value = input_value + txout.value as u128,
+          None => {
+            panic!("get_btc_transaction_fee:  get tx out is none")
+          }
+        },
+        Err(e) => {
+          panic!("get_btc_transaction_fee: failed to get tx out from state! error: {e}")
+        }
+      }
+    }
+
+    for output in &tx.output {
+      output_value = output_value + output.value as u128;
+    }
+
+    input_value - output_value
   }
 }

@@ -603,6 +603,7 @@ impl Updater {
         network: index.get_chain_network(),
         blockheight: self.height,
         blocktime: block.header.time,
+        blockhash: block.header.block_hash(),
       },
       &block,
       operations,

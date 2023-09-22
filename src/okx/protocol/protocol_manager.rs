@@ -18,6 +18,7 @@ pub struct BlockContext {
   pub network: Network,
   pub blockheight: u64,
   pub blocktime: u32,
+  pub blockhash: bitcoin::BlockHash,
 }
 
 #[derive(Hash, Eq, PartialEq, Clone)]
@@ -107,8 +108,10 @@ impl<
     }
 
     // Execute messages.
-    if messages_in_block.len()>0 {
-      self.call_man.execute_block_message(context, messages_in_block)?;
+    if messages_in_block.len() > 0 {
+      self
+        .call_man
+        .execute_block_message(context, messages_in_block)?;
     }
 
     log::info!(

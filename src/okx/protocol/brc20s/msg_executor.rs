@@ -1057,6 +1057,7 @@ mod tests {
     height: u64,
   ) -> Result<Vec<Event>, BRC20SError> {
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: height,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -1219,6 +1220,7 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 0,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -1264,6 +1266,7 @@ mod tests {
       Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -1314,6 +1317,7 @@ mod tests {
       Operation::Deploy(second_deply.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -1383,6 +1387,7 @@ mod tests {
     let result = set_brc20_token_user(&brc20_data_store, "abc1", &msg.from, 200_u128, 18_u8).err();
     assert_eq!(None, result);
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 0,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -1479,6 +1484,7 @@ mod tests {
         Operation::Deploy(deploy.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1514,6 +1520,7 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1559,6 +1566,7 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1605,6 +1613,7 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1643,6 +1652,7 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1680,6 +1690,7 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1718,6 +1729,7 @@ mod tests {
         Operation::Deploy(second_deploy.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1765,6 +1777,7 @@ mod tests {
       );
       msg.to = None;
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1802,6 +1815,7 @@ mod tests {
 
       msg.commit_from = None;
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1844,6 +1858,7 @@ mod tests {
 
       msg.version = HashMap::new();
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -1974,6 +1989,7 @@ mod tests {
         set_brc20_token_user(&brc20_data_store, "btc1", &msg.from, 200_u128, 18_u8).err();
       assert_eq!(None, result);
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2007,6 +2023,7 @@ mod tests {
         Operation::Deploy(second_deply.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2044,6 +2061,7 @@ mod tests {
       );
       msg.commit_from = Some(msg.from.clone());
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2080,6 +2098,7 @@ mod tests {
           .unwrap(),
       ));
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2115,6 +2134,7 @@ mod tests {
         Operation::Deploy(err_pool_type.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2147,6 +2167,7 @@ mod tests {
         Operation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2181,6 +2202,7 @@ mod tests {
         Operation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2215,6 +2237,7 @@ mod tests {
         Operation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2250,6 +2273,7 @@ mod tests {
         Operation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2284,6 +2308,7 @@ mod tests {
         Operation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2318,6 +2343,7 @@ mod tests {
         Operation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2352,6 +2378,7 @@ mod tests {
         Operation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2386,6 +2413,7 @@ mod tests {
         Operation::Deploy(err_pid.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2423,6 +2451,7 @@ mod tests {
         Operation::Deploy(err_stake.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2451,6 +2480,7 @@ mod tests {
         Operation::Deploy(err_stake.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2479,6 +2509,7 @@ mod tests {
         Operation::Deploy(err_stake.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2507,6 +2538,7 @@ mod tests {
         Operation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2535,6 +2567,7 @@ mod tests {
         Operation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2563,6 +2596,7 @@ mod tests {
         Operation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2591,6 +2625,7 @@ mod tests {
         Operation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2619,6 +2654,7 @@ mod tests {
         Operation::Deploy(err_earn.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2655,6 +2691,7 @@ mod tests {
         Operation::Deploy(err_erate.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2683,6 +2720,7 @@ mod tests {
         Operation::Deploy(err_erate.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2714,6 +2752,7 @@ mod tests {
         Operation::Deploy(err_dmax.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2742,6 +2781,7 @@ mod tests {
         Operation::Deploy(err_dmax.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2770,6 +2810,7 @@ mod tests {
         Operation::Deploy(err_dmax.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2807,6 +2848,7 @@ mod tests {
         Operation::Deploy(err_total.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2832,6 +2874,7 @@ mod tests {
       let msg =
         mock_create_brc20s_message(script.clone(), script, Operation::Deploy(err_dmax.clone()));
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 0,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -2911,6 +2954,7 @@ mod tests {
       Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -2962,6 +3006,7 @@ mod tests {
       Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -3016,6 +3061,7 @@ mod tests {
         Operation::Stake(stake_msg.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 30,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -3087,6 +3133,7 @@ mod tests {
       msg.to = None;
 
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 1,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -3123,6 +3170,7 @@ mod tests {
       );
 
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 1,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -3160,6 +3208,7 @@ mod tests {
       msg.commit_from = None;
 
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 1,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -3193,6 +3242,7 @@ mod tests {
         mock_create_brc20s_message(script.clone(), script.clone(), Operation::Stake(stake_msg));
 
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 30,
         blocktime: 1687245486,
         network: Network::Bitcoin,
@@ -3225,6 +3275,7 @@ mod tests {
       );
 
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 30,
         blocktime: 1687245486,
         network: Network::Bitcoin,
@@ -3355,6 +3406,7 @@ mod tests {
         mock_create_brc20s_message(script.clone(), script, Operation::Stake(stake_msg.clone()));
 
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 10,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -3516,6 +3568,7 @@ mod tests {
       Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -3567,6 +3620,7 @@ mod tests {
       Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -3621,6 +3675,7 @@ mod tests {
         Operation::UnStake(unstake_msg.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 30,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -3735,6 +3790,7 @@ mod tests {
       Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 0,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -3786,6 +3842,7 @@ mod tests {
       Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 0,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -3840,6 +3897,7 @@ mod tests {
         Operation::UnStake(unstake_msg.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 1,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -3896,6 +3954,7 @@ mod tests {
         Operation::UnStake(unstake_msg.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 10,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -3931,6 +3990,7 @@ mod tests {
       );
       msg.commit_from = None;
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 10,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -4010,6 +4070,7 @@ mod tests {
       Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -4061,6 +4122,7 @@ mod tests {
       Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -4114,6 +4176,7 @@ mod tests {
         Operation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 30,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -4239,6 +4302,7 @@ mod tests {
       Operation::Deploy(deploy.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 0,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -4290,6 +4354,7 @@ mod tests {
       Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 0,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -4343,6 +4408,7 @@ mod tests {
         Operation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 1,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -4380,6 +4446,7 @@ mod tests {
         Operation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 1,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -4432,6 +4499,7 @@ mod tests {
         Operation::PassiveUnStake(passive_unstake_msg.clone()),
       );
       let context = BlockContext {
+        blockhash: Hash::all_zeros(),
         blockheight: 1,
         blocktime: 1687245485,
         network: Network::Bitcoin,
@@ -4645,6 +4713,7 @@ mod tests {
     );
 
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -4686,6 +4755,7 @@ mod tests {
       Operation::Stake(stake_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -4744,6 +4814,7 @@ mod tests {
       Operation::Mint(mint_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 30,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -5053,6 +5124,7 @@ mod tests {
     );
 
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 10,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -5102,6 +5174,7 @@ mod tests {
     );
 
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 20,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -5173,6 +5246,7 @@ mod tests {
       Operation::Mint(mint_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 100000,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -5242,6 +5316,7 @@ mod tests {
       Operation::InscribeTransfer(transfer_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 200000,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -5252,6 +5327,7 @@ mod tests {
       Operation::InscribeTransfer(transfer_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 200000,
       blocktime: 1687245485,
       network: Network::Bitcoin,
@@ -5388,6 +5464,7 @@ mod tests {
       Operation::Transfer(transfer_msg.clone()),
     );
     let context = BlockContext {
+      blockhash: Hash::all_zeros(),
       blockheight: 200000,
       blocktime: 1687245485,
       network: Network::Bitcoin,

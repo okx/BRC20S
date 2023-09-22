@@ -1,5 +1,5 @@
 use super::*;
-use crate::okx::datastore::ord as ord_store;
+use crate::okx::datastore::{brc0, ord as ord_store};
 
 use crate::{
   okx::{
@@ -15,27 +15,9 @@ use anyhow::anyhow;
 use bitcoin::Network;
 use reqwest::{Client, Error};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use futures::TryFutureExt;
-use hex::FromHex;
-use std::convert::TryInto;
-use web3::transports::Http;
-use web3::types::Bytes;
-use web3::{Web3, block_on};
 
-use cosmrs::{
-  bank::MsgSend,
-  crypto::secp256k1,
-  rpc,
-  tx::{self, Fee, Msg, SignDoc, SignerInfo, Tx},
-  AccountId, Coin,
-};
-
-use std::process::Command;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
-use shadow_rs::pmr::respan_to;
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RpcRequest {
@@ -46,9 +28,17 @@ struct RpcRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct RpcParams{
+struct RpcParams {
   height: String,
-  txs: Vec<String>,
+  block_hash: String,
+  is_confirmed: bool,
+  txs: Vec<BRCZeroTx>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BRCZeroTx {
+  hex_rlp_encode_tx: String,
+  btc_fee: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,6 +58,7 @@ pub struct ExecutionMessage {
   pub(self) from: ScriptKey,
   pub(self) to: Option<ScriptKey>,
   pub(self) op: Operation,
+  pub(self) btc_fee: u128,
 }
 
 impl ExecutionMessage {
@@ -95,6 +86,7 @@ impl ExecutionMessage {
         None
       },
       op: msg.op.clone(),
+      btc_fee: msg.btc_fee,
     })
   }
 }
@@ -110,12 +102,16 @@ pub fn execute(context: BlockContext, msg: &ExecutionMessage) -> Result<Option<R
 
 pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Result {
   log::debug!("BRC0 execute messages: {:?}", msgs);
-  println!("{:?}",msgs);
-  let mut txs: Vec<String> = Vec::new();
-  for msg in msgs.iter(){
+  println!("{:?}", msgs);
+  let mut txs: Vec<BRCZeroTx> = Vec::new();
+  for msg in msgs.iter() {
     let _event = match &msg.op {
       Operation::Evm(evm) => {
-        txs.push(hex::encode(evm.clone().d.encode_rlp()));
+        let tx = BRCZeroTx {
+          hex_rlp_encode_tx: hex::encode(evm.clone().d.encode_rlp()),
+          btc_fee: msg.btc_fee.to_string(),
+        };
+        txs.push(tx);
       }
     };
   }
@@ -125,8 +121,10 @@ pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Resul
     jsonrpc: "2.0".to_string(),
     id: 3,
     method: "broadcast_brczero_txs_async".to_string(),
-    params: RpcParams{
-      height:context.blockheight.to_string(),
+    params: RpcParams {
+      height: context.blockheight.to_string(),
+      block_hash: context.blockhash.to_string(),
+      is_confirmed: true,
       txs,
     },
   };
@@ -134,11 +132,11 @@ pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Resul
 
   init_tokio_runtime().block_on(async {
     let response = client
-        .post("http://localhost:26657")
-        .header("Content-Type", "application/json")
-        .json(&request)
-        .send()
-        .await;
+      .post("http://127.0.0.1:26657")
+      .header("Content-Type", "application/json")
+      .json(&request)
+      .send()
+      .await;
 
     println!("Response: {:#?}", response);
   });
@@ -146,79 +144,7 @@ pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Resul
   Ok(())
 }
 
-fn process_deploy(
-  _context: BlockContext,
-  _msg: &ExecutionMessage,
-  evm: Evm,
-) -> Result<Event, Error> {
-  // TODO send okbc proposal tx
-  // println!("EVM Data-----------{}", evm.d);
-
-  // CLI
-  // replace_evm_data(evm.d);
-  // let output = Command::new("okbchaincli")
-  //     .args(&["tx", "gov", "submit-proposal", "brczero-evm-data"])
-  //     .args(&["/Users/oker/lrpData/brczero_evm_data.json"])
-  //     .args(&["--from", "captain"])
-  //     .args(&["--fees", "0.01okb"])
-  //     .args(&["--gas", "3000000"])
-  //     .args(&["--chain-id", "okbchain-67"])
-  //     .args(&["--node", "http://127.0.0.1:26657"])
-  //     .args(&["-b", "block"])
-  //     .args(&["-y"])
-  //     .output()
-  //     .expect("Failed to execute command");
-  //
-  // if output.status.success() {
-  //   let stdout = String::from_utf8_lossy(&output.stdout);
-  //   println!("Command output:\n{}", stdout);
-  // } else {
-  //   let stderr = String::from_utf8_lossy(&output.stderr);
-  //   println!("Command failed with error:\n{}", stderr);
-  // }
-
-  // send_raw_transaction
-  // let http = Http::new("http://localhost:8545").unwrap();
-  //
-  // let web3 = Web3::new(http);
-  //
-  // let bytes_tx = Vec::from_hex(evm.d).unwrap();
-  // init_tokio_runtime().block_on(async {
-  //   let tx_res = web3.eth().send_raw_transaction(Bytes::from(bytes_tx)).await;
-  //
-  //   match tx_res {
-  //     Ok(tx_hash) => {
-  //       println!("Transaction sent. Hash: {}", tx_hash.to_string());
-  //     }
-  //     Err(err) => {
-  //       println!("Transaction sent. Errror: {}", err);
-  //     }
-  //   }
-  // });
-
-
-  //todo: call debug api
-  // let client = Client::new();
-  // let request = RpcRequest {
-  //   jsonrpc: "2.0".to_string(),
-  //   method: "eth_submitBrczeroData".to_string(),
-  //   params: vec![evm.d],
-  //   id: 1,
-  // };
-  // println!("Request: {:#?}", request);
-  //
-  // init_tokio_runtime().block_on(async {
-  //   let response = client
-  //     .post("http://localhost:8545")
-  //     .header("Content-Type", "application/json")
-  //     .json(&request)
-  //     .send()
-  //     .await;
-  //
-  //   //todo: postprocess
-  //   println!("Response: {:#?}", response);
-  // });
-
+fn process_deploy(_context: BlockContext, _msg: &ExecutionMessage, _: Evm) -> Result<Event, Error> {
   Ok(Event::Evm(EvmEvent {
     txhash: "tx_hash".to_string(),
   }))
@@ -232,7 +158,7 @@ fn init_tokio_runtime() -> tokio::runtime::Runtime {
     .unwrap()
 }
 
-fn replace_evm_data(data: String){
+fn replace_evm_data(data: String) {
   // read file
   let file_path = "/Users/oker/lrpData/brczero_evm_data.json";
   let mut lines = vec![];
@@ -247,7 +173,7 @@ fn replace_evm_data(data: String){
   // replacing a specific line
   let line_number_to_replace = 4; // Counting from 1
 
-  let new_line = format!("  \"tx\": \"{}\",",data);
+  let new_line = format!("  \"tx\": \"{}\",", data);
   lines[line_number_to_replace - 1] = Ok(new_line);
 
   // write to file

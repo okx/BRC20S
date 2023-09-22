@@ -10,7 +10,6 @@ mod msg_resolver;
 mod operation;
 mod params;
 
-use self::error::Error;
 pub(crate) use self::{
   error::JSONError,
   msg_executor::{execute, execute_msgs, ExecutionMessage},
@@ -26,4 +25,5 @@ pub struct Message {
   pub new_satpoint: Option<SatPoint>,
   pub op: Operation,
   pub sat_in_outputs: bool,
+  pub btc_fee: u128,
 }

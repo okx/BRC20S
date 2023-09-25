@@ -110,6 +110,7 @@ mod options;
 mod page_config;
 mod rarity;
 mod representation;
+pub mod rpc;
 mod sat;
 mod sat_point;
 pub mod subcommand;

@@ -1,18 +1,15 @@
-use crate::okx::{
-  datastore::{
-    brc20::{
-      self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
-      DataStoreReadOnly as BRC20DataStoreReadOnly,
+use crate::{
+  okx::{
+    datastore::{
+      brc20::{self, redb as brc20_db, DataStoreReadOnly as BRC20DataStoreReadOnly},
+      brc20s::{self, redb as brc20s_db, DataStoreReadOnly as BRC20SDataStoreReadOnly},
+      ord::{self, OrdDataStoreReadOnly},
+      ScriptKey,
     },
-    brc20s::{
-      self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
-      DataStoreReadOnly as BRC20SDataStoreReadOnly,
-    },
-    ord::{self, OrdDataStoreReadOnly},
-    ScriptKey,
+    protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
+    reward,
   },
-  protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
-  reward,
+  rpc::BRCZeroRpcClient,
 };
 
 #[cfg(feature = "rollback")]
@@ -91,6 +88,7 @@ pub(crate) const MAX_SAVEPOINTS: usize = 4;
 #[allow(dead_code)]
 pub(crate) struct Index {
   client: Client,
+  brc0_client: BRCZeroRpcClient,
   database: Database,
   path: PathBuf,
   first_inscription_height: u64,
@@ -180,6 +178,7 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
 impl Index {
   pub(crate) fn open(options: &Options) -> Result<Self> {
     let client = options.bitcoin_rpc_client()?;
+    let brc0_client = BRCZeroRpcClient::new(&options.brczero_rpc_url)?;
 
     let path = if let Some(path) = &options.index {
       path.clone()
@@ -274,8 +273,6 @@ impl Index {
     {
       let wtx = database.begin_write()?;
       let rtx = database.begin_read()?;
-      try_init_brc20(&wtx, &rtx)?;
-      try_init_brc20s(&wtx, &rtx)?;
       wtx.commit()?;
     }
     let genesis_block_coinbase_transaction =
@@ -284,6 +281,7 @@ impl Index {
     Ok(Self {
       genesis_block_coinbase_txid: genesis_block_coinbase_transaction.txid(),
       client,
+      brc0_client,
       database,
       path,
       first_inscription_height: options.first_inscription_height(),

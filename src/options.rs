@@ -62,6 +62,12 @@ pub(crate) struct Options {
   pub(crate) regtest: bool,
   #[clap(long, help = "Connect to Bitcoin Core RPC at <RPC_URL>.")]
   pub(crate) rpc_url: Option<String>,
+  #[clap(
+    long,
+    default_value = "http://127.0.0.1:26657",
+    help = "Connect to BRCZero Node RPC at <RPC_URL>."
+  )]
+  pub(crate) brczero_rpc_url: String,
   #[clap(long, short, help = "Use signet. Equivalent to `--chain signet`.")]
   pub(crate) signet: bool,
   #[clap(long, short, help = "Use testnet. Equivalent to `--chain testnet`.")]

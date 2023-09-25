@@ -1,6 +1,7 @@
 use super::*;
 use crate::okx::datastore::{brc0, ord as ord_store};
 
+use crate::rpc::BRCZeroRpcClient;
 use crate::{
   okx::{
     datastore::brc0::{Event, EvmEvent, Receipt},
@@ -100,7 +101,11 @@ pub fn execute(context: BlockContext, msg: &ExecutionMessage) -> Result<Option<R
   Ok(None)
 }
 
-pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Result {
+pub fn execute_msgs(
+  brc0_client: &BRCZeroRpcClient,
+  context: BlockContext,
+  msgs: Vec<ExecutionMessage>,
+) -> Result {
   log::debug!("BRC0 execute messages: {:?}", msgs);
   println!("{:?}", msgs);
   let mut txs: Vec<BRCZeroTx> = Vec::new();
@@ -116,7 +121,6 @@ pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Resul
     };
   }
 
-  let client = Client::new();
   let request = RpcRequest {
     jsonrpc: "2.0".to_string(),
     id: 3,
@@ -124,15 +128,16 @@ pub fn execute_msgs(context: BlockContext, msgs: Vec<ExecutionMessage>) -> Resul
     params: RpcParams {
       height: context.blockheight.to_string(),
       block_hash: context.blockhash.to_string(),
-      is_confirmed: true,
+      is_confirmed: false,
       txs,
     },
   };
   println!("Request: {:#?}", request);
 
   init_tokio_runtime().block_on(async {
-    let response = client
-      .post("http://127.0.0.1:26657")
+    let response = brc0_client
+      .client
+      .post(&brc0_client.url)
       .header("Content-Type", "application/json")
       .json(&request)
       .send()

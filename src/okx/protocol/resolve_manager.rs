@@ -2,6 +2,7 @@ use super::*;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
 use crate::okx::datastore::ord as ord_store;
+use crate::rpc::BRCZeroRpcClient;
 use std::collections::HashMap;
 
 use crate::{

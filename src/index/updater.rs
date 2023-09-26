@@ -598,6 +598,7 @@ impl Updater {
       index.first_inscription_height,
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
+      index.options.first_brczero_height(),
     )
     .index_block(
       BlockContext {

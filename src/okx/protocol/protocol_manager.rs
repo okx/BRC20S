@@ -26,6 +26,7 @@ pub struct BlockContext {
 pub enum ProtocolKind {
   BRC20,
   BRC20S,
+  BRC0,
 }
 
 pub struct ProtocolManager<
@@ -37,6 +38,7 @@ pub struct ProtocolManager<
   brc0_client: &'a BRCZeroRpcClient,
   ord_store: &'a O,
   first_inscription_height: u64,
+  first_brczero_height: u64,
   call_man: CallManager<'a, O, P, M>,
   resolve_man: MsgResolveManager<'a, O, P, M>,
 }
@@ -58,6 +60,7 @@ impl<
     first_inscription_height: u64,
     first_brc20_height: u64,
     first_brc20s_height: u64,
+    first_brczero_height: u64,
   ) -> Self {
     Self {
       resolve_man: MsgResolveManager::new(
@@ -67,10 +70,12 @@ impl<
         brc20s_store,
         first_brc20_height,
         first_brc20s_height,
+        first_brczero_height,
       ),
       brc0_client,
       ord_store,
       first_inscription_height,
+      first_brczero_height,
       call_man: CallManager::new(ord_store, brc20_store, brc20s_store),
     }
   }
@@ -112,9 +117,11 @@ impl<
     }
 
     // Execute messages.
-    self
-      .call_man
-      .execute_block_message(self.brc0_client, context, messages_in_block)?;
+    if context.blockheight >= self.first_brczero_height {
+      self
+        .call_man
+        .execute_block_message(self.brc0_client, context, messages_in_block)?;
+    }
 
     log::info!(
       "Protocol Manager indexed block {} with {} messages, ord inscriptions {} in {} ms",

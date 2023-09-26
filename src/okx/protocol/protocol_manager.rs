@@ -6,6 +6,7 @@ use crate::{
   okx::datastore::ord::operation::InscriptionOp,
   okx::datastore::{brc20, brc20s, ord},
   okx::protocol::Message,
+  rpc::BRCZeroRpcClient,
   Instant, Result,
 };
 use anyhow::anyhow;
@@ -25,6 +26,7 @@ pub struct BlockContext {
 pub enum ProtocolKind {
   BRC20,
   BRC20S,
+  BRC0,
 }
 
 pub struct ProtocolManager<
@@ -33,8 +35,10 @@ pub struct ProtocolManager<
   P: brc20::DataStoreReadWrite,
   M: brc20s::DataStoreReadWrite,
 > {
+  brc0_client: &'a BRCZeroRpcClient,
   ord_store: &'a O,
   first_inscription_height: u64,
+  first_brczero_height: u64,
   call_man: CallManager<'a, O, P, M>,
   resolve_man: MsgResolveManager<'a, O, P, M>,
 }
@@ -49,12 +53,14 @@ impl<
   // Need three datastore, and they're all in the same write transaction.
   pub fn new(
     client: &'a Client,
+    brc0_client: &'a BRCZeroRpcClient,
     ord_store: &'a O,
     brc20_store: &'a P,
     brc20s_store: &'a M,
     first_inscription_height: u64,
     first_brc20_height: u64,
     first_brc20s_height: u64,
+    first_brczero_height: u64,
   ) -> Self {
     Self {
       resolve_man: MsgResolveManager::new(
@@ -64,9 +70,12 @@ impl<
         brc20s_store,
         first_brc20_height,
         first_brc20s_height,
+        first_brczero_height,
       ),
+      brc0_client,
       ord_store,
       first_inscription_height,
+      first_brczero_height,
       call_man: CallManager::new(ord_store, brc20_store, brc20s_store),
     }
   }
@@ -108,10 +117,10 @@ impl<
     }
 
     // Execute messages.
-    if messages_in_block.len() > 0 {
+    if context.blockheight >= self.first_brczero_height {
       self
         .call_man
-        .execute_block_message(context, messages_in_block)?;
+        .execute_block_message(self.brc0_client, context, messages_in_block)?;
     }
 
     log::info!(

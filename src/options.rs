@@ -62,6 +62,17 @@ pub(crate) struct Options {
   pub(crate) regtest: bool,
   #[clap(long, help = "Connect to Bitcoin Core RPC at <RPC_URL>.")]
   pub(crate) rpc_url: Option<String>,
+  #[clap(
+    long,
+    default_value = "http://127.0.0.1:26657",
+    help = "Connect to BRCZero Node RPC at <RPC_URL>."
+  )]
+  pub(crate) brczero_rpc_url: String,
+  #[clap(
+    long,
+    help = "Don't prase BRCZero messages below <FIRST_BRCZERO_HEIGHT>."
+  )]
+  pub(crate) first_brczero_height: Option<u64>,
   #[clap(long, short, help = "Use signet. Equivalent to `--chain signet`.")]
   pub(crate) signet: bool,
   #[clap(long, short, help = "Use testnet. Equivalent to `--chain testnet`.")]
@@ -138,6 +149,18 @@ impl Options {
       self
         .first_brc20s_height
         .unwrap_or_else(|| self.chain().first_brc20s_height())
+    }
+  }
+
+  pub(crate) fn first_brczero_height(&self) -> u64 {
+    if self.chain() == Chain::Regtest {
+      self.first_brczero_height.unwrap_or(0)
+    } else if integration_test() {
+      0
+    } else {
+      self
+        .first_brczero_height
+        .unwrap_or_else(|| self.chain().first_brczero_height())
     }
   }
 

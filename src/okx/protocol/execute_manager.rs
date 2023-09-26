@@ -6,6 +6,7 @@ use crate::okx::datastore::ord as ord_store;
 use crate::okx::protocol::brc0 as brc0_proto;
 use crate::okx::protocol::brc20 as brc20_proto;
 use crate::okx::protocol::brc20s as brc20s_proto;
+use crate::rpc::BRCZeroRpcClient;
 use crate::Result;
 
 pub struct CallManager<
@@ -141,18 +142,25 @@ impl<
     }
   }
 
-  pub fn execute_block_message(&self, context: BlockContext, messages: Vec<Message>) -> Result {
+  pub fn execute_block_message(
+    &self,
+    brc0_client: &BRCZeroRpcClient,
+    context: BlockContext,
+    messages: Vec<Message>,
+  ) -> Result {
     let mut exe_msgs: Vec<brc0_proto::ExecutionMessage> = Vec::new();
     for msg in messages.iter() {
       match msg {
-        Message::BRC0(msg) =>{
-          exe_msgs.push(brc0_proto::ExecutionMessage::from_message(self.ord_store, msg, context.network)?)
-        }
-        _ =>{}
+        Message::BRC0(msg) => exe_msgs.push(brc0_proto::ExecutionMessage::from_message(
+          self.ord_store,
+          msg,
+          context.network,
+        )?),
+        _ => {}
       }
     }
 
-    brc0_proto::execute_msgs(context, exe_msgs)
+    brc0_proto::execute_msgs(brc0_client, context, exe_msgs)
   }
 }
 

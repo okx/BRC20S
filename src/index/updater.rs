@@ -591,12 +591,14 @@ impl Updater {
     // Create a protocol manager to index the block of brc20, brc20s data.
     ProtocolManager::new(
       &index.client,
+      &index.brc0_client,
       &ord::OrdDbReadWriter::new(wtx),
       &brc20_db::DataStore::new(wtx),
       &brc20s_db::DataStore::new(wtx),
       index.first_inscription_height,
       index.options.first_brc20_height(),
       index.options.first_brc20s_height(),
+      index.options.first_brczero_height(),
     )
     .index_block(
       BlockContext {

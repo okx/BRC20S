@@ -2,6 +2,7 @@ use super::*;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
 use crate::okx::datastore::ord as ord_store;
+use crate::rpc::BRCZeroRpcClient;
 use std::collections::HashMap;
 
 use crate::{
@@ -38,10 +39,12 @@ impl<
     brc20s_store: &'a M,
     first_brc20_height: u64,
     first_brc20s_height: u64,
+    first_brczero_height: u64,
   ) -> Self {
     let mut protocol_start_height: HashMap<ProtocolKind, u64> = HashMap::new();
     protocol_start_height.insert(ProtocolKind::BRC20, first_brc20_height);
     protocol_start_height.insert(ProtocolKind::BRC20S, first_brc20s_height);
+    protocol_start_height.insert(ProtocolKind::BRC0, first_brczero_height);
     Self {
       client,
       ord_store,
@@ -133,14 +136,21 @@ impl<
         }
 
         // Parse BRC0 message through inscription operation.
-        if let Some(msg) = brc0::Message::resolve(&new_inscriptions, &operation, btc_fee)? {
-          log::debug!(
-            "BRC0 resolved the message from {:?}, msg {:?}",
-            operation,
-            msg
-          );
-          messages.push(Message::BRC0(msg));
-          continue;
+        if self
+          .protocol_start_height
+          .get(&ProtocolKind::BRC0)
+          .map(|height| context.blockheight >= *height)
+          .unwrap_or(false)
+        {
+          if let Some(msg) = brc0::Message::resolve(&new_inscriptions, &operation, btc_fee)? {
+            log::debug!(
+              "BRC0 resolved the message from {:?}, msg {:?}",
+              operation,
+              msg
+            );
+            messages.push(Message::BRC0(msg));
+            continue;
+          }
         }
       }
     }

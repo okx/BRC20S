@@ -94,9 +94,6 @@ impl ExecutionMessage {
 
 pub fn execute(context: BlockContext, msg: &ExecutionMessage) -> Result<Option<Receipt>> {
   log::debug!("BRC0 execute message: {:?}", msg);
-  let _event = match &msg.op {
-    Operation::Evm(evm) => process_deploy(context, msg, evm.clone()),
-  };
 
   Ok(None)
 }
@@ -149,42 +146,10 @@ pub fn execute_msgs(
   Ok(())
 }
 
-fn process_deploy(_context: BlockContext, _msg: &ExecutionMessage, _: Evm) -> Result<Event, Error> {
-  Ok(Event::Evm(EvmEvent {
-    txhash: "tx_hash".to_string(),
-  }))
-}
-
 /// Initialize Tokio runtime
 fn init_tokio_runtime() -> tokio::runtime::Runtime {
   tokio::runtime::Builder::new_current_thread()
     .enable_all()
     .build()
     .unwrap()
-}
-
-fn replace_evm_data(data: String) {
-  // read file
-  let file_path = "/Users/oker/lrpData/brczero_evm_data.json";
-  let mut lines = vec![];
-
-  let file = fs::File::open(&file_path).unwrap();
-  let reader = BufReader::new(file);
-
-  for line in reader.lines() {
-    lines.push(line);
-  }
-
-  // replacing a specific line
-  let line_number_to_replace = 4; // Counting from 1
-
-  let new_line = format!("  \"tx\": \"{}\",", data);
-  lines[line_number_to_replace - 1] = Ok(new_line);
-
-  // write to file
-  let mut file = fs::File::create(&file_path).unwrap();
-  for line in &lines {
-    let _ = file.write_all(line.as_ref().unwrap().as_bytes());
-    let _ = file.write_all(b"\n");
-  }
 }

@@ -9,11 +9,13 @@ mod msg_executor;
 mod msg_resolver;
 mod operation;
 mod params;
+mod rpc;
 
 pub(crate) use self::{
   error::JSONError,
   msg_executor::{execute, execute_msgs, ExecutionMessage},
-  operation::{deserialize_brc0_operation, Evm, Operation},
+  operation::{deserialize_brc0_operation, Operation},
+  rpc::{RpcRequest, RpcParams, BRCZeroTx, RpcResponse},
 };
 
 #[derive(Debug, Clone, PartialEq)]

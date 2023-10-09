@@ -1,12 +1,11 @@
 use super::*;
-use crate::okx::datastore::{brc0, ord as ord_store};
-
+use crate::okx::datastore::{ord as ord_store};
 use crate::rpc::BRCZeroRpcClient;
 use crate::{
   okx::{
-    datastore::brc0::{Event, EvmEvent, Receipt},
+    datastore::brc0::{Receipt},
     protocol::{
-      brc0::{Message, Operation},
+      brc0::{Message, Operation, RpcRequest, RpcParams, BRCZeroTx, RpcResponse},
       utils, BlockContext,
     },
   },
@@ -14,40 +13,6 @@ use crate::{
 };
 use anyhow::anyhow;
 use bitcoin::Network;
-use reqwest::{Client, Error};
-use serde::{Deserialize, Serialize};
-
-use std::fs;
-use std::io::{BufRead, BufReader, Write};
-
-#[derive(Debug, Serialize, Deserialize)]
-struct RpcRequest {
-  jsonrpc: String,
-  id: u64,
-  method: String,
-  params: RpcParams,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct RpcParams {
-  height: String,
-  block_hash: String,
-  is_confirmed: bool,
-  txs: Vec<BRCZeroTx>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct BRCZeroTx {
-  hex_rlp_encode_tx: String,
-  btc_fee: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct RpcResponse {
-  jsonrpc: String,
-  result: String,
-  id: u64,
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExecutionMessage {
@@ -92,7 +57,7 @@ impl ExecutionMessage {
   }
 }
 
-pub fn execute(context: BlockContext, msg: &ExecutionMessage) -> Result<Option<Receipt>> {
+pub fn execute(_context: BlockContext, msg: &ExecutionMessage) -> Result<Option<Receipt>> {
   log::debug!("BRC0 execute message: {:?}", msg);
 
   Ok(None)
@@ -129,7 +94,7 @@ pub fn execute_msgs(
       txs,
     },
   };
-  println!("Request: {:#?}", request);
+  log::debug!("Request: {:#?}", request);
 
   init_tokio_runtime().block_on(async {
     let response = brc0_client
@@ -140,7 +105,27 @@ pub fn execute_msgs(
       .send()
       .await;
 
-    println!("Response: {:#?}", response);
+    match response {
+      Ok(res)=>{
+        if res.status().is_success(){
+          let body = res.text().await;
+          let rpc_res: RpcResponse = serde_json::from_str(&*body.unwrap()).unwrap();
+          if rpc_res.result.len()>0{
+            for tx_res in rpc_res.result.iter() {
+              log::info!("broadcast brczero txs successes: {}", tx_res.hash);
+            }
+          }else{
+            log::info!("broadcast btc block to brczero successes");
+          }
+          // log::debug!("Response: {:#?}", rpc_res);
+        }else{
+          log::error!("broadcast brczero txs or btc block failed: {}",res.status());
+        }
+      },
+      Err(e)=>{
+        log::error!("broadcast brczero txs or btc block failed: {e}");
+      }
+    }
   });
 
   Ok(())

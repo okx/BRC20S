@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use web3::types::{H256, U256, U64, Bytes, Address};
+use web3::types::{U256, U64, Bytes, Address};
 use rlp::RlpStream;
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]

@@ -34,6 +34,7 @@ pub(crate) struct CommandBuilder {
   expected_stderr: Expected,
   expected_stdout: Expected,
   rpc_server_url: Option<String>,
+  stdin: Vec<u8>,
   tempdir: TempDir,
 }
 
@@ -45,6 +46,7 @@ impl CommandBuilder {
       expected_stderr: Expected::String(String::new()),
       expected_stdout: Expected::String(String::new()),
       rpc_server_url: None,
+      stdin: Vec::new(),
       tempdir: TempDir::new().unwrap(),
     }
   }
@@ -76,24 +78,11 @@ impl CommandBuilder {
     }
   }
 
-  #[allow(unused)]
-  pub(crate) fn stderr_regex(self, expected_stderr: impl AsRef<str>) -> Self {
-    Self {
-      expected_stderr: Expected::regex(expected_stderr.as_ref()),
-      ..self
-    }
-  }
-
   pub(crate) fn expected_exit_code(self, expected_exit_code: i32) -> Self {
     Self {
       expected_exit_code,
       ..self
     }
-  }
-
-  #[allow(unused)]
-  pub(crate) fn temp_dir(self, tempdir: TempDir) -> Self {
-    Self { tempdir, ..self }
   }
 
   pub(crate) fn command(&self) -> Command {
@@ -112,7 +101,7 @@ impl CommandBuilder {
 
     command
       .env("ORD_INTEGRATION_TEST", "1")
-      .stdin(Stdio::null())
+      .stdin(Stdio::piped())
       .stdout(Stdio::piped())
       .stderr(Stdio::piped())
       .current_dir(&self.tempdir)
@@ -123,9 +112,18 @@ impl CommandBuilder {
     command
   }
 
-  #[allow(unused)]
-  pub(crate) fn run_and_extract_file(self, path: impl AsRef<Path>) -> String {
-    let output = self.command().output().unwrap();
+  fn run(self) -> (TempDir, String) {
+    let child = self.command().spawn().unwrap();
+
+    child
+      .stdin
+      .as_ref()
+      .unwrap()
+      .write_all(&self.stdin)
+      .unwrap();
+
+    let output = child.wait_with_output().unwrap();
+
     let stdout = str::from_utf8(&output.stdout).unwrap();
     let stderr = str::from_utf8(&output.stderr).unwrap();
     if output.status.code() != Some(self.expected_exit_code) {
@@ -138,27 +136,20 @@ impl CommandBuilder {
     self.expected_stderr.assert_match(stderr);
     self.expected_stdout.assert_match(stdout);
 
-    fs::read_to_string(self.tempdir.path().join(path)).unwrap()
+    (self.tempdir, stdout.into())
+  }
+
+  #[allow(unused)]
+  pub(crate) fn run_and_extract_file(self, path: impl AsRef<Path>) -> String {
+    let tempdir = self.run().0;
+    fs::read_to_string(tempdir.path().join(path)).unwrap()
   }
 
   pub(crate) fn run_and_extract_stdout(self) -> String {
-    let output = self.command().output().unwrap();
-    let stdout = str::from_utf8(&output.stdout).unwrap();
-    let stderr = str::from_utf8(&output.stderr).unwrap();
-    if output.status.code() != Some(self.expected_exit_code) {
-      panic!(
-        "Test failed: {}\nstdout:\n{}\nstderr:\n{}",
-        output.status, stdout, stderr
-      );
-    }
-
-    self.expected_stderr.assert_match(stderr);
-    self.expected_stdout.assert_match(stdout);
-
-    stdout.into()
+    self.run().1
   }
-  #[allow(unused)]
-  pub(crate) fn run_and_check_output<T: DeserializeOwned>(self) -> T {
+
+  pub(crate) fn run_and_deserialize_output<T: DeserializeOwned>(self) -> T {
     let stdout = self.stdout_regex(".*").run_and_extract_stdout();
     serde_json::from_str(&stdout)
       .unwrap_or_else(|err| panic!("Failed to deserialize JSON: {err}\n{stdout}"))

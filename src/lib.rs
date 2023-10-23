@@ -21,15 +21,15 @@ use {
     epoch::Epoch,
     height::Height,
     index::{Index, List},
-    inscription::Inscription,
     inscription_id::InscriptionId,
     media::Media,
     options::Options,
     representation::Representation,
-    subcommand::Subcommand,
+    subcommand::{Subcommand, SubcommandResult},
     tally::Tally,
   },
   anyhow::{anyhow, bail, Context, Error},
+  bip39::Mnemonic,
   bitcoin::{
     address::{Address, NetworkUnchecked},
     blockdata::constants::COIN_VALUE,
@@ -70,7 +70,9 @@ use {
   tokio::{runtime::Runtime, task},
 };
 
-pub use crate::{object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint};
+pub use crate::{
+  inscription::Inscription, object::Object, rarity::Rarity, sat::Sat, sat_point::SatPoint,
+};
 
 #[cfg(test)]
 #[macro_use]
@@ -101,20 +103,20 @@ mod epoch;
 mod height;
 mod index;
 mod inscription;
-mod inscription_id;
+pub mod inscription_id;
 mod logger;
 mod media;
 mod object;
 mod okx;
 mod options;
 mod page_config;
-mod rarity;
+pub mod rarity;
 mod representation;
-mod sat;
+pub mod sat;
 mod sat_point;
 pub mod subcommand;
 mod tally;
-mod templates;
+pub mod templates;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 
@@ -180,22 +182,25 @@ pub fn main() {
   })
   .expect("Error setting <CTRL-C> handler");
 
-  if let Err(err) = args.run() {
-    eprintln!("error: {err}");
-    err
-      .chain()
-      .skip(1)
-      .for_each(|cause| eprintln!("because: {cause}"));
-    if env::var_os("RUST_BACKTRACE")
-      .map(|val| val == "1")
-      .unwrap_or_default()
-    {
-      eprintln!("{}", err.backtrace());
+  match Arguments::parse().run() {
+    Err(err) => {
+      eprintln!("error: {err}");
+      err
+        .chain()
+        .skip(1)
+        .for_each(|cause| eprintln!("because: {cause}"));
+      if env::var_os("RUST_BACKTRACE")
+        .map(|val| val == "1")
+        .unwrap_or_default()
+      {
+        eprintln!("{}", err.backtrace());
+      }
+
+      gracefully_shutdown_indexer();
+
+      process::exit(1);
     }
-
-    gracefully_shutdown_indexer();
-
-    process::exit(1);
+    Ok(output) => output.print_json(),
   }
 
   gracefully_shutdown_indexer();

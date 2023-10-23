@@ -1,18 +1,20 @@
 use super::*;
 
+pub mod decode;
 mod index;
 mod server;
+pub mod wallet;
 
 #[derive(Debug, Parser)]
 pub(crate) enum Subcommand {
-  #[clap(subcommand, about = "Index commands")]
+  #[command(subcommand, about = "Index commands")]
   Index(index::IndexSubcommand),
-  #[clap(about = "Run the explorer server")]
+  #[command(about = "Run the explorer server")]
   Server(server::Server),
 }
 
 impl Subcommand {
-  pub(crate) fn run(self, options: Options) -> Result {
+  pub(crate) fn run(self, options: Options) -> SubcommandResult {
     match self {
       Self::Index(index) => index.run(options),
       Self::Server(server) => {
@@ -24,3 +26,22 @@ impl Subcommand {
     }
   }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct Empty {}
+
+pub(crate) trait Output: Send {
+  fn print_json(&self);
+}
+
+impl<T> Output for T
+where
+  T: Serialize + Send,
+{
+  fn print_json(&self) {
+    serde_json::to_writer_pretty(io::stdout(), self).ok();
+    println!();
+  }
+}
+
+pub(crate) type SubcommandResult = Result<Box<dyn Output>>;

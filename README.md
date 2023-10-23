@@ -32,16 +32,12 @@ To build `ord` from source:
 ```
 git clone https://github.com/okx/ord.git
 cd ord
-cargo build --release --feature=rollback
+cargo build --release
 ```
 
 Once built, the `ord` binary can be found at `./target/release/ord`.
 
 `ord` requires `rustc` version 1.67.0 or later. Run `rustc --version` to ensure you have this version. Run `rustup update` to get the latest stable release.
-
-**notice**: casey `ord` does not deal with block reorganization. The database becomes corrupt when a reorganization occurs.
-
-To enable automatic block reorganization, we introduced Redb's savepoint feature, a database backup in the memory. Bitcoin barely reorganizes after six confirmation blocks, and it is possible to make one savepoint every three blocks and keep up to four savepoints so that data can be backed up at least ten heights back. You can add `--feature=rollback` compilation options to activate this feature.
 
 Contributing
 ------------
@@ -70,7 +66,7 @@ cargo test --all
 cargo test --all -- --ignored
 ```
 
-Have look at the [justfile](justfile) to see some more helpful recipes
+Have a look at the [justfile](justfile) to see some more helpful recipes
 (commands). Here are a couple more good ones:
 
 ```
@@ -79,6 +75,10 @@ just fuzz
 just doc
 just watch ltest --all
 ```
+
+If the tests are failing or hanging, you might need to increase the maximum
+number of open files by running `ulimit -n 1024` in your shell before you run
+the tests, or in your shell configuration.
 
 We also try to follow a TDD (Test-Driven-Development) approach, which means we
 use tests as a way to get visibility into the code. Tests have to run fast for that
@@ -103,7 +103,7 @@ See `ord --help` for details.
 `bitcoind` RPC Authentication
 -----------------------------
 
-`ord` makes RPC calls to `bitcoind`, which usually require a username and
+`ord` makes RPC calls to `bitcoind`, which usually requires a username and
 password.
 
 By default, `ord` looks a username and password in the cookie file created by
@@ -170,3 +170,60 @@ Release x.y.z
 - Update dependencies
 - Update database schema version
 ```
+
+Translations
+------------
+
+To translate [the docs](https://docs.ordinals.com) we use this
+[mdBook i18n helper](https://github.com/google/mdbook-i18n-helpers).
+So read through their [usage guide](https://github.com/google/mdbook-i18n-helpers/blob/main/USAGE.md)
+to see the structure that translations should follow.
+
+There are some other things to watch out for but feel free to just start a
+translation and open a PR. Have a look at [this commit](https://github.com/ordinals/ord/commit/329f31bf6dac207dad001507dd6f18c87fdef355)
+for an idea of what to do. A maintainer will also help you integrate it into our
+build system.
+
+To align your translated version of the Handbook with reference to commit
+[#2427](https://github.com/ordinals/ord/pull/2426), here are some guiding
+commands to assist you. It is assumed that your local environment is already
+well-configured with [Python](https://www.python.org/),
+[Mdbook](https://github.com/rust-lang/mdBook),
+[mdBook i18n helper](https://github.com/rust-lang/mdbb) and that you've clone
+this repo.
+
+
+1. Run the following command to generate a new `pot` file, which is named as
+`messages.pot`:
+
+```
+MDBOOK_OUTPUT='{"xgettext": {"pot-file": "messages.pot"}}'
+mdbook build -d po
+```
+
+2. Run `msgmerge` where `xx.po` is your localized language version following
+the naming standard of [ISO639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes).
+This process will update the `po` file with the most recent original version:
+
+```
+msgmerge --update po/xx.po po/messages.pot
+```
+
+3. Look for `#, fuzzy`. The `mdBook-i18n-helper` tool utilizes the `"fuzzy"` tag
+to highlight sections that have been recently edited. You can proceed to perform
+the translation tasks by editing the `"fuzzy"`part.
+
+4. Execute the `mdbook` command. A demonstration in Chinese (`zh`) is given below:
+
+```
+mdbook build docs -d build
+MDBOOK_BOOK__LANGUAGE=zh mdbook build docs -d build/zh
+mv docs/build/zh/html docs/build/html/zh
+python3 -m http.server --directory docs/build/html --bind 127.0.0.1 8080
+```
+
+5. Upon verifying everything and ensuring all is in order, you can commit the
+modifications and progress to open a Pull Request (PR) on Github.
+(**Note**: Please ensure **ONLY** the **'xx.po'** file is pushed, other files
+such as '.pot' or files ending in '~' are **unnecessary** and should **NOT** be
+included in the Pull Request.）

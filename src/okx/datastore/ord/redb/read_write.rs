@@ -119,7 +119,7 @@ mod tests {
         unbound: false,
       },
       inscription_number: Some(100),
-      inscription_id: txid.into(),
+      inscription_id: InscriptionId { txid, index: 0 },
       old_satpoint: SatPoint::from_str(
         "1111111111111111111111111111111111111111111111111111111111111111:1:1",
       )

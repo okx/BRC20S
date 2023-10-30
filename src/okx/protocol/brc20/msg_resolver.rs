@@ -96,7 +96,7 @@ mod tests {
         unbound: false,
       },
       inscription_number: Some(1),
-      inscription_id: txid.into(),
+      inscription_id: InscriptionId { txid, index: 0 },
       old_satpoint: SatPoint {
         outpoint: OutPoint {
           txid: Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111")
@@ -117,10 +117,11 @@ mod tests {
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
 
-    let inscription_id =
-      Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111")
-        .unwrap()
-        .into();
+    let inscription_id = InscriptionId {
+      txid: Txid::from_str("2111111111111111111111111111111111111111111111111111111111111111")
+        .unwrap(),
+      index: 0,
+    };
 
     InscriptionOp {
       txid,

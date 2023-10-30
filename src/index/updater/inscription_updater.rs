@@ -16,8 +16,9 @@ pub(super) struct Flotsam {
 #[derive(Debug, Clone)]
 enum Origin {
   New {
-    fee: u64,
     cursed: bool,
+    fee: u64,
+    parent: Option<InscriptionId>,
     unbound: bool,
   },
   Old,
@@ -27,12 +28,14 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   flotsam: Vec<Flotsam>,
   pub(super) operations: HashMap<Txid, Vec<InscriptionOp>>,
   height: u64,
+  id_to_children:
+    &'a mut MultimapTable<'db, 'tx, &'static InscriptionIdValue, &'static InscriptionIdValue>,
   id_to_satpoint: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, &'static SatPointValue>,
   tx_out_receiver: &'a mut Receiver<TxOut>,
   id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
   pub(super) lost_sats: u64,
-  next_cursed_number: i64,
-  next_number: i64,
+  pub(super) next_cursed_number: i64,
+  pub(super) next_number: i64,
   number_to_id: &'a mut Table<'db, 'tx, i64, &'static InscriptionIdValue>,
   outpoint_to_entry: &'a mut Table<'db, 'tx, &'static OutPointValue, &'static [u8]>,
   reward: u64,
@@ -48,6 +51,12 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
 impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
   pub(super) fn new(
     height: u64,
+    id_to_children: &'a mut MultimapTable<
+      'db,
+      'tx,
+      &'static InscriptionIdValue,
+      &'static InscriptionIdValue,
+    >,
     id_to_satpoint: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, &'static SatPointValue>,
     tx_out_receiver: &'a mut Receiver<TxOut>,
     id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
@@ -84,6 +93,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       flotsam: Vec::new(),
       operations: HashMap::new(),
       height,
+      id_to_children,
       id_to_satpoint,
       tx_out_receiver,
       id_to_entry,
@@ -111,13 +121,13 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     let mut new_inscriptions = Inscription::from_transaction(tx).into_iter().peekable();
     let mut floating_inscriptions = Vec::new();
     let mut inscribed_offsets = BTreeMap::new();
-    let mut input_value = 0;
+    let mut total_input_value = 0;
     let mut id_counter = 0;
 
     for (input_index, tx_in) in tx.input.iter().enumerate() {
       // skip subsidy since no inscriptions possible
       if tx_in.previous_output.is_null() {
-        input_value += Height(self.height).subsidy();
+        total_input_value += Height(self.height).subsidy();
         continue;
       }
 
@@ -127,7 +137,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         self.satpoint_to_id,
         tx_in.previous_output,
       )? {
-        let offset = input_value + old_satpoint.offset;
+        let offset = total_input_value + old_satpoint.offset;
         floating_inscriptions.push(Flotsam {
           txid,
           offset,
@@ -142,10 +152,11 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           .or_insert((inscription_id, 0));
       }
 
-      let offset = input_value;
+      let offset = total_input_value;
 
       // multi-level cache for UTXO set to get to the input amount
-      input_value += if let Some(tx_out) = self.tx_out_cache.get(&tx_in.previous_output) {
+      let current_input_value = if let Some(tx_out) = self.tx_out_cache.get(&tx_in.previous_output)
+      {
         tx_out.value
       } else if let Some(tx_out) =
         Index::transaction_output_by_outpoint(self.outpoint_to_entry, tx_in.previous_output)?
@@ -164,6 +175,8 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         tx_out.value
       };
 
+      total_input_value += current_input_value;
+
       // go through all inscriptions in this input
       while let Some(inscription) = new_inscriptions.peek() {
         if inscription.tx_in_index != u32::try_from(input_index).unwrap() {
@@ -175,7 +188,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           index: id_counter,
         };
 
-        let curse = if inscription.tx_in_index != 0 {
+        let curse = if inscription.inscription.unrecognized_even_field {
+          Some(Curse::UnrecognizedEvenField)
+        } else if inscription.tx_in_index != 0 {
           Some(Curse::NotInFirstInput)
         } else if inscription.tx_in_offset != 0 {
           Some(Curse::NotAtOffsetZero)
@@ -225,7 +240,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           curse.is_some()
         };
 
-        let unbound = input_value == 0 || inscription.tx_in_offset != 0;
+        let unbound = current_input_value == 0
+          || inscription.tx_in_offset != 0
+          || curse == Some(Curse::UnrecognizedEvenField);
 
         if curse.is_some() || unbound {
           log::info!(
@@ -245,14 +262,34 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           inscription_id,
           offset,
           origin: Origin::New {
-            fee: 0,
             cursed,
+            fee: 0,
+            parent: inscription.inscription.parent(),
             unbound,
           },
         });
 
         new_inscriptions.next();
         id_counter += 1;
+      }
+    }
+
+    let potential_parents = floating_inscriptions
+      .iter()
+      .map(|flotsam| flotsam.inscription_id)
+      .collect::<HashSet<InscriptionId>>();
+
+    for flotsam in &mut floating_inscriptions {
+      if let Flotsam {
+        origin: Origin::New { parent, .. },
+        ..
+      } = flotsam
+      {
+        if let Some(purported_parent) = parent {
+          if !potential_parents.contains(purported_parent) {
+            *parent = None;
+          }
+        }
       }
     }
 
@@ -268,8 +305,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           offset,
           origin:
             Origin::New {
-              fee: _,
               cursed,
+              fee: _,
+              parent,
               unbound,
             },
         } = flotsam
@@ -280,8 +318,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             inscription_id,
             offset,
             origin: Origin::New {
-              fee: (input_value - total_output_value) / u64::from(id_counter),
+              fee: (total_input_value - total_output_value) / u64::from(id_counter),
               cursed,
+              parent,
               unbound,
             },
           }
@@ -354,7 +393,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         offset: self.reward + flotsam.offset - output_value,
         ..flotsam
       }));
-      self.reward += input_value - output_value;
+      self.reward += total_input_value - output_value;
       Ok(())
     }
   }
@@ -394,8 +433,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         false
       }
       Origin::New {
-        fee,
         cursed,
+        fee,
+        parent,
         unbound,
       } => {
         let number = if cursed {
@@ -415,22 +455,12 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let sat = if unbound {
           None
         } else {
-          let mut sat = None;
-          if let Some(input_sat_ranges) = input_sat_ranges {
-            let mut offset = 0;
-            for (start, end) in input_sat_ranges {
-              let size = end - start;
-              if offset + size > flotsam.offset {
-                let n = start + flotsam.offset - offset;
-                self.sat_to_inscription_id.insert(&n, &inscription_id)?;
-                sat = Some(Sat(n));
-                break;
-              }
-              offset += size;
-            }
-          }
-          sat
+          Self::calculate_sat(input_sat_ranges, flotsam.offset)
         };
+
+        if let Some(Sat(n)) = sat {
+          self.sat_to_inscription_id.insert(&n, &inscription_id)?;
+        }
 
         self.id_to_entry.insert(
           &inscription_id,
@@ -438,11 +468,18 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             fee,
             height: self.height,
             number,
+            parent,
             sat,
             timestamp: self.timestamp,
           }
           .store(),
         )?;
+
+        if let Some(parent) = parent {
+          self
+            .id_to_children
+            .insert(&parent.store(), &inscription_id)?;
+        }
 
         unbound
       }
@@ -461,7 +498,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     self
       .operations
       .entry(flotsam.txid)
-      .or_insert(Vec::new())
+      .or_default()
       .push(InscriptionOp {
         txid: flotsam.txid,
         inscription_number: self
@@ -473,6 +510,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           Origin::Old => Action::Transfer,
           Origin::New {
             fee: _,
+            parent: _,
             cursed,
             unbound,
           } => Action::New { cursed, unbound },

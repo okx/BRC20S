@@ -1,1 +1,1 @@
-cargo build --release --features rollback
+cargo build --release

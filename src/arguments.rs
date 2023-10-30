@@ -3,16 +3,16 @@ use super::*;
 use shadow_rs::shadow;
 shadow!(build);
 #[derive(Debug, Parser)]
-#[clap(version(build::CLAP_LONG_VERSION))]
+#[command(version(build::CLAP_LONG_VERSION))]
 pub(crate) struct Arguments {
-  #[clap(flatten)]
+  #[command(flatten)]
   pub(crate) options: Options,
-  #[clap(subcommand)]
+  #[command(subcommand)]
   pub(crate) subcommand: Subcommand,
 }
 
 impl Arguments {
-  pub(crate) fn run(self) -> Result {
+  pub(crate) fn run(self) -> SubcommandResult {
     self.subcommand.run(self.options)
   }
 }

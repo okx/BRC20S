@@ -30,6 +30,7 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="language-picker.css">
 
     </head>
     <body>
@@ -84,7 +85,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="digital-artifacts.html"><strong aria-hidden="true">2.</strong> Digital Artifacts</a></li><li class="chapter-item expanded "><a href="inscriptions.html"><strong aria-hidden="true">3.</strong> Inscriptions</a></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">4.</strong> FAQ</a></li><li class="chapter-item expanded "><a href="contributing.html"><strong aria-hidden="true">5.</strong> Contributing</a></li><li class="chapter-item expanded "><a href="donate.html"><strong aria-hidden="true">6.</strong> Donate</a></li><li class="chapter-item expanded "><a href="guides.html"><strong aria-hidden="true">7.</strong> Guides</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guides/explorer.html"><strong aria-hidden="true">7.1.</strong> Explorer</a></li><li class="chapter-item expanded "><a href="guides/inscriptions.html"><strong aria-hidden="true">7.2.</strong> Inscriptions</a></li><li class="chapter-item expanded "><a href="guides/sat-hunting.html"><strong aria-hidden="true">7.3.</strong> Sat Hunting</a></li><li class="chapter-item expanded "><a href="guides/collecting.html"><strong aria-hidden="true">7.4.</strong> Collecting</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guides/collecting/sparrow-wallet.html"><strong aria-hidden="true">7.4.1.</strong> Sparrow Wallet</a></li></ol></li><li class="chapter-item expanded "><a href="guides/moderation.html"><strong aria-hidden="true">7.5.</strong> Moderation</a></li></ol></li><li class="chapter-item expanded "><a href="bounties.html"><strong aria-hidden="true">8.</strong> Bounties</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="bounty/0.html"><strong aria-hidden="true">8.1.</strong> Bounty 0: 100,000 sats Claimed!</a></li><li class="chapter-item expanded "><a href="bounty/1.html"><strong aria-hidden="true">8.2.</strong> Bounty 1: 200,000 sats Claimed!</a></li><li class="chapter-item expanded "><a href="bounty/2.html"><strong aria-hidden="true">8.3.</strong> Bounty 2: 300,000 sats Claimed!</a></li><li class="chapter-item expanded "><a href="bounty/3.html"><strong aria-hidden="true">8.4.</strong> Bounty 3: 400,000 sats</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="digital-artifacts.html"><strong aria-hidden="true">2.</strong> Digital Artifacts</a></li><li class="chapter-item expanded "><a href="inscriptions.html"><strong aria-hidden="true">3.</strong> Inscriptions</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="inscriptions/provenance.html"><strong aria-hidden="true">3.1.</strong> Provenance</a></li><li class="chapter-item expanded "><a href="inscriptions/recursion.html"><strong aria-hidden="true">3.2.</strong> Recursion</a></li></ol></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">4.</strong> FAQ</a></li><li class="chapter-item expanded "><a href="contributing.html"><strong aria-hidden="true">5.</strong> Contributing</a></li><li class="chapter-item expanded "><a href="donate.html"><strong aria-hidden="true">6.</strong> Donate</a></li><li class="chapter-item expanded "><a href="guides.html"><strong aria-hidden="true">7.</strong> Guides</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guides/explorer.html"><strong aria-hidden="true">7.1.</strong> Explorer</a></li><li class="chapter-item expanded "><a href="guides/inscriptions.html"><strong aria-hidden="true">7.2.</strong> Inscriptions</a></li><li class="chapter-item expanded "><a href="guides/sat-hunting.html"><strong aria-hidden="true">7.3.</strong> Sat Hunting</a></li><li class="chapter-item expanded "><a href="guides/collecting.html"><strong aria-hidden="true">7.4.</strong> Collecting</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guides/collecting/sparrow-wallet.html"><strong aria-hidden="true">7.4.1.</strong> Sparrow Wallet</a></li></ol></li><li class="chapter-item expanded "><a href="guides/testing.html"><strong aria-hidden="true">7.5.</strong> Testing</a></li><li class="chapter-item expanded "><a href="guides/moderation.html"><strong aria-hidden="true">7.6.</strong> Moderation</a></li><li class="chapter-item expanded "><a href="guides/reindexing.html"><strong aria-hidden="true">7.7.</strong> Reindexing</a></li></ol></li><li class="chapter-item expanded "><a href="bounties.html"><strong aria-hidden="true">8.</strong> Bounties</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="bounty/0.html"><strong aria-hidden="true">8.1.</strong> Bounty 0: 100,000 sats Claimed!</a></li><li class="chapter-item expanded "><a href="bounty/1.html"><strong aria-hidden="true">8.2.</strong> Bounty 1: 200,000 sats Claimed!</a></li><li class="chapter-item expanded "><a href="bounty/2.html"><strong aria-hidden="true">8.3.</strong> Bounty 2: 300,000 sats Claimed!</a></li><li class="chapter-item expanded "><a href="bounty/3.html"><strong aria-hidden="true">8.4.</strong> Bounty 3: 400,000 sats</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -138,6 +139,50 @@
                     <h1 class="menu-title">Ordinal Theory Handbook</h1>
 
                     <div class="right-buttons">
+                        <button id="language-toggle" class="icon-button" type="button"
+                                title="Change language" aria-label="Change language"
+                                aria-haspopup="true" aria-expanded="false"
+                                aria-controls="language-list">
+                            <i class="fa fa-globe"></i>
+                        </button>
+                        <ul id="language-list" class="theme-popup" aria-label="Languages" role="menu">
+                          <li role="none"><button role="menuitem" class="theme">
+                              <a id="en">English</a>
+                          </button></li>
+                          <li role="none"><button role="menuitem" class="theme">
+                              <a id="zh">中文版</a>
+                          </button></li>
+                          <li role="none"><button role="menuitem" class="theme">
+                              <a id="ja">日本語版</a>
+                          </button></li>
+                        </ul>
+
+                        <script>
+                          let langToggle = document.getElementById("language-toggle");
+                          let langList = document.getElementById("language-list");
+                          langToggle.addEventListener("click", (event) => {
+                              langList.style.display = langList.style.display == "block" ? "none" : "block";
+                          });
+                          let selectedLang = document.getElementById("en");
+                          if (selectedLang) {
+                              selectedLang.parentNode.classList.add("theme-selected");
+                          }
+
+                          // The path to the root, taking the current
+                          // language into account.
+                          let full_path_to_root = "";
+                          // The page path (mdbook only gives us
+                          // access to the path to the Markdown file).
+                          let path = "print.md".replace(/\.md$/, ".html");
+                          for (let lang of langList.querySelectorAll("a")) {
+                              if (lang.id == "en") {
+                                  lang.href = `${full_path_to_root}${path}`;
+                              } else {
+                                  lang.href = `${full_path_to_root}${lang.id}/${path}`;
+                              }
+                          }
+                        </script>
+
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
@@ -198,6 +243,8 @@ enabled by ordinal theory.</p>
 <li><a href="https://github.com/ordinals/ord/">GitHub</a></li>
 <li><a href="https://github.com/ordinals/ord/blob/master/bip.mediawiki">BIP</a></li>
 <li><a href="https://discord.gg/ordinals">Discord</a></li>
+<li><a href="https://ordinals.org/">Open Ordinals Institute Website</a></li>
+<li><a href="https://x.com/ordinalsorg">Open Ordinals Institute X</a></li>
 <li><a href="https://ordinals.com">Mainnet Block Explorer</a></li>
 <li><a href="https://signet.ordinals.com">Signet Block Explorer</a></li>
 </ul>
@@ -281,7 +328,7 @@ new sats created in every block is cut in half.</p>
 <p><em>Cycles</em>: Every six halvings, something magical happens: the halving and the
 difficulty adjustment coincide. This is called a conjunction, and the time
 period between conjunctions a cycle. A conjunction occurs roughly every 24
-years. The first conjunction should happen some time in 2032.</p>
+years. The first conjunction should happen sometime in 2032.</p>
 </li>
 </ul>
 <p>This gives us the following rarity levels:</p>
@@ -306,14 +353,14 @@ for <em>A</em>, <em>B</em>, <em>C</em>, and <em>D</em>, respectively.</p>
 <p>Now for some examples. This satoshi is common:</p>
 <pre><code>1°1′1″1‴
 │ │ │ ╰─ Not first sat in block
-│ │ ╰─── Not first block in difficutly adjustment period
+│ │ ╰─── Not first block in difficulty adjustment period
 │ ╰───── Not first block in halving epoch
 ╰─────── Second cycle
 </code></pre>
 <p>This satoshi is uncommon:</p>
 <pre><code>1°1′1″0‴
 │ │ │ ╰─ First sat in block
-│ │ ╰─── Not first block in difficutly adjustment period
+│ │ ╰─── Not first block in difficulty adjustment period
 │ ╰───── Not first block in halving epoch
 ╰─────── Second cycle
 </code></pre>
@@ -348,7 +395,7 @@ for <em>A</em>, <em>B</em>, <em>C</em>, and <em>D</em>, respectively.</p>
 <p>If the block offset is zero, it may be omitted. This is the uncommon satoshi
 from above:</p>
 <pre><code>1°1′1″
-│ │ ╰─ Not first block in difficutly adjustment period
+│ │ ╰─ Not first block in difficulty adjustment period
 │ ╰─── Not first block in halving epoch
 ╰───── Second cycle
 </code></pre>
@@ -381,7 +428,7 @@ short and get longer, but then all the good, short names would be trapped in
 the unspendable genesis block.</p>
 <p>As an example, 1905530482684727°'s name is &quot;iaiufjszmoba&quot;. The name of the last
 satoshi to be mined is &quot;a&quot;. Every combination of 10 characters or less is out
-there, or will be out there, some day.</p>
+there, or will be out there, someday.</p>
 <h2 id="exotics"><a class="header" href="#exotics">Exotics</a></h2>
 <p>Satoshis may be prized for reasons other than their name or rarity. This might
 be due to a quality of the number itself, like having an integer square or cube
@@ -416,7 +463,7 @@ especially early ordinals, are certainly of historical interest.</p>
 ordinals were independently discovered on at least two separate occasions, long
 before the era of modern NFTs began.</p>
 <p>On August 21st, 2012, Charlie Lee <a href="https://bitcointalk.org/index.php?topic=102355.0">posted a proposal to add proof-of-stake to
-Bitcoin to the Bitocin Talk
+Bitcoin to the Bitcoin Talk
 forum</a>. This wasn't an asset
 scheme, but did use the ordinal algorithm, and was implemented but never
 deployed.</p>
@@ -511,26 +558,125 @@ OP_ENDIF
 </code></pre>
 <p>First the string <code>ord</code> is pushed, to disambiguate inscriptions from other uses
 of envelopes.</p>
-<p><code>OP_PUSH 1</code> indicates that the next push contains the content type, and <code>OP_PUSH 0</code>indicates that subsequent data pushes contain the content itself. Multiple data
-pushes must be used for large inscriptions, as one of taproot's few
-restrictions is that individual data pushes may not be larger than 520 bytes.</p>
+<p><code>OP_PUSH 1</code> indicates that the next push contains the content type, and
+<code>OP_PUSH 0</code>indicates that subsequent data pushes contain the content itself.
+Multiple data pushes must be used for large inscriptions, as one of taproot's
+few restrictions is that individual data pushes may not be larger than 520
+bytes.</p>
 <p>The inscription content is contained within the input of a reveal transaction,
-and the inscription is made on the first sat of its input. This sat can
-then be tracked using the familiar rules of ordinal theory, allowing it to be
+and the inscription is made on the first sat of its input. This sat can then be
+tracked using the familiar rules of ordinal theory, allowing it to be
 transferred, bought, sold, lost to fees, and recovered.</p>
 <h2 id="content"><a class="header" href="#content">Content</a></h2>
 <p>The data model of inscriptions is that of a HTTP response, allowing inscription
 content to be served by a web server and viewed in a web browser.</p>
+<h2 id="fields"><a class="header" href="#fields">Fields</a></h2>
+<p>Inscriptions may include fields before an optional body. Each field consists of
+two data pushes, a tag and a value.</p>
+<p>Currently, the only defined field is <code>content-type</code>, with a tag of <code>1</code>, whose
+value is the MIME type of the body.</p>
+<p>The beginning of the body and end of fields is indicated with an empty data
+push.</p>
+<p>Unrecognized tags are interpreted differently depending on whether they are
+even or odd, following the &quot;it's okay to be odd&quot; rule used by the Lightning
+Network.</p>
+<p>Even tags are used for fields which may affect creation, initial assignment, or
+transfer of an inscription. Thus, inscriptions with unrecognized even fields
+must be displayed as &quot;unbound&quot;, that is, without a location.</p>
+<p>Odd tags are used for fields which do not affect creation, initial assignment,
+or transfer, such as additional metadata, and thus are safe to ignore.</p>
+<h2 id="inscription-ids"><a class="header" href="#inscription-ids">Inscription IDs</a></h2>
+<p>The inscriptions are contained within the inputs of a reveal transaction. In
+order to uniquely identify them they are assigned an ID of the form:</p>
+<p><code>521f8eccffa4c41a3a7728dd012ea5a4a02feed81f41159231251ecf1e5c79dai0</code></p>
+<p>The part in front of the <code>i</code> is the transaction ID (<code>txid</code>) of the reveal
+transaction. The number after the <code>i</code> defines the index (starting at 0) of new inscriptions
+being inscribed in the reveal transaction.</p>
+<p>Inscriptions can either be located in different inputs, within the same input or
+a combination of both. In any case the ordering is clear, since a parser would
+go through the inputs consecutively and look for all inscription <code>envelopes</code>.</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Input</th><th style="text-align: center">Inscription Count</th><th style="text-align: center">Indices</th></tr></thead><tbody>
+<tr><td style="text-align: center">0</td><td style="text-align: center">2</td><td style="text-align: center">i0, i1</td></tr>
+<tr><td style="text-align: center">1</td><td style="text-align: center">1</td><td style="text-align: center">i2</td></tr>
+<tr><td style="text-align: center">2</td><td style="text-align: center">3</td><td style="text-align: center">i3, i4, i5</td></tr>
+<tr><td style="text-align: center">3</td><td style="text-align: center">0</td><td style="text-align: center"></td></tr>
+<tr><td style="text-align: center">4</td><td style="text-align: center">1</td><td style="text-align: center">i6</td></tr>
+</tbody></table>
+</div>
 <h2 id="sandboxing"><a class="header" href="#sandboxing">Sandboxing</a></h2>
 <p>HTML and SVG inscriptions are sandboxed in order to prevent references to
 off-chain content, thus keeping inscriptions immutable and self-contained.</p>
 <p>This is accomplished by loading HTML and SVG inscriptions inside <code>iframes</code> with
 the <code>sandbox</code> attribute, as well as serving inscription content with
 <code>Content-Security-Policy</code> headers.</p>
-<h2 id="recursion"><a class="header" href="#recursion">Recursion</a></h2>
-<p>An important exception to sandboxing is recursion: access to <code>ord</code>'s <code>/content</code>
-endpoint is permitted, allowing inscriptions to access the content of other
-inscriptions by requesting <code>/content/&lt;INSCRIPTION_ID&gt;</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="provenance"><a class="header" href="#provenance">Provenance</a></h1>
+<p>The owner of an inscription can create child inscriptions, trustlessly
+establishing the provenance of those children on-chain as having been created
+by the owner of the parent inscription. This can be used for collections, with
+the children of a parent inscription being members of the same collection.</p>
+<p>Children can themselves have children, allowing for complex hierarchies. For
+example, an artist might create an inscription representing themselves, with
+sub inscriptions representing collections that they create, with the children
+of those sub inscriptions being items in those collections.</p>
+<h3 id="specification"><a class="header" href="#specification">Specification</a></h3>
+<p>To create a child inscription C with parent inscription P:</p>
+<ul>
+<li>Create an inscribe transaction T as usual for C.</li>
+<li>Spend the parent P in one of the inputs of T.</li>
+<li>Include tag <code>3</code>, i.e. <code>OP_PUSH 3</code>, in C, with the value of the serialized
+binary inscription ID of P, serialized as the 32-byte <code>TXID</code>, followed by the
+four-byte little-endian <code>INDEX</code>, with trailing zeroes omitted.</li>
+</ul>
+<p><em>NB</em> The bytes of a bitcoin transaction ID are reversed in their text
+representation, so the serialized transaction ID will be in the opposite order.</p>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>An example of a child inscription of
+<code>000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1fi0</code>:</p>
+<pre><code>OP_FALSE
+OP_IF
+  OP_PUSH &quot;ord&quot;
+  OP_PUSH 1
+  OP_PUSH &quot;text/plain;charset=utf-8&quot;
+  OP_PUSH 3
+  OP_PUSH 0x1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100
+  OP_PUSH 0
+  OP_PUSH &quot;Hello, world!&quot;
+OP_ENDIF
+</code></pre>
+<p>Note that the value of tag <code>3</code> is binary, not hex, and that for the child
+inscription to be recognized as a child,
+<code>000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1fi0</code> must be
+spent as one of the inputs of the inscribe transaction.</p>
+<p>Example encoding of inscription ID
+<code>000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1fi255</code>:</p>
+<pre><code>OP_FALSE
+OP_IF
+  …
+  OP_PUSH 3
+  OP_PUSH 0x1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100ff
+  …
+OP_ENDIF
+</code></pre>
+<p>And of inscription ID <code>000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1fi256</code>:</p>
+<pre><code>OP_FALSE
+OP_IF
+  …
+  OP_PUSH 3
+  OP_PUSH 0x1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a090807060504030201000001
+  …
+OP_ENDIF
+</code></pre>
+<h3 id="notes"><a class="header" href="#notes">Notes</a></h3>
+<p>The tag <code>3</code> is used because it is the first available odd tag. Unrecognized odd
+tags do not make an inscription unbound, so child inscriptions would be
+recognized and tracked by old versions of <code>ord</code>.</p>
+<p>A collection can be closed by burning the collection's parent inscription,
+which guarantees that no more items in the collection can be issued.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="recursion"><a class="header" href="#recursion">Recursion</a></h1>
+<p>An important exception to <a href="inscriptions/../inscriptions.html#sandboxing">sandboxing</a> is
+recursion: access to <code>ord</code>'s <code>/content</code> endpoint is permitted, allowing
+inscriptions to access the content of other inscriptions by requesting
+<code>/content/&lt;INSCRIPTION_ID&gt;</code>.</p>
 <p>This has a number of interesting use-cases:</p>
 <ul>
 <li>
@@ -550,7 +696,7 @@ inscribed as individual images, or in a shared texture atlas, and then
 combined, collage-style, in unique combinations in multiple inscriptions.</p>
 </li>
 </ul>
-<p>A couple other endpoints that inscriptions may access are the following:</p>
+<p>A few other endpoints that inscriptions may access are the following:</p>
 <ul>
 <li><code>/blockheight</code>: latest block height.</li>
 <li><code>/blockhash</code>: latest block hash.</li>
@@ -559,7 +705,7 @@ combined, collage-style, in unique combinations in multiple inscriptions.</p>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="ordinal-theory-faq"><a class="header" href="#ordinal-theory-faq">Ordinal Theory FAQ</a></h1>
 <h2 id="what-is-ordinal-theory"><a class="header" href="#what-is-ordinal-theory">What is ordinal theory?</a></h2>
-<p>Ordinal theory is is a protocol for assigning serial numbers to satoshis, the
+<p>Ordinal theory is a protocol for assigning serial numbers to satoshis, the
 smallest subdivision of a bitcoin, and tracking those satoshis as they are
 spent by transactions.</p>
 <p>These serial numbers are large numbers, like this 804766073970493. Every
@@ -748,7 +894,7 @@ features like globally unique symbols and enhanced provenance.</p>
 <p><em>Inscriptions do not support on-chain royalties.</em> This is negative, but only
 depending on how you look at it. On-chain royalties have been a boon for
 creators, but have also created a huge amount of confusion in the Ethereum NFT
-ecosystem. The ecosystem now grapples with this issue, and is is engaged in a
+ecosystem. The ecosystem now grapples with this issue, and is engaged in a
 race to the bottom, towards a royalties-optional future. Inscriptions have no
 support for on-chain royalties, because they are technically infeasible. If you
 choose to create inscriptions, there are many ways you can work around this
@@ -839,7 +985,7 @@ quickly, and if you take the wrong tack, you won't have wasted much time.</p>
 <li>Find an issue that needs more research, and do that research and summarize it
 in a comment</li>
 <li>Find an out-of-date issue and comment that it can be closed</li>
-<li>Find an issue that shouldn't be done, and provide constrictive feedback
+<li>Find an issue that shouldn't be done, and provide constructive feedback
 detailing why you think that is the case</li>
 </ul>
 <h2 id="merge-early-and-often"><a class="header" href="#merge-early-and-often">Merge early and often</a></h2>
@@ -849,7 +995,7 @@ This can be merged, and the next step can be to fix the bug and unignore the
 test. Do research or testing, and report on your results. Break a feature into
 small sub-features, and implement them one at a time.</p>
 <p>Figuring out how to break down a larger PR into smaller PRs where each can be
-merged is a art form well-worth practicing. The hard part is that each PR must
+merged is an art form well-worth practicing. The hard part is that each PR must
 itself be an improvement.</p>
 <p>I strive to follow this advice myself, and am always better off when I do.</p>
 <p>Small changes are fast to write, review, and merge, which is much more fun than
@@ -882,7 +1028,7 @@ entirely funded by donations. If you can, please consider donating!</p>
 <a href="https://twitter.com/realizingerin">erin</a>,
 <a href="https://twitter.com/rodarmor">rodarmor</a>, and
 <a href="https://twitter.com/veryordinally">ordinally</a>.</p>
-<p>Donations received will go towards funding maintainance and development of <code>ord</code>,
+<p>Donations received will go towards funding maintenance and development of <code>ord</code>,
 as well as hosting costs for <a href="https://ordinals.com">ordinals.com</a>.</p>
 <p>Thank you for donating!</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="ordinal-theory-guides"><a class="header" href="#ordinal-theory-guides">Ordinal Theory Guides</a></h1>
@@ -892,6 +1038,13 @@ explorer, a guide for sat hunters, and a guide to inscriptions.</p>
 <p>The <code>ord</code> binary includes a block explorer. We host a instance of the block
 explorer on mainnet at <a href="https://ordinals.com">ordinals.com</a>, and on signet at
 <a href="https://signet.ordinals.com">signet.ordinals.com</a>.</p>
+<h3 id="running-the-explorer"><a class="header" href="#running-the-explorer">Running The Explorer</a></h3>
+<p>The server can be run locally with:</p>
+<p><code>ord server</code></p>
+<p>To specify a port add the <code>--http-port</code> flag:</p>
+<p><code>ord server --http-port 8080</code></p>
+<p>To test how your inscriptions will look you can run:</p>
+<p><code>ord preview &lt;FILE1&gt; &lt;FILE2&gt; ...</code></p>
 <h2 id="search"><a class="header" href="#search">Search</a></h2>
 <p>The search box accepts a variety of object representations.</p>
 <h3 id="blocks"><a class="header" href="#blocks">Blocks</a></h3>
@@ -1387,6 +1540,57 @@ ordinals.</p>
 <p><img src="guides/collecting/images/troubleshooting_01.png" alt="" /></p>
 <p>From there you can select a node and click <code>Test Connection</code> to validate that Sparrow is able to connect successfully.</p>
 <p><img src="guides/collecting/images/troubleshooting_02.png" alt="" /></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
+<p>Ord can be tested using the following flags to specify the test network. For more
+information on running Bitcoin Core for testing, see <a href="https://developer.bitcoin.org/examples/testing.html">Bitcoin's developer documentation</a>.</p>
+<p>Most <code>ord</code> commands in <a href="guides/inscriptions.html">inscriptions</a> and <a href="guides/explorer.html">explorer</a>
+can be run with the following network flags:</p>
+<div class="table-wrapper"><table><thead><tr><th>Network</th><th>Flag</th></tr></thead><tbody>
+<tr><td>Testnet</td><td><code>--testnet</code> or <code>-t</code></td></tr>
+<tr><td>Signet</td><td><code>--signet</code> or <code>-s</code></td></tr>
+<tr><td>Regtest</td><td><code>--regtest</code> or <code>-r</code></td></tr>
+</tbody></table>
+</div>
+<p>Regtest doesn't require downloading the blockchain or indexing ord.</p>
+<h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
+<p>Run bitcoind in regtest with:</p>
+<pre><code>bitcoind -regtest -txindex
+</code></pre>
+<p>Create a wallet in regtest with:</p>
+<pre><code>ord -r wallet create
+</code></pre>
+<p>Get a regtest receive address with:</p>
+<pre><code>ord -r wallet receive
+</code></pre>
+<p>Mine 101 blocks (to unlock the coinbase) with:</p>
+<pre><code>bitcoin-cli generatetoaddress 101 &lt;receive address&gt;
+</code></pre>
+<p>Inscribe in regtest with:</p>
+<pre><code>ord -r wallet inscribe --fee-rate 1 &lt;file&gt;
+</code></pre>
+<p>Mine the inscription with:</p>
+<pre><code>bitcoin-cli generatetoaddress 1 &lt;receive address&gt;
+</code></pre>
+<p>View the inscription in the regtest explorer:</p>
+<pre><code>ord -r server
+</code></pre>
+<h2 id="testing-recursion"><a class="header" href="#testing-recursion">Testing Recursion</a></h2>
+<p>When testing out <a href="guides/../inscriptions/recursion.html">recursion</a>, inscribe the
+dependencies first (example with <a href="https://p5js.org">p5.js</a>:</p>
+<pre><code>ord -r wallet inscribe --fee-rate 1 p5.js
+</code></pre>
+<p>This should return a <code>inscription_id</code> which you can then reference in your
+recursive inscription.</p>
+<p>ATTENTION: These ids will be different when inscribing on
+mainnet or signet, so be sure to change those in your recursive inscription for
+each chain.</p>
+<p>Then you can inscribe your recursive inscription with:</p>
+<pre><code>ord -r wallet inscribe --fee-rate 1 recursive-inscription.html
+</code></pre>
+<p>Finally you will have to mine some blocks and start the server:</p>
+<pre><code>bitcoin-cli generatetoaddress 6 &lt;receive address&gt;
+ord -r server
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="moderation"><a class="header" href="#moderation">Moderation</a></h1>
 <p><code>ord</code> includes a block explorer, which you can run locally with <code>ord server</code>.</p>
 <p>The block explorer allows viewing inscriptions. Inscriptions are user-generated
@@ -1421,6 +1625,29 @@ which is called <code>ord</code>, with a config file located at <code>/var/lib/o
 </ol>
 <p>Currently, <code>ord</code> is slow to restart, so the site will not come back online
 immediately.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="reindexing"><a class="header" href="#reindexing">Reindexing</a></h1>
+<p>Sometimes the <code>ord</code> database must be reindexed, which means deleting the
+database and restarting the indexing process with either <code>ord index run</code> or
+<code>ord server</code>. Reasons to reindex are:</p>
+<ol>
+<li>A new major release of ord, which changes the database scheme</li>
+<li>The database got corrupted somehow</li>
+</ol>
+<p>The database <code>ord</code> uses is called <a href="https://github.com/cberner/redb">redb</a>,
+so we give the index the default file name <code>index.redb</code>. By default we store this
+file in different locations depending on your operating system.</p>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Value</th><th>Example</th></tr></thead><tbody>
+<tr><td>Linux</td><td><code>$XDG_DATA_HOME</code>/ord or <code>$HOME</code>/.local/share/ord</td><td>/home/alice/.local/share/ord</td></tr>
+<tr><td>macOS</td><td><code>$HOME</code>/Library/Application Support/ord</td><td>/Users/Alice/Library/Application Support/ord</td></tr>
+<tr><td>Windows</td><td><code>{FOLDERID_RoamingAppData}</code>\ord</td><td>C:\Users\Alice\AppData\Roaming\ord</td></tr>
+</tbody></table>
+</div>
+<p>So to delete the database and reindex on MacOS you would have to run the following
+commands in the terminal:</p>
+<pre><code class="language-bash">rm ~/Library/Application Support/ord/index.redb
+ord index run
+</code></pre>
+<p>You can of course also set the location of the data directory yourself with <code>ord --data-dir &lt;DIR&gt; index run</code> or give it a specific filename and path with <code>ord --index &lt;FILENAME&gt; index run</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="ordinal-bounty-hunting-hints"><a class="header" href="#ordinal-bounty-hunting-hints">Ordinal Bounty Hunting Hints</a></h1>
 <ul>
 <li>

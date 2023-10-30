@@ -1090,7 +1090,7 @@
         }
       }
     },
-    "/api/v1/brc20s/pool/{tid}": {
+    "/api/v1/brc20s/pool/tid/{tid}": {
       "get": {
         "tags": [
           "brc20s"

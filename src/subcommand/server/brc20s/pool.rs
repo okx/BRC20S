@@ -233,13 +233,13 @@ pub(crate) async fn brc20s_all_pool_info(
   })))
 }
 
-// /brc20s/pool/:tick_id
+// /brc20s/pool/tid/:tick_id
 /// Get the all of pool infomations by ticker ID.
 ///
 /// Get all pool information for the Ticker ID.
 #[utoipa::path(
   get,
-  path = "/api/v1/brc20s/pool/{tid}",
+  path = "/api/v1/brc20s/pool/tid/{tid}",
   params(
       ("tid" = String, Path, description = "Ticker ID", min_length = 10, max_length = 10, example= "a01234567f"),
 ),

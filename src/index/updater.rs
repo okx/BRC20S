@@ -2,8 +2,8 @@ use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
   crate::okx::{
-    datastore::{brc20::redb as brc20_db, brc20s::redb as brc20s_db, ord},
-    protocol::{BlockContext, ProtocolManager},
+    datastore::StateReadWrite,
+    protocol::{BlockContext, ConfigBuilder, ProtocolManager},
   },
   futures::future::try_join_all,
   std::sync::mpsc,
@@ -539,14 +539,22 @@ impl<'index> Updater<'_> {
     std::mem::drop(inscription_id_to_inscription_entry);
     std::mem::drop(outpoint_to_entry);
     // Create a protocol manager to index the block of brc20, brc20s data.
+
+    let mut config_builder = ConfigBuilder::new(index.options.first_inscription_height());
+    if index.options.index_brc20 {
+      config_builder = config_builder.with_brc20(index.options.first_brc20_height());
+    }
+    if index.options.index_brc20s {
+      if config_builder.first_brc20_height.is_none() {
+        config_builder = config_builder.with_brc20(index.options.first_brc20_height());
+      }
+      config_builder = config_builder.with_brc20s(index.options.first_brc20s_height());
+    }
+
     ProtocolManager::new(
       &index.client,
-      &ord::OrdDbReadWriter::new(wtx),
-      &brc20_db::DataStore::new(wtx),
-      &brc20s_db::DataStore::new(wtx),
-      index.first_inscription_height,
-      index.options.first_brc20_height(),
-      index.options.first_brc20s_height(),
+      &StateReadWrite::new(wtx),
+      &config_builder.build(),
     )
     .index_block(
       BlockContext {

@@ -65,10 +65,7 @@ impl Pool {
 
 impl From<&PoolInfo> for Pool {
   fn from(pool_info: &PoolInfo) -> Self {
-    let stake = Stake {
-      type_field: pool_info.stake.to_type(),
-      tick: pool_info.stake.to_string(),
-    };
+    let stake = Stake::from(pool_info.stake.clone());
 
     let earn = Earn {
       id: "".to_string(),

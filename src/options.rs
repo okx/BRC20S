@@ -45,8 +45,12 @@ pub(crate) struct Options {
     help = "Don't look for inscriptions below <FIRST_INSCRIPTION_HEIGHT>."
   )]
   pub(crate) first_inscription_height: Option<u64>,
+  #[arg(long, help = "Index all of BRC20 Protocol")]
+  pub(crate) index_brc20: bool,
   #[arg(long, help = "Don't prase BRC20 messages below <FIRST_BRC20S_HEIGHT>.")]
   pub(crate) first_brc20_height: Option<u64>,
+  #[arg(long, help = "Index all of BRC20S Protocol")]
+  pub(crate) index_brc20s: bool,
   #[arg(
     long,
     help = "Don't prase BRC20S messages below <FIRST_BRC20S_HEIGHT>."

@@ -1,25 +1,27 @@
-use super::*;
-use crate::{
-  inscription::Inscription,
-  okx::{
-    datastore::{
-      brc20s::DataStoreReadOnly,
-      ord::{Action, InscriptionOp, OrdDataStoreReadOnly},
+use {
+  super::*,
+  crate::{
+    inscription::Inscription,
+    okx::{
+      datastore::{
+        brc20s,
+        ord::{self, Action, InscriptionOp},
+      },
+      protocol::brc20s::{deserialize_brc20s_operation, operation::Transfer},
     },
-    protocol::brc20s::{deserialize_brc20s_operation, operation::Transfer},
+    Index, Result,
   },
-  Index, Result,
+  anyhow::anyhow,
+  bitcoin::{OutPoint, TxOut},
+  bitcoincore_rpc::Client,
+  std::collections::HashMap,
 };
-use anyhow::anyhow;
-use bitcoin::{OutPoint, TxOut};
-use bitcoincore_rpc::Client;
-use std::collections::HashMap;
 
 impl Message {
-  pub(crate) fn resolve<'a, O: OrdDataStoreReadOnly, M: DataStoreReadOnly>(
+  pub(crate) fn resolve<'a, O: ord::DataStoreReadOnly, M: brc20s::DataStoreReadOnly>(
     client: &Client,
     ord_store: &'a O,
-    brc30_store: &'a M,
+    brc20s_store: &'a M,
     new_inscriptions: &[Inscription],
     op: &InscriptionOp,
     outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
@@ -47,7 +49,7 @@ impl Message {
       }
       // Transfered inscription operation.
       // Attempt to retrieve the `InscribeTransfer` Inscription information from the data store of BRC20S.
-      Action::Transfer => match brc30_store.get_inscribe_transfer_inscription(op.inscription_id) {
+      Action::Transfer => match brc20s_store.get_inscribe_transfer_inscription(op.inscription_id) {
         // Ignore non-first transfer operations.
         Ok(Some(transfer_info)) if op.inscription_id.txid == op.old_satpoint.outpoint.txid => {
           Operation::Transfer(Transfer {
@@ -86,7 +88,7 @@ impl Message {
   }
 }
 
-fn get_commit_input_satpoint<O: OrdDataStoreReadOnly>(
+fn get_commit_input_satpoint<O: ord::DataStoreReadOnly>(
   client: &Client,
   ord_store: &O,
   satpoint: SatPoint,
@@ -226,18 +228,18 @@ mod tests {
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let ord_store = OrdDbReadWriter::new(&wtx);
-    let brc30_store = DataStore::new(&wtx);
+    let brc20s_store = DataStore::new(&wtx);
 
     let mut outpoint_to_txout_cache = HashMap::new();
 
     let (inscriptions, op) = create_inscribe_operation(
-      r#"{"p":"brc30","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#,
+      r#"{"p":"brc20-fake","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#,
     );
     assert_matches!(
       Message::resolve(
         &client,
         &ord_store,
-        &brc30_store,
+        &brc20s_store,
         &inscriptions,
         &op,
         &mut outpoint_to_txout_cache,
@@ -253,7 +255,7 @@ mod tests {
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let ord_store = OrdDbReadWriter::new(&wtx);
-    let brc30_store = DataStore::new(&wtx);
+    let brc20s_store = DataStore::new(&wtx);
 
     let mut outpoint_to_txout_cache = HashMap::new();
 
@@ -271,7 +273,7 @@ mod tests {
       Message::resolve(
         &client,
         &ord_store,
-        &brc30_store,
+        &brc20s_store,
         &inscriptions,
         &op,
         &mut outpoint_to_txout_cache,
@@ -290,7 +292,7 @@ mod tests {
       Message::resolve(
         &client,
         &ord_store,
-        &brc30_store,
+        &brc20s_store,
         &inscriptions,
         &op2,
         &mut outpoint_to_txout_cache,
@@ -308,7 +310,7 @@ mod tests {
       Message::resolve(
         &client,
         &ord_store,
-        &brc30_store,
+        &brc20s_store,
         &inscriptions,
         &op3,
         &mut outpoint_to_txout_cache,
@@ -324,7 +326,7 @@ mod tests {
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let ord_store = OrdDbReadWriter::new(&wtx);
-    let brc30_store = DataStore::new(&wtx);
+    let brc20s_store = DataStore::new(&wtx);
 
     let mut outpoint_to_txout_cache = HashMap::new();
     // inscribe transfer not found
@@ -333,7 +335,7 @@ mod tests {
       Message::resolve(
         &client,
         &ord_store,
-        &brc30_store,
+        &brc20s_store,
         &[],
         &op,
         &mut outpoint_to_txout_cache,
@@ -357,7 +359,7 @@ mod tests {
       Message::resolve(
         &client,
         &ord_store,
-        &brc30_store,
+        &brc20s_store,
         &[],
         &op1,
         &mut outpoint_to_txout_cache,
@@ -373,14 +375,14 @@ mod tests {
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
     let ord_store = OrdDbReadWriter::new(&wtx);
-    let brc30_store = DataStore::new(&wtx);
+    let brc20s_store = DataStore::new(&wtx);
 
     let mut outpoint_to_txout_cache = HashMap::new();
 
     // inscribe transfer not found
     let op = create_transfer_operation();
 
-    brc30_store
+    brc20s_store
       .insert_inscribe_transfer_inscription(
         op.inscription_id,
         TransferInfo {
@@ -407,7 +409,7 @@ mod tests {
       Message::resolve(
         &client,
         &ord_store,
-        &brc30_store,
+        &brc20s_store,
         &[],
         &op,
         &mut outpoint_to_txout_cache,

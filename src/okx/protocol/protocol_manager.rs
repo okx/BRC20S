@@ -1,70 +1,33 @@
-use std::collections::HashMap;
-
-use super::*;
-use crate::{
-  index::BlockData,
-  okx::datastore::ord::operation::InscriptionOp,
-  okx::datastore::{brc20, brc20s, ord},
-  Instant, Result,
+use {
+  super::*,
+  crate::{
+    index::BlockData,
+    okx::{
+      datastore::{ord::operation::InscriptionOp, StateRWriter},
+      protocol::ord as ord_proto,
+    },
+    Instant, Result,
+  },
+  bitcoin::Txid,
+  bitcoincore_rpc::Client,
+  std::collections::HashMap,
 };
-use anyhow::anyhow;
-use bitcoin::{Network, Txid};
-use bitcoincore_rpc::Client;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct BlockContext {
-  pub network: Network,
-  pub blockheight: u64,
-  pub blocktime: u32,
+pub struct ProtocolManager<'a, RW: StateRWriter> {
+  state_store: &'a RW,
+  config: &'a Config,
+  call_man: CallManager<'a, RW>,
+  resolve_man: MsgResolveManager<'a, RW>,
 }
 
-#[derive(Hash, Eq, PartialEq, Clone)]
-pub enum ProtocolKind {
-  BRC20,
-  BRC20S,
-}
-
-pub struct ProtocolManager<
-  'a,
-  O: ord::OrdDataStoreReadWrite,
-  P: brc20::DataStoreReadWrite,
-  M: brc20s::DataStoreReadWrite,
-> {
-  ord_store: &'a O,
-  first_inscription_height: u64,
-  call_man: CallManager<'a, O, P, M>,
-  resolve_man: MsgResolveManager<'a, O, P, M>,
-}
-
-impl<
-    'a,
-    O: ord::OrdDataStoreReadWrite,
-    P: brc20::DataStoreReadWrite,
-    M: brc20s::DataStoreReadWrite,
-  > ProtocolManager<'a, O, P, M>
-{
+impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(
-    client: &'a Client,
-    ord_store: &'a O,
-    brc20_store: &'a P,
-    brc20s_store: &'a M,
-    first_inscription_height: u64,
-    first_brc20_height: u64,
-    first_brc20s_height: u64,
-  ) -> Self {
+  pub fn new(client: &'a Client, state_store: &'a RW, config: &'a Config) -> Self {
     Self {
-      resolve_man: MsgResolveManager::new(
-        client,
-        ord_store,
-        brc20_store,
-        brc20s_store,
-        first_brc20_height,
-        first_brc20s_height,
-      ),
-      ord_store,
-      first_inscription_height,
-      call_man: CallManager::new(ord_store, brc20_store, brc20s_store),
+      state_store,
+      config,
+      call_man: CallManager::new(state_store),
+      resolve_man: MsgResolveManager::new(client, state_store, config),
     }
   }
 
@@ -78,16 +41,22 @@ impl<
     let mut inscriptions_size = 0;
     let mut messages_size = 0;
     // skip the coinbase transaction.
-    for (tx, txid) in block.txdata.iter().skip(1) {
+    for (tx, txid) in block.txdata.iter() {
+      // skip coinbase transaction.
+      if tx
+        .input
+        .first()
+        .map(|tx_in| tx_in.previous_output.is_null())
+        .unwrap_or_default()
+      {
+        continue;
+      }
+
+      // index inscription operations.
       if let Some(tx_operations) = operations.remove(txid) {
-        // save transaction operations.
-        if context.blockheight >= self.first_inscription_height {
-          self
-            .ord_store
-            .save_transaction_operations(txid, &tx_operations)
-            .map_err(|e| {
-              anyhow!("failed to set transaction ordinals operations to state! error: {e}")
-            })?;
+        // save all transaction operations to ord database.
+        if context.blockheight >= self.config.first_inscription_height {
+          ord_proto::save_transaction_operations(self.state_store.ord(), txid, &tx_operations)?;
           inscriptions_size += tx_operations.len();
         }
 
@@ -103,10 +72,10 @@ impl<
     }
 
     log::info!(
-      "Protocol Manager indexed block {} with {} messages, ord inscriptions {} in {} ms",
+      "Protocol Manager indexed block {} with ord inscriptions {}, messages {} in {} ms",
       context.blockheight,
-      messages_size,
       inscriptions_size,
+      messages_size,
       (Instant::now() - start).as_millis(),
     );
     Ok(())

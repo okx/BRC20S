@@ -21,6 +21,7 @@ pub use self::{
   msg_executor::{execute, ExecutionMessage},
   num::Num,
   operation::{Deploy, Mint, Operation, PassiveUnStake, RawOperation, Stake, Transfer, UnStake},
+  version::get_config_by_network,
 };
 #[derive(Debug, Clone)]
 pub struct Message {

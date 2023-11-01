@@ -11,7 +11,7 @@ use bitcoin::{
 
 use crate::{
   index::{INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, OUTPOINT_TO_ENTRY},
-  okx::datastore::ord::{InscriptionOp, OrdDataStoreReadOnly},
+  okx::datastore::ord::{DataStoreReadOnly, InscriptionOp},
   InscriptionId, Result,
 };
 
@@ -73,7 +73,7 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
   }
 }
 
-impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
+impl<'db, 'a> DataStoreReadOnly for OrdDbReader<'db, 'a> {
   type Error = redb::Error;
   fn get_number_by_inscription_id(
     &self,

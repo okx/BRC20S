@@ -19,7 +19,11 @@ pub enum OrdError {
 
 #[derive(Debug, Clone)]
 enum Origin {
-  New { cursed: bool, unbound: bool },
+  New {
+    cursed: bool,
+    unbound: bool,
+    inscription: Inscription,
+  },
   Old,
 }
 
@@ -147,7 +151,11 @@ fn simulate_index_ord_transaction(
         },
         inscription_id,
         offset,
-        origin: Origin::New { cursed, unbound },
+        origin: Origin::New {
+          cursed,
+          unbound,
+          inscription: inscription.inscription.clone(),
+        },
       });
 
       new_inscriptions.next();
@@ -181,7 +189,15 @@ fn simulate_index_ord_transaction(
       operations.push(InscriptionOp {
         txid: flotsam.txid,
         action: match flotsam.origin {
-          Origin::New { cursed, unbound } => Action::New { cursed, unbound },
+          Origin::New {
+            cursed,
+            unbound,
+            inscription,
+          } => Action::New {
+            cursed,
+            unbound,
+            inscription,
+          },
           Origin::Old => Action::Transfer,
         },
         // Unknown number, replaced with zero.
@@ -199,7 +215,15 @@ fn simulate_index_ord_transaction(
   operations.extend(inscriptions.map(|flotsam| InscriptionOp {
     txid: flotsam.txid,
     action: match flotsam.origin {
-      Origin::New { cursed, unbound } => Action::New { cursed, unbound },
+      Origin::New {
+        cursed,
+        unbound,
+        inscription,
+      } => Action::New {
+        cursed,
+        unbound,
+        inscription,
+      },
       Origin::Old => Action::Transfer,
     },
     inscription_number: None,

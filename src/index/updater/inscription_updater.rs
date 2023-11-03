@@ -19,6 +19,7 @@ enum Origin {
     cursed: bool,
     fee: u64,
     parent: Option<InscriptionId>,
+    inscription: Inscription,
     unbound: bool,
   },
   Old,
@@ -265,6 +266,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             cursed,
             fee: 0,
             parent: inscription.inscription.parent(),
+            inscription: inscription.inscription.clone(),
             unbound,
           },
         });
@@ -308,6 +310,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
               cursed,
               fee: _,
               parent,
+              inscription,
               unbound,
             },
         } = flotsam
@@ -321,6 +324,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
               fee: (total_input_value - total_output_value) / u64::from(id_counter),
               cursed,
               parent,
+              inscription,
               unbound,
             },
           }
@@ -436,6 +440,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         cursed,
         fee,
         parent,
+        inscription: _,
         unbound,
       } => {
         let number = if cursed {
@@ -511,9 +516,14 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           Origin::New {
             fee: _,
             parent: _,
+            inscription,
             cursed,
             unbound,
-          } => Action::New { cursed, unbound },
+          } => Action::New {
+            cursed,
+            unbound,
+            inscription,
+          },
         },
         old_satpoint: flotsam.old_satpoint,
         new_satpoint: Some(Entry::load(satpoint)),

@@ -15,14 +15,14 @@ use {
 
 pub struct ProtocolManager<'a, RW: StateRWriter> {
   state_store: &'a RW,
-  config: &'a Config,
+  config: &'a ProtocolConfig,
   call_man: CallManager<'a, RW>,
   resolve_man: MsgResolveManager<'a, RW>,
 }
 
 impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(client: &'a Client, state_store: &'a RW, config: &'a Config) -> Self {
+  pub fn new(client: &'a Client, state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
     Self {
       state_store,
       config,
@@ -35,7 +35,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     &self,
     context: BlockContext,
     block: &BlockData,
-    mut operations: HashMap<Txid, Vec<InscriptionOp>>,
+    operations: HashMap<Txid, Vec<InscriptionOp>>,
   ) -> Result {
     let start = Instant::now();
     let mut inscriptions_size = 0;
@@ -53,10 +53,12 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
       }
 
       // index inscription operations.
-      if let Some(tx_operations) = operations.remove(txid) {
+      if let Some(tx_operations) = operations.get(txid) {
         // save all transaction operations to ord database.
-        if context.blockheight >= self.config.first_inscription_height {
-          ord_proto::save_transaction_operations(self.state_store.ord(), txid, &tx_operations)?;
+        if self.config.enable_ord_receipts
+          && context.blockheight >= self.config.first_inscription_height
+        {
+          ord_proto::save_transaction_operations(self.state_store.ord(), txid, tx_operations)?;
           inscriptions_size += tx_operations.len();
         }
 
@@ -70,12 +72,17 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
         messages_size += messages.len();
       }
     }
+    let mut bitmap_count = 0;
+    if self.config.enable_index_bitmap {
+      bitmap_count = ord_proto::bitmap::index_bitmap(self.state_store.ord(), context, &operations)?;
+    }
 
     log::info!(
-      "Protocol Manager indexed block {} with ord inscriptions {}, messages {} in {} ms",
+      "Protocol Manager indexed block {} with ord inscriptions {}, messages {}, bitmap {} in {} ms",
       context.blockheight,
       inscriptions_size,
       messages_size,
+      bitmap_count,
       (Instant::now() - start).as_millis(),
     );
     Ok(())

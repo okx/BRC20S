@@ -36,6 +36,7 @@ impl Message {
       Action::New {
         cursed: false,
         unbound: false,
+        inscription: _,
       } if sat_in_outputs => {
         match deserialize_brc20s_operation(
           new_inscriptions
@@ -173,6 +174,7 @@ mod tests {
       action: Action::New {
         cursed: false,
         unbound: false,
+        inscription: inscriptions.get(0).unwrap().clone(),
       },
       inscription_number: Some(1),
       inscription_id: InscriptionId { txid, index: 0 },
@@ -266,6 +268,7 @@ mod tests {
       action: Action::New {
         cursed: true,
         unbound: false,
+        inscription: inscriptions.get(0).unwrap().clone(),
       },
       ..op
     };
@@ -285,6 +288,7 @@ mod tests {
       action: Action::New {
         cursed: false,
         unbound: true,
+        inscription: inscriptions.get(0).unwrap().clone(),
       },
       ..op.clone()
     };
@@ -303,6 +307,7 @@ mod tests {
       action: Action::New {
         cursed: true,
         unbound: true,
+        inscription: inscriptions.get(0).unwrap().clone(),
       },
       ..op.clone()
     };

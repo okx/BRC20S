@@ -45,17 +45,6 @@ pub(crate) struct Options {
     help = "Don't look for inscriptions below <FIRST_INSCRIPTION_HEIGHT>."
   )]
   pub(crate) first_inscription_height: Option<u64>,
-  #[arg(long, help = "Index all of BRC20 Protocol")]
-  pub(crate) index_brc20: bool,
-  #[arg(long, help = "Don't prase BRC20 messages below <FIRST_BRC20S_HEIGHT>.")]
-  pub(crate) first_brc20_height: Option<u64>,
-  #[arg(long, help = "Index all of BRC20S Protocol")]
-  pub(crate) index_brc20s: bool,
-  #[arg(
-    long,
-    help = "Don't prase BRC20S messages below <FIRST_BRC20S_HEIGHT>."
-  )]
-  pub(crate) first_brc20s_height: Option<u64>,
   #[arg(long, help = "Limit index to <HEIGHT_LIMIT> blocks.")]
   pub(crate) height_limit: Option<u64>,
   #[arg(long, help = "Use index at <INDEX>.")]
@@ -74,6 +63,26 @@ pub(crate) struct Options {
   pub(crate) wallet: String,
   #[arg(long, short, help = "Enable JSON API.")]
   pub(crate) enable_json_api: bool,
+
+  // OKX defined options.
+  #[arg(long, help = "Enable Index all of BRC20 Protocol")]
+  pub(crate) enable_index_brc20: bool,
+  #[arg(
+    long,
+    help = "Don't look for BRC20 messages below <FIRST_BRC20_HEIGHT>."
+  )]
+  pub(crate) first_brc20_height: Option<u64>,
+  #[arg(long, help = "Enable Index all of BRC20S Protocol")]
+  pub(crate) enable_index_brc20s: bool,
+  #[arg(
+    long,
+    help = "Don't look for BRC20S messages below <FIRST_BRC20S_HEIGHT>."
+  )]
+  pub(crate) first_brc20s_height: Option<u64>,
+  #[arg(long, help = "Enable Save Ord Receipts.")]
+  pub(crate) enable_save_ord_receipts: bool,
+  #[arg(long, help = "Enable Index Bitmap Collection.")]
+  pub(crate) enable_index_bitmap: bool,
 }
 
 #[derive(Debug, Clone)]

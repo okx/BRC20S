@@ -200,20 +200,18 @@ mod tests {
   }
   #[test]
   fn test_ignore_non_transfer_brc20() {
-    let content_type = "text/plain;charset=utf-8".as_bytes().to_vec();
+    let content_type = "text/plain;charset=utf-8";
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#,
+    );
     assert_eq!(
       deserialize_brc20_operation(
-        &Inscription::new(
-          Some(content_type.clone()),
-          Some(
-            r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
-        ),
+        &inscription,
         &Action::New {
           cursed: false,
-          unbound: false
+          unbound: false,
+          inscription: inscription.clone()
         },
       )
       .unwrap(),
@@ -224,20 +222,18 @@ mod tests {
         decimals: Some("11".to_string()),
       }),
     );
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"#,
+    );
 
     assert_eq!(
       deserialize_brc20_operation(
-        &Inscription::new(
-          Some(content_type.clone()),
-          Some(
-            r#"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
-        ),
+        &inscription,
         &Action::New {
           cursed: false,
-          unbound: false
+          unbound: false,
+          inscription: inscription.clone()
         },
       )
       .unwrap(),
@@ -246,20 +242,18 @@ mod tests {
         amount: "12000".to_string()
       })
     );
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"#,
+    );
 
     assert_eq!(
       deserialize_brc20_operation(
-        &Inscription::new(
-          Some(content_type.clone()),
-          Some(
-            r#"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
-        ),
+        &inscription,
         &Action::New {
           cursed: false,
-          unbound: false
+          unbound: false,
+          inscription: inscription.clone()
         },
       )
       .unwrap(),
@@ -269,45 +263,23 @@ mod tests {
       })
     );
 
-    assert!(deserialize_brc20_operation(
-      &Inscription::new(
-        Some(content_type.clone()),
-        Some(
-          r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#
-            .as_bytes()
-            .to_vec(),
-        ),
-      ),
-      &Action::Transfer
-    )
-    .is_err());
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#,
+    );
+    assert!(deserialize_brc20_operation(&inscription, &Action::Transfer).is_err());
 
-    assert!(deserialize_brc20_operation(
-      &Inscription::new(
-        Some(content_type.clone()),
-        Some(
-          r#"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"#
-            .as_bytes()
-            .to_vec(),
-        ),
-      ),
-      &Action::Transfer
-    )
-    .is_err());
-
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc-20","op":"mint","tick":"abcd","amt":"12000"}"#,
+    );
+    assert!(deserialize_brc20_operation(&inscription, &Action::Transfer).is_err());
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"#,
+    );
     assert_eq!(
-      deserialize_brc20_operation(
-        &Inscription::new(
-          Some(content_type),
-          Some(
-            r#"{"p":"brc-20","op":"transfer","tick":"abcd","amt":"12000"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
-        ),
-        &Action::Transfer
-      )
-      .unwrap(),
+      deserialize_brc20_operation(&inscription, &Action::Transfer).unwrap(),
       Operation::Transfer(Transfer {
         tick: "abcd".to_string(),
         amount: "12000".to_string()

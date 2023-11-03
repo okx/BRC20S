@@ -124,6 +124,7 @@ pub fn deserialize_brc20s(s: &str) -> Result<RawOperation, JSONError> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::inscription;
 
   #[test]
   fn test_deploy_deserialize() {
@@ -311,18 +312,19 @@ mod tests {
 
   #[test]
   fn test_ignore_non_transfer_brc20s() {
-    let content_type = "text/plain;charset=utf-8".as_bytes().to_vec();
+    let content_type = "text/plain;charset=utf-8";
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#,
+    );
     assert_eq!(
       deserialize_brc20s_operation(
-        &Inscription::new(
-          Some(content_type.clone()),
-          Some(
-            r#"{"p":"brc20-s","op":"deploy","t":"pool","pid":"a3668daeaa#1f","stake":"btc","earn":"ordi","erate":"10","dmax":"12000000","dec":"18","total":"21000000","only":"1"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
-        ),
-        &Action::New{cursed:false,unbound:false},
+        &inscription,
+        &Action::New {
+          cursed: false,
+          unbound: false,
+          inscription: inscription.clone()
+        },
       )
       .unwrap(),
       Operation::Deploy(Deploy {
@@ -337,20 +339,18 @@ mod tests {
         only: Some("1".to_string()),
       }),
     );
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc20-s","op":"deposit","pid":"pool_id","amt":"12000"}"#,
+    );
 
     assert_eq!(
       deserialize_brc20s_operation(
-        &Inscription::new(
-          Some(content_type.clone()),
-          Some(
-            r#"{"p":"brc20-s","op":"deposit","pid":"pool_id","amt":"12000"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
-        ),
+        &inscription,
         &Action::New {
           cursed: false,
-          unbound: false
+          unbound: false,
+          inscription: inscription.clone()
         },
       )
       .unwrap(),
@@ -359,20 +359,18 @@ mod tests {
         amount: "12000".to_string()
       })
     );
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc20-s","op":"mint","tick":"tick","pid":"pool_id","amt":"12000"}"#,
+    );
 
     assert_eq!(
       deserialize_brc20s_operation(
-        &Inscription::new(
-          Some(content_type.clone()),
-          Some(
-            r#"{"p":"brc20-s","op":"mint","tick":"tick","pid":"pool_id","amt":"12000"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
-        ),
+        &inscription,
         &Action::New {
           cursed: false,
-          unbound: false
+          unbound: false,
+          inscription: inscription.clone()
         },
       )
       .unwrap(),
@@ -382,20 +380,18 @@ mod tests {
         amount: "12000".to_string()
       })
     );
+    let inscription = crate::inscription(
+      content_type,
+      r#"{"p":"brc20-s","op":"withdraw","pid":"pool_id","amt":"12000"}"#,
+    );
 
     assert_eq!(
       deserialize_brc20s_operation(
-        &Inscription::new(
-          Some(content_type.clone()),
-          Some(
-            r#"{"p":"brc20-s","op":"withdraw","pid":"pool_id","amt":"12000"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
-        ),
+        &inscription,
         &Action::New {
           cursed: false,
-          unbound: false
+          unbound: false,
+          inscription: inscription.clone()
         },
       )
       .unwrap(),
@@ -406,26 +402,18 @@ mod tests {
     );
 
     assert!(deserialize_brc20s_operation(
-      &Inscription::new(
-        Some(content_type.clone()),
-        Some(
-          r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#
-            .as_bytes()
-            .to_vec(),
-        ),
+      &crate::inscription(
+        content_type,
+        r#"{"p":"brc-20","op":"deploy","tick":"abcd","max":"12000","lim":"12","dec":"11"}"#
       ),
       &Action::Transfer,
     )
     .is_err());
 
     assert!(deserialize_brc20s_operation(
-      &Inscription::new(
-        Some(content_type.clone()),
-        Some(
-          r#"{"p":"brc20-s","op":"mint","tick":"abcd","amt":"12000"}"#
-            .as_bytes()
-            .to_vec(),
-        ),
+      &crate::inscription(
+        content_type,
+        r#"{"p":"brc20-s","op":"mint","tick":"abcd","amt":"12000"}"#
       ),
       &Action::Transfer,
     )
@@ -433,13 +421,9 @@ mod tests {
 
     assert_eq!(
       deserialize_brc20s_operation(
-        &Inscription::new(
-          Some(content_type),
-          Some(
-            r#"{"p":"brc20-s","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"#
-              .as_bytes()
-              .to_vec(),
-          ),
+        &crate::inscription(
+          content_type,
+          r#"{"p":"brc20-s","op":"transfer","tid":"tick_id","tick":"abcd","amt":"12000"}"#
         ),
         &Action::Transfer,
       )

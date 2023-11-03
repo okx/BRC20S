@@ -6,6 +6,7 @@ use {
   anyhow::anyhow,
   bitcoin::Txid,
 };
+pub mod bitmap;
 
 pub fn save_transaction_operations<O: DataStoreReadWrite>(
   ord_store: &O,

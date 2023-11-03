@@ -21,7 +21,9 @@ pub enum InscriptionAction {
 impl From<Action> for InscriptionAction {
   fn from(action: Action) -> Self {
     match action {
-      Action::New { cursed, unbound } => InscriptionAction::New { cursed, unbound },
+      Action::New {
+        cursed, unbound, ..
+      } => InscriptionAction::New { cursed, unbound },
       Action::Transfer => InscriptionAction::Transfer,
     }
   }

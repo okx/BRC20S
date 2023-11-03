@@ -23,7 +23,7 @@ use {
         self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
         DataStoreReadOnly as BRC20SDataStoreReadOnly, PledgedTick,
       },
-      ord::{self, DataStoreReadOnly},
+      ord::{self, redb::try_init_tables as try_init_ord, DataStoreReadOnly},
       ScriptKey,
     },
     protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
@@ -282,20 +282,11 @@ impl Index {
     {
       let wtx = database.begin_write()?;
       let rtx = database.begin_read()?;
+      try_init_ord(&wtx, &rtx)?;
       try_init_brc20(&wtx, &rtx)?;
       try_init_brc20s(&wtx, &rtx)?;
       wtx.commit()?;
-      log::info!("Options configuration...");
-      log::info!(
-        "\tBRC20: enabled {}, first index block {}",
-        options.index_brc20,
-        options.first_brc20_height()
-      );
-      log::info!(
-        "\tBRC20S: enabled {}, first index block {:?}",
-        options.index_brc20s,
-        options.first_brc20s_height()
-      );
+      log::info!("Options:\n{:#?}", options);
     }
     let genesis_block_coinbase_transaction =
       options.chain().genesis_block().coinbase().unwrap().clone();

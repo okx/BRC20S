@@ -25,7 +25,7 @@ pub trait DataStoreReadOnly {
 
   fn get_transaction_operations(&self, txid: &Txid) -> Result<Vec<InscriptionOp>, Self::Error>;
 
-  fn get_inscription_attributes(
+  fn get_collections_of_inscription(
     &self,
     inscription_id: InscriptionId,
   ) -> Result<Option<Vec<CollectionKind>>, Self::Error>;

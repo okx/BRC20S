@@ -1,6 +1,9 @@
 use {
   super::{error::ApiError, types::ScriptPubkey, *},
-  crate::{index::InscriptionEntry, okx::datastore::ScriptKey},
+  crate::{
+    index::InscriptionEntry,
+    okx::datastore::{ord::collections::CollectionKind, ScriptKey},
+  },
   axum::Json,
   utoipa::ToSchema,
 };
@@ -24,6 +27,8 @@ pub struct OrdInscription {
   pub genesis_height: u64,
   /// The inscription location.
   pub location: String,
+  /// Collections of Inscriptions.
+  pub collections: Vec<String>,
   /// The inscription sat index.  
   pub sat: Option<u64>,
 }
@@ -127,6 +132,11 @@ fn ord_get_inscription_by_id(index: Arc<Index>, id: InscriptionId) -> ApiResult<
     owner,
     genesis_height: inscription_data.entry.height,
     location: inscription_data.sat_point.to_string(),
+    collections: inscription_data
+      .collections
+      .iter()
+      .map(|c| c.to_string())
+      .collect(),
     sat: inscription_data.entry.sat.map(|s| s.0),
   })))
 }
@@ -136,6 +146,7 @@ struct InscriptionAllData {
   pub entry: InscriptionEntry,
   pub sat_point: SatPoint,
   pub inscription: Inscription,
+  pub collections: Vec<CollectionKind>,
 }
 
 fn get_inscription_all_data_by_id(
@@ -161,12 +172,37 @@ fn get_inscription_all_data_by_id(
     None => return Ok(None),
   };
 
+  let collections = index
+    .ord_get_collections_by_inscription_id(inscription_id)?
+    .map_or(Vec::new(), |v| v);
+
   Ok(Some(InscriptionAllData {
     entry,
     tx,
     inscription,
+    collections,
     sat_point,
   }))
+}
+
+// ord/debug/bitmap/district/:number
+pub(crate) async fn ord_debug_bitmap_district(
+  Extension(index): Extension<Arc<Index>>,
+  Path(number): Path<u64>,
+) -> ApiResult<InscriptionId> {
+  log::debug!("rpc: get brc20s_debug_bitmap_district: number:{}", number);
+
+  let inscription_id = index
+    .ord_get_district_inscription_id(number)?
+    .ok_or_api_not_found(format!("district {number} not found"))?;
+
+  log::debug!(
+    "rpc: get ord_debug_bitmap_district: {:?} {:?}",
+    number,
+    inscription_id
+  );
+
+  Ok(Json(ApiResponse::ok(inscription_id)))
 }
 
 #[cfg(test)]
@@ -199,6 +235,7 @@ mod tests {
       )
       .unwrap()
       .to_string(),
+      collections: Vec::new(),
       sat: None,
     };
     assert_eq!(
@@ -213,6 +250,7 @@ mod tests {
   },
   "genesisHeight": 1,
   "location": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+  "collections": [],
   "sat": null
 }"#,
     );
@@ -227,6 +265,7 @@ mod tests {
   "owner": null,
   "genesisHeight": 1,
   "location": "5660d06bd69326c18ec63127b37fb3b32ea763c3846b3334c51beb6a800c57d3:1:3000",
+  "collections": [],
   "sat": null
 }"#,
     );

@@ -319,6 +319,10 @@ impl Server {
           "/ord/block/:blockhash/inscriptions",
           get(ord::ord_block_inscriptions),
         )
+        .route(
+          "/ord/debug/bitmap/district/:number",
+          get(ord::ord_debug_bitmap_district),
+        )
         .route("/brc20/tick/:tick", get(brc20::brc20_tick_info))
         .route("/brc20/tick", get(brc20::brc20_all_tick_info))
         .route(

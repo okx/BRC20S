@@ -37,6 +37,8 @@ use {
   std::io::{BufWriter, Read, Write},
 };
 
+use crate::okx::datastore::ord::{bitmap::District, collections::CollectionKind};
+
 pub(super) use self::{
   entry::{InscriptionEntry, InscriptionEntryValue},
   updater::BlockData,
@@ -771,6 +773,27 @@ impl Index {
         .open_table(INSCRIPTION_ID_TO_SATPOINT)?
         .get(&inscription_id.store())?
         .map(|satpoint| Entry::load(*satpoint.value())),
+    )
+  }
+
+  pub(crate) fn ord_get_collections_by_inscription_id(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<Vec<CollectionKind>>> {
+    Ok(
+      ord::OrdDbReader::new(&self.database.begin_read()?)
+        .get_collections_of_inscription(inscription_id)?,
+    )
+  }
+
+  pub(crate) fn ord_get_district_inscription_id(
+    &self,
+    number: u64,
+  ) -> Result<Option<InscriptionId>> {
+    let district = District { number };
+    Ok(
+      ord::OrdDbReader::new(&self.database.begin_read()?)
+        .get_collection_inscription_id(&district.to_collection_key())?,
     )
   }
 

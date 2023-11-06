@@ -57,11 +57,11 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
   fn get_collection_inscription_id(&self, key: &str) -> Result<Option<InscriptionId>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_collection_inscription_id(key)
   }
-  fn get_inscription_attributes(
+  fn get_collections_of_inscription(
     &self,
     inscription_id: InscriptionId,
   ) -> Result<Option<Vec<CollectionKind>>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_inscription_attributes(inscription_id)
+    read_only::new_with_wtx(self.wtx).get_collections_of_inscription(inscription_id)
   }
 }
 

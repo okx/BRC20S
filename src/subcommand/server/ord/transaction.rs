@@ -177,7 +177,7 @@ pub(crate) async fn ord_block_inscriptions(
 
   let block_hash = bitcoin::BlockHash::from_str(&block_hash).map_err(ApiError::bad_request)?;
   let block_inscriptions = index
-    .ord_block_inscriptions(&block_hash)?
+    .ord_block_inscriptions(block_hash)?
     .ok_or_api_not_found(OrdError::BlockNotFound)?;
 
   log::debug!("rpc: get ord_block_inscriptions: {:?}", block_inscriptions);

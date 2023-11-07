@@ -1427,30 +1427,23 @@ impl Index {
     &self,
     blockhash: bitcoin::BlockHash,
   ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20::Receipt>)>>> {
-    let parsed_height = self.height()?;
-    if parsed_height.is_none() {
-      return Ok(None);
-    }
-    let parsed_height = parsed_height.unwrap().0;
     let block = self.client.get_block_info(&blockhash)?;
-    if block.height as u64 > parsed_height {
-      return Ok(None);
-    }
-
-    let rtx = self.database.begin_read().unwrap();
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-
-    let mut result = Vec::new();
-
-    for txid in &block.tx {
-      let tx_events = brc20_db.get_transaction_receipts(txid)?;
-      if tx_events.is_empty() {
-        continue;
+    if let Ok(Some(hash)) = self.block_hash(Some(u64::try_from(block.height).unwrap())) {
+      if hash == blockhash {
+        let rtx = self.database.begin_read().unwrap();
+        let brc20_db = brc20_db::DataStoreReader::new(&rtx);
+        let mut result = Vec::new();
+        for txid in &block.tx {
+          let tx_events = brc20_db.get_transaction_receipts(txid)?;
+          if tx_events.is_empty() {
+            continue;
+          }
+          result.push((*txid, tx_events));
+        }
+        return Ok(Some(result));
       }
-      result.push((*txid, tx_events));
     }
-
-    Ok(Some(result))
+    Ok(None)
   }
 
   pub(crate) fn brc20_get_tick_transferable_by_address(
@@ -1647,29 +1640,25 @@ impl Index {
 
   pub(crate) fn brc20s_block_receipts(
     &self,
-    hash: &BlockHash,
+    blockhash: BlockHash,
   ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20s::Receipt>)>>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let parsed_height = self.height()?;
-    if parsed_height.is_none() {
-      return Ok(None);
-    }
-    let parsed_height = parsed_height.unwrap().0;
-    let block = self.client.get_block_info(hash)?;
-    if block.height as u64 > parsed_height {
-      return Ok(None);
-    }
-    let mut result = Vec::new();
-    for txid in &block.tx {
-      let tx_events = brc20s_db.get_txid_to_receipts(txid)?;
-      if tx_events.is_empty() {
-        continue;
+    let block = self.client.get_block_info(&blockhash)?;
+    if let Ok(Some(hash)) = self.block_hash(Some(u64::try_from(block.height).unwrap())) {
+      if hash == blockhash {
+        let rtx = self.database.begin_read().unwrap();
+        let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
+        let mut result = Vec::new();
+        for txid in &block.tx {
+          let tx_events = brc20s_db.get_txid_to_receipts(txid)?;
+          if tx_events.is_empty() {
+            continue;
+          }
+          result.push((*txid, tx_events));
+        }
+        return Ok(Some(result));
       }
-      result.push((*txid, tx_events));
     }
-
-    Ok(Some(result))
+    Ok(None)
   }
 
   pub(crate) fn ord_txid_inscriptions(
@@ -1697,29 +1686,25 @@ impl Index {
   }
   pub(crate) fn ord_block_inscriptions(
     &self,
-    hash: &BlockHash,
+    blockhash: BlockHash,
   ) -> Result<Option<Vec<(bitcoin::Txid, Vec<ord::InscriptionOp>)>>> {
-    let rtx = self.database.begin_read().unwrap();
-    let ord_db = ord::OrdDbReader::new(&rtx);
-    let parsed_height = self.height()?;
-    if parsed_height.is_none() {
-      return Ok(None);
-    }
-    let parsed_height = parsed_height.unwrap().0;
-    let block = self.client.get_block_info(hash)?;
-    if block.height as u64 > parsed_height {
-      return Ok(None);
-    }
-    let mut result = Vec::new();
-    for txid in &block.tx {
-      let inscriptions = ord_db.get_transaction_operations(txid)?;
-      if inscriptions.is_empty() {
-        continue;
+    let block = self.client.get_block_info(&blockhash)?;
+    if let Ok(Some(hash)) = self.block_hash(Some(u64::try_from(block.height).unwrap())) {
+      if hash == blockhash {
+        let rtx = self.database.begin_read().unwrap();
+        let ord_db = ord::OrdDbReader::new(&rtx);
+        let mut result = Vec::new();
+        for txid in &block.tx {
+          let inscriptions = ord_db.get_transaction_operations(txid)?;
+          if inscriptions.is_empty() {
+            continue;
+          }
+          result.push((*txid, inscriptions));
+        }
+        return Ok(Some(result));
       }
-      result.push((*txid, inscriptions));
     }
-
-    Ok(Some(result))
+    Ok(None)
   }
 }
 

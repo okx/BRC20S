@@ -519,7 +519,7 @@ pub(crate) async fn brc20s_block_receipts(
 
   let block_hash = bitcoin::BlockHash::from_str(&block_hash).map_err(ApiError::bad_request)?;
   let block_receipts = index
-    .brc20s_block_receipts(&block_hash)?
+    .brc20s_block_receipts(block_hash)?
     .ok_or_api_not_found(BRC20SError::BlockReceiptsNotFound)?;
 
   log::debug!("rpc: get brc20s_block_receipts: {:?}", block_receipts);

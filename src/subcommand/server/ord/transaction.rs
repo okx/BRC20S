@@ -171,14 +171,31 @@ pub(crate) async fn ord_txid_inscriptions(
 )]
 pub(crate) async fn ord_block_inscriptions(
   Extension(index): Extension<Arc<Index>>,
-  Path(block_hash): Path<String>,
+  Path(blockhash): Path<String>,
 ) -> ApiResult<BlockInscriptions> {
-  log::debug!("rpc: get ord_block_inscriptions: {}", block_hash);
+  log::debug!("rpc: get ord_block_inscriptions: {}", blockhash);
 
-  let block_hash = bitcoin::BlockHash::from_str(&block_hash).map_err(ApiError::bad_request)?;
-  let block_inscriptions = index
-    .ord_block_inscriptions(block_hash)?
+  let blockhash = bitcoin::BlockHash::from_str(&blockhash).map_err(ApiError::bad_request)?;
+  // get block from btc client.
+  let blockinfo = index
+    .get_block_info_by_hash(blockhash)
+    .map_err(ApiError::internal)?
     .ok_or_api_not_found(OrdError::BlockNotFound)?;
+
+  // get blockhash from redb.
+  let blockhash = index
+    .block_hash(Some(u64::try_from(blockinfo.height).unwrap()))
+    .map_err(ApiError::internal)?
+    .ok_or_api_not_found(OrdError::BlockNotFound)?;
+
+  // check of conflicting block.
+  if blockinfo.hash != blockhash {
+    return Err(ApiError::NotFound(OrdError::BlockNotFound.to_string()));
+  }
+
+  let block_inscriptions = index
+    .ord_get_txs_inscriptions(&blockinfo.tx)
+    .map_err(ApiError::internal)?;
 
   log::debug!("rpc: get ord_block_inscriptions: {:?}", block_inscriptions);
 

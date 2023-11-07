@@ -315,20 +315,35 @@ pub struct BlockEvents {
   )]
 pub(crate) async fn brc20_block_events(
   Extension(index): Extension<Arc<Index>>,
-  Path(block_hash): Path<String>,
+  Path(blockhash): Path<String>,
 ) -> ApiResult<BlockEvents> {
-  log::debug!("rpc: get brc20_block_events: {}", block_hash);
+  log::debug!("rpc: get brc20_block_events: {}", blockhash);
 
-  let blockhash =
-    bitcoin::BlockHash::from_str(&block_hash).map_err(|e| ApiError::bad_request(e.to_string()))?;
+  let blockhash = bitcoin::BlockHash::from_str(&blockhash).map_err(ApiError::bad_request)?;
+  // get block from btc client.
+  let blockinfo = index
+    .get_block_info_by_hash(blockhash)
+    .map_err(ApiError::internal)?
+    .ok_or_api_not_found(BRC20Error::BlockNotFound)?;
+
+  // get blockhash from redb.
+  let blockhash = index
+    .block_hash(Some(u64::try_from(blockinfo.height).unwrap()))
+    .map_err(ApiError::internal)?
+    .ok_or_api_not_found(BRC20Error::BlockNotFound)?;
+
+  // check blockhash.
+  if blockinfo.hash != blockhash {
+    return Err(ApiError::NotFound(BRC20Error::BlockNotFound.to_string()));
+  }
 
   let block_events = index
-    .brc20_get_block_events_by_blockhash(blockhash)?
-    .ok_or_api_not_found(BRC20Error::BlockNotFound)?;
+    .brc20_get_txs_events(&blockinfo.tx)
+    .map_err(ApiError::internal)?;
 
   log::debug!(
     "rpc: get brc20_block_events: {} {:?}",
-    block_hash,
+    blockhash,
     block_events
   );
 

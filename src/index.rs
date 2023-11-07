@@ -23,7 +23,10 @@ use {
   },
   super::*,
   bitcoin::block::Header,
-  bitcoincore_rpc::{json::GetBlockHeaderResult, Client},
+  bitcoincore_rpc::{
+    json::{GetBlockHeaderResult, GetBlockResult},
+    Client,
+  },
   chrono::SubsecRound,
   indicatif::{ProgressBar, ProgressStyle},
   log::log_enabled,
@@ -689,6 +692,10 @@ impl Index {
 
   pub(crate) fn get_block_by_hash(&self, hash: BlockHash) -> Result<Option<Block>> {
     self.client.get_block(&hash).into_option()
+  }
+
+  pub(crate) fn get_block_info_by_hash(&self, hash: BlockHash) -> Result<Option<GetBlockResult>> {
+    self.client.get_block_info(&hash).into_option()
   }
 
   pub(crate) fn get_children_by_inscription_id(
@@ -1423,27 +1430,21 @@ impl Index {
     Ok(Some(res))
   }
 
-  pub(crate) fn brc20_get_block_events_by_blockhash(
+  pub(crate) fn brc20_get_txs_events(
     &self,
-    blockhash: bitcoin::BlockHash,
-  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20::Receipt>)>>> {
-    let block = self.client.get_block_info(&blockhash)?;
-    if let Ok(Some(hash)) = self.block_hash(Some(u64::try_from(block.height).unwrap())) {
-      if hash == blockhash {
-        let rtx = self.database.begin_read().unwrap();
-        let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-        let mut result = Vec::new();
-        for txid in &block.tx {
-          let tx_events = brc20_db.get_transaction_receipts(txid)?;
-          if tx_events.is_empty() {
-            continue;
-          }
-          result.push((*txid, tx_events));
-        }
-        return Ok(Some(result));
+    txs: &Vec<Txid>,
+  ) -> Result<Vec<(bitcoin::Txid, Vec<brc20::Receipt>)>> {
+    let rtx = self.database.begin_read()?;
+    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
+    let mut result = Vec::new();
+    for txid in txs {
+      let tx_events = brc20_db.get_transaction_receipts(txid)?;
+      if tx_events.is_empty() {
+        continue;
       }
+      result.push((*txid, tx_events));
     }
-    Ok(None)
+    Ok(result)
   }
 
   pub(crate) fn brc20_get_tick_transferable_by_address(
@@ -1638,27 +1639,21 @@ impl Index {
     Ok(Some(res))
   }
 
-  pub(crate) fn brc20s_block_receipts(
+  pub(crate) fn brc20s_txs_receipts(
     &self,
-    blockhash: BlockHash,
-  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<brc20s::Receipt>)>>> {
-    let block = self.client.get_block_info(&blockhash)?;
-    if let Ok(Some(hash)) = self.block_hash(Some(u64::try_from(block.height).unwrap())) {
-      if hash == blockhash {
-        let rtx = self.database.begin_read().unwrap();
-        let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-        let mut result = Vec::new();
-        for txid in &block.tx {
-          let tx_events = brc20s_db.get_txid_to_receipts(txid)?;
-          if tx_events.is_empty() {
-            continue;
-          }
-          result.push((*txid, tx_events));
-        }
-        return Ok(Some(result));
+    txs: &Vec<Txid>,
+  ) -> Result<Vec<(bitcoin::Txid, Vec<brc20s::Receipt>)>> {
+    let rtx = self.database.begin_read()?;
+    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
+    let mut result = Vec::new();
+    for txid in txs {
+      let tx_events = brc20s_db.get_txid_to_receipts(txid)?;
+      if tx_events.is_empty() {
+        continue;
       }
+      result.push((*txid, tx_events));
     }
-    Ok(None)
+    Ok(result)
   }
 
   pub(crate) fn ord_txid_inscriptions(
@@ -1684,27 +1679,21 @@ impl Index {
 
     Ok(Some(res))
   }
-  pub(crate) fn ord_block_inscriptions(
+  pub(crate) fn ord_get_txs_inscriptions(
     &self,
-    blockhash: BlockHash,
-  ) -> Result<Option<Vec<(bitcoin::Txid, Vec<ord::InscriptionOp>)>>> {
-    let block = self.client.get_block_info(&blockhash)?;
-    if let Ok(Some(hash)) = self.block_hash(Some(u64::try_from(block.height).unwrap())) {
-      if hash == blockhash {
-        let rtx = self.database.begin_read().unwrap();
-        let ord_db = ord::OrdDbReader::new(&rtx);
-        let mut result = Vec::new();
-        for txid in &block.tx {
-          let inscriptions = ord_db.get_transaction_operations(txid)?;
-          if inscriptions.is_empty() {
-            continue;
-          }
-          result.push((*txid, inscriptions));
-        }
-        return Ok(Some(result));
+    txs: &Vec<Txid>,
+  ) -> Result<Vec<(bitcoin::Txid, Vec<ord::InscriptionOp>)>> {
+    let rtx = self.database.begin_read()?;
+    let ord_db = ord::OrdDbReader::new(&rtx);
+    let mut result = Vec::new();
+    for txid in txs {
+      let inscriptions = ord_db.get_transaction_operations(txid)?;
+      if inscriptions.is_empty() {
+        continue;
       }
+      result.push((*txid, inscriptions));
     }
-    Ok(None)
+    Ok(result)
   }
 }
 

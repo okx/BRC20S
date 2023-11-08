@@ -513,15 +513,33 @@ pub struct BlockReceipts {
 )]
 pub(crate) async fn brc20s_block_receipts(
   Extension(index): Extension<Arc<Index>>,
-  Path(block_hash): Path<String>,
+  Path(blockhash): Path<String>,
 ) -> ApiResult<BlockReceipts> {
-  log::debug!("rpc: get brc20s_block_receipts: {}", block_hash);
+  log::debug!("rpc: get brc20s_block_receipts: {}", blockhash);
 
-  let block_hash = bitcoin::BlockHash::from_str(&block_hash).map_err(ApiError::bad_request)?;
-  let block_receipts = index
-    .brc20s_block_receipts(&block_hash)?
+  let blockhash = bitcoin::BlockHash::from_str(&blockhash).map_err(ApiError::bad_request)?;
+  // get block from btc client.
+  let blockinfo = index
+    .get_block_info_by_hash(blockhash)
+    .map_err(ApiError::internal)?
     .ok_or_api_not_found(BRC20SError::BlockReceiptsNotFound)?;
 
+  // get blockhash from redb.
+  let blockhash = index
+    .block_hash(Some(u64::try_from(blockinfo.height).unwrap()))
+    .map_err(ApiError::internal)?
+    .ok_or_api_not_found(BRC20SError::BlockReceiptsNotFound)?;
+
+  // check of conflicting block.
+  if blockinfo.hash != blockhash {
+    return Err(ApiError::NotFound(
+      BRC20SError::BlockReceiptsNotFound.to_string(),
+    ));
+  }
+
+  let block_receipts = index
+    .brc20s_txs_receipts(&blockinfo.tx)
+    .map_err(ApiError::internal)?;
   log::debug!("rpc: get brc20s_block_receipts: {:?}", block_receipts);
 
   let mut api_block_receipts = Vec::new();

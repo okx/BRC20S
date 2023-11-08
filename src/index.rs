@@ -624,6 +624,10 @@ impl Index {
     self.begin_read()?.block_hash(height)
   }
 
+  pub(crate) fn latest_block(&self) -> Result<Option<(Height, BlockHash)>> {
+    self.begin_read()?.latest_block()
+  }
+
   pub(crate) fn blocks(&self, take: usize) -> Result<Vec<(u64, BlockHash)>> {
     let rtx = self.begin_read()?;
 

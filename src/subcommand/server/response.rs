@@ -26,6 +26,7 @@ use {
 
   OrdOrdInscription = ApiResponse<ord::OrdInscription>,
   OrdOutPointData = ApiResponse<ord::OutPointData>,
+  OrdOutPointResult = ApiResponse<ord::OutPointResult>,
   OrdTxInscriptions = ApiResponse<ord::TxInscriptions>,
   OrdBlockInscriptions = ApiResponse<ord::BlockInscriptions>,
 

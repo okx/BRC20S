@@ -1,5 +1,15 @@
 Changelog
 =========
+[0.9.0](https://github.com/okx/ord/releases/tag/0.9.0) - 2023-11-09
+---------------------------------------------------------------------
+This release upgrades Ordinals Core to 0.9.0, resolving the consensus issues caused by version 0.8.x. More infomation [here](https://github.com/ordinals/ord/issues/2569)
+
+### Fixed
+- Upgraded Ordinals core to 0.9.0, fixing consensus issues caused by version 0.8.x. (#155)
+- Corrected the issue of incorrectly retrieving transactions from conflicting blocks. (#157)
+
+### Changed
+- Remove the feature `rollback` and instead use the Ordinals Core reorg module.
 
 [0.8.2](https://github.com/okx/ord/releases/tag/0.8.2) - 2023-08-17
 ---------------------------------------------------------------------

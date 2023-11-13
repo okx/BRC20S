@@ -265,6 +265,7 @@ impl Server {
           ord::OrdInscription,
           ord::InscriptionDigest,
           ord::OutPointData,
+          ord::OutPointResult,
           ord::InscriptionAction,
           ord::TxInscription,
           ord::TxInscriptions,
@@ -274,7 +275,7 @@ impl Server {
           response::OrdOrdInscription,
           response::OrdTxInscriptions,
           response::OrdBlockInscriptions,
-          response::OrdOutPointData,
+          response::OrdOutPointResult,
 
 
           // Node Info schemas

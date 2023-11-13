@@ -17,6 +17,17 @@ pub struct InscriptionDigest {
   pub location: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[schema(as = ord::OutPointResult)]
+#[serde(rename_all = "camelCase")]
+pub struct OutPointResult {
+  #[schema(value_type = Option<ord::OutPointData>)]
+  pub result: Option<OutPointData>,
+  pub latest_blockhash: String,
+  #[schema(format = "uint64")]
+  pub latest_height: u64,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[schema(as = ord::OutPointData)]
 #[serde(rename_all = "camelCase")]
@@ -53,40 +64,45 @@ pub struct OutPointData {
 pub(crate) async fn ord_outpoint(
   Extension(index): Extension<Arc<Index>>,
   Path(outpoint): Path<OutPoint>,
-) -> ApiResult<OutPointData> {
+) -> ApiResult<OutPointResult> {
   log::debug!("rpc: get ord_outpoint: {outpoint}");
 
-  let inscription_ids = index.get_inscriptions_on_output(outpoint)?;
-  if inscription_ids.is_empty() {
-    return Err(ApiError::not_found(format!(
-      "Inscription not found from outpoint: {outpoint}"
-    )));
+  let (latest_height, latest_blockhash) = index
+    .latest_block()
+    .ok()
+    .flatten()
+    .ok_or_api_err(|| ApiError::internal("Failed to get the latest block."))?;
+
+  let inscriptions = index.get_inscriptions_on_output(outpoint)?;
+  if inscriptions.is_empty() {
+    return Ok(Json(ApiResponse::ok(OutPointResult {
+      result: None,
+      latest_height: latest_height.n(),
+      latest_blockhash: latest_blockhash.to_string(),
+    })));
   }
 
   // Get the txout from the database store or from an RPC request.
   let vout = index
     .get_transaction_output_by_outpoint(outpoint)
-    .and_then(|v| {
-      v.ok_or(anyhow!(format!(
-        "Outpoint not found from db store: {outpoint}"
-      )))
-    })
-    .or_else(|_| {
+    .ok()
+    .flatten()
+    .or_else(|| {
       index
         .get_transaction_with_retries(outpoint.txid)
-        .and_then(|v| {
-          v.map(|tx| {
-            tx.output
-              .get(usize::try_from(outpoint.vout).unwrap())
-              .unwrap()
-              .to_owned()
-          })
-          .ok_or(anyhow!(format!("Can't get transaction: {}", outpoint.txid)))
+        .ok()
+        .flatten()
+        .map(|tx| {
+          tx.output
+            .get(usize::try_from(outpoint.vout).unwrap())
+            .unwrap()
+            .to_owned()
         })
-    })?;
+    })
+    .ok_or_api_err(|| ApiError::not_found("Failed to fetch tx output."))?;
 
-  let mut inscription_digests = Vec::with_capacity(inscription_ids.len());
-  for id in inscription_ids {
+  let mut inscription_digests = Vec::with_capacity(inscriptions.len());
+  for id in inscriptions {
     inscription_digests.push(InscriptionDigest {
       id: id.to_string(),
       number: index
@@ -104,11 +120,15 @@ pub(crate) async fn ord_outpoint(
     });
   }
 
-  Ok(Json(ApiResponse::ok(OutPointData {
-    txid: outpoint.txid.to_string(),
-    script_pub_key: vout.script_pubkey.to_asm_string(),
-    owner: ScriptKey::from_script(&vout.script_pubkey, index.get_chain_network()).into(),
-    value: vout.value,
-    inscription_digest: inscription_digests,
+  Ok(Json(ApiResponse::ok(OutPointResult {
+    result: Some(OutPointData {
+      txid: outpoint.txid.to_string(),
+      script_pub_key: vout.script_pubkey.to_asm_string(),
+      owner: ScriptKey::from_script(&vout.script_pubkey, index.get_chain_network()).into(),
+      value: vout.value,
+      inscription_digest: inscription_digests,
+    }),
+    latest_height: latest_height.n(),
+    latest_blockhash: latest_blockhash.to_string(),
   })))
 }

@@ -1,11 +1,25 @@
-use super::*;
-use crate::{
-  index::OUTPOINT_TO_ENTRY,
-  okx::datastore::ord::{DataStoreReadOnly, DataStoreReadWrite, InscriptionOp},
-  InscriptionId, Result,
+use {
+  super::*,
+  crate::{
+    index::OUTPOINT_TO_ENTRY,
+    okx::datastore::ord::{DataStoreReadOnly, DataStoreReadWrite, InscriptionOp},
+    InscriptionId, Result,
+  },
+  bitcoin::{consensus::Encodable, OutPoint, TxOut, Txid},
+  redb::{ReadTransaction, WriteTransaction},
 };
-use bitcoin::{consensus::Encodable, OutPoint, TxOut, Txid};
-use redb::WriteTransaction;
+
+pub fn try_init_tables<'db, 'a>(
+  wtx: &'a WriteTransaction<'db>,
+  rtx: &'a ReadTransaction<'db>,
+) -> Result<bool, redb::Error> {
+  if rtx.open_table(ORD_TX_TO_OPERATIONS).is_err() {
+    wtx.open_table(ORD_TX_TO_OPERATIONS)?;
+    wtx.open_table(COLLECTIONS_KEY_TO_INSCRIPTION_ID)?;
+    wtx.open_table(COLLECTIONS_INSCRIPTION_ID_TO_KINDS)?;
+  }
+  Ok(true)
+}
 
 pub struct OrdDbReadWriter<'db, 'a> {
   wtx: &'a WriteTransaction<'db>,
@@ -39,6 +53,16 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
   ) -> Result<Vec<InscriptionOp>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transaction_operations(txid)
   }
+  // collections
+  fn get_collection_inscription_id(&self, key: &str) -> Result<Option<InscriptionId>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_collection_inscription_id(key)
+  }
+  fn get_collections_of_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<Vec<CollectionKind>>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_collections_of_inscription(inscription_id)
+  }
 }
 
 impl<'db, 'a> DataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
@@ -70,12 +94,43 @@ impl<'db, 'a> DataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
     )?;
     Ok(())
   }
+  fn set_inscription_by_collection_key(
+    &self,
+    key: &str,
+    inscription_id: InscriptionId,
+  ) -> Result<(), Self::Error> {
+    let mut value = [0; 36];
+    let (txid, index) = value.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_ref());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+    self
+      .wtx
+      .open_table(COLLECTIONS_KEY_TO_INSCRIPTION_ID)?
+      .insert(key, &value)?;
+    Ok(())
+  }
+
+  fn set_inscription_attributes(
+    &self,
+    inscription_id: InscriptionId,
+    kind: &[CollectionKind],
+  ) -> Result<(), Self::Error> {
+    let mut key = [0; 36];
+    let (txid, index) = key.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_ref());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+    self
+      .wtx
+      .open_table(COLLECTIONS_INSCRIPTION_ID_TO_KINDS)?
+      .insert(&key, bincode::serialize(&kind).unwrap().as_slice())?;
+    Ok(())
+  }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{okx::datastore::ord::Action, unbound_outpoint, SatPoint};
+  use crate::{inscription, okx::datastore::ord::Action, unbound_outpoint, SatPoint};
   use redb::Database;
   use std::str::FromStr;
   use tempfile::NamedTempFile;
@@ -117,6 +172,7 @@ mod tests {
       action: Action::New {
         cursed: false,
         unbound: false,
+        inscription: inscription("text/plain;charset=utf-8", "foobar"),
       },
       inscription_number: Some(100),
       inscription_id: InscriptionId { txid, index: 0 },

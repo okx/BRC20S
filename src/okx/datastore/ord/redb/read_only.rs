@@ -1,21 +1,20 @@
-use redb::{
-  AccessGuard, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue, StorageError,
-  Table, TableDefinition, WriteTransaction,
+use {
+  super::*,
+  crate::{
+    index::{INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, OUTPOINT_TO_ENTRY},
+    okx::datastore::ord::{DataStoreReadOnly, InscriptionOp},
+    Hash, InscriptionId, Result,
+  },
+  bitcoin::{
+    consensus::{Decodable, Encodable},
+    OutPoint, TxOut, Txid,
+  },
+  redb::{
+    AccessGuard, ReadOnlyTable, ReadTransaction, ReadableTable, RedbKey, RedbValue, StorageError,
+    Table, TableDefinition, WriteTransaction,
+  },
+  std::{borrow::Borrow, io},
 };
-use std::{borrow::Borrow, io};
-
-use bitcoin::{
-  consensus::{Decodable, Encodable},
-  OutPoint, TxOut, Txid,
-};
-
-use crate::{
-  index::{INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, OUTPOINT_TO_ENTRY},
-  okx::datastore::ord::{DataStoreReadOnly, InscriptionOp},
-  InscriptionId, Result,
-};
-
-use super::ORD_TX_TO_OPERATIONS;
 
 pub struct OrdDbReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
@@ -75,6 +74,39 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
 
 impl<'db, 'a> DataStoreReadOnly for OrdDbReader<'db, 'a> {
   type Error = redb::Error;
+  fn get_collections_of_inscription(
+    &self,
+    inscription_id: InscriptionId,
+  ) -> Result<Option<Vec<CollectionKind>>, Self::Error> {
+    let mut key = [0; 36];
+    let (txid, index) = key.split_at_mut(32);
+    txid.copy_from_slice(inscription_id.txid.as_ref());
+    index.copy_from_slice(&inscription_id.index.to_be_bytes());
+
+    Ok(
+      self
+        .wrapper
+        .open_table(COLLECTIONS_INSCRIPTION_ID_TO_KINDS)?
+        .get(&key)?
+        .map(|v| bincode::deserialize::<Vec<CollectionKind>>(v.value()).unwrap()),
+    )
+  }
+
+  fn get_collection_inscription_id(&self, key: &str) -> Result<Option<InscriptionId>, Self::Error> {
+    Ok(
+      self
+        .wrapper
+        .open_table(COLLECTIONS_KEY_TO_INSCRIPTION_ID)?
+        .get(key)?
+        .map(|v| {
+          let (txid, index) = v.value().split_at(32);
+          InscriptionId {
+            txid: Txid::from_raw_hash(Hash::from_slice(txid).unwrap()),
+            index: u32::from_be_bytes(index.try_into().unwrap()),
+          }
+        }),
+    )
+  }
   fn get_number_by_inscription_id(
     &self,
     inscription_id: InscriptionId,

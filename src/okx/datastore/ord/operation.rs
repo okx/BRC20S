@@ -1,6 +1,8 @@
-use crate::{InscriptionId, SatPoint};
-use bitcoin::Txid;
-use serde::{Deserialize, Serialize};
+use {
+  crate::{Inscription, InscriptionId, SatPoint},
+  bitcoin::Txid,
+  serde::{Deserialize, Serialize},
+};
 
 // collect the inscription operation.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -16,6 +18,10 @@ pub struct InscriptionOp {
 // the act of marking an inscription.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum Action {
-  New { cursed: bool, unbound: bool },
+  New {
+    cursed: bool,
+    unbound: bool,
+    inscription: Inscription,
+  },
   Transfer,
 }

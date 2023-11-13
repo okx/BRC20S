@@ -3,7 +3,7 @@ use {
   super::{fetcher::Fetcher, *},
   crate::okx::{
     datastore::StateReadWrite,
-    protocol::{BlockContext, ConfigBuilder, ProtocolManager},
+    protocol::{BlockContext, ProtocolConfig, ProtocolManager},
   },
   futures::future::try_join_all,
   std::sync::mpsc,
@@ -538,25 +538,10 @@ impl<'index> Updater<'_> {
 
     std::mem::drop(inscription_id_to_inscription_entry);
     std::mem::drop(outpoint_to_entry);
+
     // Create a protocol manager to index the block of brc20, brc20s data.
-
-    let mut config_builder = ConfigBuilder::new(index.options.first_inscription_height());
-    if index.options.index_brc20 {
-      config_builder = config_builder.with_brc20(index.options.first_brc20_height());
-    }
-    if index.options.index_brc20s {
-      if config_builder.first_brc20_height.is_none() {
-        config_builder = config_builder.with_brc20(index.options.first_brc20_height());
-      }
-      config_builder = config_builder.with_brc20s(index.options.first_brc20s_height());
-    }
-
-    ProtocolManager::new(
-      &index.client,
-      &StateReadWrite::new(wtx),
-      &config_builder.build(),
-    )
-    .index_block(
+    let config = ProtocolConfig::new_with_options(&index.options);
+    ProtocolManager::new(&index.client, &StateReadWrite::new(wtx), &config).index_block(
       BlockContext {
         network: index.get_chain_network(),
         blockheight: self.height,

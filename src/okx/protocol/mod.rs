@@ -15,6 +15,7 @@ use {
     message::{Message, Receipt},
     resolve_manager::MsgResolveManager,
   },
+  crate::Options,
   bitcoin::Network,
 };
 
@@ -25,42 +26,35 @@ pub struct BlockContext {
   pub blocktime: u32,
 }
 #[derive(Debug, Clone)]
-pub struct Config {
+pub struct ProtocolConfig {
   first_inscription_height: u64,
   first_brc20_height: Option<u64>,
   first_brc20s_height: Option<u64>,
+  enable_ord_receipts: bool,
+  enable_index_bitmap: bool,
 }
 
-#[derive(Default)]
-pub struct ConfigBuilder {
-  pub first_inscription_height: u64,
-  pub first_brc20_height: Option<u64>,
-  pub first_brc20s_height: Option<u64>,
-}
+impl ProtocolConfig {
+  pub(crate) fn new_with_options(options: &Options) -> Self {
+    let mut config = Self {
+      first_inscription_height: options.first_inscription_height(),
+      first_brc20_height: if options.enable_index_brc20 {
+        Some(options.first_brc20_height())
+      } else {
+        None
+      },
+      first_brc20s_height: if options.enable_index_brc20s {
+        Some(options.first_brc20s_height())
+      } else {
+        None
+      },
+      enable_ord_receipts: options.enable_save_ord_receipts,
+      enable_index_bitmap: options.enable_index_bitmap,
+    };
 
-impl ConfigBuilder {
-  pub fn new(first_inscription_height: u64) -> Self {
-    Self {
-      first_inscription_height,
-      ..Default::default()
+    if config.first_brc20s_height.is_some() && config.first_brc20_height.is_none() {
+      config.first_brc20_height = Some(options.first_brc20_height());
     }
-  }
-
-  pub fn with_brc20(mut self, first_brc20_height: u64) -> Self {
-    self.first_brc20_height = Some(first_brc20_height);
-    self
-  }
-
-  pub fn with_brc20s(mut self, first_brc20s_height: u64) -> Self {
-    self.first_brc20s_height = Some(first_brc20s_height);
-    self
-  }
-
-  pub fn build(self) -> Config {
-    Config {
-      first_inscription_height: self.first_inscription_height,
-      first_brc20_height: self.first_brc20_height,
-      first_brc20s_height: self.first_brc20s_height,
-    }
+    config
   }
 }

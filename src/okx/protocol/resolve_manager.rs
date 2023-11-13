@@ -19,11 +19,11 @@ use {
 pub struct MsgResolveManager<'a, RW: StateRWriter> {
   client: &'a Client,
   state_store: &'a RW,
-  config: &'a Config,
+  config: &'a ProtocolConfig,
 }
 
 impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
-  pub fn new(client: &'a Client, state_store: &'a RW, config: &'a Config) -> Self {
+  pub fn new(client: &'a Client, state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
     Self {
       client,
       state_store,
@@ -35,7 +35,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
     &self,
     context: BlockContext,
     tx: &Transaction,
-    operations: Vec<InscriptionOp>,
+    operations: &[InscriptionOp],
   ) -> Result<Vec<Message>> {
     log::debug!(
       "Resolve Manager indexed transaction {}, operations size: {}, data: {:?}",
@@ -44,7 +44,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
       operations
     );
     let mut messages = Vec::new();
-    let mut operation_iter = operations.into_iter().peekable();
+    let mut operation_iter = operations.iter().peekable();
     let new_inscriptions = Inscription::from_transaction(tx)
       .into_iter()
       .map(|v| v.inscription)
@@ -68,7 +68,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
           .unwrap_or(false)
         {
           if let Some(msg) =
-            brc20::Message::resolve(self.state_store.brc20(), &new_inscriptions, &operation)?
+            brc20::Message::resolve(self.state_store.brc20(), &new_inscriptions, operation)?
           {
             log::debug!(
               "BRC20 resolved the message from {:?}, msg {:?}",
@@ -92,7 +92,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
             self.state_store.ord(),
             self.state_store.brc20s(),
             &new_inscriptions,
-            &operation,
+            operation,
             &mut outpoint_to_txout_cache,
           )? {
             log::debug!(

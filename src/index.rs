@@ -1,20 +1,3 @@
-use crate::okx::{
-  datastore::{
-    brc20::{
-      self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
-      DataStoreReadOnly as BRC20DataStoreReadOnly,
-    },
-    brc20s::{
-      self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
-      DataStoreReadOnly as BRC20SDataStoreReadOnly, PledgedTick,
-    },
-    ord::{self, OrdDataStoreReadOnly},
-    ScriptKey,
-  },
-  protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
-  reward,
-};
-
 use {
   self::{
     entry::{BlockHashValue, Entry, InscriptionIdValue, OutPointValue, SatPointValue, SatRange},
@@ -30,6 +13,22 @@ use {
   chrono::SubsecRound,
   indicatif::{ProgressBar, ProgressStyle},
   log::log_enabled,
+  okx::{
+    datastore::{
+      brc20::{
+        self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
+        DataStoreReadOnly as BRC20DataStoreReadOnly,
+      },
+      brc20s::{
+        self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
+        DataStoreReadOnly as BRC20SDataStoreReadOnly, PledgedTick,
+      },
+      ord::{self, DataStoreReadOnly},
+      ScriptKey,
+    },
+    protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
+    reward,
+  },
   redb::{
     Database, MultimapTable, MultimapTableDefinition, ReadableMultimapTable, ReadableTable, Table,
     TableDefinition, WriteTransaction,
@@ -286,6 +285,17 @@ impl Index {
       try_init_brc20(&wtx, &rtx)?;
       try_init_brc20s(&wtx, &rtx)?;
       wtx.commit()?;
+      log::info!("Options configuration...");
+      log::info!(
+        "\tBRC20: enabled {}, first index block {}",
+        options.index_brc20,
+        options.first_brc20_height()
+      );
+      log::info!(
+        "\tBRC20S: enabled {}, first index block {:?}",
+        options.index_brc20s,
+        options.first_brc20s_height()
+      );
     }
     let genesis_block_coinbase_transaction =
       options.chain().genesis_block().coinbase().unwrap().clone();
@@ -1554,12 +1564,15 @@ impl Index {
     let rtx = self.database.begin_read().unwrap();
     let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
     let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let user_info =
-      brc20s_db.get_pid_to_use_info(&ScriptKey::from_address(address.clone()), pid)?;
+    let user_info = brc20s_db
+      .get_pid_to_use_info(&ScriptKey::from_address(address.clone()), pid)?
+      .ok_or(anyhow!("user info not found from state!"))?;
 
-    let pool_info = brc20s_db.get_pid_to_poolinfo(pid)?;
+    let pool_info = brc20s_db
+      .get_pid_to_poolinfo(pid)?
+      .ok_or(anyhow!("pool info not found from state!"))?;
 
-    let dec = match pool_info.clone().unwrap().stake {
+    let dec = match pool_info.clone().stake {
       PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
       PledgedTick::BRC20STick(tickid) => brc20s_db.get_tick_info(&tickid).unwrap().unwrap().decimal,
       PledgedTick::BRC20Tick(tick) => brc20_db.get_token_info(&tick).unwrap().unwrap().decimal,
@@ -1569,8 +1582,8 @@ impl Index {
     let block = self.height().unwrap().unwrap_or(Height(0)).n();
 
     let result = reward::query_reward(
-      user_info.unwrap(),
-      pool_info.unwrap(),
+      user_info,
+      pool_info,
       self.height().unwrap().unwrap_or(Height(0)).n(),
       dec,
     )?;

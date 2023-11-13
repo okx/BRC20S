@@ -1,11 +1,11 @@
 use crate::{
-  okx::datastore::{ord::OrdDataStoreReadOnly, ScriptKey},
+  okx::datastore::{ord::DataStoreReadOnly, ScriptKey},
   InscriptionId, Result, SatPoint,
 };
 use anyhow::anyhow;
 use bitcoin::Network;
 
-pub(super) fn get_script_key_on_satpoint<O: OrdDataStoreReadOnly>(
+pub(super) fn get_script_key_on_satpoint<O: DataStoreReadOnly>(
   satpoint: SatPoint,
   ord_store: &O,
   network: Network,
@@ -23,7 +23,7 @@ pub(super) fn get_script_key_on_satpoint<O: OrdDataStoreReadOnly>(
   ))
 }
 
-pub(super) fn get_inscription_number_by_id<O: OrdDataStoreReadOnly>(
+pub(super) fn get_inscription_number_by_id<O: DataStoreReadOnly>(
   inscription_id: InscriptionId,
   ord_store: &O,
 ) -> Result<i64> {

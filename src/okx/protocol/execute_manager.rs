@@ -1,36 +1,24 @@
-use super::*;
-use crate::okx::datastore::balance::convert_pledged_tick_without_decimal;
-use crate::okx::datastore::brc20 as brc20_store;
-use crate::okx::datastore::brc20s as brc20s_store;
-use crate::okx::datastore::ord as ord_store;
-use crate::okx::protocol::brc20 as brc20_proto;
-use crate::okx::protocol::brc20s as brc20s_proto;
-use crate::Result;
+use {
+  super::*,
+  crate::{
+    okx::{
+      datastore::{
+        balance::convert_pledged_tick_without_decimal, brc20 as brc20_store,
+        brc20s as brc20s_store, StateRWriter,
+      },
+      protocol::{brc20 as brc20_proto, brc20s as brc20s_proto},
+    },
+    Result,
+  },
+};
 
-pub struct CallManager<
-  'a,
-  O: ord_store::OrdDataStoreReadWrite,
-  N: brc20_store::DataStoreReadWrite,
-  M: brc20s_store::DataStoreReadWrite,
-> {
-  ord_store: &'a O,
-  brc20_store: &'a N,
-  brc20s_store: &'a M,
+pub struct CallManager<'a, RW: StateRWriter> {
+  state_store: &'a RW,
 }
 
-impl<
-    'a,
-    O: ord_store::OrdDataStoreReadWrite,
-    N: brc20_store::DataStoreReadWrite,
-    M: brc20s_store::DataStoreReadWrite,
-  > CallManager<'a, O, N, M>
-{
-  pub fn new(ord_store: &'a O, brc20_store: &'a N, brc20s_store: &'a M) -> Self {
-    Self {
-      ord_store,
-      brc20_store,
-      brc20s_store,
-    }
+impl<'a, RW: StateRWriter> CallManager<'a, RW> {
+  pub fn new(state_store: &'a RW) -> Self {
+    Self { state_store }
   }
 
   pub fn execute_message(&self, context: BlockContext, msg: &Message) -> Result {
@@ -38,16 +26,17 @@ impl<
     let receipt = match msg {
       Message::BRC20(msg) => brc20_proto::execute(
         context,
-        self.ord_store,
-        self.brc20_store,
-        &brc20_proto::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
+        self.state_store.ord(),
+        self.state_store.brc20(),
+        &brc20_proto::ExecutionMessage::from_message(self.state_store.ord(), msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20))?,
       Message::BRC20S(msg) => brc20s::execute(
         context,
-        self.brc20_store,
-        self.brc20s_store,
-        &brc20s::ExecutionMessage::from_message(self.ord_store, msg, context.network)?,
+        brc20s::get_config_by_network(context.network, context.blockheight),
+        self.state_store.brc20(),
+        self.state_store.brc20s(),
+        &brc20s::ExecutionMessage::from_message(self.state_store.ord(), msg, context.network)?,
       )
       .map(|v| v.map(Receipt::BRC20S))?,
     };
@@ -64,22 +53,23 @@ impl<
           match convert_pledged_tick_without_decimal(
             &ptick,
             brc20_transfer.amount,
-            self.brc20s_store,
-            self.brc20_store,
+            self.state_store.brc20s(),
+            self.state_store.brc20(),
           ) {
             Ok(amt) => {
               let passive_unstake = brc20s_proto::PassiveUnStake {
-                stake: brc20_transfer.tick.as_str().to_string(),
+                stake: brc20_transfer.tick.to_string(),
                 amount: amt.to_string(),
               };
-              if let Message::BRC20(old_brc20_msg) = msg {
-                let passive_msg = convert_msg_brc20_to_brc20s(old_brc20_msg, passive_unstake);
+              if let Message::BRC20(_) = msg {
+                let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
                 brc20s::execute(
                   context,
-                  self.brc20_store,
-                  self.brc20s_store,
+                  brc20s::get_config_by_network(context.network, context.blockheight),
+                  self.state_store.brc20(),
+                  self.state_store.brc20s(),
                   &brc20s::ExecutionMessage::from_message(
-                    self.ord_store,
+                    self.state_store.ord(),
                     &passive_msg,
                     context.network,
                   )?,
@@ -101,22 +91,23 @@ impl<
             match convert_pledged_tick_without_decimal(
               &ptick,
               brc20s_transfer.amt,
-              self.brc20s_store,
-              self.brc20_store,
+              self.state_store.brc20s(),
+              self.state_store.brc20(),
             ) {
               Ok(amt) => {
                 let passive_unstake = brc20s_proto::PassiveUnStake {
                   stake: ptick.to_string(),
                   amount: amt.to_string(),
                 };
-                if let Message::BRC20S(old_brc20s_msg) = msg {
-                  let passive_msg = convert_msg_brc20s(old_brc20s_msg, passive_unstake);
+                if let Message::BRC20S(_) = msg {
+                  let passive_msg = convert_receipt_to_passive_msg(msg, passive_unstake);
                   brc20s::execute(
                     context,
-                    self.brc20_store,
-                    self.brc20s_store,
+                    brc20s::get_config_by_network(context.network, context.blockheight),
+                    self.state_store.brc20(),
+                    self.state_store.brc20s(),
                     &brc20s::ExecutionMessage::from_message(
-                      self.ord_store,
+                      self.state_store.ord(),
                       &passive_msg,
                       context.network,
                     )?,
@@ -135,29 +126,28 @@ impl<
   }
 }
 
-fn convert_msg_brc20_to_brc20s(
-  msg: &brc20_proto::Message,
+fn convert_receipt_to_passive_msg(
+  msg: &Message,
   op: brc20s_proto::PassiveUnStake,
 ) -> brc20s::Message {
-  brc20s::Message {
-    txid: msg.txid,
-    inscription_id: msg.inscription_id,
-    commit_input_satpoint: None,
-    old_satpoint: msg.old_satpoint,
-    new_satpoint: msg.new_satpoint,
-    op: brc20s::Operation::PassiveUnStake(op),
-    sat_in_outputs: msg.sat_in_outputs,
-  }
-}
-
-fn convert_msg_brc20s(msg: &brc20s::Message, op: brc20s_proto::PassiveUnStake) -> brc20s::Message {
-  brc20s::Message {
-    txid: msg.txid,
-    inscription_id: msg.inscription_id,
-    commit_input_satpoint: None,
-    old_satpoint: msg.old_satpoint,
-    new_satpoint: msg.new_satpoint,
-    op: brc20s::Operation::PassiveUnStake(op),
-    sat_in_outputs: msg.sat_in_outputs,
+  match msg {
+    Message::BRC20(msg) => brc20s::Message {
+      txid: msg.txid,
+      inscription_id: msg.inscription_id,
+      commit_input_satpoint: None,
+      old_satpoint: msg.old_satpoint,
+      new_satpoint: msg.new_satpoint,
+      op: brc20s::Operation::PassiveUnStake(op),
+      sat_in_outputs: msg.sat_in_outputs,
+    },
+    Message::BRC20S(msg) => brc20s::Message {
+      txid: msg.txid,
+      inscription_id: msg.inscription_id,
+      commit_input_satpoint: None,
+      old_satpoint: msg.old_satpoint,
+      new_satpoint: msg.new_satpoint,
+      op: brc20s::Operation::PassiveUnStake(op),
+      sat_in_outputs: msg.sat_in_outputs,
+    },
   }
 }

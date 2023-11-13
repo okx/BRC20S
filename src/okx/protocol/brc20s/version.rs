@@ -1,101 +1,60 @@
+use crate::okx::datastore::brc20s::PledgedTick;
 use bitcoin::Network;
-use lazy_static::lazy_static;
-use std::collections::HashMap;
-use std::string::ToString;
 
-/**
- * enable share pool
- * current is disable
- */
-pub const VERSION_KEY_ENABLE_SHARE: &str = "enable_share";
-
-/**
- * update staked pool number limit
- */
-pub const VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1: &str = "staked_pool_num_limit_v1";
-
-lazy_static! {
-
-  static ref MAIN_NET_VERSION: HashMap<String, Version> = {
-    let mut version: HashMap<String, Version> = HashMap::new();
-    version.insert(
-      VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
-      Version {
-        name: VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
-        start_height: 800310,
-      },
-    );
-    version
-  };
-
-  static ref TEST_NET_VERSION: HashMap<String, Version> = {
-    HashMap::new()
-  };
-
-  static ref SIG_NET_VERSION: HashMap<String, Version> = {
-    HashMap::new()
-  };
-
-  static ref REGTEST_NET_VERSION: HashMap<String, Version> = {
-    let mut version: HashMap<String, Version> = HashMap::new();
-    version.insert(
-      VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
-      Version {
-        name: VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
-        start_height: 2100,
-      },
-    );
-    version
-  };
-
-  pub static ref UNIT_TEST_VERSION: HashMap<String, Version> = {
-    let mut version: HashMap<String, Version> = HashMap::new();
-
-    //enable share pool
-    version.insert(
-      VERSION_KEY_ENABLE_SHARE.to_string(),
-      Version {
-        name: VERSION_KEY_ENABLE_SHARE.to_string(),
-        start_height: 0,
-      },
-    );
-
-    version.insert(
-      VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
-      Version {
-        name: VERSION_KEY_STAKED_POOL_NUM_LIMIT_V1.to_string(),
-        start_height: 20,
-      },
-    );
-
-    version
-  };
+#[derive(Debug, Clone)]
+pub struct Config {
+  pub allow_share_pool: bool,
+  pub allow_btc_staking: bool,
+  pub allow_brc20_staking: bool,
+  pub allow_brc20s_staking: bool,
+  pub max_staked_pool_num: u64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Version {
-  pub name: String,
-  pub start_height: u64,
+// start at block 798108
+pub const fn zebra() -> Config {
+  Config {
+    allow_share_pool: true,
+    allow_btc_staking: false,
+    allow_brc20_staking: true,
+    allow_brc20s_staking: false,
+    max_staked_pool_num: 5,
+  }
 }
-
-pub fn enable_version_by_key(
-  versions: &HashMap<String, Version>,
-  key: &str,
-  current_height: u64,
-) -> bool {
-  let key = key.to_string();
-  match versions.get(&key) {
-    None => false,
-    Some(v) => current_height >= v.start_height,
+// start at block 800310
+pub const fn koala() -> Config {
+  Config {
+    allow_share_pool: true,
+    allow_btc_staking: false,
+    allow_brc20_staking: true,
+    allow_brc20s_staking: false,
+    max_staked_pool_num: 128,
   }
 }
 
-pub fn get_version_by_network(network: Network) -> HashMap<String, Version> {
+pub fn get_config_by_network(network: Network, blockheight: u64) -> Config {
   match network {
-    Network::Bitcoin => MAIN_NET_VERSION.clone(),
-    Network::Testnet => TEST_NET_VERSION.clone(),
-    Network::Signet => SIG_NET_VERSION.clone(),
-    Network::Regtest => REGTEST_NET_VERSION.clone(),
+    Network::Bitcoin => match blockheight {
+      n if n >= 800310 => koala(),
+      _ => zebra(),
+    },
+    Network::Testnet => match blockheight {
+      n if n >= 2468142 => koala(),
+      _ => zebra(),
+    },
+    Network::Signet => match blockheight {
+      n if n >= 153382 => koala(),
+      _ => zebra(),
+    },
+    Network::Regtest => koala(),
     _ => panic!("not support network"),
+  }
+}
+
+pub fn tick_can_staked(token: &PledgedTick, config: &Config) -> bool {
+  match token {
+    PledgedTick::Native => config.allow_btc_staking,
+    PledgedTick::BRC20STick(_) => config.allow_brc20s_staking,
+    PledgedTick::BRC20Tick(_) => config.allow_brc20_staking,
+    PledgedTick::Unknown => false,
   }
 }

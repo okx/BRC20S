@@ -1,4 +1,3 @@
-use crate::okx::protocol::brc20s::version::UNIT_TEST_VERSION;
 pub(crate) use {
   super::*, crate::inscription_id::InscriptionId, crate::okx::datastore::ScriptKey,
   crate::SatPoint, bitcoin::Address, std::str::FromStr,
@@ -19,7 +18,6 @@ pub(crate) fn mock_create_brc20s_message(
   let new_satpoint =
     SatPoint::from_str("1111111111111111111111111111111111111111111111111111111111111111:2:1")
       .unwrap();
-  let version = UNIT_TEST_VERSION.clone();
 
   ExecutionMessage {
     txid,
@@ -32,7 +30,6 @@ pub(crate) fn mock_create_brc20s_message(
     from,
     to: Some(to),
     op,
-    version,
   }
 }
 

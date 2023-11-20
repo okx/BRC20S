@@ -169,14 +169,16 @@ impl<
     &self,
     brc0_client: &BRCZeroRpcClient,
     context: BlockContext,
-    brc0_msg: &BrcZeroMsg,
+    brc0_msgs: Vec<BrcZeroMsg>,
   ) -> Result {
     let mut txs: Vec<BRCZeroTx> = Vec::new();
-    let tx = BRCZeroTx {
-      hex_rlp_encode_tx: serde_json::to_string(&brc0_msg.msg).unwrap(),
-      btc_fee: brc0_msg.btc_fee.to_string(),
-    };
-    txs.push(tx);
+    for brc0_msg in brc0_msgs.iter() {
+      let tx = BRCZeroTx {
+        hex_rlp_encode_tx: serde_json::to_string(&brc0_msg.msg).unwrap(),
+        btc_fee: brc0_msg.btc_fee.to_string(),
+      };
+      txs.push(tx);
+    }
 
     let request = RpcRequest {
       jsonrpc: "2.0".to_string(),

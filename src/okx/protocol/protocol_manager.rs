@@ -90,6 +90,7 @@ impl<
     let mut inscriptions_size = 0;
     let mut messages_size = 0;
     let mut messages_in_block: Vec<Message> = Vec::new();
+    let mut brczero_messages_in_block: Vec<BrcZeroMsg> = Vec::new();
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter().skip(1) {
       if let Some(tx_operations) = operations.remove(txid) {
@@ -113,13 +114,16 @@ impl<
         messages_in_block.append(&mut messages_in_tx);
 
         // Resolve inscription for brc-zero and execute it.
-        let mut messages = self
+        let mut brczero_messages_in_tx = self
             .resolve_man
             .resolve_brczero_inscription(context, tx, tx_operations.clone())?;
-        for msg in messages.iter() {
-          self.call_man.send_to_brc0(self.brc0_client, context, msg)?;
-        }
+        brczero_messages_in_block.append(&mut brczero_messages_in_tx);
       }
+    }
+
+    // send
+    if brczero_messages_in_block.len() > 0 {
+      self.call_man.send_to_brc0(self.brc0_client, context, brczero_messages_in_block)?;
     }
 
     // Execute messages.

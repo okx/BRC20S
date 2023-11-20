@@ -8,6 +8,8 @@ use crate::okx::protocol::brc20 as brc20_proto;
 use crate::okx::protocol::brc20s as brc20s_proto;
 use crate::rpc::BRCZeroRpcClient;
 use crate::Result;
+use crate::okx::protocol::brc0::{RpcResponse, BRCZeroTx, RpcRequest, RpcParams};
+
 
 pub struct CallManager<
   'a,
@@ -162,6 +164,67 @@ impl<
 
     brc0_proto::execute_msgs(brc0_client, context, exe_msgs)
   }
+
+  pub fn send_to_brc0(
+    &self,
+    brc0_client: &BRCZeroRpcClient,
+    context: BlockContext,
+    brc0_msg: &BrcZeroMsg,
+  ) -> Result {
+    let mut txs: Vec<BRCZeroTx> = Vec::new();
+    let tx = BRCZeroTx {
+      hex_rlp_encode_tx: serde_json::to_string(&brc0_msg.msg).unwrap(),
+      btc_fee: brc0_msg.btc_fee.to_string(),
+    };
+    txs.push(tx);
+
+    let request = RpcRequest {
+      jsonrpc: "2.0".to_string(),
+      id: 3,
+      method: "broadcast_brczero_txs_async".to_string(),
+      params: RpcParams {
+        height: context.blockheight.to_string(),
+        block_hash: context.blockhash.to_string(),
+        is_confirmed: false,
+        txs,
+      },
+    };
+    log::debug!("Request: {:#?}", request);
+
+    init_tokio_runtime().block_on(async {
+      let response = brc0_client
+          .client
+          .post(&brc0_client.url)
+          .header("Content-Type", "application/json")
+          .json(&request)
+          .send()
+          .await;
+
+      match response {
+        Ok(res)=>{
+          if res.status().is_success(){
+            let body = res.text().await;
+            let rpc_res: RpcResponse = serde_json::from_str(&*body.unwrap()).unwrap();
+            if rpc_res.result.len()>0{
+              for tx_res in rpc_res.result.iter() {
+                log::info!("broadcast brczero txs successes: {}", tx_res.hash);
+              }
+            }else{
+              log::info!("broadcast btc block to brczero successes");
+            }
+            // log::debug!("Response: {:#?}", rpc_res);
+          }else{
+            log::error!("broadcast brczero txs or btc block failed: {}",res.status());
+          }
+        },
+        Err(e)=>{
+          log::error!("broadcast brczero txs or btc block failed: {e}");
+        }
+      }
+    });
+
+    Ok(())
+  }
 }
 
 fn convert_msg_brc20_to_brc20s(
@@ -189,4 +252,12 @@ fn convert_msg_brc20s(msg: &brc20s::Message, op: brc20s_proto::PassiveUnStake) -
     op: brc20s::Operation::PassiveUnStake(op),
     sat_in_outputs: msg.sat_in_outputs,
   }
+}
+
+/// Initialize Tokio runtime
+fn init_tokio_runtime() -> tokio::runtime::Runtime {
+  tokio::runtime::Builder::new_current_thread()
+      .enable_all()
+      .build()
+      .unwrap()
 }

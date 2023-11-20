@@ -10,7 +10,22 @@ mod utils;
 pub use self::protocol_manager::{BlockContext, ProtocolManager};
 use self::{
   execute_manager::CallManager,
-  message::{Message, Receipt},
+  message::{Message, Receipt, BrcZeroMsg, MsgInscription, InscriptionContext},
   protocol_manager::ProtocolKind,
   resolve_manager::MsgResolveManager,
 };
+
+#[derive(Debug, PartialEq, thiserror::Error)]
+pub enum JSONError {
+  #[error("invalid content type")]
+  InvalidContentType,
+
+  #[error("unsupported content type")]
+  UnSupportContentType,
+
+  #[error("invalid json string")]
+  InvalidJson,
+
+  #[error("not brc0 json")]
+  NotBRC0Json,
+}

@@ -104,15 +104,21 @@ impl<
           inscriptions_size += tx_operations.len();
         }
 
-        // Resolve messages.
+        // Resolve messages for some protocol and execute it.
         let mut messages_in_tx = self
           .resolve_man
-          .resolve_message(context, tx, tx_operations)?;
-        // for msg in messages.iter() {
-        //   self.call_man.execute_message(context, msg)?;
-        // }
+          .resolve_message(context, tx, tx_operations.clone())?;
+
         messages_size += messages_in_tx.len();
         messages_in_block.append(&mut messages_in_tx);
+
+        // Resolve inscription for brc-zero and execute it.
+        let mut messages = self
+            .resolve_man
+            .resolve_brczero_inscription(context, tx, tx_operations.clone())?;
+        for msg in messages.iter() {
+          self.call_man.send_to_brc0(self.brc0_client, context, msg)?;
+        }
       }
     }
 

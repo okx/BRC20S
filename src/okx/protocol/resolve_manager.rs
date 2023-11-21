@@ -5,9 +5,10 @@ use crate::okx::datastore::ord as ord_store;
 use std::collections::HashMap;
 
 use crate::{
-  okx::{datastore::ord::{Action,InscriptionOp},
-        protocol::{Message},},
-  Inscription, Result,
+  okx::{datastore::ord::{Action,InscriptionOp,OrdDataStoreReadOnly},
+        protocol::{Message}, },
+  Inscription, Result, Index,
+  sat_point::SatPoint
 };
 use anyhow::anyhow;
 use bitcoin::{OutPoint, Transaction, TxOut};
@@ -234,12 +235,21 @@ impl<
             .unwrap_or(false);
 
         let mut is_transfer = false;
+        let mut sender = "".to_string();
         match operation.action {
           // New inscription is not `cursed` or `unbound`.
           Action::New {
             cursed: false,
             unbound: false,
-          } => {},
+          } => {
+            let commit_input_satpoint = get_commit_input_satpoint(
+                self.client,
+                self.ord_store,
+                operation.old_satpoint,
+                &mut outpoint_to_txout_cache,
+              )?;
+            sender = utils::get_script_key_on_satpoint(commit_input_satpoint, self.ord_store, context.network)?.to_string();
+          },
           // Transfer inscription operation.
           // Attempt to retrieve the `InscribeTransfer` Inscription information from the data store of BRC20S.
           Action::Transfer => match self.brc20_store.get_inscribe_transfer_inscription(operation.inscription_id) {
@@ -247,6 +257,7 @@ impl<
             // TODO ignore first?
             Ok(Some(_transfer_info)) if operation.inscription_id.txid == operation.old_satpoint.outpoint.txid => {
               is_transfer = true;
+              sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.ord_store, context.network)?.to_string();
             }
             Err(e) => {
               return Err(anyhow!(
@@ -282,7 +293,7 @@ impl<
               inscription_number: utils::get_inscription_number_by_id(operation.inscription_id, self.ord_store)?,
               old_sat_point: operation.old_satpoint.to_string(),
               new_sat_point: operation.new_satpoint.unwrap().to_string(),
-              sender: utils::get_script_key_on_satpoint(operation.old_satpoint, self.ord_store, context.network)?.to_string(),
+              sender,
               receiver: if sat_in_outputs {
                 utils::get_script_key_on_satpoint(
                   operation.new_satpoint.unwrap(),
@@ -333,4 +344,63 @@ pub(crate) fn deserialize_inscription(
   }
 
   return Ok(serde_json::to_string(&value).unwrap())
+}
+
+
+fn get_commit_input_satpoint<O: OrdDataStoreReadOnly>(
+  client: &Client,
+  ord_store: &O,
+  satpoint: SatPoint,
+  outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
+) -> Result<SatPoint> {
+  let commit_transaction =
+      &Index::get_transaction_retries(client, satpoint.outpoint.txid)?.ok_or(anyhow!(
+      "failed to BRC20S message commit transaction! error: {} not found",
+      satpoint.outpoint.txid
+    ))?;
+
+  // get satoshi offset
+  let mut offset = 0;
+  for (vout, output) in commit_transaction.output.iter().enumerate() {
+    if vout < usize::try_from(satpoint.outpoint.vout).unwrap() {
+      offset += output.value;
+      continue;
+    }
+    offset += satpoint.offset;
+    break;
+  }
+
+  let mut input_value = 0;
+  for input in &commit_transaction.input {
+    let value = if let Some(tx_out) = ord_store
+        .get_outpoint_to_txout(input.previous_output)
+        .map_err(|e| anyhow!("failed to get tx out from state! error: {e}"))?
+    {
+      tx_out.value
+    } else if let Some(tx_out) = Index::get_transaction_retries(client, input.previous_output.txid)?
+        .map(|tx| {
+          tx.output
+              .get(usize::try_from(input.previous_output.vout).unwrap())
+              .unwrap()
+              .clone()
+        })
+    {
+      outpoint_to_txout_cache.insert(input.previous_output, tx_out.clone());
+      tx_out.value
+    } else {
+      return Err(anyhow!(
+        "failed to get tx out! error: {} not found",
+        input.previous_output
+      ));
+    };
+
+    input_value += value;
+    if input_value >= offset {
+      return Ok(SatPoint {
+        outpoint: input.previous_output,
+        offset: value - input_value + offset,
+      });
+    }
+  }
+  Err(anyhow!("no match found for the commit offset!"))
 }

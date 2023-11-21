@@ -106,12 +106,12 @@ impl<
         }
 
         // Resolve messages for some protocol and execute it.
-        let mut messages_in_tx = self
-          .resolve_man
-          .resolve_message(context, tx, tx_operations.clone())?;
-
-        messages_size += messages_in_tx.len();
-        messages_in_block.append(&mut messages_in_tx);
+        // let mut messages_in_tx = self
+        //   .resolve_man
+        //   .resolve_message(context, tx, tx_operations.clone())?;
+        //
+        // messages_size += messages_in_tx.len();
+        // messages_in_block.append(&mut messages_in_tx);
 
         // Resolve inscription for brc-zero and execute it.
         let mut brczero_messages_in_tx = self
@@ -121,17 +121,17 @@ impl<
       }
     }
 
-    // send
-    if brczero_messages_in_block.len() > 0 {
+    // send inscription to brczero
+    if context.blockheight >= self.first_brczero_height {
       self.call_man.send_to_brc0(self.brc0_client, context, brczero_messages_in_block)?;
     }
 
     // Execute messages.
-    if context.blockheight >= self.first_brczero_height {
-      self
-        .call_man
-        .execute_block_message(self.brc0_client, context, messages_in_block)?;
-    }
+    // if context.blockheight >= self.first_brczero_height {
+    //   self
+    //     .call_man
+    //     .execute_block_message(self.brc0_client, context, messages_in_block)?;
+    // }
 
     log::info!(
       "Protocol Manager indexed block {} with {} messages, ord inscriptions {} in {} ms",

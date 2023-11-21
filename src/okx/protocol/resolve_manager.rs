@@ -5,13 +5,12 @@ use crate::okx::datastore::ord as ord_store;
 use std::collections::HashMap;
 
 use crate::{
-  okx::{datastore::ord::{Action,InscriptionOp,OrdDataStoreReadOnly},
-        protocol::{Message}, },
-  Inscription, Result, Index,
-  sat_point::SatPoint
-};
+  okx::{datastore::ord::{Action, InscriptionOp, OrdDataStoreReadOnly},
+        protocol::{Message}},
+  InscriptionId, Inscription, Result, Index,
+  sat_point::SatPoint};
 use anyhow::anyhow;
-use bitcoin::{OutPoint, Transaction, TxOut};
+use bitcoin::{OutPoint, Transaction, TxOut, Txid};
 use bitcoincore_rpc::Client;
 use serde_json::{Value};
 
@@ -236,6 +235,7 @@ impl<
 
         let mut is_transfer = false;
         let mut sender = "".to_string();
+        let mut inscription_content: String = "".to_string();
         match operation.action {
           // New inscription is not `cursed` or `unbound`.
           Action::New {
@@ -249,39 +249,34 @@ impl<
                 &mut outpoint_to_txout_cache,
               )?;
             sender = utils::get_script_key_on_satpoint(commit_input_satpoint, self.ord_store, context.network)?.to_string();
+            let inscription = new_inscriptions.get(usize::try_from(operation.inscription_id.index).unwrap()).unwrap().clone();
+            let des_res = deserialize_inscription(&inscription);
+            match des_res {
+              Ok(content) => {
+                inscription_content = content;
+              },
+              Err(err) => {
+                return Err(err);
+              },
+            }
           },
           // Transfer inscription operation.
-          // Attempt to retrieve the `InscribeTransfer` Inscription information from the data store of BRC20S.
-          Action::Transfer => match self.brc20_store.get_inscribe_transfer_inscription(operation.inscription_id) {
-            // Ignore non-first transfer operations.
-            // TODO ignore first?
-            Ok(Some(_transfer_info)) if operation.inscription_id.txid == operation.old_satpoint.outpoint.txid => {
-              is_transfer = true;
-              sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.ord_store, context.network)?.to_string();
+          Action::Transfer => {
+            is_transfer = true;
+            sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.ord_store, context.network)?.to_string();
+            let inscription = get_inscription_by_id(self.client,input.previous_output.txid,operation.inscription_id)?;
+            let des_res = deserialize_inscription(&inscription);
+            match des_res {
+              Ok(content) => {
+                inscription_content = content;
+              },
+              Err(err) => {
+                return Err(err);
+              },
             }
-            Err(e) => {
-              return Err(anyhow!(
-                "failed to get inscribe transfer inscription for {}! error: {}",
-                operation.inscription_id, e
-              ))
-            }
-            _ => {}
           },
-          _ => {},
+          _ => {return Err(anyhow!("unknown operation action"));},
         };
-
-        let mut inscription_content: String = "".to_string();
-        let des_res = deserialize_inscription(new_inscriptions
-            .get(usize::try_from(operation.inscription_id.index).unwrap())
-            .unwrap());
-        match des_res {
-          Ok(content) => {
-            inscription_content = content;
-          },
-          Err(err) => {
-            return Err(err);
-          },
-        }
 
         messages.push(BrcZeroMsg{
           btc_fee,
@@ -403,4 +398,28 @@ fn get_commit_input_satpoint<O: OrdDataStoreReadOnly>(
     }
   }
   Err(anyhow!("no match found for the commit offset!"))
+}
+
+fn get_inscription_by_id(
+  client: &Client,
+  txid: Txid,
+  inscription_id: InscriptionId,
+) -> Result<Inscription> {
+  let tx =
+      &Index::get_transaction_retries(client, txid)?.ok_or(anyhow!(
+      "failed to message transaction! error: {} not found",
+      txid
+    ))?;
+
+  match Inscription::from_transaction(&tx)
+        .get(inscription_id.index as usize)
+        .map(|transaction_inscription| transaction_inscription.inscription.clone()) {
+    None => {
+      return Err(anyhow!(
+        "failed to get tx inscription! error: {} not found",
+        inscription_id
+      ));
+    }
+    Some(inscription) => {Ok(inscription)}
+  }
 }

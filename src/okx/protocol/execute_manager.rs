@@ -206,15 +206,23 @@ impl<
         Ok(res)=>{
           if res.status().is_success(){
             let body = res.text().await;
-            let rpc_res: RpcResponse = serde_json::from_str(&*body.unwrap()).unwrap();
-            if rpc_res.result.len()>0{
-              for tx_res in rpc_res.result.iter() {
-                log::info!("broadcast brczero txs successes: {}", tx_res.hash);
+            match body {
+              Ok(body) => {
+                match serde_json::from_str::<RpcResponse>(body.as_str()){
+                  Ok(rpc_res) => {
+                    if rpc_res.result.len() > 0{
+                      for tx_res in rpc_res.result.iter() {
+                        log::info!("broadcast brczero txs successes: {}", tx_res.hash);
+                      }
+                    }else{
+                      log::info!("broadcast btc block to brczero successes");
+                    }
+                  }
+                  Err(e) => { log::error!("broadcast brczero txs JSON: {body} failed: {e}");}
+                }
               }
-            }else{
-              log::info!("broadcast btc block to brczero successes");
+              Err(err) => {log::error!("broadcast brczero txs body failed: {err}");}
             }
-            // log::debug!("Response: {:#?}", rpc_res);
           }else{
             log::error!("broadcast brczero txs or btc block failed: {}",res.status());
           }

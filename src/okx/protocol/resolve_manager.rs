@@ -216,7 +216,6 @@ impl<
         .into_iter()
         .map(|v| v.inscription)
         .collect::<Vec<Inscription>>();
-    let btc_fee = self.get_btc_transaction_fee(tx);
 
     let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
@@ -278,7 +277,7 @@ impl<
           _ => {
             continue;},
         };
-
+        let btc_fee = self.get_btc_transaction_fee(tx);
         messages.push(BrcZeroMsg{
           btc_fee,
           msg: MsgInscription {
@@ -343,7 +342,7 @@ pub(crate) fn deserialize_inscription(
 }
 
 
-fn get_commit_input_satpoint<O: OrdDataStoreReadOnly>(
+fn get_commit_input_satpoint<O: ord_store::OrdDataStoreReadWrite>(
   client: &Client,
   ord_store: &O,
   satpoint: SatPoint,
@@ -381,6 +380,11 @@ fn get_commit_input_satpoint<O: OrdDataStoreReadOnly>(
               .clone()
         })
     {
+      ord_store.set_outpoint_to_txout(input.previous_output.clone(), &tx_out.clone())
+          .or(Err(anyhow!(
+          "failed to get tx out! error: {} not found",
+          input.previous_output
+        )))?;
       outpoint_to_txout_cache.insert(input.previous_output, tx_out.clone());
       tx_out.value
     } else {

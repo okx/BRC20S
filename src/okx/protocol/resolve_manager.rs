@@ -411,7 +411,7 @@ fn get_inscription_by_id(
   inscription_id: InscriptionId,
 ) -> Result<Inscription> {
   let tx =
-      &Index::get_transaction_retries(client, txid)?.ok_or(anyhow!(
+      &Index::get_transaction_retries(client, inscription_id.txid)?.ok_or(anyhow!(
       "failed to message transaction! error: {} not found",
       txid
     ))?;

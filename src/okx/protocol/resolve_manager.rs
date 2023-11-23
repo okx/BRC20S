@@ -256,7 +256,7 @@ impl<
                 inscription_content = content;
               },
               Err(err) => {
-                return Err(err);
+                continue;
               },
             }
           },
@@ -271,11 +271,12 @@ impl<
                 inscription_content = content;
               },
               Err(err) => {
-                return Err(err);
+                continue;
               },
             }
           },
-          _ => {return Err(anyhow!("unknown operation action"));},
+          _ => {
+            continue;},
         };
 
         messages.push(BrcZeroMsg{

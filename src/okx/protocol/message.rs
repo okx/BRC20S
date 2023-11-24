@@ -45,9 +45,6 @@ pub struct InscriptionContext {
   pub new_sat_point: String,
   pub sender: String,
   pub receiver: String,
-  // TODO
-  // pub commit_input String
-  // pub reveal_output String
   pub is_transfer: bool,
   pub block_height: u64,
   pub block_time: u32,

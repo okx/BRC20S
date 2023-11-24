@@ -263,7 +263,7 @@ impl<
           Action::Transfer => {
             is_transfer = true;
             sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.ord_store, context.network)?.to_string();
-            let inscription = get_inscription_by_id(self.client,input.previous_output.txid,operation.inscription_id)?;
+            let inscription = get_inscription_by_id(self.client, operation.inscription_id)?;
             let des_res = deserialize_inscription(&inscription);
             match des_res {
               Ok(content) => {
@@ -407,13 +407,12 @@ fn get_commit_input_satpoint<O: ord_store::OrdDataStoreReadWrite>(
 
 fn get_inscription_by_id(
   client: &Client,
-  txid: Txid,
   inscription_id: InscriptionId,
 ) -> Result<Inscription> {
   let tx =
       &Index::get_transaction_retries(client, inscription_id.txid)?.ok_or(anyhow!(
       "failed to message transaction! error: {} not found",
-      txid
+      inscription_id.txid
     ))?;
 
   match Inscription::from_transaction(&tx)

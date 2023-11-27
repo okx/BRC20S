@@ -218,20 +218,20 @@ impl<
                     log::info!("broadcast btc block<tx:{tx_num}> to brczero successes");
                   }
                   Err(e) => {
-                    panic!("broadcast brczero txs JSON: {body} failed: {e}")
+                    log::error!("broadcast brczero txs JSON: {body} failed: {e}")
                   }
                 }
               }
               Err(err) => {
-                panic!("broadcast brczero txs body failed: {err}")
+                log::error!("broadcast brczero txs body failed: {err}")
               }
             }
           }else{
-            panic!("broadcast brczero txs or btc block failed: {}",res.status())
+            log::error!("broadcast brczero txs or btc block failed: {}",res.status())
           }
         },
         Err(e)=>{
-          panic!("broadcast brczero txs no response: {}",e)
+          log::error!("broadcast brczero txs no response: {}",e)
         }
       }
     });

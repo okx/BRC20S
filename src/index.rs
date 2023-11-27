@@ -48,6 +48,7 @@ mod updater;
 use crate::okx::datastore::brc20s::PledgedTick;
 #[cfg(feature = "rollback")]
 use redb::Savepoint;
+use crate::okx::protocol::brc0::RpcParams;
 
 const SCHEMA_VERSION: u64 = 5;
 
@@ -1574,6 +1575,16 @@ impl Index {
     }
 
     Ok(Some(result))
+  }
+
+  pub(crate) fn ord_brc0_rpcrequest(
+    &self,
+    height: u64,
+  ) -> Result<RpcParams> {
+    let rtx = self.database.begin_read().unwrap();
+    let ord_db = ord::OrdDbReader::new(&rtx);
+    let res = ord_db.get_brczero_rpcparams(height)?;
+    Ok(res)
   }
 }
 

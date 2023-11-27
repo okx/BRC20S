@@ -14,8 +14,10 @@ use crate::{
   okx::datastore::ord::{InscriptionOp, OrdDataStoreReadOnly},
   InscriptionId, Result,
 };
+use crate::okx::protocol::brc0::RpcParams;
 
 use super::ORD_TX_TO_OPERATIONS;
+use super::ORD_BRCZERO_TO_RPCPARAMS;
 
 pub struct OrdDbReader<'db, 'a> {
   wrapper: ReaderWrapper<'db, 'a>,
@@ -117,4 +119,22 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReader<'db, 'a> {
         }),
     )
   }
+
+  fn get_brczero_rpcparams(&self, height: u64) -> Result<RpcParams, Self::Error> {
+    Ok(
+      self
+          .wrapper
+          .open_table(ORD_BRCZERO_TO_RPCPARAMS)?
+          .get(height)?
+          .map_or(RpcParams{
+            height: height.to_string(),
+            block_hash: "".to_string(),
+            is_confirmed: false,
+            txs: vec![],
+          }, |v| {
+            bincode::deserialize::<RpcParams>(v.value()).unwrap()
+          }),
+    )
+  }
+
 }

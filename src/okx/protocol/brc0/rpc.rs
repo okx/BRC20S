@@ -8,7 +8,7 @@ pub struct RpcRequest {
     pub params: RpcParams,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone,Deserialize, Serialize)]
 pub struct RpcParams {
     pub height: String,
     pub block_hash: String,
@@ -16,7 +16,7 @@ pub struct RpcParams {
     pub txs: Vec<BRCZeroTx>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone,Serialize,Deserialize)]
 pub struct BRCZeroTx {
     pub hex_rlp_encode_tx: String,
     pub btc_fee: String,

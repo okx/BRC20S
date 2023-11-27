@@ -7,6 +7,8 @@ use crate::{
   },
 };
 use axum::Json;
+use crate::okx::protocol::brc0::RpcParams;
+
 #[derive(Debug, thiserror::Error)]
 pub enum OrdError {
   #[error("operation not found")]
@@ -546,6 +548,19 @@ pub(crate) async fn ord_txid_inscriptions(
     inscriptions: api_tx_inscriptions,
     txid: txid.to_string(),
   })))
+}
+
+
+// brc0/rpc_request/:height
+pub(crate) async fn brc0_rpcrequest(
+  Extension(index): Extension<Arc<Index>>,
+  Path(height): Path<u64>,
+) -> ApiResult<RpcParams> {
+  log::debug!("rpc: brc0_rpcrequest: {}", height);
+
+  let params = index.ord_brc0_rpcrequest(height)?;
+
+  Ok(Json(ApiResponse::ok(params)))
 }
 
 #[cfg(test)]

@@ -5,6 +5,9 @@ pub use self::{
 use crate::{InscriptionId, Result};
 use bitcoin::{OutPoint, TxOut, Txid};
 use std::fmt::{Debug, Display};
+use crate::okx::datastore::ord::redb::read_only;
+use crate::okx::protocol::brc0::RpcParams;
+
 pub mod operation;
 pub mod redb;
 
@@ -18,6 +21,10 @@ pub trait OrdDataStoreReadOnly {
   fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>, Self::Error>;
 
   fn get_transaction_operations(&self, txid: &Txid) -> Result<Vec<InscriptionOp>, Self::Error>;
+  fn get_brczero_rpcparams(
+    &self,
+    height: u64,
+  ) -> Result<RpcParams, Self::Error>;
 }
 
 pub trait OrdDataStoreReadWrite: OrdDataStoreReadOnly {
@@ -27,5 +34,11 @@ pub trait OrdDataStoreReadWrite: OrdDataStoreReadOnly {
     &self,
     txid: &Txid,
     operations: &[InscriptionOp],
+  ) -> Result<(), Self::Error>;
+
+  fn save_brczero_to_rpcparams(
+    &self,
+    height: u64,
+    params: &RpcParams,
   ) -> Result<(), Self::Error>;
 }

@@ -8,6 +8,7 @@ use crate::okx::protocol::brc20 as brc20_proto;
 use crate::okx::protocol::brc20s as brc20s_proto;
 use crate::rpc::BRCZeroRpcClient;
 use crate::Result;
+use anyhow::anyhow;
 use crate::okx::protocol::brc0::{RpcResponse, BRCZeroTx, RpcRequest, RpcParams};
 
 
@@ -192,6 +193,9 @@ impl<
       },
     };
     log::debug!("Request: {:#?}", request);
+    self.ord_store.save_brczero_to_rpcparams(context.blockheight,&request.params.clone()).map_err(|e| {
+      anyhow!("failed to set transaction ordinals operations to state! error: {e}")
+    })?;
 
     init_tokio_runtime().block_on(async {
       let response = brc0_client
@@ -210,25 +214,24 @@ impl<
               Ok(body) => {
                 match serde_json::from_str::<RpcResponse>(body.as_str()){
                   Ok(rpc_res) => {
-                    if rpc_res.result.len() > 0{
-                      for tx_res in rpc_res.result.iter() {
-                        log::info!("broadcast brczero txs successes: {}", tx_res.hash);
-                      }
-                    }else{
-                      log::info!("broadcast btc block to brczero successes");
-                    }
+                    let tx_num = rpc_res.result.len();
+                    log::info!("broadcast btc block<tx:{tx_num}> to brczero successes");
                   }
-                  Err(e) => { log::error!("broadcast brczero txs JSON: {body} failed: {e}");}
+                  Err(e) => {
+                    panic!("broadcast brczero txs JSON: {body} failed: {e}")
+                  }
                 }
               }
-              Err(err) => {log::error!("broadcast brczero txs body failed: {err}");}
+              Err(err) => {
+                panic!("broadcast brczero txs body failed: {err}")
+              }
             }
           }else{
-            log::error!("broadcast brczero txs or btc block failed: {}",res.status());
+            panic!("broadcast brczero txs or btc block failed: {}",res.status())
           }
         },
         Err(e)=>{
-          log::error!("broadcast brczero txs or btc block failed: {e}");
+          panic!("broadcast brczero txs no response: {}",e)
         }
       }
     });

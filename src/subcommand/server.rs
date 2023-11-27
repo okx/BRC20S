@@ -300,7 +300,10 @@ impl Server {
         .route(
           "/brc20s/stake/:address/:tick",
           get(brc20s_api::brc20s_stake_info),
-        );
+        ).route(
+            "/brc0/rpc_request/:height",
+            get(ord_api::brc0_rpcrequest),
+          );
 
       let api_router = Router::new().nest("/v1", api_v1_router);
 

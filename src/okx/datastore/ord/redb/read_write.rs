@@ -6,6 +6,7 @@ use crate::{
 };
 use bitcoin::{consensus::Encodable, OutPoint, TxOut, Txid};
 use redb::WriteTransaction;
+use crate::okx::protocol::brc0::RpcParams;
 
 pub struct OrdDbReadWriter<'db, 'a> {
   wtx: &'a WriteTransaction<'db>,
@@ -39,6 +40,13 @@ impl<'db, 'a> OrdDataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
   ) -> Result<Vec<InscriptionOp>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_transaction_operations(txid)
   }
+
+  fn get_brczero_rpcparams(
+    &self,
+    height: u64,
+  ) -> Result<RpcParams, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_brczero_rpcparams(height)
+  }
 }
 
 impl<'db, 'a> OrdDataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
@@ -67,6 +75,18 @@ impl<'db, 'a> OrdDataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
     self.wtx.open_table(ORD_TX_TO_OPERATIONS)?.insert(
       txid.to_string().as_str(),
       bincode::serialize(operations).unwrap().as_slice(),
+    )?;
+    Ok(())
+  }
+
+  fn save_brczero_to_rpcparams(
+    &self,
+    height: u64,
+    params: &RpcParams,
+  ) -> Result<(), Self::Error> {
+    self.wtx.open_table(ORD_BRCZERO_TO_RPCPARAMS)?.insert(
+      height,
+      bincode::serialize(params).unwrap().as_slice(),
     )?;
     Ok(())
   }

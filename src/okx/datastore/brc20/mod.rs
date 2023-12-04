@@ -7,6 +7,7 @@ pub(super) mod token_info;
 pub(super) mod transfer;
 pub(super) mod transferable_log;
 
+use std::collections::HashMap;
 pub use self::{
   balance::Balance, errors::BRC20Error, events::Receipt, events::*, tick::*, token_info::TokenInfo,
   transfer::TransferInfo, transferable_log::TransferableLog,
@@ -25,6 +26,13 @@ pub trait DataStoreReadOnly {
     script_key: &ScriptKey,
     tick: &Tick,
   ) -> Result<Option<Balance>, Self::Error>;
+
+  fn get_acc_count(&self) -> Result<u64, Self::Error>;
+  fn get_all_acc_balance(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<HashMap<String, Vec<Balance>>, Self::Error>;
 
   fn get_token_info(&self, tick: &Tick) -> Result<Option<TokenInfo>, Self::Error>;
   fn get_tokens_info(&self) -> Result<Vec<TokenInfo>, Self::Error>;

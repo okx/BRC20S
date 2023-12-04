@@ -7,6 +7,7 @@ use {
   axum::Json,
   utoipa::ToSchema,
 };
+use crate::okx::protocol::brc0::RpcParams;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[schema(as = ord::InscriptionAction)]
@@ -225,6 +226,32 @@ pub(crate) async fn ord_block_inscriptions(
   Ok(Json(ApiResponse::ok(BlockInscriptions {
     block: api_block_inscriptions,
   })))
+}
+
+// ord/block/:blockhash/inscriptions
+/// Retrieve the inscription actions from the given block.
+#[utoipa::path(
+get,
+path = "/api/v1/brc0/rpc_request/:height",
+params(
+("height" = u64, Path, description = "block height")
+),
+responses(
+(status = 200, description = "Obtain inscription actions by blockhash", body = OrdBlockInscriptions),
+(status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+(status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+(status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+)
+)]
+pub(crate) async fn brc0_rpcrequest(
+  Extension(index): Extension<Arc<Index>>,
+  Path(height): Path<u64>,
+) -> ApiResult<RpcParams> {
+  log::debug!("rpc: brc0_rpcrequest: {}", height);
+
+  let params = index.ord_brc0_rpcrequest(height)?;
+
+  Ok(Json(ApiResponse::ok(params)))
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use {super::*, crate::okx::datastore::brc20::Tick, axum::Json, utoipa::ToSchema};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -111,5 +112,75 @@ pub(crate) async fn brc20_all_balance(
         overall_balance: bal.overall_balance.to_string(),
       })
       .collect(),
+  })))
+}
+
+
+/// Get all ticker balances of the address.
+///
+/// Retrieve all BRC20 protocol asset balances associated with a address.
+#[utoipa::path(
+get,
+path = "/api/v1/brc20/acc/count",
+responses(
+(status = 200, description = "Obtain account balances by query address.", body = BRC20AllBalance),
+(status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+(status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+(status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+)
+)]
+pub(crate) async fn brc20_acc_count(
+  Extension(index): Extension<Arc<Index>>,
+) -> ApiResult<u64> {
+  log::debug!("rpc: get brc20_acc_count");
+  let count = index.brc20_get_acc_count()?;
+  log::debug!("rpc: get brc20_acc_count: {:?}", count);
+
+  Ok(Json(ApiResponse::ok(count)))
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AllAccBalances {
+  pub balances: HashMap<String, Vec<Balance>>
+}
+/// Get all ticker balances of the address.
+///
+/// Retrieve all BRC20 protocol asset balances associated with a address.
+#[utoipa::path(
+get,
+path = "/api/v1/brc20/all/balance",
+params(
+Pagination
+),
+responses(
+(status = 200, description = "Obtain account balances by query address.", body = BRC20AllBalance),
+(status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+(status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+(status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+)
+)]
+pub(crate) async fn brc20_all_acc_balance(
+  Extension(index): Extension<Arc<Index>>,
+  Query(page): Query<Pagination>,
+) -> ApiResult<AllAccBalances> {
+  log::debug!("rpc: get brc20_all_acc_balance");
+  let all_balances = index.brc20_get_all_acc_balance(page.start.unwrap_or(0), page.limit)?;
+  log::debug!("rpc: get brc20_all_acc_balance: {:?}", all_balances);
+
+  let mut balances = HashMap::new();
+  for (addr, bals) in &all_balances {
+    for bal in bals.iter() {
+      balances.entry(addr.to_string()).or_insert(Vec::new()).push(Balance {
+        tick: bal.tick.to_string(),
+        available_balance: (bal.overall_balance - bal.transferable_balance).to_string(),
+        transferable_balance: bal.transferable_balance.to_string(),
+        overall_balance: bal.overall_balance.to_string(),
+      });
+    }
+  }
+
+  Ok(Json(ApiResponse::ok(AllAccBalances {
+    balances
   })))
 }

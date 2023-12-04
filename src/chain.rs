@@ -65,6 +65,15 @@ impl Chain {
     }
   }
 
+  pub(crate) fn first_brczero_height(self) -> u64 {
+    match self {
+      Self::Mainnet => 798108,
+      Self::Regtest => 0,
+      Self::Signet => 151032,
+      Self::Testnet => 2441183,
+    }
+  }
+
   pub(crate) fn genesis_block(self) -> Block {
     bitcoin::blockdata::constants::genesis_block(self.network())
   }

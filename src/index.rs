@@ -35,9 +35,12 @@ use {
   },
   std::collections::HashMap,
   std::io::{BufWriter, Read, Write},
+
 };
 
+use crate::okx::protocol::brc0::RpcParams;
 use crate::okx::datastore::ord::{bitmap::District, collections::CollectionKind};
+use crate::rpc::BRCZeroRpcClient;
 
 pub(super) use self::{
   entry::{InscriptionEntry, InscriptionEntryValue},
@@ -158,6 +161,7 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
 
 pub(crate) struct Index {
   client: Client,
+  brc0_client: BRCZeroRpcClient,
   database: Database,
   durability: redb::Durability,
   first_inscription_height: u64,
@@ -172,7 +176,7 @@ pub(crate) struct Index {
 impl Index {
   pub(crate) fn open(options: &Options) -> Result<Self> {
     let client = options.bitcoin_rpc_client()?;
-
+    let brc0_client = BRCZeroRpcClient::new(&options.brczero_rpc_url)?;
     let path = if let Some(path) = &options.index {
       path.clone()
     } else {
@@ -296,6 +300,7 @@ impl Index {
     Ok(Self {
       genesis_block_coinbase_txid: genesis_block_coinbase_transaction.txid(),
       client,
+      brc0_client,
       database,
       durability,
       first_inscription_height: options.first_inscription_height(),
@@ -1432,6 +1437,33 @@ impl Index {
         .get_raw_transaction_info(txid, None)
         .into_option()
     }
+  }
+  pub(crate) fn brc20_get_acc_count(
+    &self,
+  ) -> Result<u64> {
+    let rtx = self.database.begin_read().unwrap();
+    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
+    Ok(brc20_db.get_acc_count()?)
+  }
+
+  pub(crate) fn brc20_get_all_acc_balance(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<HashMap<String, Vec<brc20::Balance>>> {
+    let rtx = self.database.begin_read().unwrap();
+    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
+    let all_balances = brc20_db.get_all_acc_balance(start, limit)?;
+    Ok(all_balances)
+  }
+  pub(crate) fn ord_brc0_rpcrequest(
+    &self,
+    height: u64,
+  ) -> Result<RpcParams> {
+    let rtx = self.database.begin_read().unwrap();
+    let ord_db = ord::OrdDbReader::new(&rtx);
+    let res = ord_db.get_brczero_rpcparams(height)?;
+    Ok(res)
   }
 
   pub(crate) fn brc20_get_tx_events_by_txid(

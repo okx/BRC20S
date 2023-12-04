@@ -104,6 +104,7 @@ mod height;
 mod index;
 mod inscription;
 pub mod inscription_id;
+pub mod rpc;
 mod logger;
 mod media;
 mod object;

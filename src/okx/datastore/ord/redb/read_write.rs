@@ -3,7 +3,7 @@ use {
   crate::{
     index::OUTPOINT_TO_ENTRY,
     okx::datastore::ord::{DataStoreReadOnly, DataStoreReadWrite, InscriptionOp},
-    InscriptionId, Result,
+    InscriptionId, Result,Inscription,okx::protocol::brc0::RpcParams,
   },
   bitcoin::{consensus::Encodable, OutPoint, TxOut, Txid},
   redb::{ReadTransaction, WriteTransaction},
@@ -62,6 +62,17 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
     inscription_id: InscriptionId,
   ) -> Result<Option<Vec<CollectionKind>>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_collections_of_inscription(inscription_id)
+  }
+
+  fn get_brczero_rpcparams(
+    &self,
+    height: u64,
+  ) -> Result<RpcParams, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_brczero_rpcparams(height)
+  }
+
+  fn get_inscription_by_id(&self, inscription_id: &InscriptionId) -> Result<Option<Inscription>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_inscription_by_id(inscription_id)
   }
 }
 
@@ -125,6 +136,33 @@ impl<'db, 'a> DataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
       .insert(&key, bincode::serialize(&kind).unwrap().as_slice())?;
     Ok(())
   }
+
+  fn save_brczero_to_rpcparams(
+    &self,
+    height: u64,
+    params: &RpcParams,
+  ) -> Result<(), Self::Error> {
+
+    self.wtx.open_table(ORD_BRCZERO_TO_RPCPARAMS)?.insert(
+      height,
+      bincode::serialize(params).unwrap().as_slice(),
+    )?;
+    Ok(())
+  }
+
+  fn save_inscription_with_id(
+    &self,
+    inscription_id: &InscriptionId,
+    inscription: &Inscription,
+  ) -> Result<(), Self::Error> {
+    self.wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION)?.insert(
+      inscription_id.to_string().as_str(),
+      bincode::serialize(inscription).unwrap().as_slice(),
+    )?;
+    Ok(())
+  }
+
+
 }
 
 #[cfg(test)]

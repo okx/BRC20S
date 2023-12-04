@@ -1,4 +1,5 @@
 pub(crate) mod balance;
+pub mod brc0;
 pub mod brc20;
 pub mod brc20s;
 pub mod ord;

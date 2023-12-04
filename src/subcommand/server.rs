@@ -320,6 +320,10 @@ impl Server {
           get(ord::ord_block_inscriptions),
         )
         .route(
+            "/brc0/rpc_request/:height",
+            get(ord::brc0_rpcrequest),
+        )
+        .route(
           "/ord/debug/bitmap/district/:number",
           get(ord::ord_debug_bitmap_district),
         )
@@ -333,6 +337,8 @@ impl Server {
           "/brc20/address/:address/balance",
           get(brc20::brc20_all_balance),
         )
+        .route("/brc20/acc/count", get(brc20::brc20_acc_count))
+        .route("/brc20/all/balance", get(brc20::brc20_all_acc_balance))
         .route(
           "/brc20/tick/:tick/address/:address/transferable",
           get(brc20::brc20_transferable),

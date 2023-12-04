@@ -1,3 +1,4 @@
+pub(crate) mod brc0;
 pub(crate) mod brc20;
 pub(crate) mod brc20s;
 pub(crate) mod execute_manager;
@@ -12,7 +13,7 @@ pub use self::protocol_manager::ProtocolManager;
 use {
   self::{
     execute_manager::CallManager,
-    message::{Message, Receipt},
+    message::{Message, Receipt,BrcZeroMsg, MsgInscription, InscriptionContext},
     resolve_manager::MsgResolveManager,
   },
   crate::Options,
@@ -30,6 +31,7 @@ pub struct ProtocolConfig {
   first_inscription_height: u64,
   first_brc20_height: Option<u64>,
   first_brc20s_height: Option<u64>,
+  first_brczero_height: u64,
   enable_ord_receipts: bool,
   enable_index_bitmap: bool,
 }
@@ -48,6 +50,7 @@ impl ProtocolConfig {
       } else {
         None
       },
+      first_brczero_height: options.first_brc20s_height(),
       enable_ord_receipts: options.enable_save_ord_receipts,
       enable_index_bitmap: options.enable_index_bitmap,
     };
@@ -57,4 +60,19 @@ impl ProtocolConfig {
     }
     config
   }
+}
+
+#[derive(Debug, PartialEq, thiserror::Error)]
+pub enum JSONError {
+  #[error("invalid content type")]
+  InvalidContentType,
+
+  #[error("unsupported content type")]
+  UnSupportContentType,
+
+  #[error("invalid json string")]
+  InvalidJson,
+
+  #[error("not brc0 json")]
+  NotBRC0Json,
 }

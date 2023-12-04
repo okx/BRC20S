@@ -9,6 +9,8 @@ use {
   collections::CollectionKind,
   std::fmt::{Debug, Display},
 };
+use crate::Inscription;
+use crate::okx::protocol::brc0::RpcParams;
 pub mod bitmap;
 pub mod collections;
 pub mod operation;
@@ -34,6 +36,13 @@ pub trait DataStoreReadOnly {
     &self,
     collection_key: &str,
   ) -> Result<Option<InscriptionId>, Self::Error>;
+
+  fn get_brczero_rpcparams(
+    &self,
+    height: u64,
+  ) -> Result<RpcParams, Self::Error>;
+
+  fn get_inscription_by_id(&self, inscription_id: &InscriptionId,) -> Result<Option<Inscription>, Self::Error>;
 }
 
 pub trait DataStoreReadWrite: DataStoreReadOnly {
@@ -55,5 +64,17 @@ pub trait DataStoreReadWrite: DataStoreReadOnly {
     &self,
     inscription_id: InscriptionId,
     kind: &[CollectionKind],
+  ) -> Result<(), Self::Error>;
+
+  fn save_brczero_to_rpcparams(
+    &self,
+    height: u64,
+    params: &RpcParams,
+  ) -> Result<(), Self::Error>;
+
+  fn save_inscription_with_id(
+    &self,
+    inscription_id: &InscriptionId,
+    inscription: &Inscription,
   ) -> Result<(), Self::Error>;
 }

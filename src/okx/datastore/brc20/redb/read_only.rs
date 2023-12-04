@@ -7,6 +7,7 @@ use redb::{
   StorageError, Table, TableDefinition, WriteTransaction,
 };
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::ops::RangeBounds;
 
 pub fn try_init_tables<'db, 'a>(
@@ -91,6 +92,13 @@ impl<'db, 'txn, K: RedbKey + 'static, V: RedbValue + 'static> TableWrapper<'db, 
       Self::WtxTable(wtx_table) => wtx_table.range(range),
     }
   }
+
+  fn len(&self) -> Result<u64, StorageError> {
+    match self {
+      Self::RtxTable(rtx_table) => rtx_table.len(),
+      Self::WtxTable(wtx_table) => wtx_table.len(),
+    }
+  }
 }
 
 impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
@@ -121,6 +129,38 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
         .get(script_tick_key(script_key, tick).as_str())?
         .map(|v| bincode::deserialize::<Balance>(v.value()).unwrap()),
     )
+  }
+
+  fn get_acc_count(&self) -> Result<u64, Self::Error> {
+    Ok(
+      self
+          .wrapper
+          .open_table(BRC20_BALANCES)?
+          .len()?,
+    )
+  }
+
+  fn get_all_acc_balance(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<HashMap<String, Vec<Balance>>, Self::Error> {
+    let table = self.wrapper.open_table(BRC20_BALANCES)?;
+    let mut balances = HashMap::new();
+    let _bals:Vec<_> = table
+        .range::<&str>(..)?
+        .skip(start)
+        .take(limit.unwrap_or(usize::MAX))
+        .flat_map(|result| {
+          result.map(|(key, data)| {
+            let (addr, _tick) = key.value()
+                .split_once('_').unwrap();
+            let balance = bincode::deserialize::<Balance>(data.value()).unwrap();
+            balances.entry(addr.to_string()).or_insert(Vec::new()).push(balance);
+          })
+        })
+        .collect();
+    Ok(balances)
   }
 
   fn get_token_info(&self, tick: &Tick) -> Result<Option<TokenInfo>, Self::Error> {

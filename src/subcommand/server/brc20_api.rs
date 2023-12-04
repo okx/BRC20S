@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::{brc20_types::*, *};
 use crate::okx::{
   datastore::{
@@ -90,6 +91,41 @@ pub(crate) async fn brc20_all_balance(
         overall_balance: bal.overall_balance.to_string(),
       })
       .collect(),
+  })))
+}
+
+pub(crate) async fn brc20_acc_count(
+  Extension(index): Extension<Arc<Index>>,
+) -> ApiResult<u64> {
+  log::debug!("rpc: get brc20_acc_count");
+  let count = index.brc20_get_acc_count()?;
+  log::debug!("rpc: get brc20_acc_count: {:?}", count);
+
+  Ok(Json(ApiResponse::ok(count)))
+}
+
+pub(crate) async fn brc20_all_acc_balance(
+  Extension(index): Extension<Arc<Index>>,
+  Query(page): Query<Pagination>,
+) -> ApiResult<AllAccBalances> {
+  log::debug!("rpc: get brc20_all_acc_balance");
+  let all_balances = index.brc20_get_all_acc_balance(page.start.unwrap_or(0), page.limit)?;
+  log::debug!("rpc: get brc20_all_acc_balance: {:?}", all_balances);
+
+  let mut balances = HashMap::new();
+  for (addr, bals) in &all_balances {
+    for bal in bals.iter() {
+      balances.entry(addr.to_string()).or_insert(Vec::new()).push(Balance {
+        tick: bal.tick.to_string(),
+        available_balance: (bal.overall_balance - bal.transferable_balance).to_string(),
+        transferable_balance: bal.transferable_balance.to_string(),
+        overall_balance: bal.overall_balance.to_string(),
+      });
+    }
+  }
+
+  Ok(Json(ApiResponse::ok(AllAccBalances {
+    balances
   })))
 }
 

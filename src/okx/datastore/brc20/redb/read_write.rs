@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::{
   okx::datastore::brc20::{
     Balance, DataStoreReadOnly, DataStoreReadWrite, Receipt, Tick, TokenInfo, TransferInfo,
@@ -33,6 +34,14 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     tick: &Tick,
   ) -> Result<Option<Balance>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_balance(script_key, tick)
+  }
+
+  fn get_acc_count(&self) -> Result<u64, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_acc_count()
+  }
+
+  fn get_all_acc_balance(&self, start: usize, limit: Option<usize>) -> Result<HashMap<String, Vec<Balance>>, Self::Error> {
+    read_only::new_with_wtx(self.wtx).get_all_acc_balance(start, limit)
   }
 
   fn get_token_info(&self, tick: &Tick) -> Result<Option<TokenInfo>, Self::Error> {

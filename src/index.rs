@@ -1237,6 +1237,25 @@ impl Index {
     Ok(brc20_db.get_balances(&ScriptKey::from_address(address.clone()))?)
   }
 
+  pub(crate) fn brc20_get_acc_count(
+    &self,
+  ) -> Result<u64> {
+    let rtx = self.database.begin_read().unwrap();
+    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
+    Ok(brc20_db.get_acc_count()?)
+  }
+
+  pub(crate) fn brc20_get_all_acc_balance(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<HashMap<String, Vec<brc20::Balance>>> {
+    let rtx = self.database.begin_read().unwrap();
+    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
+    let all_balances = brc20_db.get_all_acc_balance(start, limit)?;
+    Ok(all_balances)
+  }
+
   pub(crate) fn get_transaction_info(
     &self,
     txid: &bitcoin::Txid,

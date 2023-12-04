@@ -227,6 +227,8 @@ impl Server {
           "/brc20/address/:address/transferable",
           get(brc20_api::brc20_all_transferable),
         )
+        .route("/brc20/acc/count", get(brc20_api::brc20_acc_count))
+        .route("/brc20/all/balance", get(brc20_api::brc20_all_acc_balance))
         .route("/brc20/tx/:txid/events", get(brc20_api::brc20_tx_events))
         .route("/brc20/tx/:txid", get(brc20_api::brc20_tx))
         .route(

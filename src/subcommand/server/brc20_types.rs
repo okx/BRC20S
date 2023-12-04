@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::{types::ScriptPubkey, *};
 use crate::okx::{datastore::brc20 as brc20_store, protocol::brc20};
 
@@ -190,6 +191,12 @@ pub struct Balance {
 #[serde(rename_all = "camelCase")]
 pub struct AllBalance {
   pub balance: Vec<Balance>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AllAccBalances {
+  pub balances: HashMap<String, Vec<Balance>>
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]

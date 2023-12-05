@@ -157,7 +157,7 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
         txs,
       },
     };
-    log::debug!("Request: {:#?}", request);
+    log::error!("Request: {:#?}", request);
     let ord_store = self.state_store.ord();
 
     self.state_store.ord().save_brczero_to_rpcparams(context.blockheight,&request.params.clone()).map_err(|e| {

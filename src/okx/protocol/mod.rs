@@ -50,7 +50,7 @@ impl ProtocolConfig {
       } else {
         None
       },
-      first_brczero_height: options.first_brc20s_height(),
+      first_brczero_height: options.first_brczero_height(),
       enable_ord_receipts: options.enable_save_ord_receipts,
       enable_index_bitmap: options.enable_index_bitmap,
     };

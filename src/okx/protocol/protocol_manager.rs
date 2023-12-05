@@ -55,10 +55,8 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
       {
         continue;
       }
-      log::error!("LIFEI:START0");
       // index inscription operations.
       if let Some(tx_operations) = operations.get(txid) {
-        log::error!("LIFEI:START1");
         // save all transaction operations to ord database.
         if self.config.enable_ord_receipts
           && context.blockheight >= self.config.first_inscription_height
@@ -75,19 +73,15 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
           self.call_man.execute_message(context, msg)?;
         }
         messages_size += messages.len();
-        log::error!("LIFEI:START2");
         let mut brczero_messages_in_tx = self
             .resolve_man
             .resolve_brczero_inscription(context, tx, tx_operations.clone(),&block.header.block_hash())?;
-        log::error!("LIFEI:START3");
         brczero_messages_in_block.append(&mut brczero_messages_in_tx);
       }
     }
-    log::error!("LIFEI:START4");
     if context.blockheight >= self.config.first_brczero_height {
       self.call_man.send_to_brc0(self.brc0_client, context, brczero_messages_in_block,&block.header.block_hash())?;
     }
-    log::error!("LIFEI:START5");
 
     let mut bitmap_count = 0;
     if self.config.enable_index_bitmap {

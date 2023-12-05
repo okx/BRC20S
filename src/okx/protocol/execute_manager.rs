@@ -1,4 +1,6 @@
+use anyhow::Error;
 use bitcoin::BlockHash;
+use log::log;
 use {
   super::*,
   crate::{
@@ -160,9 +162,13 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
     log::error!("Request: {:#?}", request);
     let ord_store = self.state_store.ord();
 
-    self.state_store.ord().save_brczero_to_rpcparams(context.blockheight,&request.params.clone()).map_err(|e| {
+    let err = self.state_store.ord().save_brczero_to_rpcparams(context.blockheight,&request.params.clone()).map_err(|e| {
       anyhow!("failed to set transaction ordinals operations to state! error: {e}")
-    })?;
+    });
+    match err {
+      Ok(()) => {}
+      Err(e) => {log::error!("save_brczero_to_rpcparams error: {:#?}", e);}
+    }
 
     init_tokio_runtime().block_on(async {
       let response = brc0_client

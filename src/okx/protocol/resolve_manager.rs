@@ -196,6 +196,9 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
             is_transfer = true;
             sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.state_store.ord(), context.network)?.to_string();
             let inscription = get_inscription_by_id(self.client,self.state_store.ord(), &operation.inscription_id)?;
+            self.state_store.ord().remove_inscription_with_id(&operation.inscription_id).map_err(|e| {
+              anyhow!("failed to remove inscription with id in ordinals operations to state! error: {e}")
+            })?;
             let des_res = deserialize_inscription(&inscription);
             match des_res {
               Ok(content) => {
@@ -373,24 +376,10 @@ fn get_inscription_by_id<O: DataStoreReadOnly>(
   })? {
     inscription
   } else {
-    let tx =
-        &Index::get_transaction_retries(client, inscription_id.txid)?.ok_or(anyhow!(
-      "failed to message transaction! error: {} not found",
-      inscription_id.txid
-    ))?;
-
-    let inscription = match Inscription::from_transaction(&tx)
-        .get(inscription_id.index as usize)
-        .map(|transaction_inscription| transaction_inscription.inscription.clone()) {
-      None => {
-        return Err(anyhow!(
+    return Err(anyhow!(
         "failed to get tx inscription! error: {} not found",
         inscription_id
       ));
-      }
-      Some(inscription) => {inscription}
-    };
-    inscription
   };
   Ok(inscription)
 }

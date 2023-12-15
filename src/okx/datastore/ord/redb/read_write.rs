@@ -162,6 +162,16 @@ impl<'db, 'a> DataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
     Ok(())
   }
 
+  fn remove_inscription_with_id(
+    &self,
+    inscription_id: &InscriptionId,
+  ) -> Result<(), Self::Error> {
+    self.wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION)?.remove(
+      inscription_id.to_string().as_str(),
+    )?;
+    Ok(())
+  }
+
 
 }
 

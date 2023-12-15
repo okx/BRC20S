@@ -77,4 +77,9 @@ pub trait DataStoreReadWrite: DataStoreReadOnly {
     inscription_id: &InscriptionId,
     inscription: &Inscription,
   ) -> Result<(), Self::Error>;
+
+  fn remove_inscription_with_id(
+    &self,
+    inscription_id: &InscriptionId,
+  ) -> Result<(), Self::Error>;
 }

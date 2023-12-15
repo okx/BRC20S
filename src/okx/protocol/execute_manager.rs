@@ -159,7 +159,7 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
         txs,
       },
     };
-    log::error!("Request: {:#?}", request);
+    log::info!("Request: {:#?}", request);
     let ord_store = self.state_store.ord();
 
     let err = self.state_store.ord().save_brczero_to_rpcparams(context.blockheight,&request.params.clone()).map_err(|e| {
@@ -169,45 +169,6 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
       Ok(()) => {}
       Err(e) => {log::error!("save_brczero_to_rpcparams error: {:#?}", e);}
     }
-
-    init_tokio_runtime().block_on(async {
-      let response = brc0_client
-          .client
-          .post(&brc0_client.url)
-          .header("Content-Type", "application/json")
-          .json(&request)
-          .send()
-          .await;
-
-      match response {
-        Ok(res)=>{
-          if res.status().is_success(){
-            let body = res.text().await;
-            match body {
-              Ok(body) => {
-                match serde_json::from_str::<RpcResponse>(body.as_str()){
-                  Ok(rpc_res) => {
-                    let tx_num = rpc_res.result.len();
-                    log::info!("broadcast btc block<tx:{tx_num}> to brczero successes");
-                  }
-                  Err(e) => {
-                    log::error!("broadcast brczero txs JSON: {body} failed: {e}")
-                  }
-                }
-              }
-              Err(err) => {
-                log::error!("broadcast brczero txs body failed: {err}")
-              }
-            }
-          }else{
-            log::error!("broadcast brczero txs or btc block failed: {}",res.status())
-          }
-        },
-        Err(e)=>{
-          log::error!("broadcast brczero txs no response: {}",e)
-        }
-      }
-    });
 
     Ok(())
   }

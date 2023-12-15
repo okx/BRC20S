@@ -195,7 +195,11 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
           Action::Transfer => {
             is_transfer = true;
             sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.state_store.ord(), context.network)?.to_string();
-            let inscription = get_inscription_by_id(self.client,self.state_store.ord(), &operation.inscription_id)?;
+            let inscription = match get_inscription_by_id(self.client,self.state_store.ord(), &operation.inscription_id) {
+              Ok(innnet_inscription) => {innnet_inscription}
+              Err(err) => {continue}
+            };
+
             self.state_store.ord().remove_inscription_with_id(&operation.inscription_id).map_err(|e| {
               anyhow!("failed to remove inscription with id in ordinals operations to state! error: {e}")
             })?;

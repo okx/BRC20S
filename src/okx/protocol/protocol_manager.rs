@@ -80,7 +80,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
       }
     }
     if context.blockheight >= self.config.first_brczero_height {
-      self.call_man.send_to_brc0(self.brc0_client, context, brczero_messages_in_block,&block.header.block_hash())?;
+      self.call_man.save_zero_data(self.brc0_client, context, brczero_messages_in_block, &block.header.block_hash(), &block.header.prev_blockhash, block.header.time)?;
     }
 
     let mut bitmap_count = 0;

@@ -38,7 +38,7 @@ use {
 
 };
 
-use crate::okx::protocol::brc0::RpcParams;
+use crate::okx::protocol::brc0::ZeroData;
 use crate::okx::datastore::ord::{bitmap::District, collections::CollectionKind};
 use crate::rpc::BRCZeroRpcClient;
 
@@ -1459,7 +1459,7 @@ impl Index {
   pub(crate) fn ord_brc0_rpcrequest(
     &self,
     height: u64,
-  ) -> Result<RpcParams> {
+  ) -> Result<ZeroData> {
     let rtx = self.database.begin_read().unwrap();
     let ord_db = ord::OrdDbReader::new(&rtx);
     let res = ord_db.get_brczero_rpcparams(height)?;

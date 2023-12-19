@@ -49,6 +49,6 @@ where
   }
 
   pub fn ok(data: T) -> Self {
-    Self::new(0, "ok".to_string(), data)
+    Self::new(1, "ok".to_string(), data)
   }
 }

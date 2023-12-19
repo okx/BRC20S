@@ -320,8 +320,8 @@ impl Server {
           get(ord::ord_block_inscriptions),
         )
         .route(
-            "/brc0/rpc_request/:height",
-            get(ord::brc0_rpcrequest),
+          "/crawler/zeroindexer/:height",
+          get(ord::zero_data),
         )
         .route(
           "/ord/debug/bitmap/district/:number",

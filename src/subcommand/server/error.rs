@@ -53,7 +53,7 @@ impl From<Error> for ServerError {
 pub(crate) enum ApiError {
   /// Internal server error.
   #[schema(example = json!(&ApiError::internal("internal error")))]
-  Internal(String) = 1,
+  Internal(String) = 0,
 
   /// Bad request.
   #[schema(example = json!(&ApiError::internal("bad request")))]
@@ -67,7 +67,7 @@ pub(crate) enum ApiError {
 impl ApiError {
   pub(crate) fn code(&self) -> i32 {
     match self {
-      Self::Internal(_) => 1,
+      Self::Internal(_) => 0,
       Self::BadRequest(_) => 2,
       Self::NotFound(_) => 3,
     }
@@ -124,7 +124,7 @@ mod tests {
   fn test_serialize_api_error() {
     let api_error = ApiError::internal("internal error");
     let json = serde_json::to_string(&api_error).unwrap();
-    assert_eq!(json, r#"{"code":1,"msg":"internal error"}"#);
+    assert_eq!(json, r#"{"code":0,"msg":"internal error"}"#);
 
     let api_error = ApiError::bad_request("bad request");
     let json = serde_json::to_string(&api_error).unwrap();

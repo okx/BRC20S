@@ -22,6 +22,7 @@ pub enum Receipt {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BrcZeroMsg {
   pub btc_fee: u128,
+  pub btc_txid: String,
   pub msg: MsgInscription,
 }
 

@@ -7,7 +7,7 @@ use {
   axum::Json,
   utoipa::ToSchema,
 };
-use crate::okx::protocol::brc0::RpcParams;
+use crate::okx::protocol::brc0::ZeroData;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[schema(as = ord::InscriptionAction)]
@@ -243,15 +243,15 @@ responses(
 (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
 )
 )]
-pub(crate) async fn brc0_rpcrequest(
+pub(crate) async fn zero_data(
   Extension(index): Extension<Arc<Index>>,
   Path(height): Path<u64>,
-) -> ApiResult<RpcParams> {
+) -> ApiResult<ZeroData> {
   log::debug!("rpc: brc0_rpcrequest: {}", height);
 
-  let params = index.ord_brc0_rpcrequest(height)?;
+  let data = index.ord_brc0_rpcrequest(height)?;
 
-  Ok(Json(ApiResponse::ok(params)))
+  Ok(Json(ApiResponse::ok(data)))
 }
 
 #[cfg(test)]

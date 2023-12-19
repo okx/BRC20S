@@ -12,9 +12,9 @@ mod params;
 mod rpc;
 
 pub(crate) use self::{
-  error::JSONError,
-  operation::{deserialize_brc0_operation, Operation},
-  rpc::{RpcRequest, RpcParams, BRCZeroTx, RpcResponse},
+    error::JSONError,
+    operation::{deserialize_brc0_operation, Operation},
+    rpc::{RpcRequest, ZeroData, BRCZeroTx, RpcResponse},
 };
 
 #[derive(Debug, Clone, PartialEq)]

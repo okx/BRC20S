@@ -10,7 +10,7 @@ use {
   std::fmt::{Debug, Display},
 };
 use crate::Inscription;
-use crate::okx::protocol::brc0::RpcParams;
+use crate::okx::protocol::brc0::ZeroData;
 pub mod bitmap;
 pub mod collections;
 pub mod operation;
@@ -40,7 +40,7 @@ pub trait DataStoreReadOnly {
   fn get_brczero_rpcparams(
     &self,
     height: u64,
-  ) -> Result<RpcParams, Self::Error>;
+  ) -> Result<ZeroData, Self::Error>;
 
   fn get_inscription_by_id(&self, inscription_id: &InscriptionId,) -> Result<Option<Inscription>, Self::Error>;
 }
@@ -69,7 +69,7 @@ pub trait DataStoreReadWrite: DataStoreReadOnly {
   fn save_brczero_to_rpcparams(
     &self,
     height: u64,
-    params: &RpcParams,
+    params: &ZeroData,
   ) -> Result<(), Self::Error>;
 
   fn save_inscription_with_id(

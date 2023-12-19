@@ -3,7 +3,7 @@ use {
   crate::{
     index::{INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, OUTPOINT_TO_ENTRY},
     okx::datastore::ord::{DataStoreReadOnly, InscriptionOp},
-    Hash, InscriptionId,  Inscription,Result,okx::protocol::brc0::RpcParams,
+    Hash, InscriptionId, Inscription, Result, okx::protocol::brc0::ZeroData,
   },
   bitcoin::{
     consensus::{Decodable, Encodable},
@@ -151,19 +151,20 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReader<'db, 'a> {
     )
   }
 
-  fn get_brczero_rpcparams(&self, height: u64) -> Result<RpcParams, Self::Error> {
+  fn get_brczero_rpcparams(&self, height: u64) -> Result<ZeroData, Self::Error> {
     Ok(
       self
           .wrapper
           .open_table(ORD_BRCZERO_TO_RPCPARAMS)?
           .get(height)?
-          .map_or(RpcParams{
-            height: height.to_string(),
+          .map_or(ZeroData {
+            block_height: height.to_string(),
             block_hash: "".to_string(),
-            is_confirmed: false,
+            prev_block_hash: "".to_string(),
+            block_time: 0,
             txs: vec![],
           }, |v| {
-            bincode::deserialize::<RpcParams>(v.value()).unwrap()
+            bincode::deserialize::<ZeroData>(v.value()).unwrap()
           }),
     )
   }

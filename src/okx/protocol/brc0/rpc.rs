@@ -5,20 +5,24 @@ pub struct RpcRequest {
     pub jsonrpc: String,
     pub id: u64,
     pub method: String,
-    pub params: RpcParams,
+    pub data: ZeroData,
 }
 
 #[derive(Debug, PartialEq, Clone,Deserialize, Serialize)]
-pub struct RpcParams {
-    pub height: String,
+pub struct ZeroData {
+    pub block_height: String,
     pub block_hash: String,
-    pub is_confirmed: bool,
+    pub prev_block_hash: String,
+    pub block_time: u32,
     pub txs: Vec<BRCZeroTx>,
 }
 
 #[derive(Debug, PartialEq, Clone,Serialize,Deserialize)]
 pub struct BRCZeroTx {
-    pub hex_rlp_encode_tx: String,
+    pub protocol_name: String,
+    pub inscription: String,
+    pub inscription_context: String,
+    pub btc_txid: String,
     pub btc_fee: String,
 }
 

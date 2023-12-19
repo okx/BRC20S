@@ -5,7 +5,7 @@ use crate::{
   okx::{
     datastore::brc0::{Receipt},
     protocol::{
-      brc0::{Message, Operation, RpcRequest, RpcParams, BRCZeroTx, RpcResponse},
+      brc0::{Message, Operation, RpcRequest, ZeroData, BRCZeroTx, RpcResponse},
       utils, BlockContext,
     },
   },
@@ -75,8 +75,11 @@ pub fn execute_msgs(
     let _event = match &msg.op {
       Operation::Evm(evm) => {
         let tx = BRCZeroTx {
-          hex_rlp_encode_tx: hex::encode(evm.clone().d.encode_rlp()),
-          btc_fee: msg.btc_fee.to_string(),
+          protocol_name: "".to_string(),
+          inscription: "".to_string(),
+          inscription_context: "".to_string(),
+          btc_txid: "".to_string(),
+          btc_fee: "".to_string(),
         };
         txs.push(tx);
       }
@@ -87,10 +90,11 @@ pub fn execute_msgs(
     jsonrpc: "2.0".to_string(),
     id: 3,
     method: "broadcast_brczero_txs_async".to_string(),
-    params: RpcParams {
-      height: context.blockheight.to_string(),
+    data: ZeroData {
+      block_height: context.blockheight.to_string(),
       block_hash: "".to_string(),
-      is_confirmed: false,
+      prev_block_hash: "".to_string(),
+      block_time: 0,
       txs,
     },
   };

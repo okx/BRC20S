@@ -212,6 +212,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
         let btc_fee = self.get_btc_transaction_fee(tx);
         messages.push(BrcZeroMsg{
           btc_fee,
+          btc_txid: operation.txid.to_string(),
           msg: MsgInscription {
             inscription: inscription_content,
             inscription_context: InscriptionContext {

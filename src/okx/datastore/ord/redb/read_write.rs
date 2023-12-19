@@ -3,7 +3,7 @@ use {
   crate::{
     index::OUTPOINT_TO_ENTRY,
     okx::datastore::ord::{DataStoreReadOnly, DataStoreReadWrite, InscriptionOp},
-    InscriptionId, Result,Inscription,okx::protocol::brc0::RpcParams,
+    InscriptionId, Result, Inscription, okx::protocol::brc0::ZeroData,
   },
   bitcoin::{consensus::Encodable, OutPoint, TxOut, Txid},
   redb::{ReadTransaction, WriteTransaction},
@@ -67,7 +67,7 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
   fn get_brczero_rpcparams(
     &self,
     height: u64,
-  ) -> Result<RpcParams, Self::Error> {
+  ) -> Result<ZeroData, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_brczero_rpcparams(height)
   }
 
@@ -140,7 +140,7 @@ impl<'db, 'a> DataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
   fn save_brczero_to_rpcparams(
     &self,
     height: u64,
-    params: &RpcParams,
+    params: &ZeroData,
   ) -> Result<(), Self::Error> {
 
     self.wtx.open_table(ORD_BRCZERO_TO_RPCPARAMS)?.insert(

@@ -161,7 +161,7 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
         block_height: context.blockheight.to_string(),
         block_hash: block_hash.to_string(),
         prev_block_hash: prev_block_hash.to_string(),
-        block_time,
+        block_time: block_time.to_string(),
         txs,
       },
     };

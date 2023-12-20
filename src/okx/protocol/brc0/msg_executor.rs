@@ -94,7 +94,7 @@ pub fn execute_msgs(
       block_height: context.blockheight.to_string(),
       block_hash: "".to_string(),
       prev_block_hash: "".to_string(),
-      block_time: 0,
+      block_time: "".to_string(),
       txs,
     },
   };

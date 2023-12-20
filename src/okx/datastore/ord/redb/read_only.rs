@@ -161,7 +161,7 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReader<'db, 'a> {
             block_height: height.to_string(),
             block_hash: "".to_string(),
             prev_block_hash: "".to_string(),
-            block_time: 0,
+            block_time: "".to_string(),
             txs: vec![],
           }, |v| {
             bincode::deserialize::<ZeroData>(v.value()).unwrap()

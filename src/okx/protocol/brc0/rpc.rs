@@ -13,7 +13,7 @@ pub struct ZeroData {
     pub block_height: String,
     pub block_hash: String,
     pub prev_block_hash: String,
-    pub block_time: u32,
+    pub block_time: String,
     pub txs: Vec<BRCZeroTx>,
 }
 

@@ -374,6 +374,8 @@ impl<'index> Updater<'_> {
       }
     }
 
+    log::info!("send outpoint in {} ms",(Instant::now() - start).as_millis());
+
     let time = timestamp(block.header.time);
 
     log::info!(
@@ -523,11 +525,15 @@ impl<'index> Updater<'_> {
       }
     }
 
+    log::info!("index_transaction_inscriptions in {} ms",(Instant::now() - start).as_millis());
+
     self.index_block_inscription_numbers(
       &mut height_to_last_inscription_number,
       &inscription_updater,
       index_inscriptions,
     )?;
+
+    log::info!("index_block_inscription_numbers in {} ms",(Instant::now() - start).as_millis());
 
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;

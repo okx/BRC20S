@@ -410,10 +410,14 @@ impl<'index> Updater<'_> {
       .map(|lost_sats| lost_sats.value())
       .unwrap_or(0);
 
+    let last_lost_sats = lost_sats;
+
     let unbound_inscriptions = statistic_to_count
       .get(&Statistic::UnboundInscriptions.key())?
       .map(|unbound_inscriptions| unbound_inscriptions.value())
       .unwrap_or(0);
+
+    let last_unbound_inscriptions = unbound_inscriptions;
 
     log::info!("db pre ops in {} ms",(Instant::now() - start_db).as_millis());
 
@@ -572,9 +576,12 @@ impl<'index> Updater<'_> {
       operations,
     )?;
 
-    statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
-
-    statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
+    if last_lost_sats != lost_sats {
+      statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
+    }
+    if last_unbound_inscriptions != unbound_inscriptions {
+      statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
+    }
 
     height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
 

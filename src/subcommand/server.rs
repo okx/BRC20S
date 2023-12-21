@@ -324,6 +324,10 @@ impl Server {
             get(ord::brc0_rpcrequest),
         )
         .route(
+        "/crawler/zeroindexer/:height",
+        get(ord::crawler_zeroindexer),
+        )
+        .route(
           "/ord/debug/bitmap/district/:number",
           get(ord::ord_debug_bitmap_district),
         )

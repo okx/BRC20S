@@ -399,11 +399,13 @@ impl<'index> Updater<'_> {
       .get(&Statistic::LostSats.key())?
       .map(|lost_sats| lost_sats.value())
       .unwrap_or(0);
+    let old_lost_sats = lost_sats;
 
     let unbound_inscriptions = statistic_to_count
       .get(&Statistic::UnboundInscriptions.key())?
       .map(|unbound_inscriptions| unbound_inscriptions.value())
       .unwrap_or(0);
+    let old_unbound_inscriptions = unbound_inscriptions;
 
     let mut tx_out_cache = HashMap::new();
     let mut inscription_updater = InscriptionUpdater::new(
@@ -551,9 +553,12 @@ impl<'index> Updater<'_> {
       operations,
     )?;
 
-    statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
-
-    statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
+    if old_lost_sats != lost_sats {
+      statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
+    }
+    if old_unbound_inscriptions != unbound_inscriptions {
+      statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
+    }
 
     height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
 

@@ -324,7 +324,9 @@ impl<'index> Updater<'_> {
     wtx: &mut WriteTransaction,
     block: BlockData,
   ) -> Result<()> {
+    let start = Instant::now();
     Reorg::detect_reorg(&block, self.height, self.index)?;
+    log::info!("detect_reorg in {} ms",(Instant::now() - start).as_millis());
 
     let start = Instant::now();
     let mut sat_ranges_written = 0;
@@ -387,6 +389,8 @@ impl<'index> Updater<'_> {
       total_outputs_count,
     );
 
+    let start_db = Instant::now();
+
     let mut height_to_block_hash = wtx.open_table(HEIGHT_TO_BLOCK_HASH)?;
     let mut height_to_last_inscription_number =
       wtx.open_table(HEIGHT_TO_LAST_INSCRIPTION_NUMBER)?;
@@ -410,6 +414,10 @@ impl<'index> Updater<'_> {
       .get(&Statistic::UnboundInscriptions.key())?
       .map(|unbound_inscriptions| unbound_inscriptions.value())
       .unwrap_or(0);
+
+    log::info!("db pre ops in {} ms",(Instant::now() - start_db).as_millis());
+
+    let start_index_tx = Instant::now();
 
     let mut tx_out_cache = HashMap::new();
     let mut inscription_updater = InscriptionUpdater::new(
@@ -525,7 +533,8 @@ impl<'index> Updater<'_> {
       }
     }
 
-    log::info!("index_transaction_inscriptions in {} ms",(Instant::now() - start).as_millis());
+    log::info!("index_transaction_inscriptions in {} ms",(Instant::now() - start_index_tx).as_millis());
+    let start_index_block = Instant::now();
 
     self.index_block_inscription_numbers(
       &mut height_to_last_inscription_number,
@@ -533,7 +542,7 @@ impl<'index> Updater<'_> {
       index_inscriptions,
     )?;
 
-    log::info!("index_block_inscription_numbers in {} ms",(Instant::now() - start).as_millis());
+    log::info!("index_block_inscription_numbers in {} ms",(Instant::now() - start_index_block).as_millis());
 
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
@@ -548,6 +557,8 @@ impl<'index> Updater<'_> {
 
     std::mem::drop(inscription_id_to_inscription_entry);
     std::mem::drop(outpoint_to_entry);
+
+    log::info!("pre ProtocolManager");
 
     // Create a protocol manager to index the block of brc20, brc20s data.
     let config = ProtocolConfig::new_with_options(&index.options);
@@ -705,12 +716,10 @@ impl<'index> Updater<'_> {
       (Instant::now() - start).as_millis(),
     );
 
+    let start_savepoints = Instant::now();
     Reorg::update_savepoints(self.index, self.height)?;
 
-    log::info!(
-      "savepoint commit in {} ms",
-      (Instant::now() - start).as_millis(),
-    );
+    log::info!("savepoint commit in {} ms",(Instant::now() - start_savepoints).as_millis());
 
     log::info!(
       "Commit at block height {} finished in {} ms",

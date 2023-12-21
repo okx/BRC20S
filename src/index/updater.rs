@@ -93,6 +93,8 @@ impl<'index> Updater<'_> {
 
     let mut uncommitted = 0;
     while let Ok(block) = rx.recv() {
+      let start = Instant::now();
+      log::info!("start index block height {}", self.height);
       self.index_block(
         self.index,
         &mut outpoint_sender,
@@ -100,6 +102,8 @@ impl<'index> Updater<'_> {
         &mut wtx,
         block,
       )?;
+
+      log::info!("finish index block height {} in {} ms", self.height, (Instant::now() - start).as_millis());
 
       if let Some(progress_bar) = &mut progress_bar {
         progress_bar.inc(1);

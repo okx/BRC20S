@@ -656,6 +656,7 @@ impl<'index> Updater<'_> {
   }
 
   fn commit(&mut self, wtx: WriteTransaction) -> Result {
+    let start = Instant::now();
     log::info!(
       "Committing at block height {}, {} outputs traversed, {} in map, {} cached",
       self.height,
@@ -689,7 +690,23 @@ impl<'index> Updater<'_> {
 
     wtx.commit()?;
 
+    log::info!(
+      "first commit in {} ms",
+      (Instant::now() - start).as_millis(),
+    );
+
     Reorg::update_savepoints(self.index, self.height)?;
+
+    log::info!(
+      "savepoint commit in {} ms",
+      (Instant::now() - start).as_millis(),
+    );
+
+    log::info!(
+      "Commit at block height {} finished in {} ms",
+      self.height,
+      (Instant::now() - start).as_millis(),
+    );
 
     Ok(())
   }

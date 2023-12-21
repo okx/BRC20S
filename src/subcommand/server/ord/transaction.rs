@@ -1,3 +1,4 @@
+use serde_json::Value;
 use {
   super::{error::ApiError, types::ScriptPubkey, *},
   crate::okx::datastore::{
@@ -7,7 +8,8 @@ use {
   axum::Json,
   utoipa::ToSchema,
 };
-use crate::okx::protocol::brc0::RpcParams;
+use crate::okx::protocol::brc0::{BRCZeroTx, JSONError, RpcParams};
+use crate::okx::protocol::message::MsgInscription;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[schema(as = ord::InscriptionAction)]
@@ -252,6 +254,103 @@ pub(crate) async fn brc0_rpcrequest(
   let params = index.ord_brc0_rpcrequest(height)?;
 
   Ok(Json(ApiResponse::ok(params)))
+}
+
+#[derive(Debug, PartialEq, Clone,Deserialize, Serialize)]
+pub struct ZeroData {
+  pub block_height: String,
+  pub block_hash: String,
+  pub prev_block_hash: String,
+  pub block_time: u32,
+  pub txs: Vec<ZeroIndexerTx>,
+}
+#[derive(Debug, PartialEq, Clone,Serialize,Deserialize)]
+pub struct ZeroIndexerTx {
+  pub protocol_name: String,
+  pub inscription: String,
+  pub inscription_context: String,
+  pub btc_txid: String,
+  pub btc_fee: String,
+}
+
+fn convert_to_zerodata(params: &RpcParams) -> ZeroData {
+  let mut txs: Vec<ZeroIndexerTx> = Vec::new();
+  for brc0_tx in params.txs.iter() {
+    let tx = convert_to_zerotx(&brc0_tx);
+    match tx {
+      None => {}
+      Some(tx) => {
+        txs.push(tx);
+      }
+    }
+  }
+  ZeroData {
+    block_height: params.height.clone(),
+    block_hash: params.block_hash.clone(),
+    prev_block_hash: "".to_string(),
+    block_time: 0,
+    txs: txs,
+  }
+}
+
+fn convert_to_zerotx(tx:&BRCZeroTx) -> Option<ZeroIndexerTx> {
+  let msg = match deserialize_msg_inscription(tx.hex_rlp_encode_tx.as_str()) {
+    Ok(msg) => {msg}
+    Err(_) => {return None;}
+  };
+  let protocol_name = match get_protocol_name(msg.inscription.as_str()) {
+    Ok(name) => {name}
+    Err(_) => {return None}
+  };
+  Some(ZeroIndexerTx{
+    protocol_name: protocol_name.to_string(),
+    inscription: msg.inscription,
+    inscription_context: serde_json::to_string(&msg.inscription_context).unwrap(),
+    btc_txid: msg.inscription_context.txid,
+    btc_fee: tx.btc_fee.to_string(),
+  })
+}
+
+fn get_protocol_name(s: &str) -> Result<String, JSONError> {
+  let value:Value = serde_json::from_str(s).map_err(|_| JSONError::InvalidJson)?;
+
+  let protocol_name =  match value.get("p") {
+    None => {return Err(JSONError::NotBRC0Json)}
+    Some(v) => {
+      v.to_string()
+    }
+  };
+  Ok(protocol_name)
+}
+
+fn deserialize_msg_inscription(s: &str) -> Result<MsgInscription, JSONError> {
+  let value = serde_json::from_str(s).map_err(|_| JSONError::InvalidJson)?;
+  serde_json::from_value(value).map_err(|e| JSONError::ParseOperationJsonError(e.to_string()))
+}
+// ord/block/:blockhash/inscriptions
+/// Retrieve the inscription actions from the given block.
+#[utoipa::path(
+get,
+path = "/api/v1/crawler/zeroindexer/:height",
+params(
+("height" = u64, Path, description = "block height")
+),
+responses(
+(status = 200, description = "Obtain inscription actions by blockhash", body = OrdBlockInscriptions),
+(status = 400, description = "Bad query.", body = ApiError, example = json!(&ApiError::bad_request("bad request"))),
+(status = 404, description = "Not found.", body = ApiError, example = json!(&ApiError::not_found("not found"))),
+(status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
+)
+)]
+pub(crate) async fn crawler_zeroindexer(
+  Extension(index): Extension<Arc<Index>>,
+  Path(height): Path<u64>,
+) -> ApiResult<ZeroData> {
+  log::debug!("rpc: brc0_rpcrequest: {}", height);
+
+  let params = index.ord_brc0_rpcrequest(height)?;
+  let zero_data = convert_to_zerodata(&params);
+  Ok(Json(ApiResponse::ok(zero_data)))
 }
 
 #[cfg(test)]

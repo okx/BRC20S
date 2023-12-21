@@ -37,3 +37,21 @@ pub struct RpcResponse {
 pub struct TxResult {
     pub hash: String,
 }
+
+#[derive(Debug, PartialEq, Clone,Deserialize, Serialize)]
+pub struct ZeroTestData {
+    pub block_height: String,
+    pub block_hash: String,
+    pub prev_block_hash: String,
+    pub block_time: String,
+    pub txs: Vec<ZeroTestTx>,
+}
+
+#[derive(Debug, PartialEq, Clone,Serialize,Deserialize)]
+pub struct ZeroTestTx {
+    pub protocol_name: String,
+    pub inscription: String,
+    pub inscription_context: String,
+    pub btc_txid: String,
+    pub btc_fee: String,
+}

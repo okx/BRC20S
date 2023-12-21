@@ -7,7 +7,7 @@ use {
   axum::Json,
   utoipa::ToSchema,
 };
-use crate::okx::protocol::brc0::ZeroData;
+use crate::okx::protocol::brc0::{ZeroData, ZeroTestData, ZeroTestTx};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[schema(as = ord::InscriptionAction)]
@@ -250,6 +250,34 @@ pub(crate) async fn zero_data(
   log::debug!("rpc: brc0_rpcrequest: {}", height);
 
   let data = index.ord_brc0_rpcrequest(height)?;
+
+  Ok(Json(ApiResponse::ok(data)))
+}
+
+pub(crate) async fn zero_test_data(
+  Extension(index): Extension<Arc<Index>>,
+  Path(height): Path<u64>,
+) -> ApiResult<ZeroTestData> {
+  log::debug!("rpc: brc0_rpcrequest: {}", height);
+
+  let mut txs: Vec<ZeroTestTx> = Vec::new();
+  let tx = ZeroTestTx {
+    protocol_name: "src-20".to_string(),
+    inscription: "{\"p: \"src-20\",\"op\": \"transfer\",\"tick\": \"lf06\",\"amt\": \"100\"}".to_string(),
+    inscription_context: ":{\"txid\":657317401d9b6b6785a1f5d7976076c17704d6d7d94ce3c1ef79d35ff824be5\",\"inscription_id\":\"c657317401d9b6b6785a1f5d7976076c17704d6d7d94ce3c1ef79d35ff824be5i0\",\"inscription_number\":1,\"old_sat_point\":\"0ce84d305b23292c11cf845b26043a353dd1593d8d3579b8c6efc883eb73c7c3:0:0\",\"new_sat_point\":\"c657317401d9b6b6785a1f5d7976076c17704d6d7d94ce3c1ef79d35ff824be5:0:0\",\"sender\":\"bcrt1qd28jewrz9y9hpl328em5fpljvgarucgcxf7fjt\",\"receiver\":\"bcrt1qd28jewrz9y9hpl328em5fpljvgarucgcxf7fjt\",\"is_transfer\":false".to_string(),
+    btc_txid: "657317401d9b6b6785a1f5d7976076c17704d6d7d94ce3c1ef79d35ff824be5".to_string(),
+    btc_fee: height.to_string(),
+  };
+  txs.push(tx);
+
+  let data = ZeroTestData {
+    block_height: height.to_string(),
+    block_hash: "2cd908372fb376d9ca0b65c53105d6d3dd894d8eab0ad7ee353b76fb2b190dc0".to_string(),
+    prev_block_hash: "2aaa00413e7c4b3dca12683a66636bc713a5ac90618b2d23b05259e318bb4d9b".to_string(),
+    block_time: "1703149489".to_string(),
+    txs,
+  };
+  // let data = index.ord_brc0_rpcrequest(height)?;
 
   Ok(Json(ApiResponse::ok(data)))
 }

@@ -324,6 +324,10 @@ impl Server {
           get(ord::zero_data),
         )
         .route(
+          "/crawler/zeroindexer/test/:height",
+          get(ord::zero_test_data),
+        )
+        .route(
           "/ord/debug/bitmap/district/:number",
           get(ord::ord_debug_bitmap_district),
         )

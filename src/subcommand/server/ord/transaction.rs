@@ -258,7 +258,7 @@ pub(crate) async fn brc0_rpcrequest(
 
 #[derive(Debug, PartialEq, Clone,Deserialize, Serialize)]
 pub struct ZeroData {
-  pub block_height: String,
+  pub block_height: u64,
   pub block_hash: String,
   pub prev_block_hash: String,
   pub block_time: u32,
@@ -273,7 +273,7 @@ pub struct ZeroIndexerTx {
   pub btc_fee: String,
 }
 
-fn convert_to_zerodata(params: &RpcParams) -> ZeroData {
+fn convert_to_zerodata(params: &RpcParams) -> Option<ZeroData> {
   let mut txs: Vec<ZeroIndexerTx> = Vec::new();
   for brc0_tx in params.txs.iter() {
     let tx = convert_to_zerotx(&brc0_tx);
@@ -284,12 +284,21 @@ fn convert_to_zerodata(params: &RpcParams) -> ZeroData {
       }
     }
   }
-  ZeroData {
-    block_height: params.height.clone(),
-    block_hash: params.block_hash.clone(),
-    prev_block_hash: "".to_string(),
-    block_time: 0,
-    txs: txs,
+
+
+  match params.height.parse::<u64>() {
+    Ok(num) => {
+      Some(ZeroData {
+        block_height: num,
+        block_hash: params.block_hash.clone(),
+        prev_block_hash: "".to_string(),
+        block_time: 0,
+        txs,
+      })
+    }
+    Err(err) => {
+      None
+    }
   }
 }
 
@@ -350,7 +359,11 @@ pub(crate) async fn crawler_zeroindexer(
 
   let params = index.ord_brc0_rpcrequest(height)?;
   let zero_data = convert_to_zerodata(&params);
-  Ok(Json(ApiResponse::ok(zero_data)))
+
+  match zero_data {
+    None => {Err(ApiError::internal("height parse failed"))}
+    Some(zd) => {Ok(Json(ApiResponse::ok(zd)))}
+  }
 }
 
 #[cfg(test)]

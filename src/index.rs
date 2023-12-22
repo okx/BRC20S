@@ -191,7 +191,7 @@ impl Index {
       None => {
         let mut sys = System::new();
         sys.refresh_memory();
-        usize::try_from(sys.total_memory() / 4)?
+        usize::try_from(sys.total_memory() / 2)?
       }
     };
 

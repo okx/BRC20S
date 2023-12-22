@@ -405,7 +405,7 @@ impl<'index> Updater<'_> {
     let mut satpoint_to_inscription_id = wtx.open_multimap_table(SATPOINT_TO_INSCRIPTION_ID)?;
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
-    for _ in satpoint_to_inscription_id.range(..)? {
+    for _ in satpoint_to_inscription_id.range::<&[u8; 44]>(..)? {
       
     }
 

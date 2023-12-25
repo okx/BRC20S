@@ -171,9 +171,6 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
             unbound: false, ..
           } => {
             let inscription = new_inscriptions.get(usize::try_from(operation.inscription_id.index).unwrap()).unwrap().clone();
-            self.state_store.ord().save_inscription_with_id(&operation.inscription_id,&inscription).map_err(|e| {
-              anyhow!("failed to set inscription with id in ordinals operations to state! error: {e}")
-            })?;
             let des_res = deserialize_inscription(&inscription);
             match des_res {
               Ok(content) => {
@@ -184,6 +181,9 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
                   &mut outpoint_to_txout_cache,
                 )?;
                 sender = utils::get_script_key_on_satpoint(commit_input_satpoint, self.state_store.ord(), context.network)?.to_string();
+                self.state_store.ord().save_inscription_with_id(&operation.inscription_id,&inscription).map_err(|e| {
+                  anyhow!("failed to set inscription with id in ordinals operations to state! error: {e}")
+                })?;
                 inscription_content = content;
               },
               Err(err) => {

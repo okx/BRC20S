@@ -170,13 +170,6 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
             cursed: false,
             unbound: false, ..
           } => {
-            let commit_input_satpoint = get_commit_input_satpoint(
-              self.client,
-              self.state_store.ord(),
-              operation.old_satpoint,
-              &mut outpoint_to_txout_cache,
-            )?;
-            sender = utils::get_script_key_on_satpoint(commit_input_satpoint, self.state_store.ord(), context.network)?.to_string();
             let inscription = new_inscriptions.get(usize::try_from(operation.inscription_id.index).unwrap()).unwrap().clone();
             self.state_store.ord().save_inscription_with_id(&operation.inscription_id,&inscription).map_err(|e| {
               anyhow!("failed to set inscription with id in ordinals operations to state! error: {e}")
@@ -184,6 +177,13 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
             let des_res = deserialize_inscription(&inscription);
             match des_res {
               Ok(content) => {
+                let commit_input_satpoint = get_commit_input_satpoint(
+                  self.client,
+                  self.state_store.ord(),
+                  operation.old_satpoint,
+                  &mut outpoint_to_txout_cache,
+                )?;
+                sender = utils::get_script_key_on_satpoint(commit_input_satpoint, self.state_store.ord(), context.network)?.to_string();
                 inscription_content = content;
               },
               Err(err) => {
@@ -194,18 +194,17 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
           // Transfer inscription operation.
           Action::Transfer => {
             is_transfer = true;
-            sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.state_store.ord(), context.network)?.to_string();
             let inscription = match get_inscription_by_id(self.client,self.state_store.ord(), &operation.inscription_id) {
               Ok(innnet_inscription) => {innnet_inscription}
               Err(err) => {continue}
             };
-
             self.state_store.ord().remove_inscription_with_id(&operation.inscription_id).map_err(|e| {
               anyhow!("failed to remove inscription with id in ordinals operations to state! error: {e}")
             })?;
             let des_res = deserialize_inscription(&inscription);
             match des_res {
               Ok(content) => {
+                sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.state_store.ord(), context.network)?.to_string();
                 inscription_content = content;
               },
               Err(err) => {

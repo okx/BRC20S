@@ -117,7 +117,7 @@ impl<'index> Updater<'_> {
 
       if uncommitted == 200 {
         self.commit(wtx)?;
-        if self.height >= 768000 {
+        if self.height >= 770000 {
           thread::sleep(Duration::from_secs(u64::MAX));
         }
         uncommitted = 0;

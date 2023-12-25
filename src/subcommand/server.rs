@@ -305,6 +305,7 @@ impl Server {
           get(|| async { ApiDoc::openapi().to_pretty_json().unwrap() }),
         )
         .route("/node/info", get(info::node_info))
+        .route("/crawler/height", get(info::crawler_height))
         .route("/ord/id/:id/inscription", get(ord::ord_inscription_id))
         .route(
           "/ord/number/:number/inscription",

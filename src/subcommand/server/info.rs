@@ -32,6 +32,12 @@ pub struct ChainInfo {
   pub chain_height: Option<u64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct FastSyncInfo {
+  #[schema(format = "uint64")]
+  pub crawler_height: Option<u64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
 pub struct NodeInfoQuery {
   /// Optional to query the BTC chain status.
@@ -73,4 +79,18 @@ pub(crate) async fn node_info(
   };
 
   Ok(Json(ApiResponse::ok(node_info)))
+}
+pub(crate) async fn crawler_height(
+  Extension(index): Extension<Arc<Index>>,
+  Query(query): Query<NodeInfoQuery>,
+) -> ApiResult<FastSyncInfo> {
+  log::debug!("rpc: get crawler_height");
+
+  let (ord_height, btc_height) = index.height_btc(query.btc.unwrap_or_default())?;
+
+  let fast_sync_info = FastSyncInfo {
+    crawler_height: ord_height.map(|h| h.0 ),
+  };
+
+  Ok(Json(ApiResponse::ok(fast_sync_info)))
 }

@@ -326,7 +326,7 @@ fn get_protocol_name(s: &str) -> Result<String, JSONError> {
   let protocol_name =  match value.get("p") {
     None => {return Err(JSONError::NotBRC0Json)}
     Some(v) => {
-      v.to_string()
+      v.to_string().replace("\"", "")
     }
   };
   Ok(protocol_name)

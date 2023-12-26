@@ -527,17 +527,8 @@ impl<'index> Updater<'_> {
 
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
-    let operations = inscription_updater.operations.clone();
 
-    // write tx_out to outpoint_to_entry table.
-    for (outpoint, tx_out) in tx_out_cache {
-      let mut entry = Vec::new();
-      tx_out.consensus_encode(&mut entry)?;
-      outpoint_to_entry.insert(&outpoint.store(), entry.as_slice())?;
-    }
-
-    std::mem::drop(inscription_id_to_inscription_entry);
-    std::mem::drop(outpoint_to_entry);
+    inscription_updater.flush_cache()?;
 
     // Create a protocol manager to index the block of brc20, brc20s data.
     let config = ProtocolConfig::new_with_options(&index.options);
@@ -548,7 +539,7 @@ impl<'index> Updater<'_> {
         blocktime: block.header.time,
       },
       &block,
-      operations,
+      &inscription_updater.operations,
     )?;
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;

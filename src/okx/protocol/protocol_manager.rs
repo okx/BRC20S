@@ -35,7 +35,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     &self,
     context: BlockContext,
     block: &BlockData,
-    operations: HashMap<Txid, Vec<InscriptionOp>>,
+    operations: &HashMap<Txid, Vec<InscriptionOp>>,
   ) -> Result {
     let start = Instant::now();
     let mut inscriptions_size = 0;
@@ -74,7 +74,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     }
     let mut bitmap_count = 0;
     if self.config.enable_index_bitmap {
-      bitmap_count = ord_proto::bitmap::index_bitmap(self.state_store.ord(), context, &operations)?;
+      bitmap_count = ord_proto::bitmap::index_bitmap(self.state_store.ord(), context, operations)?;
     }
 
     log::info!(

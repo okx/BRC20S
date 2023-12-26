@@ -402,6 +402,18 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     }
   }
 
+  // write tx_out to outpoint_to_entry table
+  pub(super) fn flush_cache(&mut self) -> Result {
+    for (outpoint, tx_out) in self.tx_out_cache.iter() {
+      let mut entry = Vec::new();
+      tx_out.consensus_encode(&mut entry)?;
+      self
+        .outpoint_to_entry
+        .insert(&outpoint.store(), entry.as_slice())?;
+    }
+    Ok(())
+  }
+
   fn calculate_sat(
     input_sat_ranges: Option<&VecDeque<(u64, u64)>>,
     input_offset: u64,

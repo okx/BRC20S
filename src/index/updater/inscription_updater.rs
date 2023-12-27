@@ -38,7 +38,6 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   pub(super) next_cursed_number: i64,
   pub(super) next_number: i64,
   number_to_id: &'a mut Table<'db, 'tx, i64, &'static InscriptionIdValue>,
-  outpoint_to_entry: &'a mut Table<'db, 'tx, &'static OutPointValue, &'static [u8]>,
   reward: u64,
   reinscription_id_to_seq_num: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, u64>,
   sat_to_inscription_id: &'a mut MultimapTable<'db, 'tx, u64, &'static InscriptionIdValue>,
@@ -63,7 +62,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
     lost_sats: u64,
     number_to_id: &'a mut Table<'db, 'tx, i64, &'static InscriptionIdValue>,
-    outpoint_to_entry: &'a mut Table<'db, 'tx, &'static OutPointValue, &'static [u8]>,
     reinscription_id_to_seq_num: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, u64>,
     sat_to_inscription_id: &'a mut MultimapTable<'db, 'tx, u64, &'static InscriptionIdValue>,
     satpoint_to_id: &'a mut MultimapTable<
@@ -102,7 +100,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       next_cursed_number,
       next_number,
       number_to_id,
-      outpoint_to_entry,
       reward: Height(height).subsidy(),
       reinscription_id_to_seq_num,
       sat_to_inscription_id,
@@ -404,13 +401,14 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
   }
 
   // write tx_out to outpoint_to_entry table
-  pub(super) fn flush_cache(&mut self) -> Result {
+  pub(super) fn flush_cache(&self, rocks_wtx: &mut rocksdb::Transaction<TransactionDB>) -> Result {
     for (outpoint, tx_out) in self.tx_out_cache.iter() {
       let mut entry = Vec::new();
       tx_out.consensus_encode(&mut entry)?;
-      self
-        .outpoint_to_entry
-        .insert(&outpoint.store(), entry.as_slice())?;
+      rocks_wtx.put(&outpoint.store(), entry.as_slice())?;
+      // self
+      //   .outpoint_to_entry
+      //   .insert(&outpoint.store(), entry.as_slice())?;
     }
     Ok(())
   }

@@ -338,7 +338,7 @@ impl<'index> Updater<'_> {
       return Err(anyhow!("Previous block did not consume all input values"));
     };
 
-    let mut outpoint_to_entry = wtx.open_table(OUTPOINT_TO_ENTRY)?;
+    //let mut outpoint_to_entry = wtx.open_table(OUTPOINT_TO_ENTRY)?;
 
     let index_inscriptions = self.height >= index.first_inscription_height;
 
@@ -423,7 +423,7 @@ impl<'index> Updater<'_> {
       &mut inscription_id_to_inscription_entry,
       lost_sats,
       &mut inscription_number_to_inscription_id,
-      &mut outpoint_to_entry,
+      //&mut outpoint_to_entry,
       &mut reinscription_id_to_seq_num,
       &mut sat_to_inscription_id,
       &mut satpoint_to_inscription_id,
@@ -539,7 +539,7 @@ impl<'index> Updater<'_> {
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
-    inscription_updater.flush_cache()?;
+    inscription_updater.flush_cache(rocks_wtx)?;
 
     // Create a protocol manager to index the block of brc20, brc20s data.
     let config = ProtocolConfig::new_with_options(&index.options);

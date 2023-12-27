@@ -127,9 +127,10 @@ impl<'index> Updater<'_> {
 
       uncommitted += 1;
 
+      let should_break = SHUTTING_DOWN.load(atomic::Ordering::Relaxed);
       if uncommitted == commit_height_interval {
         unpersisted += 1;
-        if unpersisted < commit_none_interval {
+        if unpersisted < commit_none_interval && !should_break {
           wtx.set_durability(redb::Durability::None);
           log::debug!("set wtx durability to none");
         } else {
@@ -151,6 +152,10 @@ impl<'index> Updater<'_> {
           // write transaction
           break;
         }
+        if should_break {
+          break;
+        }
+
         wtx
           .open_table(WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP)?
           .insert(
@@ -160,10 +165,10 @@ impl<'index> Updater<'_> {
               .map(|duration| duration.as_millis())
               .unwrap_or(0),
           )?;
-      }
-
-      if SHUTTING_DOWN.load(atomic::Ordering::Relaxed) {
-        break;
+      } else {
+        if should_break {
+          break;
+        }
       }
     }
 

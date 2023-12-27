@@ -172,7 +172,7 @@ impl<'index> Updater<'_> {
       }
     }
 
-    if uncommitted > 0 {
+    if uncommitted > 0 || unpersisted != 0 {
       self.commit(wtx)?;
     }
 

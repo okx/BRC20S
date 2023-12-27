@@ -1,4 +1,3 @@
-use bitcoin::consensus::WriteExt;
 use {
   super::*,
   crate::okx::datastore::ord::operation::{Action, InscriptionOp},
@@ -405,15 +404,12 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
   // write tx_out to outpoint_to_entry table
   pub(super) fn flush_cache(&mut self) -> Result {
-    let mut key = Vec::new();
+    let mut key: [u8; 36] = [0; 36];
     let mut entry = Vec::new();
     for (outpoint, tx_out) in self.tx_out_cache.iter() {
       tx_out.consensus_encode(&mut entry)?;
-      outpoint.consensus_encode(&mut key)?;
-      self
-        .outpoint_to_entry
-        .insert(key.as_slice(), entry.as_slice())?;
-      key.clear();
+      outpoint.consensus_encode(&mut key.as_mut_slice())?;
+      self.outpoint_to_entry.insert(&key, entry.as_slice())?;
       entry.clear();
     }
     Ok(())
@@ -550,5 +546,22 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     self.id_to_satpoint.insert(&inscription_id, &satpoint)?;
 
     Ok(())
+  }
+}
+#[cfg(test)]
+mod tests {
+  use crate::index::entry::Entry;
+  use bitcoin::consensus::Encodable;
+  use bitcoin::OutPoint;
+
+  #[test]
+  fn test1() {
+    let out0 = OutPoint::null();
+    let a = out0.store();
+
+    let mut b: [u8; 36] = [0; 36];
+    out0.consensus_encode(&mut b.as_mut_slice()).unwrap();
+
+    assert_eq!(a.as_slice(), b.as_slice());
   }
 }

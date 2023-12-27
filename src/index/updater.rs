@@ -91,7 +91,19 @@ impl<'index> Updater<'_> {
 
     let (mut outpoint_sender, mut tx_out_receiver) = Self::spawn_fetcher(self.index)?;
 
+    let commit_height_interval = if self.index.options.commit_height_interval == 0 {
+      1
+    } else {
+      self.index.options.commit_height_interval
+    };
+    let commit_none_interval = if self.index.options.commit_none_interval == 0 {
+      1
+    } else {
+      self.index.options.commit_none_interval
+    };
+    log::info!("commit height interval: {}, commit none interval: {}", commit_height_interval, commit_none_interval);
     let mut uncommitted = 0;
+    let mut unpersisted = 0;
     while let Ok(block) = rx.recv() {
       self.index_block(
         self.index,
@@ -115,7 +127,15 @@ impl<'index> Updater<'_> {
 
       uncommitted += 1;
 
-      if uncommitted == 200 {
+      if uncommitted == commit_height_interval {
+        unpersisted += 1;
+        if unpersisted < commit_none_interval {
+          wtx.set_durability(redb::Durability::None);
+          log::debug!("set wtx durability to none");
+        } else {
+          unpersisted = 0;
+        }
+
         self.commit(wtx)?;
         uncommitted = 0;
         wtx = self.index.begin_write()?;
@@ -661,7 +681,7 @@ impl<'index> Updater<'_> {
       self.height,
       self.outputs_traversed,
       self.range_cache.len(),
-      self.outputs_cached
+      self.outputs_cached,
     );
 
     if self.index_sats {

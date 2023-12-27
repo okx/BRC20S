@@ -1,3 +1,4 @@
+use bitcoin::consensus::WriteExt;
 use {
   super::*,
   crate::okx::datastore::ord::operation::{Action, InscriptionOp},
@@ -404,12 +405,16 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
   // write tx_out to outpoint_to_entry table
   pub(super) fn flush_cache(&mut self) -> Result {
+    let mut key = Vec::new();
+    let mut entry = Vec::new();
     for (outpoint, tx_out) in self.tx_out_cache.iter() {
-      let mut entry = Vec::new();
       tx_out.consensus_encode(&mut entry)?;
+      outpoint.consensus_encode(&mut key)?;
       self
         .outpoint_to_entry
-        .insert(&outpoint.store(), entry.as_slice())?;
+        .insert(key.as_slice(), entry.as_slice())?;
+      key.clear();
+      entry.clear();
     }
     Ok(())
   }

@@ -159,6 +159,7 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
 pub(crate) struct Index {
   client: Client,
   database: Database,
+  rdb: rocksdb::TransactionDB,
   durability: redb::Durability,
   first_inscription_height: u64,
   genesis_block_coinbase_transaction: Transaction,
@@ -293,10 +294,14 @@ impl Index {
     let genesis_block_coinbase_transaction =
       options.chain().genesis_block().coinbase().unwrap().clone();
 
+    let rdb =
+      rocksdb::TransactionDB::open_default(options.data_dir.as_ref().unwrap().join("rocksdb"))?;
+
     Ok(Self {
       genesis_block_coinbase_txid: genesis_block_coinbase_transaction.txid(),
       client,
       database,
+      rdb,
       durability,
       first_inscription_height: options.first_inscription_height(),
       genesis_block_coinbase_transaction,

@@ -118,6 +118,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     tx: &Transaction,
     txid: Txid,
     input_sat_ranges: Option<&VecDeque<(u64, u64)>>,
+    rocks_wtx: &mut rocksdb::Transaction<TransactionDB>,
   ) -> Result {
     let mut new_inscriptions = Inscription::from_transaction(tx).into_iter().peekable();
     let mut floating_inscriptions = Vec::new();
@@ -159,10 +160,10 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       let current_input_value = if let Some(tx_out) = self.tx_out_cache.get(&tx_in.previous_output)
       {
         tx_out.value
-      } else if let Some(tx_out) =
-        Index::transaction_output_by_outpoint(self.outpoint_to_entry, tx_in.previous_output)?
+      } else if let Some(data) = rocks_wtx.get(&tx_in.previous_output.store())?
+      //Index::transaction_output_by_outpoint(self.outpoint_to_entry, tx_in.previous_output)?
       {
-        tx_out.value
+        TxOut::consensus_decode(&mut io::Cursor::new(data))?.value
       } else {
         let tx_out = self.tx_out_receiver.blocking_recv().ok_or_else(|| {
           anyhow!(

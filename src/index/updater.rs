@@ -1,3 +1,4 @@
+use rocksdb::TransactionDB;
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
@@ -92,6 +93,7 @@ impl<'index> Updater<'_> {
     let (mut outpoint_sender, mut tx_out_receiver) = Self::spawn_fetcher(self.index)?;
 
     let mut uncommitted = 0;
+    let mut rocks_wtx = self.index.rdb.transaction();
     while let Ok(block) = rx.recv() {
       self.index_block(
         self.index,
@@ -99,6 +101,7 @@ impl<'index> Updater<'_> {
         &mut tx_out_receiver,
         &mut wtx,
         block,
+        &mut rocks_wtx,
       )?;
 
       if let Some(progress_bar) = &mut progress_bar {
@@ -117,6 +120,8 @@ impl<'index> Updater<'_> {
 
       if uncommitted == 200 {
         self.commit(wtx)?;
+        rocks_wtx.commit()?;
+        rocks_wtx = self.index.rdb.transaction();
         uncommitted = 0;
         wtx = self.index.begin_write()?;
         let height = wtx
@@ -319,6 +324,7 @@ impl<'index> Updater<'_> {
     tx_out_receiver: &mut Receiver<TxOut>,
     wtx: &mut WriteTransaction,
     block: BlockData,
+    rocks_wtx: &mut rocksdb::Transaction<TransactionDB>,
   ) -> Result<()> {
     Reorg::detect_reorg(&block, self.height, self.index)?;
 
@@ -360,7 +366,10 @@ impl<'index> Updater<'_> {
           }
           // We don't need input values we already have in our outpoint_to_entry table from earlier blocks that
           // were committed to db already
-          if outpoint_to_entry.get(&prev_output.store())?.is_some() {
+          // if outpoint_to_entry.get(&prev_output.store())?.is_some() {
+          //   continue;
+          // }
+          if rocks_wtx.get_pinned(&prev_output.store())?.is_some() {
             continue;
           }
           // We don't know the value of this tx input. Send this outpoint to background thread to be fetched
@@ -470,6 +479,7 @@ impl<'index> Updater<'_> {
           &mut outputs_in_block,
           &mut inscription_updater,
           index_inscriptions,
+          rocks_wtx,
         )?;
 
         coinbase_inputs.extend(input_sat_ranges);
@@ -485,6 +495,7 @@ impl<'index> Updater<'_> {
           &mut outputs_in_block,
           &mut inscription_updater,
           index_inscriptions,
+          rocks_wtx,
         )?;
       }
 
@@ -515,7 +526,7 @@ impl<'index> Updater<'_> {
       }
     } else {
       for (tx, txid) in block.txdata.iter().skip(1).chain(block.txdata.first()) {
-        inscription_updater.index_transaction_inscriptions(tx, *txid, None)?;
+        inscription_updater.index_transaction_inscriptions(tx, *txid, None, rocks_wtx)?;
       }
     }
 
@@ -569,9 +580,15 @@ impl<'index> Updater<'_> {
     outputs_traversed: &mut u64,
     inscription_updater: &mut InscriptionUpdater,
     index_inscriptions: bool,
+    rocks_wtx: &mut rocksdb::Transaction<TransactionDB>,
   ) -> Result {
     if index_inscriptions {
-      inscription_updater.index_transaction_inscriptions(tx, txid, Some(input_sat_ranges))?;
+      inscription_updater.index_transaction_inscriptions(
+        tx,
+        txid,
+        Some(input_sat_ranges),
+        rocks_wtx,
+      )?;
     }
 
     for (vout, output) in tx.output.iter().enumerate() {

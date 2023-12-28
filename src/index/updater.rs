@@ -480,7 +480,10 @@ impl<'index> Updater<'_> {
       .map(|unbound_inscriptions| unbound_inscriptions.value())
       .unwrap_or(0);
 
+    let mut operations = HashMap::new();
+
     let mut inscription_updater = InscriptionUpdater::new(
+      &mut operations,
       self.height,
       &mut inscription_id_to_children,
       &mut inscription_id_to_satpoint,
@@ -610,14 +613,19 @@ impl<'index> Updater<'_> {
 
     // Create a protocol manager to index the block of brc20, brc20s data.
     let config = ProtocolConfig::new_with_options(&index.options);
-    ProtocolManager::new(&index.client, &StateReadWrite::new(wtx), &config).index_block(
+    ProtocolManager::new(
+      &index.client,
+      &StateReadWrite::new(wtx, tx_out_cache),
+      &config,
+    )
+    .index_block(
       BlockContext {
         network: index.get_chain_network(),
         blockheight: self.height,
         blocktime: block.header.time,
       },
       &block,
-      &inscription_updater.operations,
+      &operations,
     )?;
 
     statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;

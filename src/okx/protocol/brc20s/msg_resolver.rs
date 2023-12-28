@@ -229,7 +229,8 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let ord_store = OrdDbReadWriter::new(&wtx);
+    let cache = HashMap::new();
+    let ord_store = OrdDbReadWriter::new(&wtx, &cache);
     let brc20s_store = DataStore::new(&wtx);
 
     let mut outpoint_to_txout_cache = HashMap::new();
@@ -256,7 +257,8 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let ord_store = OrdDbReadWriter::new(&wtx);
+    let cache = HashMap::new();
+    let ord_store = OrdDbReadWriter::new(&wtx, &cache);
     let brc20s_store = DataStore::new(&wtx);
 
     let mut outpoint_to_txout_cache = HashMap::new();
@@ -330,7 +332,8 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let ord_store = OrdDbReadWriter::new(&wtx);
+    let cache = HashMap::new();
+    let ord_store = OrdDbReadWriter::new(&wtx, &cache);
     let brc20s_store = DataStore::new(&wtx);
 
     let mut outpoint_to_txout_cache = HashMap::new();
@@ -379,7 +382,8 @@ mod tests {
     let db_file = NamedTempFile::new().unwrap();
     let db = Database::create(db_file.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let ord_store = OrdDbReadWriter::new(&wtx);
+    let cache = HashMap::new();
+    let ord_store = OrdDbReadWriter::new(&wtx, &cache);
     let brc20s_store = DataStore::new(&wtx);
 
     let mut outpoint_to_txout_cache = HashMap::new();

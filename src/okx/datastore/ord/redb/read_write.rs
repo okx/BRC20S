@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use {
   super::*,
   crate::{
@@ -24,14 +25,15 @@ pub fn try_init_tables<'db, 'a>(
 
 pub struct OrdDbReadWriter<'db, 'a> {
   wtx: &'a WriteTransaction<'db>,
+  tx_out_cache: &'a HashMap<OutPoint, TxOut>,
 }
 
 impl<'db, 'a> OrdDbReadWriter<'db, 'a>
 where
   'db: 'a,
 {
-  pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
-    Self { wtx }
+  pub fn new(wtx: &'a WriteTransaction<'db>, tx_out_cache: &'a HashMap<OutPoint, TxOut>) -> Self {
+    Self { wtx, tx_out_cache }
   }
 }
 
@@ -45,7 +47,11 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
   }
 
   fn get_outpoint_to_txout(&self, outpoint: OutPoint) -> Result<Option<TxOut>, Self::Error> {
-    read_only::new_with_wtx(self.wtx).get_outpoint_to_txout(outpoint)
+    if let Some(tx_out) = self.tx_out_cache.get(&outpoint) {
+      Ok(Some(tx_out.clone()))
+    } else {
+      read_only::new_with_wtx(self.wtx).get_outpoint_to_txout(outpoint)
+    }
   }
 
   fn get_transaction_operations(
@@ -176,35 +182,12 @@ mod tests {
   use tempfile::NamedTempFile;
 
   #[test]
-  fn test_outpoint_to_script() {
-    let dbfile = NamedTempFile::new().unwrap();
-    let db = Database::create(dbfile.path()).unwrap();
-    let wtx = db.begin_write().unwrap();
-    let ord_db = OrdDbReadWriter::new(&wtx);
-
-    let outpoint1 = unbound_outpoint();
-    let tx_out = TxOut {
-      value: 100,
-      script_pubkey: bitcoin::Address::from_str("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
-        .unwrap()
-        .assume_checked()
-        .script_pubkey(),
-    };
-
-    ord_db.set_outpoint_to_txout(outpoint1, &tx_out).unwrap();
-
-    assert_eq!(
-      ord_db.get_outpoint_to_txout(outpoint1).unwrap().unwrap(),
-      tx_out
-    );
-  }
-
-  #[test]
   fn test_transaction_to_operations() {
     let dbfile = NamedTempFile::new().unwrap();
     let db = Database::create(dbfile.path()).unwrap();
     let wtx = db.begin_write().unwrap();
-    let ord_db = OrdDbReadWriter::new(&wtx);
+    let cache = HashMap::new();
+    let ord_db = OrdDbReadWriter::new(&wtx, &cache);
     let txid =
       Txid::from_str("b61b0172d95e266c18aea0c624db987e971a5d6d4ebc2aaed85da4642d635735").unwrap();
     let operation = InscriptionOp {

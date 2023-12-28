@@ -27,7 +27,7 @@ enum Origin {
 
 pub(super) struct InscriptionUpdater<'a, 'db, 'tx, 'db2, 'tx2> {
   flotsam: Vec<Flotsam>,
-  pub(super) operations: HashMap<Txid, Vec<InscriptionOp>>,
+  operations: &'a mut HashMap<Txid, Vec<InscriptionOp>>,
   height: u64,
   id_to_children:
     &'a mut MultimapTable<'db, 'tx, &'static InscriptionIdValue, &'static InscriptionIdValue>,
@@ -53,6 +53,7 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx, 'db2, 'tx2> {
 
 impl<'a, 'db, 'tx, 'db2, 'tx2> InscriptionUpdater<'a, 'db, 'tx, 'db2, 'tx2> {
   pub(super) fn new(
+    operations: &'a mut HashMap<Txid, Vec<InscriptionOp>>,
     height: u64,
     id_to_children: &'a mut MultimapTable<
       'db,
@@ -95,7 +96,7 @@ impl<'a, 'db, 'tx, 'db2, 'tx2> InscriptionUpdater<'a, 'db, 'tx, 'db2, 'tx2> {
 
     Ok(Self {
       flotsam: Vec::new(),
-      operations: HashMap::new(),
+      operations,
       height,
       id_to_children,
       id_to_satpoint,
@@ -418,7 +419,7 @@ impl<'a, 'db, 'tx, 'db2, 'tx2> InscriptionUpdater<'a, 'db, 'tx, 'db2, 'tx2> {
   }
 
   // write tx_out to outpoint_to_entry table
-  pub(super) fn flush_cache(&mut self) -> Result {
+  pub(super) fn flush_cache(mut self) -> Result {
     let total = self.tx_out_cache_new.len();
     let mut count = 0;
     let mut entry = Vec::new();

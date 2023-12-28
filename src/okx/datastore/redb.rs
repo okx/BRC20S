@@ -1,3 +1,5 @@
+use bitcoin::{OutPoint, TxOut};
+use std::collections::HashMap;
 use {
   super::{
     brc20::redb::{DataStore as BRC20StateRW, DataStoreReader as BRC20StateReader},
@@ -52,9 +54,9 @@ pub struct StateReadWrite<'db, 'a> {
 }
 
 impl<'db, 'a> StateReadWrite<'db, 'a> {
-  pub fn new(wtx: &'a WriteTransaction<'db>) -> Self {
+  pub fn new(wtx: &'a WriteTransaction<'db>, tx_out_cache: &'a HashMap<OutPoint, TxOut>) -> Self {
     Self {
-      ord: OrdStateRW::new(wtx),
+      ord: OrdStateRW::new(wtx, tx_out_cache),
       brc20: BRC20StateRW::new(wtx),
       brc20s: BRC20SStateRW::new(wtx),
     }

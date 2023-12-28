@@ -155,7 +155,7 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
         txs,
       },
     };
-    log::info!("Request: {:#?}", request);
+    log::debug!("Request: {:#?}", request);
 
     let err = self
       .state_store

@@ -132,7 +132,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
     context: BlockContext,
     tx: &Transaction,
     operations: Vec<InscriptionOp>,
-    blockHash: &BlockHash,
+    block_hash: &BlockHash,
   ) -> Result<Vec<BrcZeroMsg>> {
     log::debug!(
       "Resolve Inscription indexed transaction {}, operations size: {}, data: {:?}",
@@ -163,8 +163,8 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
           .unwrap_or(false);
 
         let mut is_transfer = false;
-        let mut sender = "".to_string();
-        let mut inscription_content: String = "".to_string();
+        let sender;
+        let inscription_content;
         match operation.action {
           // New inscription is not `cursed` or `unbound`.
           Action::New {
@@ -196,7 +196,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
                 })?;
                 inscription_content = content;
               }
-              Err(err) => {
+              Err(_) => {
                 continue;
               }
             }
@@ -204,14 +204,11 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
           // Transfer inscription operation.
           Action::Transfer => {
             is_transfer = true;
-            let inscription = match get_inscription_by_id(
-              self.client,
-              self.state_store.ord(),
-              &operation.inscription_id,
-            ) {
-              Ok(innnet_inscription) => innnet_inscription,
-              Err(err) => continue,
-            };
+            let inscription =
+              match get_inscription_by_id(self.state_store.ord(), &operation.inscription_id) {
+                Ok(innnet_inscription) => innnet_inscription,
+                Err(_) => continue,
+              };
             self.state_store.ord().remove_inscription_with_id(&operation.inscription_id).map_err(|e| {
               anyhow!("failed to remove inscription with id in ordinals operations to state! error: {e}")
             })?;
@@ -226,7 +223,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
                 .to_string();
                 inscription_content = content;
               }
-              Err(err) => {
+              Err(_) => {
                 continue;
               }
             }
@@ -263,7 +260,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
               is_transfer,
               block_height: context.blockheight,
               block_time: context.blocktime,
-              block_hash: blockHash.to_string(),
+              block_hash: block_hash.to_string(),
             },
           },
         });
@@ -397,7 +394,6 @@ fn get_commit_input_satpoint<O: DataStoreReadWrite>(
 }
 
 fn get_inscription_by_id<O: DataStoreReadOnly>(
-  client: &Client,
   ord_store: &O,
   inscription_id: &InscriptionId,
 ) -> Result<Inscription> {

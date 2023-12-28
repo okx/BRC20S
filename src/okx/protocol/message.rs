@@ -1,7 +1,5 @@
-use crate::okx::datastore::brc0 as brc0_store;
 use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
-use crate::okx::protocol::brc0 as brc0_proto;
 use crate::okx::protocol::brc20 as brc20_proto;
 use crate::okx::protocol::brc20s as brc20s_proto;
 use crate::{Deserialize, Serialize};

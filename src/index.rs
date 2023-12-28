@@ -39,7 +39,6 @@ use {
 
 use crate::okx::datastore::ord::{bitmap::District, collections::CollectionKind};
 use crate::okx::protocol::brc0::RpcParams;
-use crate::rpc::BRCZeroRpcClient;
 
 pub(super) use self::{
   entry::{InscriptionEntry, InscriptionEntryValue},
@@ -160,7 +159,6 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
 
 pub(crate) struct Index {
   client: Client,
-  brc0_client: BRCZeroRpcClient,
   database: Database,
   durability: redb::Durability,
   first_inscription_height: u64,
@@ -175,7 +173,6 @@ pub(crate) struct Index {
 impl Index {
   pub(crate) fn open(options: &Options) -> Result<Self> {
     let client = options.bitcoin_rpc_client()?;
-    let brc0_client = BRCZeroRpcClient::new(&options.brczero_rpc_url)?;
     let path = if let Some(path) = &options.index {
       path.clone()
     } else {
@@ -299,7 +296,6 @@ impl Index {
     Ok(Self {
       genesis_block_coinbase_txid: genesis_block_coinbase_transaction.txid(),
       client,
-      brc0_client,
       database,
       durability,
       first_inscription_height: options.first_inscription_height(),

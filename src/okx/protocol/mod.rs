@@ -72,7 +72,4 @@ pub enum JSONError {
 
   #[error("invalid json string")]
   InvalidJson,
-
-  #[error("not brc0 json")]
-  NotBRC0Json,
 }

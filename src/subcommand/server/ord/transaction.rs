@@ -285,16 +285,13 @@ fn convert_to_zerodata(params: &RpcParams) -> Option<ZeroData> {
     }
   }
 
-  match params.height.parse::<u64>() {
-    Ok(num) => Some(ZeroData {
-      block_height: num,
-      block_hash: params.block_hash.clone(),
-      prev_block_hash: "".to_string(),
-      block_time: 0,
-      txs,
-    }),
-    Err(err) => None,
-  }
+  params.height.parse::<u64>().ok().map(|num| ZeroData {
+    block_height: num,
+    block_hash: params.block_hash.clone(),
+    prev_block_hash: "".to_string(),
+    block_time: 0,
+    txs,
+  })
 }
 
 fn convert_to_zerotx(tx: &BRCZeroTx) -> Option<ZeroIndexerTx> {

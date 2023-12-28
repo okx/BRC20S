@@ -1,7 +1,6 @@
 use crate::okx::datastore::ord::DataStoreReadWrite;
 use crate::okx::protocol::brc0::{BRCZeroTx, RpcParams, RpcRequest};
 use bitcoin::BlockHash;
-use log::log;
 use {
   super::*,
   crate::{
@@ -12,7 +11,6 @@ use {
       },
       protocol::{brc20 as brc20_proto, brc20s as brc20s_proto},
     },
-    rpc::BRCZeroRpcClient,
     Result,
   },
   anyhow::anyhow,
@@ -133,7 +131,6 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
 
   pub fn send_to_brc0(
     &self,
-    brc0_client: &BRCZeroRpcClient,
     context: BlockContext,
     brc0_msgs: Vec<BrcZeroMsg>,
     block_hash: &BlockHash,
@@ -159,7 +156,6 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
       },
     };
     log::info!("Request: {:#?}", request);
-    let ord_store = self.state_store.ord();
 
     let err = self
       .state_store
@@ -201,11 +197,4 @@ fn convert_receipt_to_passive_msg(
       sat_in_outputs: msg.sat_in_outputs,
     },
   }
-}
-/// Initialize Tokio runtime
-fn init_tokio_runtime() -> tokio::runtime::Runtime {
-  tokio::runtime::Builder::new_current_thread()
-    .enable_all()
-    .build()
-    .unwrap()
 }

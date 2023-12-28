@@ -85,12 +85,6 @@ pub(crate) struct Options {
   pub(crate) enable_index_bitmap: bool,
   #[clap(
     long,
-    default_value = "http://127.0.0.1:26657",
-    help = "Connect to BRCZero Node RPC at <RPC_URL>."
-  )]
-  pub(crate) brczero_rpc_url: String,
-  #[clap(
-    long,
     help = "Don't prase BRCZero messages below <FIRST_BRCZERO_HEIGHT>."
   )]
   pub(crate) first_brczero_height: Option<u64>,

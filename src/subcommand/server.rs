@@ -42,7 +42,6 @@ use {
 
 mod api;
 mod brc20;
-mod brc20s;
 mod info;
 mod ord;
 mod types;
@@ -172,20 +171,6 @@ impl Server {
           brc20::brc20_transferable,
           brc20::brc20_all_transferable,
 
-          brc20s::brc20s_tick_info,
-          brc20s::brc20s_all_tick_info,
-          brc20s::brc20s_balance,
-          brc20s::brc20s_all_balance,
-          brc20s::brc20s_pool_info,
-          brc20s::brc20s_all_pool_info,
-          brc20s::brc20s_all_pools_by_tid,
-          brc20s::brc20s_txid_receipts,
-          brc20s::brc20s_block_receipts,
-          brc20s::brc20s_transferable,
-          brc20s::brc20s_all_transferable,
-          brc20s::brc20s_userinfo,
-          brc20s::brc20s_stake_info,
-
           ord::ord_inscription_id,
           ord::ord_inscription_number,
           ord::ord_outpoint,
@@ -219,47 +204,6 @@ impl Server {
           response::BRC20AllBalance,
           response::BRC20TxEvents,
           response::BRC20BlockEvents,
-          response::BRC20Transferable,
-
-          // BRC20S schemas
-          brc20s::Tick,
-          brc20s::StakeValue,
-          brc20s::Stake,
-          brc20s::Earn,
-          brc20s::TickInfo,
-          brc20s::AllTickInfo,
-          brc20s::Balance,
-          brc20s::AllBalance,
-          brc20s::Pool,
-          brc20s::AllPoolInfo,
-          brc20s::OperationType,
-          brc20s::Event,
-          brc20s::DeployTickEvent,
-          brc20s::DeployPoolEvent,
-          brc20s::DepositEvent,
-          brc20s::WithdrawEvent,
-          brc20s::PassiveWithdrawEvent,
-          brc20s::MintEvent,
-          brc20s::InscribeTransferEvent,
-          brc20s::TransferEvent,
-          brc20s::Receipt,
-          brc20s::TxReceipts,
-          brc20s::BlockReceipts,
-          brc20s::TransferableInscription,
-          brc20s::Transferable,
-          brc20s::UserInfo,
-          brc20s::StakedInfo,
-          brc20s::StakedPid,
-
-          // BRC20S responses schemas
-          response::BRC20STick,
-          response::BRC20SAllTick,
-          response::BRC20SBalance,
-          response::BRC20SAllBalance,
-          response::BRC20SPool,
-          response::BRC20SAllPool,
-          response::BRC20STxReceipts,
-          response::BRC20SBlockReceipts,
           response::BRC20Transferable,
 
           // Ord schemas
@@ -346,74 +290,6 @@ impl Server {
         .route(
           "/brc20/block/:block_hash/events",
           get(brc20::brc20_block_events),
-        )
-        .route("/brc20s/tick", get(brc20s::brc20s_all_tick_info))
-        .route("/brc20s/tick/:tick_id", get(brc20s::brc20s_tick_info))
-        .route(
-          "/brc20s/debug/tick/:tick_id",
-          get(brc20s::brc20s_debug_tick_info),
-        )
-        .route("/brc20s/pool", get(brc20s::brc20s_all_pool_info))
-        .route("/brc20s/pool/:pid", get(brc20s::brc20s_pool_info))
-        .route(
-          "/brc20s/pool/tid/:tick_id",
-          get(brc20s::brc20s_all_pools_by_tid),
-        )
-        .route(
-          "/brc20s/debug/pool/:pid",
-          get(brc20s::brc20s_debug_pool_info),
-        )
-        .route(
-          "/brc20s/debug/stake/:address/:tick",
-          get(brc20s::brc20s_debug_stake_info),
-        )
-        .route(
-          "/brc20s/pool/:pid/address/:address/userinfo",
-          get(brc20s::brc20s_userinfo),
-        )
-        .route(
-          "/brc20s/debug/pool/:pid/address/:address/reward",
-          get(brc20s::brc20s_user_pending_reward),
-        )
-        .route(
-          "/brc20s/tick/:tick_id/address/:address/balance",
-          get(brc20s::brc20s_balance),
-        )
-        .route(
-          "/brc20s/debug/pool/:pid/address/:address/userinfo",
-          get(brc20s::brc20s_debug_userinfo),
-        )
-        .route(
-          "/brc20s/debug/tick/:tick_id/address/:address/balance",
-          get(brc20s::brc20s_debug_balance),
-        )
-        .route(
-          "/brc20s/address/:address/balance",
-          get(brc20s::brc20s_all_balance),
-        )
-        .route(
-          "/brc20s/tick/:tick_id/address/:address/transferable",
-          get(brc20s::brc20s_transferable),
-        )
-        .route(
-          "/brc20s/address/:address/transferable",
-          get(brc20s::brc20s_all_transferable),
-        )
-        .route(
-          "/brc20s/tx/:txid/receipts",
-          get(brc20s::brc20s_txid_receipts),
-        )
-        .route(
-          "/brc20s/debug/tx/:txid/receipts",
-          get(brc20s::brc20s_debug_txid_receipts),
-        )
-        .route(
-          "/brc20s/block/:blockhash/receipts",
-          get(brc20s::brc20s_block_receipts),
-        )
-        .route(
-          "/brc20s/stake/:address/:tick",
-          get(brc20s::brc20s_stake_info),
         );
 
       let api_router = Router::new().nest("/v1", api_v1_router);

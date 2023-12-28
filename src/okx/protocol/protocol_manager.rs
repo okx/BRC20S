@@ -9,7 +9,6 @@ use {
     Instant, Result,
   },
   bitcoin::Txid,
-  bitcoincore_rpc::Client,
   std::collections::HashMap,
 };
 
@@ -22,12 +21,12 @@ pub struct ProtocolManager<'a, RW: StateRWriter> {
 
 impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(client: &'a Client, state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
+  pub fn new(state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
     Self {
       state_store,
       config,
       call_man: CallManager::new(state_store),
-      resolve_man: MsgResolveManager::new(client, state_store, config),
+      resolve_man: MsgResolveManager::new(state_store, config),
     }
   }
 

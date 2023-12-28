@@ -12,18 +12,6 @@ use {
   BRC20BlockEvents = ApiResponse<brc20::BlockEvents>,
   BRC20Transferable = ApiResponse<brc20::TransferableInscriptions>,
 
-  BRC20STick = ApiResponse<brc20s::TickInfo>,
-  BRC20SAllTick = ApiResponse<brc20s::AllTickInfo>,
-  BRC20SBalance = ApiResponse<brc20s::Balance>,
-  BRC20SAllBalance = ApiResponse<brc20s::AllBalance>,
-  BRC20SPool = ApiResponse<brc20s::Pool>,
-  BRC20SAllPool = ApiResponse<brc20s::AllPoolInfo>,
-  BRC20STxReceipts = ApiResponse<brc20s::TxReceipts>,
-  BRC20SBlockReceipts = ApiResponse<brc20s::BlockReceipts>,
-  BRC20STransferable = ApiResponse<brc20s::Transferable>,
-  BRC20SUserInfo = ApiResponse<brc20s::UserInfo>,
-  BRC20SStakedInfo = ApiResponse<brc20s::StakedInfo>,
-
   OrdOrdInscription = ApiResponse<ord::OrdInscription>,
   OrdOutPointData = ApiResponse<ord::OutPointData>,
   OrdOutPointResult = ApiResponse<ord::OutPointResult>,

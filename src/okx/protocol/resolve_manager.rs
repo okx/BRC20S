@@ -12,20 +12,17 @@ use {
   },
   anyhow::anyhow,
   bitcoin::{OutPoint, Transaction, TxOut},
-  bitcoincore_rpc::Client,
   std::collections::HashMap,
 };
 
 pub struct MsgResolveManager<'a, RW: StateRWriter> {
-  client: &'a Client,
   state_store: &'a RW,
   config: &'a ProtocolConfig,
 }
 
 impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
-  pub fn new(client: &'a Client, state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
+  pub fn new(state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
     Self {
-      client,
       state_store,
       config,
     }
@@ -50,7 +47,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
       .map(|v| v.inscription)
       .collect::<Vec<Inscription>>();
 
-    let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
+    let outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
       // "operations" is a list of all the operations in the current block, and they are ordered.
       // We just need to find the operation corresponding to the current transaction here.
@@ -76,31 +73,6 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
               msg
             );
             messages.push(Message::BRC20(msg));
-            continue;
-          }
-        }
-
-        // Parse BRC20S message through inscription operation.
-        if self
-          .config
-          .first_brc20s_height
-          .map(|height| context.blockheight >= height)
-          .unwrap_or(false)
-        {
-          if let Some(msg) = brc20s::Message::resolve(
-            self.client,
-            self.state_store.ord(),
-            self.state_store.brc20s(),
-            &new_inscriptions,
-            operation,
-            &mut outpoint_to_txout_cache,
-          )? {
-            log::debug!(
-              "BRC20S resolved the message from {:?}, msg {:?}",
-              operation,
-              msg
-            );
-            messages.push(Message::BRC20S(msg));
             continue;
           }
         }

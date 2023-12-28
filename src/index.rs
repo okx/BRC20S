@@ -13,21 +13,13 @@ use {
   chrono::SubsecRound,
   indicatif::{ProgressBar, ProgressStyle},
   log::log_enabled,
-  okx::{
-    datastore::{
-      brc20::{
-        self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
-        DataStoreReadOnly as BRC20DataStoreReadOnly,
-      },
-      brc20s::{
-        self, redb as brc20s_db, redb::try_init_tables as try_init_brc20s,
-        DataStoreReadOnly as BRC20SDataStoreReadOnly, PledgedTick,
-      },
-      ord::{self, redb::try_init_tables as try_init_ord, DataStoreReadOnly},
-      ScriptKey,
+  okx::datastore::{
+    brc20::{
+      self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
+      DataStoreReadOnly as BRC20DataStoreReadOnly,
     },
-    protocol::brc20s::params::NATIVE_TOKEN_DECIMAL,
-    reward,
+    ord::{self, redb::try_init_tables as try_init_ord, DataStoreReadOnly},
+    ScriptKey,
   },
   redb::{
     Database, MultimapTable, MultimapTableDefinition, ReadableMultimapTable, ReadableTable, Table,
@@ -286,7 +278,6 @@ impl Index {
       let rtx = database.begin_read()?;
       try_init_ord(&wtx, &rtx)?;
       try_init_brc20(&wtx, &rtx)?;
-      try_init_brc20s(&wtx, &rtx)?;
       wtx.commit()?;
       log::info!("Options:\n{:#?}", options);
     }
@@ -1496,195 +1487,6 @@ impl Index {
     let res = brc20_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
 
     Ok(res)
-  }
-
-  pub(crate) fn brc20s_all_tick_info(
-    &self,
-    start: usize,
-    limit: Option<usize>,
-  ) -> Result<(Vec<brc20s::TickInfo>, usize)> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let all_tick = brc20s_db.get_all_tick_info(start, limit)?;
-    Ok(all_tick)
-  }
-
-  pub(crate) fn brc20s_tick_info(
-    &self,
-    tick_id: &brc20s::TickId,
-  ) -> Result<Option<brc20s::TickInfo>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let info = brc20s_db.get_tick_info(tick_id)?;
-    Ok(info)
-  }
-
-  pub(crate) fn brc20s_pool_info(&self, pid: &brc20s::Pid) -> Result<Option<brc20s::PoolInfo>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let info = brc20s_db.get_pid_to_poolinfo(pid)?;
-    Ok(info)
-  }
-  pub(crate) fn brc20s_stake_info(
-    &self,
-    address: &bitcoin::Address,
-    pledged_tick: &PledgedTick,
-  ) -> Result<Option<brc20s::StakeInfo>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-
-    let info =
-      brc20s_db.get_user_stakeinfo(&ScriptKey::from_address(address.clone()), pledged_tick)?;
-    Ok(info)
-  }
-
-  pub(crate) fn brc20s_all_pool_info(
-    &self,
-    start: usize,
-    limit: Option<usize>,
-  ) -> Result<(Vec<brc20s::PoolInfo>, usize)> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let all_pool = brc20s_db.get_all_poolinfo(start, limit)?;
-    Ok(all_pool)
-  }
-
-  pub(crate) fn brc20s_all_pools_by_tid(
-    &self,
-    tick_id: &brc20s::TickId,
-  ) -> Result<Vec<brc20s::PoolInfo>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let all_pool = brc20s_db.get_all_pools_by_tid(tick_id)?;
-    Ok(all_pool)
-  }
-
-  pub(crate) fn brc20s_user_info(
-    &self,
-    pid: &brc20s::Pid,
-    address: &bitcoin::Address,
-  ) -> Result<Option<brc20s::UserInfo>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let info = brc20s_db.get_pid_to_use_info(&ScriptKey::from_address(address.clone()), pid)?;
-    Ok(info)
-  }
-
-  pub(crate) fn brc20s_user_pending_reward(
-    &self,
-    pid: &brc20s::Pid,
-    address: &bitcoin::Address,
-  ) -> Result<(Option<String>, Option<String>)> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let user_info = brc20s_db
-      .get_pid_to_use_info(&ScriptKey::from_address(address.clone()), pid)?
-      .ok_or(anyhow!("user info not found from state!"))?;
-
-    let pool_info = brc20s_db
-      .get_pid_to_poolinfo(pid)?
-      .ok_or(anyhow!("pool info not found from state!"))?;
-
-    let dec = match pool_info.clone().stake {
-      PledgedTick::Native => NATIVE_TOKEN_DECIMAL,
-      PledgedTick::BRC20STick(tickid) => brc20s_db.get_tick_info(&tickid).unwrap().unwrap().decimal,
-      PledgedTick::BRC20Tick(tick) => brc20_db.get_token_info(&tick).unwrap().unwrap().decimal,
-      PledgedTick::Unknown => 0_u8,
-    };
-
-    let block = self.height().unwrap().unwrap_or(Height(0)).n();
-
-    let result = reward::query_reward(
-      user_info,
-      pool_info,
-      self.height().unwrap().unwrap_or(Height(0)).n(),
-      dec,
-    )?;
-
-    Ok((Some(result.to_string()), Some(block.to_string())))
-  }
-
-  pub(crate) fn brc20s_balance(
-    &self,
-    tick_id: &brc20s::TickId,
-    address: &bitcoin::Address,
-  ) -> Result<Option<brc20s::Balance>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let info = brc20s_db.get_balance(&ScriptKey::from_address(address.clone()), tick_id)?;
-    Ok(info)
-  }
-
-  pub(crate) fn brc20s_all_balance(
-    &self,
-    address: &bitcoin::Address,
-  ) -> Result<Vec<(brc20s::TickId, brc20s::Balance)>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let all_balance = brc20s_db.get_balances(&ScriptKey::from_address(address.clone()))?;
-    Ok(all_balance)
-  }
-
-  pub(crate) fn brc20s_tickid_transferable(
-    &self,
-    tick_id: &brc20s::TickId,
-    address: &bitcoin::Address,
-  ) -> Result<Vec<brc20s::TransferableAsset>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-
-    let result =
-      brc20s_db.get_transferable_by_tickid(&ScriptKey::from_address(address.clone()), tick_id)?;
-    Ok(result)
-  }
-
-  pub(crate) fn brc20s_all_transferable(
-    &self,
-    address: &bitcoin::Address,
-  ) -> Result<Vec<brc20s::TransferableAsset>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let info = brc20s_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
-    Ok(info)
-  }
-
-  pub(crate) fn brc20s_txid_receipts(&self, txid: &Txid) -> Result<Option<Vec<brc20s::Receipt>>> {
-    let rtx = self.database.begin_read().unwrap();
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let res = brc20s_db.get_txid_to_receipts(txid)?;
-
-    if res.is_empty() {
-      let tx = self.client.get_raw_transaction_info(txid, None)?;
-      if let Some(tx_blockhash) = tx.blockhash {
-        let tx_bh = self.client.get_block_header_info(&tx_blockhash)?;
-        let parsed_height = self.height()?;
-        if parsed_height.is_none() || tx_bh.height as u64 > parsed_height.unwrap().0 {
-          return Ok(None);
-        }
-      } else {
-        return Err(anyhow!("can't get tx block hash: {txid}"));
-      }
-    }
-
-    Ok(Some(res))
-  }
-
-  pub(crate) fn brc20s_txs_receipts(
-    &self,
-    txs: &Vec<Txid>,
-  ) -> Result<Vec<(bitcoin::Txid, Vec<brc20s::Receipt>)>> {
-    let rtx = self.database.begin_read()?;
-    let brc20s_db = brc20s_db::DataStoreReader::new(&rtx);
-    let mut result = Vec::new();
-    for txid in txs {
-      let tx_events = brc20s_db.get_txid_to_receipts(txid)?;
-      if tx_events.is_empty() {
-        continue;
-      }
-      result.push((*txid, tx_events));
-    }
-    Ok(result)
   }
 
   pub(crate) fn ord_txid_inscriptions(

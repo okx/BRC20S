@@ -71,12 +71,10 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     for msg in messages.iter() {
       self.call_man.execute_message(context, msg)?;
     }
-    let brczero_messages_in_tx = self.resolve_man.resolve_brczero_inscription(
-      context,
-      tx,
-      tx_operations.clone(),
-      &block_hash,
-    )?;
+    let brczero_messages_in_tx =
+      self
+        .resolve_man
+        .resolve_brczero_inscription(context, tx, tx_operations, &block_hash)?;
 
     result.brczero_messages = brczero_messages_in_tx;
     result.messages_size = messages.len();
@@ -88,29 +86,63 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     &self,
     context: BlockContext,
     block: &BlockData,
-    operations: HashMap<Txid, Vec<InscriptionOp>>,
+    mode: ExecuteMode,
   ) -> Result {
     let start = Instant::now();
 
     let mut block_result = TxIndexResult::default();
     let block_hash = block.header.block_hash();
-    // skip the coinbase transaction.
-    for (tx, txid) in block.txdata.iter() {
-      // skip coinbase transaction.
-      if tx
-        .input
-        .first()
-        .map(|tx_in| tx_in.previous_output.is_null())
-        .unwrap_or_default()
-      {
-        continue;
+
+    let operations = match mode {
+      ExecuteMode::Sync(operations) => {
+        // skip the coinbase transaction.
+        for (tx, txid) in block.txdata.iter() {
+          // skip coinbase transaction.
+          if tx
+            .input
+            .first()
+            .map(|tx_in| tx_in.previous_output.is_null())
+            .unwrap_or_default()
+          {
+            continue;
+          }
+          // index inscription operations.
+          if let Some(tx_operations) = operations.get(txid) {
+            let result = self.index_tx(context, txid, tx, tx_operations, &block_hash)?;
+            block_result.update(result);
+          }
+        }
+
+        operations
       }
-      // index inscription operations.
-      if let Some(tx_operations) = operations.get(txid) {
-        let result = self.index_tx(context, txid, tx, tx_operations, &block_hash)?;
-        block_result.update(result);
+      ExecuteMode::Async(operation_receiver) => {
+        let mut block_iter = block.txdata.iter();
+        let mut operations = std::collections::HashMap::new();
+
+        // index inscription operations.
+        while let Ok((tx_id, tx_operations)) = operation_receiver.recv() {
+          let (tx, txid) = block_iter.find(|(_, txid)| &tx_id == txid).unwrap();
+
+          if tx
+            .input
+            .first()
+            .map(|tx_in| tx_in.previous_output.is_null())
+            .unwrap_or_default()
+          {
+            operations.insert(tx_id, tx_operations);
+            continue;
+          }
+
+          let result = self.index_tx(context, txid, tx, &tx_operations, &block_hash)?;
+
+          block_result.update(result);
+          operations.insert(tx_id, tx_operations);
+        }
+
+        operations
       }
-    }
+    };
+
     if context.blockheight >= self.config.first_brczero_height {
       self
         .call_man
@@ -132,4 +164,9 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     );
     Ok(())
   }
+}
+
+pub enum ExecuteMode {
+  Sync(HashMap<Txid, Vec<InscriptionOp>>),
+  Async(std::sync::mpsc::Receiver<(Txid, Vec<InscriptionOp>)>),
 }

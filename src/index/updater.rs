@@ -1,4 +1,5 @@
 use crate::okx::datastore::ord::InscriptionOp;
+use crate::okx::protocol::protocol_manager::ExecuteMode;
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
@@ -100,6 +101,7 @@ impl<'index> Updater<'_> {
         &mut tx_out_receiver,
         &mut wtx,
         block,
+        false,
       )?;
 
       if let Some(progress_bar) = &mut progress_bar {
@@ -320,6 +322,7 @@ impl<'index> Updater<'_> {
     tx_out_receiver: &mut Receiver<TxOut>,
     wtx: &WriteTransaction,
     block: &BlockData,
+    op_sender: Option<std::sync::mpsc::Sender<(Txid, Vec<InscriptionOp>)>>,
   ) -> Result<HashMap<Txid, Vec<InscriptionOp>>> {
     let start = Instant::now();
     let mut sat_ranges_written = 0;
@@ -555,25 +558,60 @@ impl<'index> Updater<'_> {
     index: &Index,
     outpoint_sender: &mut Sender<OutPoint>,
     tx_out_receiver: &mut Receiver<TxOut>,
-    wtx: &mut WriteTransaction,
+    wtx: &WriteTransaction,
     block: BlockData,
+    enable_async: bool,
   ) -> Result<()> {
     let start = Instant::now();
     Reorg::detect_reorg(&block, self.height, self.index)?;
 
-    let operations = self.index_block_ord(index, outpoint_sender, tx_out_receiver, wtx, &block)?;
+    if !enable_async {
+      let operations =
+        self.index_block_ord(index, outpoint_sender, tx_out_receiver, wtx, &block, None)?;
 
-    // Create a protocol manager to index the block of brc20, brc20s data.
-    let config = ProtocolConfig::new_with_options(&index.options);
-    ProtocolManager::new(&index.client, &StateReadWrite::new(wtx), &config).index_block(
-      BlockContext {
-        network: index.get_chain_network(),
-        blockheight: self.height,
-        blocktime: block.header.time,
-      },
-      &block,
-      operations,
-    )?;
+      // Create a protocol manager to index the block of brc20, brc20s data.
+      let config = ProtocolConfig::new_with_options(&index.options);
+      ProtocolManager::new(&index.client, &StateReadWrite::new(wtx), &config).index_block(
+        BlockContext {
+          network: index.get_chain_network(),
+          blockheight: self.height,
+          blocktime: block.header.time,
+        },
+        &block,
+        ExecuteMode::Sync(operations),
+      )?;
+    } else {
+      let (tx, rx) = std::sync::mpsc::channel::<(Txid, Vec<InscriptionOp>)>();
+
+      let height = self.height;
+      std::thread::scope(|s| {
+        s.spawn(|| {
+          self
+            .index_block_ord(
+              index,
+              outpoint_sender,
+              tx_out_receiver,
+              wtx,
+              &block,
+              Some(tx),
+            )
+            .map(|_| ())
+        });
+        s.spawn(|| {
+          // Create a protocol manager to index the block of brc20, brc20s data.
+          let config = ProtocolConfig::new_with_options(&index.options);
+          ProtocolManager::new(&index.client, &StateReadWrite::new(wtx), &config).index_block(
+            BlockContext {
+              network: index.get_chain_network(),
+              blockheight: height,
+              blocktime: block.header.time,
+            },
+            &block,
+            ExecuteMode::Async(rx),
+          )
+        });
+      });
+    }
 
     self.height += 1;
 

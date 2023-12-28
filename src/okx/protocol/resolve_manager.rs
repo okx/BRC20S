@@ -131,7 +131,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
     &self,
     context: BlockContext,
     tx: &Transaction,
-    operations: Vec<InscriptionOp>,
+    operations: &Vec<InscriptionOp>,
     block_hash: &BlockHash,
   ) -> Result<Vec<BrcZeroMsg>> {
     log::debug!(

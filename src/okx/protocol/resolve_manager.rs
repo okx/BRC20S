@@ -34,19 +34,23 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
     }
   }
 
-  pub fn resolve_message(
+  pub fn resolve_message<F>(
     &self,
     context: BlockContext,
     tx: &Transaction,
     operations: &[InscriptionOp],
-  ) -> Result<Vec<Message>> {
+    mut cb: F,
+  ) -> Result<()>
+  where
+    F: FnMut(Message) -> Result,
+  {
     log::debug!(
       "Resolve Manager indexed transaction {}, operations size: {}, data: {:?}",
       tx.txid(),
       operations.len(),
       operations
     );
-    let mut messages = Vec::new();
+
     let mut operation_iter = operations.iter().peekable();
     let new_inscriptions = Inscription::from_transaction(tx)
       .into_iter()
@@ -78,7 +82,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
               operation,
               msg
             );
-            messages.push(Message::BRC20(msg));
+            cb(Message::BRC20(msg))?;
             continue;
           }
         }
@@ -103,14 +107,14 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
               operation,
               msg
             );
-            messages.push(Message::BRC20S(msg));
+            cb(Message::BRC20S(msg))?;
             continue;
           }
         }
       }
     }
     self.update_outpoint_to_txout(outpoint_to_txout_cache)?;
-    Ok(messages)
+    Ok(())
   }
 
   fn update_outpoint_to_txout(&self, outpoint_to_txout_cache: HashMap<OutPoint, TxOut>) -> Result {

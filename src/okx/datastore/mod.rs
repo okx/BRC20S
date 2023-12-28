@@ -32,7 +32,7 @@ pub trait StateReader {
 /// StateRWriter is a collection of multiple read-write storages.
 ///
 /// There are multiple categories in the storage, and they can be obtained separately.
-pub trait StateRWriter {
+pub trait StateRWriter: std::marker::Send + std::marker::Sync {
   type OrdRWriter: ord::DataStoreReadWrite;
   type BRC20RWriter: brc20::DataStoreReadWrite;
   type BRC20SRWriter: brc20s::DataStoreReadWrite;

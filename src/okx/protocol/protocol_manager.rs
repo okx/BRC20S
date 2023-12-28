@@ -54,6 +54,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     tx: &Transaction,
     tx_operations: &Vec<InscriptionOp>,
     block_hash: &BlockHash,
+    enable_async: bool,
   ) -> Result<TxIndexResult> {
     let mut result = TxIndexResult::default();
     // save all transaction operations to ord database.
@@ -64,20 +65,60 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
       result.inscriptions_size = tx_operations.len();
     }
 
-    // Resolve and execute messages.
-    let messages = self
-      .resolve_man
-      .resolve_message(context, tx, tx_operations)?;
-    for msg in messages.iter() {
-      self.call_man.execute_message(context, msg)?;
-    }
-    let brczero_messages_in_tx =
+    if !enable_async {
+      // Resolve and execute messages.
+      let mut messages = Vec::new();
       self
         .resolve_man
-        .resolve_brczero_inscription(context, tx, tx_operations, &block_hash)?;
+        .resolve_message(context, tx, tx_operations, |m| {
+          messages.push(m);
+          Ok(())
+        })?;
+      for msg in messages.iter() {
+        self.call_man.execute_message(context, msg)?;
+      }
+      let brczero_messages_in_tx =
+        self
+          .resolve_man
+          .resolve_brczero_inscription(context, tx, tx_operations, &block_hash)?;
 
-    result.brczero_messages = brczero_messages_in_tx;
-    result.messages_size = messages.len();
+      result.brczero_messages = brczero_messages_in_tx;
+      result.messages_size = messages.len();
+    } else {
+      let (sender, rx) = std::sync::mpsc::channel::<Message>();
+      let mut messages_size = 0;
+      let mut brczero_messages = Vec::new();
+      std::thread::scope(|s| {
+        s.spawn(|| {
+          self
+            .resolve_man
+            .resolve_message(context, tx, tx_operations, |m| {
+              sender.send(m)?;
+              messages_size += 1;
+              Ok(())
+            })
+        });
+        s.spawn(move || {
+          while let Ok(msg) = rx.recv() {
+            self.call_man.execute_message(context, &msg)?;
+          }
+
+          Ok::<(), crate::Error>(())
+        });
+        s.spawn(|| {
+          self
+            .resolve_man
+            .resolve_brczero_inscription(context, tx, tx_operations, &block_hash)
+            .map(|messages| {
+              brczero_messages = messages;
+              ()
+            })
+        });
+      });
+
+      result.brczero_messages = brczero_messages;
+      result.messages_size = messages_size;
+    }
 
     Ok(result)
   }
@@ -108,7 +149,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
           }
           // index inscription operations.
           if let Some(tx_operations) = operations.get(txid) {
-            let result = self.index_tx(context, txid, tx, tx_operations, &block_hash)?;
+            let result = self.index_tx(context, txid, tx, tx_operations, &block_hash, false)?;
             block_result.update(result);
           }
         }
@@ -133,7 +174,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
             continue;
           }
 
-          let result = self.index_tx(context, txid, tx, &tx_operations, &block_hash)?;
+          let result = self.index_tx(context, txid, tx, &tx_operations, &block_hash, true)?;
 
           block_result.update(result);
           operations.insert(tx_id, tx_operations);

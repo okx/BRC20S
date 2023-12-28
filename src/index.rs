@@ -159,6 +159,7 @@ impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
 pub(crate) struct Index {
   client: Client,
   database: Database,
+  database2: Database,
   durability: redb::Durability,
   first_inscription_height: u64,
   genesis_block_coinbase_transaction: Transaction,
@@ -216,6 +217,21 @@ impl Index {
     } else {
       redb::Durability::Immediate
     };
+
+    let path2 = options.data_dir()?.join("cache.redb");
+    let cache_size2 = 1 << 30; // 1GB cache
+
+    let database2 = if path2.exists() {
+      Database::builder()
+        .set_cache_size(cache_size2)
+        .open(&path2)?
+    } else {
+      Database::builder()
+        .set_cache_size(cache_size2)
+        .create(&path2)?
+    };
+
+    log::info!("database2 created");
 
     let database = match Database::builder()
       .set_cache_size(db_cache_size)
@@ -297,6 +313,7 @@ impl Index {
       genesis_block_coinbase_txid: genesis_block_coinbase_transaction.txid(),
       client,
       database,
+      database2,
       durability,
       first_inscription_height: options.first_inscription_height(),
       genesis_block_coinbase_transaction,
@@ -557,6 +574,12 @@ impl Index {
 
   fn begin_write(&self) -> Result<WriteTransaction> {
     let mut tx = self.database.begin_write()?;
+    tx.set_durability(self.durability);
+    Ok(tx)
+  }
+
+  fn begin_write2(&self) -> Result<WriteTransaction> {
+    let mut tx = self.database2.begin_write()?;
     tx.set_durability(self.durability);
     Ok(tx)
   }
@@ -865,7 +888,7 @@ impl Index {
   ) -> Result<Option<TxOut>> {
     Self::transaction_output_by_outpoint(
       &self.database.begin_read()?.open_table(OUTPOINT_TO_ENTRY)?,
-      outpoint,
+      &outpoint,
     )
   }
 
@@ -1323,6 +1346,7 @@ impl Index {
     }
   }
 
+  #[inline(never)]
   fn inscriptions_on_output_unordered<'a: 'tx, 'tx>(
     satpoint_to_id: &'a impl ReadableMultimapTable<&'static SatPointValue, &'static InscriptionIdValue>,
     outpoint: OutPoint,
@@ -1375,9 +1399,28 @@ impl Index {
     Ok(result)
   }
 
+  fn inscriptions_on_output_ordered2<'a: 'tx, 'tx>(
+    remap: &'a HashMap<InscriptionId, u64>,
+    satpoint_to_id: &'a impl ReadableMultimapTable<&'static SatPointValue, &'static InscriptionIdValue>,
+    outpoint: OutPoint,
+  ) -> Result<Vec<(SatPoint, InscriptionId)>> {
+    let mut result = Self::inscriptions_on_output_unordered(satpoint_to_id, outpoint)?
+      .collect::<Vec<(SatPoint, InscriptionId)>>();
+
+    if result.len() <= 1 {
+      return Ok(result);
+    }
+
+    result
+      .sort_by_key(|(_satpoint, inscription_id)| remap.get(inscription_id).map_or(0, |n| n + 1));
+
+    Ok(result)
+  }
+
+  #[inline(never)]
   pub(crate) fn transaction_output_by_outpoint(
     outpoint_to_entry: &impl ReadableTable<&'static OutPointValue, &'static [u8]>,
-    outpoint: OutPoint,
+    outpoint: &OutPoint,
   ) -> Result<Option<TxOut>> {
     Ok(
       outpoint_to_entry

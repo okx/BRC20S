@@ -106,10 +106,11 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
         }
       }
     }
-    self.update_outpoint_to_txout(outpoint_to_txout_cache)?;
+    //self.update_outpoint_to_txout(outpoint_to_txout_cache)?;
     Ok(messages)
   }
 
+  #[allow(dead_code)]
   fn update_outpoint_to_txout(&self, outpoint_to_txout_cache: HashMap<OutPoint, TxOut>) -> Result {
     for (outpoint, txout) in outpoint_to_txout_cache {
       self

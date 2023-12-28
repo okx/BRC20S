@@ -1,3 +1,4 @@
+use bitcoin::{BlockHash, Transaction};
 use {
   super::*,
   crate::{
@@ -20,6 +21,21 @@ pub struct ProtocolManager<'a, RW: StateRWriter> {
   resolve_man: MsgResolveManager<'a, RW>,
 }
 
+#[derive(Default)]
+struct TxIndexResult {
+  inscriptions_size: usize,
+  messages_size: usize,
+  brczero_messages: Vec<BrcZeroMsg>,
+}
+
+impl TxIndexResult {
+  fn update(&mut self, mut other: Self) {
+    self.inscriptions_size += other.inscriptions_size;
+    self.messages_size += other.messages_size;
+    self.brczero_messages.append(&mut other.brczero_messages);
+  }
+}
+
 impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
   // Need three datastore, and they're all in the same write transaction.
   pub fn new(client: &'a Client, state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
@@ -31,6 +47,43 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     }
   }
 
+  fn index_tx(
+    &self,
+    context: BlockContext,
+    txid: &Txid,
+    tx: &Transaction,
+    tx_operations: &Vec<InscriptionOp>,
+    block_hash: &BlockHash,
+  ) -> Result<TxIndexResult> {
+    let mut result = TxIndexResult::default();
+    // save all transaction operations to ord database.
+    if self.config.enable_ord_receipts
+      && context.blockheight >= self.config.first_inscription_height
+    {
+      ord_proto::save_transaction_operations(self.state_store.ord(), txid, tx_operations)?;
+      result.inscriptions_size = tx_operations.len();
+    }
+
+    // Resolve and execute messages.
+    let messages = self
+      .resolve_man
+      .resolve_message(context, tx, tx_operations)?;
+    for msg in messages.iter() {
+      self.call_man.execute_message(context, msg)?;
+    }
+    let brczero_messages_in_tx = self.resolve_man.resolve_brczero_inscription(
+      context,
+      tx,
+      tx_operations.clone(),
+      &block_hash,
+    )?;
+
+    result.brczero_messages = brczero_messages_in_tx;
+    result.messages_size = messages.len();
+
+    Ok(result)
+  }
+
   pub(crate) fn index_block(
     &self,
     context: BlockContext,
@@ -38,9 +91,9 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     operations: HashMap<Txid, Vec<InscriptionOp>>,
   ) -> Result {
     let start = Instant::now();
-    let mut inscriptions_size = 0;
-    let mut messages_size = 0;
-    let mut brczero_messages_in_block: Vec<BrcZeroMsg> = Vec::new();
+
+    let mut block_result = TxIndexResult::default();
+    let block_hash = block.header.block_hash();
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter() {
       // skip coinbase transaction.
@@ -54,37 +107,14 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
       }
       // index inscription operations.
       if let Some(tx_operations) = operations.get(txid) {
-        // save all transaction operations to ord database.
-        if self.config.enable_ord_receipts
-          && context.blockheight >= self.config.first_inscription_height
-        {
-          ord_proto::save_transaction_operations(self.state_store.ord(), txid, tx_operations)?;
-          inscriptions_size += tx_operations.len();
-        }
-
-        // Resolve and execute messages.
-        let messages = self
-          .resolve_man
-          .resolve_message(context, tx, tx_operations)?;
-        for msg in messages.iter() {
-          self.call_man.execute_message(context, msg)?;
-        }
-        messages_size += messages.len();
-        let mut brczero_messages_in_tx = self.resolve_man.resolve_brczero_inscription(
-          context,
-          tx,
-          tx_operations.clone(),
-          &block.header.block_hash(),
-        )?;
-        brczero_messages_in_block.append(&mut brczero_messages_in_tx);
+        let result = self.index_tx(context, txid, tx, tx_operations, &block_hash)?;
+        block_result.update(result);
       }
     }
     if context.blockheight >= self.config.first_brczero_height {
-      self.call_man.send_to_brc0(
-        context,
-        brczero_messages_in_block,
-        &block.header.block_hash(),
-      )?;
+      self
+        .call_man
+        .send_to_brc0(context, block_result.brczero_messages, &block_hash)?;
     }
 
     let mut bitmap_count = 0;
@@ -95,8 +125,8 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     log::info!(
       "Protocol Manager indexed block {} with ord inscriptions {}, messages {}, bitmap {} in {} ms",
       context.blockheight,
-      inscriptions_size,
-      messages_size,
+      block_result.inscriptions_size,
+      block_result.messages_size,
       bitmap_count,
       (Instant::now() - start).as_millis(),
     );

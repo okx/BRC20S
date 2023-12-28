@@ -1,4 +1,3 @@
-use bigdecimal::ToPrimitive;
 use crate::okx::protocol::brc0::{BRCZeroTx, JSONError, RpcParams};
 use crate::okx::protocol::message::MsgInscription;
 use serde_json::Value;

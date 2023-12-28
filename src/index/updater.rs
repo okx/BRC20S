@@ -1,3 +1,4 @@
+use crate::okx::datastore::ord::InscriptionOp;
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
@@ -312,16 +313,14 @@ impl<'index> Updater<'_> {
     Ok((outpoint_sender, tx_out_receiver))
   }
 
-  fn index_block(
+  fn index_block_ord(
     &mut self,
     index: &Index,
     outpoint_sender: &mut Sender<OutPoint>,
     tx_out_receiver: &mut Receiver<TxOut>,
-    wtx: &mut WriteTransaction,
-    block: BlockData,
-  ) -> Result<()> {
-    Reorg::detect_reorg(&block, self.height, self.index)?;
-
+    wtx: &WriteTransaction,
+    block: &BlockData,
+  ) -> Result<HashMap<Txid, Vec<InscriptionOp>>> {
     let start = Instant::now();
     let mut sat_ranges_written = 0;
     let mut outputs_in_block = 0;
@@ -527,7 +526,7 @@ impl<'index> Updater<'_> {
 
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
-    let operations = inscription_updater.operations.clone();
+    let operations = inscription_updater.operations;
 
     // write tx_out to outpoint_to_entry table.
     for (outpoint, tx_out) in tx_out_cache {
@@ -536,8 +535,33 @@ impl<'index> Updater<'_> {
       outpoint_to_entry.insert(&outpoint.store(), entry.as_slice())?;
     }
 
-    std::mem::drop(inscription_id_to_inscription_entry);
-    std::mem::drop(outpoint_to_entry);
+    statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
+    statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
+
+    height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
+
+    self.outputs_traversed += outputs_in_block;
+
+    log::info!(
+      "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms",
+      (Instant::now() - start).as_millis(),
+    );
+
+    Ok(operations)
+  }
+
+  fn index_block(
+    &mut self,
+    index: &Index,
+    outpoint_sender: &mut Sender<OutPoint>,
+    tx_out_receiver: &mut Receiver<TxOut>,
+    wtx: &mut WriteTransaction,
+    block: BlockData,
+  ) -> Result<()> {
+    let start = Instant::now();
+    Reorg::detect_reorg(&block, self.height, self.index)?;
+
+    let operations = self.index_block_ord(index, outpoint_sender, tx_out_receiver, wtx, &block)?;
 
     // Create a protocol manager to index the block of brc20, brc20s data.
     let config = ProtocolConfig::new_with_options(&index.options);
@@ -551,17 +575,10 @@ impl<'index> Updater<'_> {
       operations,
     )?;
 
-    statistic_to_count.insert(&Statistic::LostSats.key(), &lost_sats)?;
-
-    statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
-
-    height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
-
     self.height += 1;
-    self.outputs_traversed += outputs_in_block;
 
     log::info!(
-      "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms",
+      "finish index_block in {} ms",
       (Instant::now() - start).as_millis(),
     );
 

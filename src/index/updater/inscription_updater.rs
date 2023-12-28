@@ -25,7 +25,7 @@ enum Origin {
   Old,
 }
 
-pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
+pub(super) struct InscriptionUpdater<'a, 'db, 'tx, 'db2, 'tx2> {
   flotsam: Vec<Flotsam>,
   pub(super) operations: HashMap<Txid, Vec<InscriptionOp>>,
   height: u64,
@@ -38,7 +38,7 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   pub(super) next_cursed_number: i64,
   pub(super) next_number: i64,
   number_to_id: &'a mut Table<'db, 'tx, i64, &'static InscriptionIdValue>,
-  outpoint_to_entry: &'a mut Table<'db, 'tx, &'static OutPointValue, &'static [u8]>,
+  outpoint_to_entry: &'a mut Table<'db2, 'tx2, &'static OutPointValue, &'static [u8]>,
   reward: u64,
   reinscription_id_to_seq_num: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, u64>,
   sat_to_inscription_id: &'a mut MultimapTable<'db, 'tx, u64, &'static InscriptionIdValue>,
@@ -47,9 +47,11 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   timestamp: u32,
   pub(super) unbound_inscriptions: u64,
   tx_out_cache: &'a mut HashMap<OutPoint, TxOut>,
+  tx_out_cache_new: HashMap<OutPoint, (TxOut, bool)>,
+  remap: &'a mut HashMap<InscriptionId, u64>,
 }
 
-impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
+impl<'a, 'db, 'tx, 'db2, 'tx2> InscriptionUpdater<'a, 'db, 'tx, 'db2, 'tx2> {
   pub(super) fn new(
     height: u64,
     id_to_children: &'a mut MultimapTable<
@@ -63,7 +65,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     id_to_entry: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, InscriptionEntryValue>,
     lost_sats: u64,
     number_to_id: &'a mut Table<'db, 'tx, i64, &'static InscriptionIdValue>,
-    outpoint_to_entry: &'a mut Table<'db, 'tx, &'static OutPointValue, &'static [u8]>,
+    outpoint_to_entry: &'a mut Table<'db2, 'tx2, &'static OutPointValue, &'static [u8]>,
     reinscription_id_to_seq_num: &'a mut Table<'db, 'tx, &'static InscriptionIdValue, u64>,
     sat_to_inscription_id: &'a mut MultimapTable<'db, 'tx, u64, &'static InscriptionIdValue>,
     satpoint_to_id: &'a mut MultimapTable<
@@ -75,6 +77,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     timestamp: u32,
     unbound_inscriptions: u64,
     tx_out_cache: &'a mut HashMap<OutPoint, TxOut>,
+    remap: &'a mut HashMap<InscriptionId, u64>,
   ) -> Result<Self> {
     let next_cursed_number = number_to_id
       .iter()?
@@ -110,6 +113,8 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       timestamp,
       unbound_inscriptions,
       tx_out_cache,
+      tx_out_cache_new: HashMap::new(),
+      remap,
     })
   }
 
@@ -133,8 +138,8 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       }
 
       // find existing inscriptions on input (transfers of inscriptions)
-      for (old_satpoint, inscription_id) in Index::inscriptions_on_output_ordered(
-        self.reinscription_id_to_seq_num,
+      for (old_satpoint, inscription_id) in Index::inscriptions_on_output_ordered2(
+        self.remap,
         self.satpoint_to_id,
         tx_in.previous_output,
       )? {
@@ -156,25 +161,24 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       let offset = total_input_value;
 
       // multi-level cache for UTXO set to get to the input amount
-      let current_input_value = if let Some(tx_out) = self.tx_out_cache.get(&tx_in.previous_output)
-      {
-        tx_out.value
-      } else if let Some(tx_out) =
-        Index::transaction_output_by_outpoint(self.outpoint_to_entry, tx_in.previous_output)?
-      {
-        tx_out.value
-      } else {
-        let tx_out = self.tx_out_receiver.blocking_recv().ok_or_else(|| {
-          anyhow!(
-            "failed to get transaction for {}",
-            tx_in.previous_output.txid
-          )
-        })?;
-        self
-          .tx_out_cache
-          .insert(tx_in.previous_output, tx_out.clone());
-        tx_out.value
-      };
+      let current_input_value =
+        if let Some(tx_out) = self.tx_out_cache.remove(&tx_in.previous_output) {
+          tx_out.value
+        } else if let Some(tx_out) = self.tx_out_cache_new.get_mut(&tx_in.previous_output) {
+          tx_out.1 = true;
+          tx_out.0.value
+        } else {
+          let tx_out = self.tx_out_receiver.blocking_recv().ok_or_else(|| {
+            anyhow!(
+              "failed to get transaction for {}",
+              tx_in.previous_output.txid
+            )
+          })?;
+          self
+            .tx_out_cache_new
+            .insert(tx_in.previous_output, (tx_out.clone(), false));
+          tx_out.value
+        };
 
       total_input_value += current_input_value;
 
@@ -205,6 +209,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           self
             .reinscription_id_to_seq_num
             .insert(&inscription_id.store(), seq_num)?;
+          self.remap.insert(inscription_id, seq_num);
 
           Some(Curse::Reinscription)
         } else {
@@ -373,12 +378,22 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
       output_value = end;
 
+      #[cfg(feature = "cache")]
       self.tx_out_cache.insert(
         OutPoint {
           vout: vout.try_into().unwrap(),
           txid,
         },
         tx_out.clone(),
+      );
+
+      #[cfg(not(feature = "cache"))]
+      self.tx_out_cache_new.insert(
+        OutPoint {
+          vout: vout.try_into().unwrap(),
+          txid,
+        },
+        (tx_out.clone(), false),
       );
     }
 
@@ -404,13 +419,21 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
   // write tx_out to outpoint_to_entry table
   pub(super) fn flush_cache(&mut self) -> Result {
-    for (outpoint, tx_out) in self.tx_out_cache.iter() {
-      let mut entry = Vec::new();
-      tx_out.consensus_encode(&mut entry)?;
+    let total = self.tx_out_cache_new.len();
+    let mut count = 0;
+    let mut entry = Vec::new();
+    for (outpoint, tx_out) in self.tx_out_cache_new.drain() {
+      tx_out.0.consensus_encode(&mut entry)?;
       self
         .outpoint_to_entry
         .insert(&outpoint.store(), entry.as_slice())?;
+      entry.clear();
+      if !tx_out.1 {
+        count += 1;
+        self.tx_out_cache.insert(outpoint, tx_out.0);
+      }
     }
+    log::info!("flush cache, cache and persist: {}/{}", count, total);
     Ok(())
   }
 

@@ -6,8 +6,8 @@ use {
       datastore::{ord::operation::InscriptionOp, StateRWriter},
       protocol::ord as ord_proto,
     },
-    Instant, Result,
     rpc::BRCZeroRpcClient,
+    Instant, Result,
   },
   bitcoin::Txid,
   bitcoincore_rpc::Client,
@@ -24,7 +24,12 @@ pub struct ProtocolManager<'a, RW: StateRWriter> {
 
 impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(client: &'a Client, brc0_client: &'a BRCZeroRpcClient,state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
+  pub fn new(
+    client: &'a Client,
+    brc0_client: &'a BRCZeroRpcClient,
+    state_store: &'a RW,
+    config: &'a ProtocolConfig,
+  ) -> Self {
     Self {
       state_store,
       brc0_client,
@@ -73,14 +78,22 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
           self.call_man.execute_message(context, msg)?;
         }
         messages_size += messages.len();
-        let mut brczero_messages_in_tx = self
-            .resolve_man
-            .resolve_brczero_inscription(context, tx, tx_operations.clone(),&block.header.block_hash())?;
+        let mut brczero_messages_in_tx = self.resolve_man.resolve_brczero_inscription(
+          context,
+          tx,
+          tx_operations.clone(),
+          &block.header.block_hash(),
+        )?;
         brczero_messages_in_block.append(&mut brczero_messages_in_tx);
       }
     }
     if context.blockheight >= self.config.first_brczero_height {
-      self.call_man.send_to_brc0(self.brc0_client, context, brczero_messages_in_block,&block.header.block_hash())?;
+      self.call_man.send_to_brc0(
+        self.brc0_client,
+        context,
+        brczero_messages_in_block,
+        &block.header.block_hash(),
+      )?;
     }
 
     let mut bitmap_count = 0;

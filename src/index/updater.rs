@@ -541,7 +541,13 @@ impl<'index> Updater<'_> {
 
     // Create a protocol manager to index the block of brc20, brc20s data.
     let config = ProtocolConfig::new_with_options(&index.options);
-    ProtocolManager::new(&index.client,  &index.brc0_client,&StateReadWrite::new(wtx), &config).index_block(
+    ProtocolManager::new(
+      &index.client,
+      &index.brc0_client,
+      &StateReadWrite::new(wtx),
+      &config,
+    )
+    .index_block(
       BlockContext {
         network: index.get_chain_network(),
         blockheight: self.height,

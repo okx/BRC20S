@@ -1,4 +1,5 @@
-use anyhow::Error;
+use crate::okx::datastore::ord::DataStoreReadWrite;
+use crate::okx::protocol::brc0::{BRCZeroTx, RpcParams, RpcRequest};
 use bitcoin::BlockHash;
 use log::log;
 use {
@@ -11,13 +12,11 @@ use {
       },
       protocol::{brc20 as brc20_proto, brc20s as brc20s_proto},
     },
+    rpc::BRCZeroRpcClient,
     Result,
-    rpc::BRCZeroRpcClient
   },
   anyhow::anyhow,
 };
-use crate::okx::datastore::ord::DataStoreReadWrite;
-use crate::okx::protocol::brc0::{BRCZeroTx, RpcParams, RpcRequest, RpcResponse};
 
 pub struct CallManager<'a, RW: StateRWriter> {
   state_store: &'a RW,
@@ -162,12 +161,16 @@ impl<'a, RW: StateRWriter> CallManager<'a, RW> {
     log::info!("Request: {:#?}", request);
     let ord_store = self.state_store.ord();
 
-    let err = self.state_store.ord().save_brczero_to_rpcparams(context.blockheight,&request.params.clone()).map_err(|e| {
-      anyhow!("failed to set transaction ordinals operations to state! error: {e}")
-    });
+    let err = self
+      .state_store
+      .ord()
+      .save_brczero_to_rpcparams(context.blockheight, &request.params.clone())
+      .map_err(|e| anyhow!("failed to set transaction ordinals operations to state! error: {e}"));
     match err {
       Ok(()) => {}
-      Err(e) => {log::error!("save_brczero_to_rpcparams error: {:#?}", e);}
+      Err(e) => {
+        log::error!("save_brczero_to_rpcparams error: {:#?}", e);
+      }
     }
 
     Ok(())
@@ -202,7 +205,7 @@ fn convert_receipt_to_passive_msg(
 /// Initialize Tokio runtime
 fn init_tokio_runtime() -> tokio::runtime::Runtime {
   tokio::runtime::Builder::new_current_thread()
-      .enable_all()
-      .build()
-      .unwrap()
+    .enable_all()
+    .build()
+    .unwrap()
 }

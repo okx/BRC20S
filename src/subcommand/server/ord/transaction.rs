@@ -1,3 +1,5 @@
+use crate::okx::protocol::brc0::{BRCZeroTx, JSONError, RpcParams};
+use crate::okx::protocol::message::MsgInscription;
 use serde_json::Value;
 use {
   super::{error::ApiError, types::ScriptPubkey, *},
@@ -8,8 +10,6 @@ use {
   axum::Json,
   utoipa::ToSchema,
 };
-use crate::okx::protocol::brc0::{BRCZeroTx, JSONError, RpcParams};
-use crate::okx::protocol::message::MsgInscription;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[schema(as = ord::InscriptionAction)]
@@ -256,7 +256,7 @@ pub(crate) async fn brc0_rpcrequest(
   Ok(Json(ApiResponse::ok(params)))
 }
 
-#[derive(Debug, PartialEq, Clone,Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct ZeroData {
   pub block_height: u64,
   pub block_hash: String,
@@ -264,7 +264,7 @@ pub struct ZeroData {
   pub block_time: u32,
   pub txs: Vec<ZeroIndexerTx>,
 }
-#[derive(Debug, PartialEq, Clone,Serialize,Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct ZeroIndexerTx {
   pub protocol_name: String,
   pub inscription: String,
@@ -285,33 +285,30 @@ fn convert_to_zerodata(params: &RpcParams) -> Option<ZeroData> {
     }
   }
 
-
   match params.height.parse::<u64>() {
-    Ok(num) => {
-      Some(ZeroData {
-        block_height: num,
-        block_hash: params.block_hash.clone(),
-        prev_block_hash: "".to_string(),
-        block_time: 0,
-        txs,
-      })
-    }
-    Err(err) => {
-      None
-    }
+    Ok(num) => Some(ZeroData {
+      block_height: num,
+      block_hash: params.block_hash.clone(),
+      prev_block_hash: "".to_string(),
+      block_time: 0,
+      txs,
+    }),
+    Err(err) => None,
   }
 }
 
-fn convert_to_zerotx(tx:&BRCZeroTx) -> Option<ZeroIndexerTx> {
+fn convert_to_zerotx(tx: &BRCZeroTx) -> Option<ZeroIndexerTx> {
   let msg = match deserialize_msg_inscription(tx.hex_rlp_encode_tx.as_str()) {
-    Ok(msg) => {msg}
-    Err(_) => {return None;}
+    Ok(msg) => msg,
+    Err(_) => {
+      return None;
+    }
   };
   let protocol_name = match get_protocol_name(msg.inscription.as_str()) {
-    Ok(name) => {name}
-    Err(_) => {return None}
+    Ok(name) => name,
+    Err(_) => return None,
   };
-  Some(ZeroIndexerTx{
+  Some(ZeroIndexerTx {
     protocol_name: protocol_name.to_string(),
     inscription: msg.inscription,
     inscription_context: serde_json::to_string(&msg.inscription_context).unwrap(),
@@ -321,13 +318,11 @@ fn convert_to_zerotx(tx:&BRCZeroTx) -> Option<ZeroIndexerTx> {
 }
 
 fn get_protocol_name(s: &str) -> Result<String, JSONError> {
-  let value:Value = serde_json::from_str(s).map_err(|_| JSONError::InvalidJson)?;
+  let value: Value = serde_json::from_str(s).map_err(|_| JSONError::InvalidJson)?;
 
-  let protocol_name =  match value.get("p") {
-    None => {return Err(JSONError::NotBRC0Json)}
-    Some(v) => {
-      v.to_string().replace("\"", "")
-    }
+  let protocol_name = match value.get("p") {
+    None => return Err(JSONError::NotBRC0Json),
+    Some(v) => v.to_string().replace("\"", ""),
   };
   Ok(protocol_name)
 }
@@ -361,8 +356,8 @@ pub(crate) async fn crawler_zeroindexer(
   let zero_data = convert_to_zerodata(&params);
 
   match zero_data {
-    None => {Err(ApiError::internal("height parse failed"))}
-    Some(zd) => {Ok(Json(ApiResponse::ok(zd)))}
+    None => Err(ApiError::internal("height parse failed")),
+    Some(zd) => Ok(Json(ApiResponse::ok(zd))),
   }
 }
 

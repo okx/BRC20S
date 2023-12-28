@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use web3::types::{U256, U64, Bytes, Address};
 use rlp::RlpStream;
+use serde::{Deserialize, Serialize};
+use web3::types::{Address, Bytes, U256, U64};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct Evm {

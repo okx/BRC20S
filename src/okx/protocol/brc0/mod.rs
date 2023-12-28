@@ -14,7 +14,7 @@ mod rpc;
 pub(crate) use self::{
   error::JSONError,
   operation::{deserialize_brc0_operation, Operation},
-  rpc::{RpcRequest, RpcParams, BRCZeroTx, RpcResponse},
+  rpc::{BRCZeroTx, RpcParams, RpcRequest, RpcResponse},
 };
 
 #[derive(Debug, Clone, PartialEq)]

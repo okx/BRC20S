@@ -3,14 +3,14 @@ pub use self::{
   redb::{OrdDbReadWriter, OrdDbReader},
 };
 
+use crate::okx::protocol::brc0::RpcParams;
+use crate::Inscription;
 use {
   crate::{InscriptionId, Result},
   bitcoin::{OutPoint, TxOut, Txid},
   collections::CollectionKind,
   std::fmt::{Debug, Display},
 };
-use crate::Inscription;
-use crate::okx::protocol::brc0::RpcParams;
 pub mod bitmap;
 pub mod collections;
 pub mod operation;
@@ -37,12 +37,12 @@ pub trait DataStoreReadOnly {
     collection_key: &str,
   ) -> Result<Option<InscriptionId>, Self::Error>;
 
-  fn get_brczero_rpcparams(
-    &self,
-    height: u64,
-  ) -> Result<RpcParams, Self::Error>;
+  fn get_brczero_rpcparams(&self, height: u64) -> Result<RpcParams, Self::Error>;
 
-  fn get_inscription_by_id(&self, inscription_id: &InscriptionId,) -> Result<Option<Inscription>, Self::Error>;
+  fn get_inscription_by_id(
+    &self,
+    inscription_id: &InscriptionId,
+  ) -> Result<Option<Inscription>, Self::Error>;
 }
 
 pub trait DataStoreReadWrite: DataStoreReadOnly {
@@ -66,11 +66,7 @@ pub trait DataStoreReadWrite: DataStoreReadOnly {
     kind: &[CollectionKind],
   ) -> Result<(), Self::Error>;
 
-  fn save_brczero_to_rpcparams(
-    &self,
-    height: u64,
-    params: &RpcParams,
-  ) -> Result<(), Self::Error>;
+  fn save_brczero_to_rpcparams(&self, height: u64, params: &RpcParams) -> Result<(), Self::Error>;
 
   fn save_inscription_with_id(
     &self,
@@ -78,8 +74,5 @@ pub trait DataStoreReadWrite: DataStoreReadOnly {
     inscription: &Inscription,
   ) -> Result<(), Self::Error>;
 
-  fn remove_inscription_with_id(
-    &self,
-    inscription_id: &InscriptionId,
-  ) -> Result<(), Self::Error>;
+  fn remove_inscription_with_id(&self, inscription_id: &InscriptionId) -> Result<(), Self::Error>;
 }

@@ -22,7 +22,7 @@ impl Message {
 
     let brc0_operation = match op.action {
       // New inscription is not `cursed` or `unbound`.
-      Action::New {..} if sat_in_outputs => {
+      Action::New { .. } if sat_in_outputs => {
         match deserialize_brc0_operation(
           new_inscriptions
             .get(usize::try_from(op.inscription_id.index).unwrap())

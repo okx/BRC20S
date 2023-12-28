@@ -35,11 +35,10 @@ use {
   },
   std::collections::HashMap,
   std::io::{BufWriter, Read, Write},
-
 };
 
-use crate::okx::protocol::brc0::RpcParams;
 use crate::okx::datastore::ord::{bitmap::District, collections::CollectionKind};
+use crate::okx::protocol::brc0::RpcParams;
 use crate::rpc::BRCZeroRpcClient;
 
 pub(super) use self::{
@@ -1438,9 +1437,7 @@ impl Index {
         .into_option()
     }
   }
-  pub(crate) fn brc20_get_acc_count(
-    &self,
-  ) -> Result<u64> {
+  pub(crate) fn brc20_get_acc_count(&self) -> Result<u64> {
     let rtx = self.database.begin_read().unwrap();
     let brc20_db = brc20_db::DataStoreReader::new(&rtx);
     Ok(brc20_db.get_acc_count()?)
@@ -1456,10 +1453,7 @@ impl Index {
     let all_balances = brc20_db.get_all_acc_balance(start, limit)?;
     Ok(all_balances)
   }
-  pub(crate) fn ord_brc0_rpcrequest(
-    &self,
-    height: u64,
-  ) -> Result<RpcParams> {
+  pub(crate) fn ord_brc0_rpcrequest(&self, height: u64) -> Result<RpcParams> {
     let rtx = self.database.begin_read().unwrap();
     let ord_db = ord::OrdDbReader::new(&rtx);
     let res = ord_db.get_brczero_rpcparams(height)?;

@@ -1,11 +1,11 @@
 use super::*;
-use crate::okx::datastore::{ord as ord_store};
+use crate::okx::datastore::ord as ord_store;
 use crate::rpc::BRCZeroRpcClient;
 use crate::{
   okx::{
-    datastore::brc0::{Receipt},
+    datastore::brc0::Receipt,
     protocol::{
-      brc0::{Message, Operation, RpcRequest, RpcParams, BRCZeroTx, RpcResponse},
+      brc0::{BRCZeroTx, Message, Operation, RpcParams, RpcRequest, RpcResponse},
       utils, BlockContext,
     },
   },
@@ -106,23 +106,26 @@ pub fn execute_msgs(
       .await;
 
     match response {
-      Ok(res)=>{
-        if res.status().is_success(){
+      Ok(res) => {
+        if res.status().is_success() {
           let body = res.text().await;
           let rpc_res: RpcResponse = serde_json::from_str(&*body.unwrap()).unwrap();
-          if rpc_res.result.len()>0{
+          if rpc_res.result.len() > 0 {
             for tx_res in rpc_res.result.iter() {
               log::info!("broadcast brczero txs successes: {}", tx_res.hash);
             }
-          }else{
+          } else {
             log::info!("broadcast btc block to brczero successes");
           }
           // log::debug!("Response: {:#?}", rpc_res);
-        }else{
-          log::error!("broadcast brczero txs or btc block failed: {}",res.status());
+        } else {
+          log::error!(
+            "broadcast brczero txs or btc block failed: {}",
+            res.status()
+          );
         }
-      },
-      Err(e)=>{
+      }
+      Err(e) => {
         log::error!("broadcast brczero txs or btc block failed: {e}");
       }
     }

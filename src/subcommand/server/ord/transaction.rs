@@ -1,3 +1,4 @@
+use bigdecimal::ToPrimitive;
 use crate::okx::protocol::brc0::{BRCZeroTx, JSONError, RpcParams};
 use crate::okx::protocol::message::MsgInscription;
 use serde_json::Value;
@@ -258,6 +259,9 @@ pub(crate) async fn brc0_rpcrequest(
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct ZeroData {
+  pub page: usize,
+  pub count: usize,
+  pub sum: usize,
   pub block_height: u64,
   pub block_hash: String,
   pub prev_block_hash: String,
@@ -286,6 +290,9 @@ fn convert_to_zerodata(params: &RpcParams) -> Option<ZeroData> {
   }
 
   params.height.parse::<u64>().ok().map(|num| ZeroData {
+    page: 1,
+    count: txs.len(),
+    sum: txs.len(),
     block_height: num,
     block_hash: params.block_hash.clone(),
     prev_block_hash: "".to_string(),

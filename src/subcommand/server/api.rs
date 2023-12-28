@@ -8,6 +8,14 @@ pub struct Pagination {
   pub limit: Option<usize>,
 }
 
+#[derive(Deserialize, IntoParams)]
+pub struct Pagination2 {
+  /// Start index of the result.
+  pub page: Option<i32>,
+  /// Limit of the result.
+  pub limit: Option<i32>,
+}
+
 pub(crate) type ApiResult<T> = Result<axum::Json<ApiResponse<T>>, ApiError>;
 
 pub(super) trait ApiOptionExt<T> {

@@ -3,7 +3,8 @@ use {
   crate::{
     index::{INSCRIPTION_ID_TO_INSCRIPTION_ENTRY, OUTPOINT_TO_ENTRY},
     okx::datastore::ord::{DataStoreReadOnly, InscriptionOp},
-    Hash, InscriptionId,  Inscription,Result,okx::protocol::brc0::RpcParams,
+    okx::protocol::brc0::RpcParams,
+    Hash, Inscription, InscriptionId, Result,
   },
   bitcoin::{
     consensus::{Decodable, Encodable},
@@ -14,7 +15,6 @@ use {
     Table, TableDefinition, WriteTransaction,
   },
   std::{borrow::Borrow, io},
-
 };
 
 pub struct OrdDbReader<'db, 'a> {
@@ -154,28 +154,31 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReader<'db, 'a> {
   fn get_brczero_rpcparams(&self, height: u64) -> Result<RpcParams, Self::Error> {
     Ok(
       self
-          .wrapper
-          .open_table(ORD_BRCZERO_TO_RPCPARAMS)?
-          .get(height)?
-          .map_or(RpcParams{
+        .wrapper
+        .open_table(ORD_BRCZERO_TO_RPCPARAMS)?
+        .get(height)?
+        .map_or(
+          RpcParams {
             height: height.to_string(),
             block_hash: "".to_string(),
             is_confirmed: false,
             txs: vec![],
-          }, |v| {
-            bincode::deserialize::<RpcParams>(v.value()).unwrap()
-          }),
+          },
+          |v| bincode::deserialize::<RpcParams>(v.value()).unwrap(),
+        ),
     )
   }
 
-  fn get_inscription_by_id(&self, inscription_id: &InscriptionId,) -> Result<Option<Inscription>, Self::Error> {
+  fn get_inscription_by_id(
+    &self,
+    inscription_id: &InscriptionId,
+  ) -> Result<Option<Inscription>, Self::Error> {
     Ok(
       self
-          .wrapper
-          .open_table(INSCRIPTION_ID_TO_INSCRIPTION)?
-          .get(inscription_id.to_string().as_str())?
-          .map(|x|  bincode::deserialize::<Inscription>(x.value()).unwrap()),
+        .wrapper
+        .open_table(INSCRIPTION_ID_TO_INSCRIPTION)?
+        .get(inscription_id.to_string().as_str())?
+        .map(|x| bincode::deserialize::<Inscription>(x.value()).unwrap()),
     )
   }
-
 }

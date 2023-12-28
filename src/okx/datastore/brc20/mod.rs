@@ -7,7 +7,6 @@ pub(super) mod token_info;
 pub(super) mod transfer;
 pub(super) mod transferable_log;
 
-use std::collections::HashMap;
 pub use self::{
   balance::Balance, errors::BRC20Error, events::Receipt, events::*, tick::*, token_info::TokenInfo,
   transfer::TransferInfo, transferable_log::TransferableLog,
@@ -15,6 +14,7 @@ pub use self::{
 use super::ScriptKey;
 use crate::{InscriptionId, Result};
 use bitcoin::Txid;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
 pub trait DataStoreReadOnly {

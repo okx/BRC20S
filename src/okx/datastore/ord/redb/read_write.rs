@@ -3,7 +3,8 @@ use {
   crate::{
     index::OUTPOINT_TO_ENTRY,
     okx::datastore::ord::{DataStoreReadOnly, DataStoreReadWrite, InscriptionOp},
-    InscriptionId, Result,Inscription,okx::protocol::brc0::RpcParams,
+    okx::protocol::brc0::RpcParams,
+    Inscription, InscriptionId, Result,
   },
   bitcoin::{consensus::Encodable, OutPoint, TxOut, Txid},
   redb::{ReadTransaction, WriteTransaction},
@@ -64,14 +65,14 @@ impl<'db, 'a> DataStoreReadOnly for OrdDbReadWriter<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_collections_of_inscription(inscription_id)
   }
 
-  fn get_brczero_rpcparams(
-    &self,
-    height: u64,
-  ) -> Result<RpcParams, Self::Error> {
+  fn get_brczero_rpcparams(&self, height: u64) -> Result<RpcParams, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_brczero_rpcparams(height)
   }
 
-  fn get_inscription_by_id(&self, inscription_id: &InscriptionId) -> Result<Option<Inscription>, Self::Error> {
+  fn get_inscription_by_id(
+    &self,
+    inscription_id: &InscriptionId,
+  ) -> Result<Option<Inscription>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_inscription_by_id(inscription_id)
   }
 }
@@ -137,16 +138,11 @@ impl<'db, 'a> DataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
     Ok(())
   }
 
-  fn save_brczero_to_rpcparams(
-    &self,
-    height: u64,
-    params: &RpcParams,
-  ) -> Result<(), Self::Error> {
-
-    self.wtx.open_table(ORD_BRCZERO_TO_RPCPARAMS)?.insert(
-      height,
-      bincode::serialize(params).unwrap().as_slice(),
-    )?;
+  fn save_brczero_to_rpcparams(&self, height: u64, params: &RpcParams) -> Result<(), Self::Error> {
+    self
+      .wtx
+      .open_table(ORD_BRCZERO_TO_RPCPARAMS)?
+      .insert(height, bincode::serialize(params).unwrap().as_slice())?;
     Ok(())
   }
 
@@ -162,17 +158,13 @@ impl<'db, 'a> DataStoreReadWrite for OrdDbReadWriter<'db, 'a> {
     Ok(())
   }
 
-  fn remove_inscription_with_id(
-    &self,
-    inscription_id: &InscriptionId,
-  ) -> Result<(), Self::Error> {
-    self.wtx.open_table(INSCRIPTION_ID_TO_INSCRIPTION)?.remove(
-      inscription_id.to_string().as_str(),
-    )?;
+  fn remove_inscription_with_id(&self, inscription_id: &InscriptionId) -> Result<(), Self::Error> {
+    self
+      .wtx
+      .open_table(INSCRIPTION_ID_TO_INSCRIPTION)?
+      .remove(inscription_id.to_string().as_str())?;
     Ok(())
   }
-
-
 }
 
 #[cfg(test)]

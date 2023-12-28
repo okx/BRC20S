@@ -132,12 +132,7 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
   }
 
   fn get_acc_count(&self) -> Result<u64, Self::Error> {
-    Ok(
-      self
-          .wrapper
-          .open_table(BRC20_BALANCES)?
-          .len()?,
-    )
+    Ok(self.wrapper.open_table(BRC20_BALANCES)?.len()?)
   }
 
   fn get_all_acc_balance(
@@ -147,19 +142,21 @@ impl<'db, 'a> DataStoreReadOnly for DataStoreReader<'db, 'a> {
   ) -> Result<HashMap<String, Vec<Balance>>, Self::Error> {
     let table = self.wrapper.open_table(BRC20_BALANCES)?;
     let mut balances = HashMap::new();
-    let _bals:Vec<_> = table
-        .range::<&str>(..)?
-        .skip(start)
-        .take(limit.unwrap_or(usize::MAX))
-        .flat_map(|result| {
-          result.map(|(key, data)| {
-            let (addr, _tick) = key.value()
-                .split_once('_').unwrap();
-            let balance = bincode::deserialize::<Balance>(data.value()).unwrap();
-            balances.entry(addr.to_string()).or_insert(Vec::new()).push(balance);
-          })
+    let _bals: Vec<_> = table
+      .range::<&str>(..)?
+      .skip(start)
+      .take(limit.unwrap_or(usize::MAX))
+      .flat_map(|result| {
+        result.map(|(key, data)| {
+          let (addr, _tick) = key.value().split_once('_').unwrap();
+          let balance = bincode::deserialize::<Balance>(data.value()).unwrap();
+          balances
+            .entry(addr.to_string())
+            .or_insert(Vec::new())
+            .push(balance);
         })
-        .collect();
+      })
+      .collect();
     Ok(balances)
   }
 

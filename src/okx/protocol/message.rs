@@ -2,11 +2,7 @@ use crate::okx::datastore::brc20 as brc20_store;
 use crate::okx::datastore::brc20s as brc20s_store;
 use crate::okx::protocol::brc20 as brc20_proto;
 use crate::okx::protocol::brc20s as brc20s_proto;
-use crate::okx::datastore::brc0 as brc0_store;
-use crate::okx::protocol::brc0 as brc0_proto;
-use crate::{
-   Serialize, Deserialize
-};
+use crate::{Deserialize, Serialize};
 #[allow(clippy::upper_case_acronyms)]
 pub enum Message {
   BRC20(brc20_proto::Message),
@@ -26,7 +22,7 @@ pub struct BrcZeroMsg {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MsgInscription{
+pub struct MsgInscription {
   pub inscription: String,
   pub inscription_context: InscriptionContext,
 }

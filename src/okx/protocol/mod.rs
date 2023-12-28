@@ -13,7 +13,7 @@ pub use self::protocol_manager::ProtocolManager;
 use {
   self::{
     execute_manager::CallManager,
-    message::{Message, Receipt,BrcZeroMsg, MsgInscription, InscriptionContext},
+    message::{BrcZeroMsg, InscriptionContext, Message, MsgInscription, Receipt},
     resolve_manager::MsgResolveManager,
   },
   crate::Options,
@@ -72,7 +72,4 @@ pub enum JSONError {
 
   #[error("invalid json string")]
   InvalidJson,
-
-  #[error("not brc0 json")]
-  NotBRC0Json,
 }

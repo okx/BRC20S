@@ -86,10 +86,10 @@ pub(crate) async fn crawler_height(
 ) -> ApiResult<FastSyncInfo> {
   log::debug!("rpc: get crawler_height");
 
-  let (ord_height, btc_height) = index.height_btc(query.btc.unwrap_or_default())?;
+  let (ord_height, _btc_height) = index.height_btc(query.btc.unwrap_or_default())?;
 
   let fast_sync_info = FastSyncInfo {
-    crawler_height: ord_height.map(|h| h.0 ),
+    crawler_height: ord_height.map(|h| h.0),
   };
 
   Ok(Json(ApiResponse::ok(fast_sync_info)))

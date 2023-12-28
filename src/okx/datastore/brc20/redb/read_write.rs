@@ -40,7 +40,11 @@ impl<'db, 'a> DataStoreReadOnly for DataStore<'db, 'a> {
     read_only::new_with_wtx(self.wtx).get_acc_count()
   }
 
-  fn get_all_acc_balance(&self, start: usize, limit: Option<usize>) -> Result<HashMap<String, Vec<Balance>>, Self::Error> {
+  fn get_all_acc_balance(
+    &self,
+    start: usize,
+    limit: Option<usize>,
+  ) -> Result<HashMap<String, Vec<Balance>>, Self::Error> {
     read_only::new_with_wtx(self.wtx).get_all_acc_balance(start, limit)
   }
 

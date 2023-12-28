@@ -115,7 +115,6 @@ pub(crate) async fn brc20_all_balance(
   })))
 }
 
-
 /// Get all ticker balances of the address.
 ///
 /// Retrieve all BRC20 protocol asset balances associated with a address.
@@ -129,9 +128,7 @@ responses(
 (status = 500, description = "Internal server error.", body = ApiError, example = json!(&ApiError::internal("internal error"))),
 )
 )]
-pub(crate) async fn brc20_acc_count(
-  Extension(index): Extension<Arc<Index>>,
-) -> ApiResult<u64> {
+pub(crate) async fn brc20_acc_count(Extension(index): Extension<Arc<Index>>) -> ApiResult<u64> {
   log::debug!("rpc: get brc20_acc_count");
   let count = index.brc20_get_acc_count()?;
   log::debug!("rpc: get brc20_acc_count: {:?}", count);
@@ -142,7 +139,7 @@ pub(crate) async fn brc20_acc_count(
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AllAccBalances {
-  pub balances: HashMap<String, Vec<Balance>>
+  pub balances: HashMap<String, Vec<Balance>>,
 }
 /// Get all ticker balances of the address.
 ///
@@ -171,16 +168,17 @@ pub(crate) async fn brc20_all_acc_balance(
   let mut balances = HashMap::new();
   for (addr, bals) in &all_balances {
     for bal in bals.iter() {
-      balances.entry(addr.to_string()).or_insert(Vec::new()).push(Balance {
-        tick: bal.tick.to_string(),
-        available_balance: (bal.overall_balance - bal.transferable_balance).to_string(),
-        transferable_balance: bal.transferable_balance.to_string(),
-        overall_balance: bal.overall_balance.to_string(),
-      });
+      balances
+        .entry(addr.to_string())
+        .or_insert(Vec::new())
+        .push(Balance {
+          tick: bal.tick.to_string(),
+          available_balance: (bal.overall_balance - bal.transferable_balance).to_string(),
+          transferable_balance: bal.transferable_balance.to_string(),
+          overall_balance: bal.overall_balance.to_string(),
+        });
     }
   }
 
-  Ok(Json(ApiResponse::ok(AllAccBalances {
-    balances
-  })))
+  Ok(Json(ApiResponse::ok(AllAccBalances { balances })))
 }

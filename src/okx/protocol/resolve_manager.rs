@@ -4,18 +4,19 @@ use {
   crate::{
     okx::{
       datastore::{
-        ord::{operation::InscriptionOp, DataStoreReadWrite,DataStoreReadOnly,Action},
+        ord::{operation::InscriptionOp, Action, DataStoreReadOnly, DataStoreReadWrite},
         StateRWriter,
       },
       protocol::Message,
     },
-    Inscription, Result,InscriptionId,Index,sat_point::SatPoint
+    sat_point::SatPoint,
+    Index, Inscription, InscriptionId, Result,
   },
   anyhow::anyhow,
   bitcoin::{OutPoint, Transaction, TxOut},
   bitcoincore_rpc::Client,
+  serde_json::Value,
   std::collections::HashMap,
-  serde_json::{Value},
 };
 
 pub struct MsgResolveManager<'a, RW: StateRWriter> {
@@ -131,7 +132,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
     context: BlockContext,
     tx: &Transaction,
     operations: Vec<InscriptionOp>,
-    blockHash: &BlockHash,
+    block_hash: &BlockHash,
   ) -> Result<Vec<BrcZeroMsg>> {
     log::debug!(
       "Resolve Inscription indexed transaction {}, operations size: {}, data: {:?}",
@@ -142,9 +143,9 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
     let mut messages = Vec::new();
     let mut operation_iter = operations.into_iter().peekable();
     let new_inscriptions = Inscription::from_transaction(tx)
-        .into_iter()
-        .map(|v| v.inscription)
-        .collect::<Vec<Inscription>>();
+      .into_iter()
+      .map(|v| v.inscription)
+      .collect::<Vec<Inscription>>();
 
     let mut outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
@@ -157,20 +158,24 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
         let operation = operation_iter.next().unwrap();
 
         let sat_in_outputs = operation
-            .new_satpoint
-            .map(|satpoint| satpoint.outpoint.txid == operation.txid)
-            .unwrap_or(false);
+          .new_satpoint
+          .map(|satpoint| satpoint.outpoint.txid == operation.txid)
+          .unwrap_or(false);
 
         let mut is_transfer = false;
-        let mut sender = "".to_string();
-        let mut inscription_content: String = "".to_string();
+        let sender;
+        let inscription_content;
         match operation.action {
           // New inscription is not `cursed` or `unbound`.
           Action::New {
             cursed: false,
-            unbound: false, ..
+            unbound: false,
+            ..
           } => {
-            let inscription = new_inscriptions.get(usize::try_from(operation.inscription_id.index).unwrap()).unwrap().clone();
+            let inscription = new_inscriptions
+              .get(usize::try_from(operation.inscription_id.index).unwrap())
+              .unwrap()
+              .clone();
             let des_res = deserialize_inscription(&inscription);
             match des_res {
               Ok(content) => {
@@ -180,50 +185,65 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
                   operation.old_satpoint,
                   &mut outpoint_to_txout_cache,
                 )?;
-                sender = utils::get_script_key_on_satpoint(commit_input_satpoint, self.state_store.ord(), context.network)?.to_string();
+                sender = utils::get_script_key_on_satpoint(
+                  commit_input_satpoint,
+                  self.state_store.ord(),
+                  context.network,
+                )?
+                .to_string();
                 self.state_store.ord().save_inscription_with_id(&operation.inscription_id,&inscription).map_err(|e| {
                   anyhow!("failed to set inscription with id in ordinals operations to state! error: {e}")
                 })?;
                 inscription_content = content;
-              },
-              Err(err) => {
+              }
+              Err(_) => {
                 continue;
-              },
+              }
             }
-          },
+          }
           // Transfer inscription operation.
           Action::Transfer => {
             is_transfer = true;
-            let inscription = match get_inscription_by_id(self.client,self.state_store.ord(), &operation.inscription_id) {
-              Ok(innnet_inscription) => {innnet_inscription}
-              Err(err) => {continue}
-            };
+            let inscription =
+              match get_inscription_by_id(self.state_store.ord(), &operation.inscription_id) {
+                Ok(innnet_inscription) => innnet_inscription,
+                Err(_) => continue,
+              };
             self.state_store.ord().remove_inscription_with_id(&operation.inscription_id).map_err(|e| {
               anyhow!("failed to remove inscription with id in ordinals operations to state! error: {e}")
             })?;
             let des_res = deserialize_inscription(&inscription);
             match des_res {
               Ok(content) => {
-                sender = utils::get_script_key_on_satpoint(operation.old_satpoint, self.state_store.ord(), context.network)?.to_string();
+                sender = utils::get_script_key_on_satpoint(
+                  operation.old_satpoint,
+                  self.state_store.ord(),
+                  context.network,
+                )?
+                .to_string();
                 inscription_content = content;
-              },
-              Err(err) => {
+              }
+              Err(_) => {
                 continue;
-              },
+              }
             }
-          },
+          }
           _ => {
-            continue;},
+            continue;
+          }
         };
         let btc_fee = self.get_btc_transaction_fee(tx);
-        messages.push(BrcZeroMsg{
+        messages.push(BrcZeroMsg {
           btc_fee,
           msg: MsgInscription {
             inscription: inscription_content,
             inscription_context: InscriptionContext {
               txid: operation.txid.to_string(),
               inscription_id: operation.inscription_id.to_string(),
-              inscription_number: utils::get_inscription_number_by_id(operation.inscription_id, self.state_store.ord())?,
+              inscription_number: utils::get_inscription_number_by_id(
+                operation.inscription_id,
+                self.state_store.ord(),
+              )?,
               old_sat_point: operation.old_satpoint.to_string(),
               new_sat_point: operation.new_satpoint.unwrap().to_string(),
               sender,
@@ -232,16 +252,17 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
                   operation.new_satpoint.unwrap(),
                   self.state_store.ord(),
                   context.network,
-                )?.to_string()
+                )?
+                .to_string()
               } else {
                 "".to_string()
               },
               is_transfer,
               block_height: context.blockheight,
               block_time: context.blocktime,
-              block_hash: blockHash.to_string(),
+              block_hash: block_hash.to_string(),
             },
-          }
+          },
         });
       }
     }
@@ -253,7 +274,10 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
     let mut input_value = 0_u128;
     let mut output_value = 0_u128;
     for input in &tx.input {
-      let value = self.state_store.ord().get_outpoint_to_txout(input.previous_output);
+      let value = self
+        .state_store
+        .ord()
+        .get_outpoint_to_txout(input.previous_output);
       match value {
         Ok(op_txout) => match op_txout {
           Some(txout) => input_value = input_value + txout.value as u128,
@@ -262,7 +286,10 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
           }
         },
         Err(e) => {
-          panic!("get_btc_transaction_fee: failed to get tx out from state! error: {}", e)
+          panic!(
+            "get_btc_transaction_fee: failed to get tx out from state! error: {}",
+            e
+          )
         }
       }
     }
@@ -275,35 +302,32 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
   }
 }
 
-pub(crate) fn deserialize_inscription(
-  inscription: &Inscription,
-) -> Result<String> {
+pub(crate) fn deserialize_inscription(inscription: &Inscription) -> Result<String> {
   let content_body = std::str::from_utf8(inscription.body().ok_or(JSONError::InvalidJson)?)?;
   if content_body.len() == 0 {
     return Err(JSONError::InvalidJson.into());
   }
 
   let content_type = inscription
-      .content_type()
-      .ok_or(JSONError::InvalidContentType)?;
+    .content_type()
+    .ok_or(JSONError::InvalidContentType)?;
 
   if content_type != "text/plain"
-      && content_type != "text/plain;charset=utf-8"
-      && content_type != "text/plain;charset=UTF-8"
-      && content_type != "application/json"
-      && !content_type.starts_with("text/plain;")
+    && content_type != "text/plain;charset=utf-8"
+    && content_type != "text/plain;charset=UTF-8"
+    && content_type != "application/json"
+    && !content_type.starts_with("text/plain;")
   {
     return Err(JSONError::UnSupportContentType.into());
   }
 
   let value: Value = serde_json::from_str(content_body).map_err(|_| JSONError::InvalidJson)?;
-  if value.get("p") == None || !value["p"].is_string(){
+  if value.get("p") == None || !value["p"].is_string() {
     return Err(JSONError::InvalidJson.into());
   }
 
-  return Ok(serde_json::to_string(&value).unwrap())
+  return Ok(serde_json::to_string(&value).unwrap());
 }
-
 
 fn get_commit_input_satpoint<O: DataStoreReadWrite>(
   client: &Client,
@@ -312,7 +336,7 @@ fn get_commit_input_satpoint<O: DataStoreReadWrite>(
   outpoint_to_txout_cache: &mut HashMap<OutPoint, TxOut>,
 ) -> Result<SatPoint> {
   let commit_transaction =
-      &Index::get_transaction_retries(client, satpoint.outpoint.txid)?.ok_or(anyhow!(
+    &Index::get_transaction_retries(client, satpoint.outpoint.txid)?.ok_or(anyhow!(
       "failed to BRC20S message commit transaction! error: {} not found",
       satpoint.outpoint.txid
     ))?;
@@ -331,20 +355,21 @@ fn get_commit_input_satpoint<O: DataStoreReadWrite>(
   let mut input_value = 0;
   for input in &commit_transaction.input {
     let value = if let Some(tx_out) = ord_store
-        .get_outpoint_to_txout(input.previous_output)
-        .map_err(|e| anyhow!("failed to get tx out from state! error: {e}"))?
+      .get_outpoint_to_txout(input.previous_output)
+      .map_err(|e| anyhow!("failed to get tx out from state! error: {e}"))?
     {
       tx_out.value
     } else if let Some(tx_out) = Index::get_transaction_retries(client, input.previous_output.txid)?
-        .map(|tx| {
-          tx.output
-              .get(usize::try_from(input.previous_output.vout).unwrap())
-              .unwrap()
-              .clone()
-        })
+      .map(|tx| {
+        tx.output
+          .get(usize::try_from(input.previous_output.vout).unwrap())
+          .unwrap()
+          .clone()
+      })
     {
-      ord_store.set_outpoint_to_txout(input.previous_output.clone(), &tx_out.clone())
-          .or(Err(anyhow!(
+      ord_store
+        .set_outpoint_to_txout(input.previous_output.clone(), &tx_out.clone())
+        .or(Err(anyhow!(
           "failed to get tx out! error: {} not found",
           input.previous_output
         )))?;
@@ -369,20 +394,19 @@ fn get_commit_input_satpoint<O: DataStoreReadWrite>(
 }
 
 fn get_inscription_by_id<O: DataStoreReadOnly>(
-  client: &Client,
   ord_store: &O,
   inscription_id: &InscriptionId,
 ) -> Result<Inscription> {
-
-  let inscription = if let Some(inscription) = ord_store.get_inscription_by_id(inscription_id).map_err(|e| {
-    anyhow!("failed to get inscription by id ! error: {e}")
-  })? {
+  let inscription = if let Some(inscription) = ord_store
+    .get_inscription_by_id(inscription_id)
+    .map_err(|e| anyhow!("failed to get inscription by id ! error: {e}"))?
+  {
     inscription
   } else {
     return Err(anyhow!(
-        "failed to get tx inscription! error: {} not found",
-        inscription_id
-      ));
+      "failed to get tx inscription! error: {} not found",
+      inscription_id
+    ));
   };
   Ok(inscription)
 }

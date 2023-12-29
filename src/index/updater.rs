@@ -423,6 +423,7 @@ impl<'index> Updater<'_> {
       block.header.time,
       unbound_inscriptions,
       &mut tx_out_cache,
+      op_sender,
     )?;
 
     if self.index_sats {

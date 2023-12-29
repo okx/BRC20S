@@ -47,6 +47,7 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   timestamp: u32,
   pub(super) unbound_inscriptions: u64,
   tx_out_cache: &'a mut HashMap<OutPoint, TxOut>,
+  op_sender: Option<std::sync::mpsc::Sender<(Txid, Vec<InscriptionOp>)>>,
 }
 
 impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
@@ -75,6 +76,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     timestamp: u32,
     unbound_inscriptions: u64,
     tx_out_cache: &'a mut HashMap<OutPoint, TxOut>,
+    op_sender: Option<std::sync::mpsc::Sender<(Txid, Vec<InscriptionOp>)>>,
   ) -> Result<Self> {
     let next_cursed_number = number_to_id
       .iter()?
@@ -110,6 +112,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       timestamp,
       unbound_inscriptions,
       tx_out_cache,
+      op_sender,
     })
   }
 
@@ -391,15 +394,26 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         self.update_inscription_location(input_sat_ranges, flotsam, new_satpoint)?;
       }
       self.lost_sats += self.reward - output_value;
-      Ok(())
     } else {
       self.flotsam.extend(inscriptions.map(|flotsam| Flotsam {
         offset: self.reward + flotsam.offset - output_value,
         ..flotsam
       }));
       self.reward += total_input_value - output_value;
-      Ok(())
     }
+
+    self.try_send_ops(txid)?;
+    Ok(())
+  }
+
+  fn try_send_ops(&self, tx_id: Txid) -> Result {
+    if let Some(sender) = &self.op_sender {
+      if let Some(ops) = self.operations.get(&tx_id) {
+        sender.send((tx_id, ops.clone()))?;
+      }
+    }
+
+    Ok(())
   }
 
   fn calculate_sat(
@@ -500,34 +514,38 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     } else {
       new_satpoint.store()
     };
+    let ins_op = InscriptionOp {
+      txid: flotsam.txid,
+      inscription_number: self
+        .id_to_entry
+        .get(&flotsam.inscription_id.store())?
+        .map(|entry| InscriptionEntry::load(entry.value()).number),
+      inscription_id: flotsam.inscription_id,
+      action: match flotsam.origin {
+        Origin::Old => Action::Transfer,
+        Origin::New {
+          fee: _,
+          parent: _,
+          inscription,
+          cursed,
+          unbound,
+        } => Action::New {
+          cursed,
+          unbound,
+          inscription,
+        },
+      },
+      old_satpoint: flotsam.old_satpoint,
+      new_satpoint: Some(Entry::load(satpoint)),
+    };
+    // if let Some(sender) = &self.op_sender {
+    //   sender.send((flotsam.txid, ins_op.clone()));
+    // }
     self
       .operations
       .entry(flotsam.txid)
       .or_default()
-      .push(InscriptionOp {
-        txid: flotsam.txid,
-        inscription_number: self
-          .id_to_entry
-          .get(&flotsam.inscription_id.store())?
-          .map(|entry| InscriptionEntry::load(entry.value()).number),
-        inscription_id: flotsam.inscription_id,
-        action: match flotsam.origin {
-          Origin::Old => Action::Transfer,
-          Origin::New {
-            fee: _,
-            parent: _,
-            inscription,
-            cursed,
-            unbound,
-          } => Action::New {
-            cursed,
-            unbound,
-            inscription,
-          },
-        },
-        old_satpoint: flotsam.old_satpoint,
-        new_satpoint: Some(Entry::load(satpoint)),
-      });
+      .push(ins_op);
 
     self.satpoint_to_id.insert(&satpoint, &inscription_id)?;
     self.id_to_satpoint.insert(&inscription_id, &satpoint)?;

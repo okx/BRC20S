@@ -4,8 +4,6 @@ use {
   inscription::Curse,
 };
 
-use rayon::prelude::*;
-
 #[derive(Debug, Clone)]
 pub(super) struct Flotsam {
   txid: Txid,
@@ -130,48 +128,25 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     let mut total_input_value = 0;
     let mut id_counter = 0;
 
-    let pre_process_inscriptions: Vec<_> = tx
-      .input
-      .par_iter()
-      .map(|tx_in| {
-        if tx_in.previous_output.is_null() {
-          None
-        } else {
-          Some(Index::inscriptions_on_output_ordered(
-            self.reinscription_id_to_seq_num,
-            self.satpoint_to_id,
-            tx_in.previous_output,
-          ))
-        }
-      })
-      .collect();
-
     for (input_index, tx_in) in tx.input.iter().enumerate() {
-      let pre_process_inscription = &pre_process_inscriptions[input_index];
       // skip subsidy since no inscriptions possible
       if tx_in.previous_output.is_null() {
-        assert!(pre_process_inscription.is_none());
         total_input_value += Height(self.height).subsidy();
         continue;
       }
-      let pre_process_inscription = match pre_process_inscription.as_ref().unwrap() {
-        Ok(r) => r,
-        Err(e) => return Err(anyhow::format_err!("{:?}", e)),
-      };
 
       // find existing inscriptions on input (transfers of inscriptions)
-      for (old_satpoint, inscription_id) in pre_process_inscription {
-        // for (old_satpoint, inscription_id) in Index::inscriptions_on_output_ordered(
-        //   self.reinscription_id_to_seq_num,
-        //   self.satpoint_to_id,
-        //   tx_in.previous_output,
-        // )? {
+      for (old_satpoint, inscription_id) in Index::inscriptions_on_output_ordered(
+        self.reinscription_id_to_seq_num,
+        self.satpoint_to_id,
+        tx_in.previous_output,
+      )? {
         let offset = total_input_value + old_satpoint.offset;
         floating_inscriptions.push(Flotsam {
           txid,
           offset,
-          old_satpoint: old_satpoint.clone(),
-          inscription_id: inscription_id.clone(),
+          old_satpoint,
+          inscription_id,
           origin: Origin::Old,
         });
 

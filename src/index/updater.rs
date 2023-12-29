@@ -1,10 +1,7 @@
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
-  crate::okx::{
-    datastore::StateReadWrite,
-    protocol::{BlockContext, ProtocolConfig, ProtocolManager},
-  },
+  crate::okx::protocol::{context::Context, BlockContext, ProtocolConfig, ProtocolManager},
   futures::future::try_join_all,
   std::sync::mpsc,
   tokio::sync::mpsc::{error::TryRecvError, Receiver, Sender},
@@ -536,16 +533,25 @@ impl<'index> Updater<'_> {
       outpoint_to_entry.insert(&outpoint.store(), entry.as_slice())?;
     }
 
-    std::mem::drop(inscription_id_to_inscription_entry);
-    std::mem::drop(outpoint_to_entry);
-
-    // Create a protocol manager to index the block of brc20, brc20s data.
+    // Create a protocol manager to index the block of brc20 data.
     let config = ProtocolConfig::new_with_options(&index.options);
-    ProtocolManager::new(&StateReadWrite::new(wtx), &config).index_block(
-      BlockContext {
-        network: index.get_chain_network(),
-        blockheight: self.height,
-        blocktime: block.header.time,
+    ProtocolManager::new(&config).index_block(
+      &mut Context {
+        chain: BlockContext {
+          network: index.get_chain_network(),
+          blockheight: self.height,
+          blocktime: block.header.time,
+        },
+        ORD_TX_TO_OPERATIONS: wtx.open_table(ORD_TX_TO_OPERATIONS)?,
+        COLLECTIONS_KEY_TO_INSCRIPTION_ID: wtx.open_table(COLLECTIONS_KEY_TO_INSCRIPTION_ID)?,
+        COLLECTIONS_INSCRIPTION_ID_TO_KINDS: wtx.open_table(COLLECTIONS_INSCRIPTION_ID_TO_KINDS)?,
+        INSCRIPTION_ID_TO_INSCRIPTION_ENTRY: inscription_id_to_inscription_entry,
+        OUTPOINT_TO_ENTRY: outpoint_to_entry,
+        BRC20_BALANCES: wtx.open_table(BRC20_BALANCES)?,
+        BRC20_TOKEN: wtx.open_table(BRC20_TOKEN)?,
+        BRC20_EVENTS: wtx.open_table(BRC20_EVENTS)?,
+        BRC20_TRANSFERABLELOG: wtx.open_table(BRC20_TRANSFERABLELOG)?,
+        BRC20_INSCRIBE_TRANSFER: wtx.open_table(BRC20_INSCRIBE_TRANSFER)?,
       },
       &block,
       operations,

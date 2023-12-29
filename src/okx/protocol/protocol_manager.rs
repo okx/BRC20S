@@ -1,38 +1,35 @@
+use crate::okx::datastore::ord::redb::table::save_transaction_operations;
+use crate::okx::protocol::context::Context;
 use {
   super::*,
   crate::{
     index::BlockData,
-    okx::{
-      datastore::{ord::operation::InscriptionOp, StateRWriter},
-      protocol::ord as ord_proto,
-    },
+    okx::{datastore::ord::operation::InscriptionOp, protocol::ord as ord_proto},
     Instant, Result,
   },
   bitcoin::Txid,
   std::collections::HashMap,
 };
 
-pub struct ProtocolManager<'a, RW: StateRWriter> {
-  state_store: &'a RW,
+pub struct ProtocolManager<'a> {
   config: &'a ProtocolConfig,
-  call_man: CallManager<'a, RW>,
-  resolve_man: MsgResolveManager<'a, RW>,
+  call_man: CallManager,
+  resolve_man: MsgResolveManager<'a>,
 }
 
-impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
+impl<'a> ProtocolManager<'a> {
   // Need three datastore, and they're all in the same write transaction.
-  pub fn new(state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
+  pub fn new(config: &'a ProtocolConfig) -> Self {
     Self {
-      state_store,
       config,
-      call_man: CallManager::new(state_store),
-      resolve_man: MsgResolveManager::new(state_store, config),
+      call_man: CallManager::new(),
+      resolve_man: MsgResolveManager::new(config),
     }
   }
 
   pub(crate) fn index_block(
     &self,
-    context: BlockContext,
+    context: &mut Context,
     block: &BlockData,
     operations: HashMap<Txid, Vec<InscriptionOp>>,
   ) -> Result {
@@ -45,8 +42,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
       if tx
         .input
         .first()
-        .map(|tx_in| tx_in.previous_output.is_null())
-        .unwrap_or_default()
+        .is_some_and(|tx_in| tx_in.previous_output.is_null())
       {
         continue;
       }
@@ -55,9 +51,9 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
       if let Some(tx_operations) = operations.get(txid) {
         // save all transaction operations to ord database.
         if self.config.enable_ord_receipts
-          && context.blockheight >= self.config.first_inscription_height
+          && context.chain.blockheight >= self.config.first_inscription_height
         {
-          ord_proto::save_transaction_operations(self.state_store.ord(), txid, tx_operations)?;
+          save_transaction_operations(&mut context.ORD_TX_TO_OPERATIONS, txid, tx_operations)?;
           inscriptions_size += tx_operations.len();
         }
 
@@ -73,12 +69,12 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     }
     let mut bitmap_count = 0;
     if self.config.enable_index_bitmap {
-      bitmap_count = ord_proto::bitmap::index_bitmap(self.state_store.ord(), context, &operations)?;
+      bitmap_count = ord_proto::bitmap::index_bitmap(context, &operations)?;
     }
 
     log::info!(
       "Protocol Manager indexed block {} with ord inscriptions {}, messages {}, bitmap {} in {} ms",
-      context.blockheight,
+      context.chain.blockheight,
       inscriptions_size,
       messages_size,
       bitmap_count,

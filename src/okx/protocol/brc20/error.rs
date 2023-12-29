@@ -1,12 +1,16 @@
-use crate::okx::datastore::brc20::{BRC20Error, DataStoreReadOnly};
+use crate::okx::datastore::brc20::BRC20Error;
+use redb::TableError;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<L: DataStoreReadOnly> {
+pub enum Error {
   #[error("brc20 error: {0}")]
   BRC20Error(BRC20Error),
 
   #[error("ledger error: {0}")]
-  LedgerError(<L>::Error),
+  LedgerError(anyhow::Error),
+
+  #[error("table error: {0}")]
+  TableError(TableError),
 }
 
 #[derive(Debug, PartialEq, thiserror::Error)]
@@ -27,8 +31,14 @@ pub enum JSONError {
   ParseOperationJsonError(String),
 }
 
-impl<L: DataStoreReadOnly> From<BRC20Error> for Error<L> {
+impl From<BRC20Error> for Error {
   fn from(e: BRC20Error) -> Self {
     Self::BRC20Error(e)
+  }
+}
+
+impl From<TableError> for Error {
+  fn from(error: TableError) -> Self {
+    Self::TableError(error)
   }
 }

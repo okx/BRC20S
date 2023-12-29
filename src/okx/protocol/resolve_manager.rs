@@ -1,36 +1,25 @@
+use crate::okx::protocol::context::Context;
 use {
   super::*,
   crate::{
-    okx::{
-      datastore::{
-        ord::{operation::InscriptionOp, DataStoreReadWrite},
-        StateRWriter,
-      },
-      protocol::Message,
-    },
+    okx::{datastore::ord::operation::InscriptionOp, protocol::Message},
     Inscription, Result,
   },
-  anyhow::anyhow,
-  bitcoin::{OutPoint, Transaction, TxOut},
-  std::collections::HashMap,
+  bitcoin::Transaction,
 };
 
-pub struct MsgResolveManager<'a, RW: StateRWriter> {
-  state_store: &'a RW,
+pub struct MsgResolveManager<'a> {
   config: &'a ProtocolConfig,
 }
 
-impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
-  pub fn new(state_store: &'a RW, config: &'a ProtocolConfig) -> Self {
-    Self {
-      state_store,
-      config,
-    }
+impl<'a> MsgResolveManager<'a> {
+  pub fn new(config: &'a ProtocolConfig) -> Self {
+    Self { config }
   }
 
   pub fn resolve_message(
     &self,
-    context: BlockContext,
+    context: &mut Context,
     tx: &Transaction,
     operations: &[InscriptionOp],
   ) -> Result<Vec<Message>> {
@@ -47,7 +36,6 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
       .map(|v| v.inscription)
       .collect::<Vec<Inscription>>();
 
-    let outpoint_to_txout_cache: HashMap<OutPoint, TxOut> = HashMap::new();
     for input in &tx.input {
       // "operations" is a list of all the operations in the current block, and they are ordered.
       // We just need to find the operation corresponding to the current transaction here.
@@ -61,12 +49,14 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
         if self
           .config
           .first_brc20_height
-          .map(|height| context.blockheight >= height)
+          .map(|height| context.chain.blockheight >= height)
           .unwrap_or(false)
         {
-          if let Some(msg) =
-            brc20::Message::resolve(self.state_store.brc20(), &new_inscriptions, operation)?
-          {
+          if let Some(msg) = brc20::Message::resolve(
+            &context.BRC20_INSCRIBE_TRANSFER,
+            &new_inscriptions,
+            operation,
+          )? {
             log::debug!(
               "BRC20 resolved the message from {:?}, msg {:?}",
               operation,
@@ -78,21 +68,6 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
         }
       }
     }
-    self.update_outpoint_to_txout(outpoint_to_txout_cache)?;
     Ok(messages)
-  }
-
-  fn update_outpoint_to_txout(&self, outpoint_to_txout_cache: HashMap<OutPoint, TxOut>) -> Result {
-    for (outpoint, txout) in outpoint_to_txout_cache {
-      self
-        .state_store
-        .ord()
-        .set_outpoint_to_txout(outpoint, &txout)
-        .or(Err(anyhow!(
-          "failed to get tx out! error: {} not found",
-          outpoint
-        )))?;
-    }
-    Ok(())
   }
 }

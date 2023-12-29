@@ -67,7 +67,7 @@ impl Entry for InscriptionEntry {
   }
 }
 
-pub(super) type InscriptionIdValue = [u8; 36];
+pub(crate) type InscriptionIdValue = [u8; 36];
 
 impl Entry for InscriptionId {
   type Value = InscriptionIdValue;
@@ -158,7 +158,7 @@ impl Entry for ParentEntry {
   }
 }
 
-pub(super) type OutPointValue = [u8; 36];
+pub(crate) type OutPointValue = [u8; 36];
 
 impl Entry for OutPoint {
   type Value = OutPointValue;

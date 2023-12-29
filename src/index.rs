@@ -1,6 +1,11 @@
+use crate::okx::datastore::brc20::redb::table::{
+  get_balance, get_balances, get_token_info, get_tokens_info, get_transaction_receipts,
+  get_transferable, get_transferable_by_tick,
+};
+use redb::ReadTransaction;
 use {
   self::{
-    entry::{BlockHashValue, Entry, InscriptionIdValue, OutPointValue, SatPointValue, SatRange},
+    entry::{BlockHashValue, Entry, SatPointValue, SatRange},
     reorg::*,
     updater::Updater,
   },
@@ -13,14 +18,7 @@ use {
   chrono::SubsecRound,
   indicatif::{ProgressBar, ProgressStyle},
   log::log_enabled,
-  okx::datastore::{
-    brc20::{
-      self, redb as brc20_db, redb::try_init_tables as try_init_brc20,
-      DataStoreReadOnly as BRC20DataStoreReadOnly,
-    },
-    ord::{self, redb::try_init_tables as try_init_ord, DataStoreReadOnly},
-    ScriptKey,
-  },
+  okx::datastore::{brc20, ord, ScriptKey},
   redb::{
     Database, MultimapTable, MultimapTableDefinition, ReadableMultimapTable, ReadableTable, Table,
     TableDefinition, WriteTransaction,
@@ -29,10 +27,13 @@ use {
   std::io::{BufWriter, Read, Write},
 };
 
+use crate::okx::datastore::ord::redb::table::{
+  get_collection_inscription_id, get_collections_of_inscription, get_transaction_operations,
+};
 use crate::okx::datastore::ord::{bitmap::District, collections::CollectionKind};
 
 pub(super) use self::{
-  entry::{InscriptionEntry, InscriptionEntryValue},
+  entry::{InscriptionEntry, InscriptionEntryValue, InscriptionIdValue, OutPointValue},
   updater::BlockData,
 };
 
@@ -71,6 +72,44 @@ define_table! { REINSCRIPTION_ID_TO_SEQUENCE_NUMBER, &InscriptionIdValue, u64 }
 define_table! { SAT_TO_SATPOINT, u64, &SatPointValue }
 define_table! { STATISTIC_TO_COUNT, u64, u64 }
 define_table! { WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP, u64, u128 }
+
+// new
+define_table! { ORD_TX_TO_OPERATIONS, &str, &[u8] }
+define_table! { COLLECTIONS_KEY_TO_INSCRIPTION_ID, &str, &[u8; 36] }
+define_table! { COLLECTIONS_INSCRIPTION_ID_TO_KINDS, &[u8; 36], &[u8] }
+
+define_table! { BRC20_BALANCES, &str, &[u8] }
+define_table! { BRC20_TOKEN, &str, &[u8] }
+define_table! { BRC20_EVENTS, &str, &[u8] }
+define_table! { BRC20_TRANSFERABLELOG, &str, &[u8] }
+define_table! { BRC20_INSCRIBE_TRANSFER, &[u8; 36], &[u8] }
+
+pub fn try_init_ord_tables<'db, 'a>(
+  wtx: &'a WriteTransaction<'db>,
+  rtx: &'a ReadTransaction<'db>,
+) -> crate::Result<bool, redb::Error> {
+  if rtx.open_table(ORD_TX_TO_OPERATIONS).is_err() {
+    wtx.open_table(ORD_TX_TO_OPERATIONS)?;
+    wtx.open_table(COLLECTIONS_KEY_TO_INSCRIPTION_ID)?;
+    wtx.open_table(COLLECTIONS_INSCRIPTION_ID_TO_KINDS)?;
+  }
+  Ok(true)
+}
+
+pub fn try_init_brc20_tables<'db, 'a>(
+  wtx: &'a WriteTransaction<'db>,
+  rtx: &'a ReadTransaction<'db>,
+) -> Result<bool, redb::Error> {
+  if rtx.open_table(BRC20_BALANCES).is_err() {
+    wtx.open_table(BRC20_BALANCES)?;
+    wtx.open_table(BRC20_TOKEN)?;
+    wtx.open_table(BRC20_EVENTS)?;
+    wtx.open_table(BRC20_TRANSFERABLELOG)?;
+    wtx.open_table(BRC20_INSCRIBE_TRANSFER)?;
+  }
+
+  Ok(true)
+}
 
 #[derive(Debug, PartialEq)]
 pub enum List {
@@ -276,8 +315,8 @@ impl Index {
     {
       let wtx = database.begin_write()?;
       let rtx = database.begin_read()?;
-      try_init_ord(&wtx, &rtx)?;
-      try_init_brc20(&wtx, &rtx)?;
+      try_init_ord_tables(&wtx, &rtx)?;
+      try_init_brc20_tables(&wtx, &rtx)?;
       wtx.commit()?;
       log::info!("Options:\n{:#?}", options);
     }
@@ -771,10 +810,9 @@ impl Index {
     &self,
     inscription_id: InscriptionId,
   ) -> Result<Option<Vec<CollectionKind>>> {
-    Ok(
-      ord::OrdDbReader::new(&self.database.begin_read()?)
-        .get_collections_of_inscription(inscription_id)?,
-    )
+    let rtx = self.database.begin_read()?;
+    let table = rtx.open_table(COLLECTIONS_INSCRIPTION_ID_TO_KINDS)?;
+    get_collections_of_inscription(&table, &inscription_id)
   }
 
   pub(crate) fn ord_get_district_inscription_id(
@@ -782,10 +820,9 @@ impl Index {
     number: u64,
   ) -> Result<Option<InscriptionId>> {
     let district = District { number };
-    Ok(
-      ord::OrdDbReader::new(&self.database.begin_read()?)
-        .get_collection_inscription_id(&district.to_collection_key())?,
-    )
+    let rtx = self.database.begin_read()?;
+    let table = rtx.open_table(COLLECTIONS_KEY_TO_INSCRIPTION_ID)?;
+    get_collection_inscription_id(&table, &district.to_collection_key())
   }
 
   pub(crate) fn get_inscription_by_id(
@@ -1379,26 +1416,26 @@ impl Index {
 
   pub(crate) fn brc20_get_tick_info(&self, name: &brc20::Tick) -> Result<Option<brc20::TokenInfo>> {
     let rtx = self.database.begin_read().unwrap();
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let info = brc20_db.get_token_info(name)?;
+    let table = rtx.open_table(BRC20_TOKEN)?;
+    let info = get_token_info(&table, name)?;
     Ok(info)
   }
 
   pub(crate) fn brc20_get_all_tick_info(&self) -> Result<Vec<brc20::TokenInfo>> {
     let rtx = self.database.begin_read().unwrap();
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let info = brc20_db.get_tokens_info()?;
+    let table = rtx.open_table(BRC20_TOKEN)?;
+    let info = get_tokens_info(&table)?;
     Ok(info)
   }
 
   pub(crate) fn brc20_get_balance_by_address(
     &self,
     tick: &brc20::Tick,
-    address: &bitcoin::Address,
+    address: &Address,
   ) -> Result<Option<brc20::Balance>> {
     let rtx = self.database.begin_read().unwrap();
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let bal = brc20_db.get_balance(&ScriptKey::from_address(address.clone()), tick)?;
+    let table = rtx.open_table(BRC20_BALANCES)?;
+    let bal = get_balance(&table, &ScriptKey::from_address(address.clone()), tick)?;
     Ok(bal)
   }
 
@@ -1407,8 +1444,11 @@ impl Index {
     address: &bitcoin::Address,
   ) -> Result<Vec<brc20::Balance>> {
     let rtx = self.database.begin_read().unwrap();
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    Ok(brc20_db.get_balances(&ScriptKey::from_address(address.clone()))?)
+    let table = rtx.open_table(BRC20_BALANCES)?;
+    Ok(get_balances(
+      &table,
+      &ScriptKey::from_address(address.clone()),
+    )?)
   }
 
   pub(crate) fn get_transaction_info(
@@ -1430,8 +1470,8 @@ impl Index {
     txid: &bitcoin::Txid,
   ) -> Result<Option<Vec<brc20::Receipt>>> {
     let rtx = self.database.begin_read().unwrap();
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let res = brc20_db.get_transaction_receipts(txid)?;
+    let table = rtx.open_table(BRC20_EVENTS)?;
+    let res = get_transaction_receipts(&table, txid)?;
 
     if res.is_empty() {
       let tx = self.client.get_raw_transaction_info(txid, None)?;
@@ -1454,10 +1494,10 @@ impl Index {
     txs: &Vec<Txid>,
   ) -> Result<Vec<(bitcoin::Txid, Vec<brc20::Receipt>)>> {
     let rtx = self.database.begin_read()?;
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
+    let table = rtx.open_table(BRC20_EVENTS)?;
     let mut result = Vec::new();
     for txid in txs {
-      let tx_events = brc20_db.get_transaction_receipts(txid)?;
+      let tx_events = get_transaction_receipts(&table, txid)?;
       if tx_events.is_empty() {
         continue;
       }
@@ -1472,8 +1512,8 @@ impl Index {
     address: &bitcoin::Address,
   ) -> Result<Vec<brc20::TransferableLog>> {
     let rtx = self.database.begin_read().unwrap();
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let res = brc20_db.get_transferable_by_tick(&ScriptKey::from_address(address.clone()), tick)?;
+    let table = rtx.open_table(BRC20_TRANSFERABLELOG)?;
+    let res = get_transferable_by_tick(&table, &ScriptKey::from_address(address.clone()), tick)?;
 
     Ok(res)
   }
@@ -1483,8 +1523,8 @@ impl Index {
     address: &bitcoin::Address,
   ) -> Result<Vec<brc20::TransferableLog>> {
     let rtx = self.database.begin_read().unwrap();
-    let brc20_db = brc20_db::DataStoreReader::new(&rtx);
-    let res = brc20_db.get_transferable(&ScriptKey::from_address(address.clone()))?;
+    let table = rtx.open_table(BRC20_TRANSFERABLELOG)?;
+    let res = get_transferable(&table, &ScriptKey::from_address(address.clone()))?;
 
     Ok(res)
   }
@@ -1493,9 +1533,9 @@ impl Index {
     &self,
     txid: &Txid,
   ) -> Result<Option<Vec<ord::InscriptionOp>>> {
-    let rtx = self.database.begin_read().unwrap();
-    let ord_db = ord::OrdDbReader::new(&rtx);
-    let res = ord_db.get_transaction_operations(txid)?;
+    let rtx = self.database.begin_read()?;
+    let table = rtx.open_table(ORD_TX_TO_OPERATIONS)?;
+    let res = get_transaction_operations(&table, txid)?;
 
     if res.is_empty() {
       let tx = self.client.get_raw_transaction_info(txid, None)?;
@@ -1517,10 +1557,11 @@ impl Index {
     txs: &Vec<Txid>,
   ) -> Result<Vec<(bitcoin::Txid, Vec<ord::InscriptionOp>)>> {
     let rtx = self.database.begin_read()?;
-    let ord_db = ord::OrdDbReader::new(&rtx);
+    let table = rtx.open_table(ORD_TX_TO_OPERATIONS)?;
+
     let mut result = Vec::new();
     for txid in txs {
-      let inscriptions = ord_db.get_transaction_operations(txid)?;
+      let inscriptions = get_transaction_operations(&table, txid)?;
       if inscriptions.is_empty() {
         continue;
       }

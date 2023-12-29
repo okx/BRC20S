@@ -16,7 +16,7 @@ use crate::{InscriptionId, Result};
 use bitcoin::Txid;
 use std::fmt::{Debug, Display};
 
-pub trait DataStoreReadOnly {
+pub trait Brc20Reader {
   type Error: Debug + Display;
 
   fn get_balances(&self, script_key: &ScriptKey) -> Result<Vec<Balance>, Self::Error>;
@@ -45,53 +45,56 @@ pub trait DataStoreReadOnly {
 
   fn get_inscribe_transfer_inscription(
     &self,
-    inscription_id: InscriptionId,
+    inscription_id: &InscriptionId,
   ) -> Result<Option<TransferInfo>, Self::Error>;
 }
 
-pub trait DataStoreReadWrite: DataStoreReadOnly {
+pub trait Brc20ReaderWriter: Brc20Reader {
   fn update_token_balance(
-    &self,
+    &mut self,
     script_key: &ScriptKey,
     new_balance: Balance,
   ) -> Result<(), Self::Error>;
 
-  fn insert_token_info(&self, tick: &Tick, new_info: &TokenInfo) -> Result<(), Self::Error>;
+  fn insert_token_info(&mut self, tick: &Tick, new_info: &TokenInfo) -> Result<(), Self::Error>;
 
   fn update_mint_token_info(
-    &self,
+    &mut self,
     tick: &Tick,
     minted_amt: u128,
     minted_block_number: u64,
   ) -> Result<(), Self::Error>;
 
-  fn save_transaction_receipts(&self, txid: &Txid, receipts: &[Receipt])
-    -> Result<(), Self::Error>;
+  fn save_transaction_receipts(
+    &mut self,
+    txid: &Txid,
+    receipts: &[Receipt],
+  ) -> Result<(), Self::Error>;
 
-  fn add_transaction_receipt(&self, txid: &Txid, receipt: &Receipt) -> Result<(), Self::Error>;
+  fn add_transaction_receipt(&mut self, txid: &Txid, receipt: &Receipt) -> Result<(), Self::Error>;
 
   fn insert_transferable(
-    &self,
+    &mut self,
     script: &ScriptKey,
     tick: &Tick,
     inscription: TransferableLog,
   ) -> Result<(), Self::Error>;
 
   fn remove_transferable(
-    &self,
+    &mut self,
     script: &ScriptKey,
     tick: &Tick,
-    inscription_id: InscriptionId,
+    inscription_id: &InscriptionId,
   ) -> Result<(), Self::Error>;
 
   fn insert_inscribe_transfer_inscription(
-    &self,
-    inscription_id: InscriptionId,
+    &mut self,
+    inscription_id: &InscriptionId,
     transfer_info: TransferInfo,
   ) -> Result<(), Self::Error>;
 
   fn remove_inscribe_transfer_inscription(
-    &self,
-    inscription_id: InscriptionId,
+    &mut self,
+    inscription_id: &InscriptionId,
   ) -> Result<(), Self::Error>;
 }

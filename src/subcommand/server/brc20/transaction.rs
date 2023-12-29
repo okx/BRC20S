@@ -1,9 +1,7 @@
+use crate::index::BRC20_INSCRIBE_TRANSFER;
 use {
   super::*,
-  crate::okx::{
-    datastore::{brc20::redb as brc20_db, ScriptKey},
-    protocol::brc20 as brc20_proto,
-  },
+  crate::okx::{datastore::ScriptKey, protocol::brc20 as brc20_proto},
   axum::Json,
 };
 
@@ -160,9 +158,9 @@ fn get_operations_by_txid(
     .collect::<Vec<Inscription>>();
 
   let rtx = index.begin_read()?.0;
-  let brc20_store = brc20_db::DataStoreReader::new(&rtx);
+  let table = rtx.open_table(BRC20_INSCRIBE_TRANSFER)?;
   for operation in operations {
-    match brc20_proto::Message::resolve(&brc20_store, &new_inscriptions, &operation)? {
+    match brc20_proto::Message::resolve(&table, &new_inscriptions, &operation)? {
       None => continue,
       Some(msg) => brc20_operation_infos.push(InscriptionInfo {
         action: match msg.op {

@@ -3,9 +3,14 @@ use super::{
   *,
 };
 
-use crate::okx::datastore::brc20 as brc20_store;
-use crate::okx::datastore::ord as ord_store;
-
+use crate::okx::datastore::brc20::redb::table::{
+  add_transaction_receipt, get_balance, get_token_info, get_transferable_by_id,
+  insert_inscribe_transfer_inscription, insert_token_info, insert_transferable,
+  remove_inscribe_transfer_inscription, remove_transferable, update_mint_token_info,
+  update_token_balance,
+};
+use crate::okx::protocol::context::Context;
+use crate::okx::protocol::utils::get_inscription_number_by_id;
 use crate::{
   okx::{
     datastore::brc20::{
@@ -14,7 +19,7 @@ use crate::{
     },
     protocol::{
       brc20::{Message, Mint, Operation},
-      utils, BlockContext,
+      utils,
     },
   },
   Result,
@@ -37,24 +42,27 @@ pub struct ExecutionMessage {
 }
 
 impl ExecutionMessage {
-  pub fn from_message<O: ord_store::DataStoreReadOnly>(
-    ord_store: &O,
-    msg: &Message,
-    network: Network,
-  ) -> Result<Self> {
+  pub fn from_message(context: &mut Context, msg: &Message, network: Network) -> Result<Self> {
     Ok(Self {
       txid: msg.txid,
       inscription_id: msg.inscription_id,
-      inscription_number: utils::get_inscription_number_by_id(msg.inscription_id, ord_store)?,
+      inscription_number: get_inscription_number_by_id(
+        &context.INSCRIPTION_ID_TO_INSCRIPTION_ENTRY,
+        &msg.inscription_id,
+      )?,
       old_satpoint: msg.old_satpoint,
       new_satpoint: msg
         .new_satpoint
         .ok_or(anyhow!("new satpoint cannot be None"))?,
-      from: utils::get_script_key_on_satpoint(msg.old_satpoint, ord_store, network)?,
+      from: utils::get_script_key_on_satpoint(
+        &context.OUTPOINT_TO_ENTRY,
+        &msg.old_satpoint,
+        network,
+      )?,
       to: if msg.sat_in_outputs {
         Some(utils::get_script_key_on_satpoint(
-          msg.new_satpoint.unwrap(),
-          ord_store,
+          &context.OUTPOINT_TO_ENTRY,
+          msg.new_satpoint.as_ref().unwrap(),
           network,
         )?)
       } else {
@@ -65,22 +73,15 @@ impl ExecutionMessage {
   }
 }
 
-pub fn execute<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
-  context: BlockContext,
-  ord_store: &'a O,
-  brc20_store: &'a N,
-  msg: &ExecutionMessage,
-) -> Result<Option<Receipt>> {
+pub fn execute(context: &mut Context, msg: &ExecutionMessage) -> Result<Option<Receipt>> {
   log::debug!("BRC20 execute message: {:?}", msg);
   let event = match &msg.op {
-    Operation::Deploy(deploy) => {
-      process_deploy(context, ord_store, brc20_store, msg, deploy.clone())
-    }
-    Operation::Mint(mint) => process_mint(context, ord_store, brc20_store, msg, mint.clone()),
+    Operation::Deploy(deploy) => process_deploy(context, msg, deploy.clone()),
+    Operation::Mint(mint) => process_mint(context, msg, mint.clone()),
     Operation::InscribeTransfer(transfer) => {
-      process_inscribe_transfer(context, ord_store, brc20_store, msg, transfer.clone())
+      process_inscribe_transfer(context, msg, transfer.clone())
     }
-    Operation::Transfer(_) => process_transfer(context, ord_store, brc20_store, msg),
+    Operation::Transfer(_) => process_transfer(context, msg),
   };
 
   let receipt = Receipt {
@@ -100,28 +101,24 @@ pub fn execute<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreRea
   };
 
   log::debug!("BRC20 message receipt: {:?}", receipt);
-  brc20_store
-    .add_transaction_receipt(&msg.txid, &receipt)
+  add_transaction_receipt(&mut context.BRC20_EVENTS, &msg.txid, &receipt)
     .map_err(|e| anyhow!("failed to add transaction receipt to state! error: {e}"))?;
 
   Ok(Some(receipt))
 }
 
-fn process_deploy<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
-  context: BlockContext,
-  _ord_store: &'a O,
-  brc20_store: &'a N,
+fn process_deploy(
+  context: &mut Context,
   msg: &ExecutionMessage,
   deploy: Deploy,
-) -> Result<Event, Error<N>> {
+) -> Result<Event, Error> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = deploy.tick.parse::<Tick>()?;
 
-  if let Some(stored_tick_info) = brc20_store
-    .get_token_info(&tick)
-    .map_err(|e| Error::LedgerError(e))?
+  if let Some(stored_tick_info) =
+    get_token_info(&context.BRC20_TOKEN, &tick).map_err(|e| Error::LedgerError(e))?
   {
     return Err(Error::BRC20Error(BRC20Error::DuplicateTick(
       stored_tick_info.tick.to_string(),
@@ -170,12 +167,11 @@ fn process_deploy<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStore
     limit_per_mint: limit,
     minted: 0u128,
     deploy_by: to_script_key,
-    deployed_number: context.blockheight,
-    latest_mint_number: context.blockheight,
-    deployed_timestamp: context.blocktime,
+    deployed_number: context.chain.blockheight,
+    latest_mint_number: context.chain.blockheight,
+    deployed_timestamp: context.chain.blocktime,
   };
-  brc20_store
-    .insert_token_info(&tick, &new_info)
+  insert_token_info(&mut context.BRC20_TOKEN, &tick, &new_info)
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(Event::Deploy(DeployEvent {
@@ -186,20 +182,13 @@ fn process_deploy<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStore
   }))
 }
 
-fn process_mint<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
-  context: BlockContext,
-  _ord_store: &'a O,
-  brc20_store: &'a N,
-  msg: &ExecutionMessage,
-  mint: Mint,
-) -> Result<Event, Error<N>> {
+fn process_mint(context: &mut Context, msg: &ExecutionMessage, mint: Mint) -> Result<Event, Error> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = mint.tick.parse::<Tick>()?;
 
-  let token_info = brc20_store
-    .get_token_info(&tick)
+  let token_info = get_token_info(&context.BRC20_TOKEN, &tick)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC20Error::TickNotFound(tick.to_string()))?;
 
@@ -245,8 +234,7 @@ fn process_mint<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreRe
   };
 
   // get or initialize user balance.
-  let mut balance = brc20_store
-    .get_balance(&to_script_key, &tick)
+  let mut balance = get_balance(&context.BRC20_BALANCES, &to_script_key, &tick)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(&tick), |v| v);
 
@@ -256,15 +244,18 @@ fn process_mint<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreRe
     .checked_to_u128()?;
 
   // store to database.
-  brc20_store
-    .update_token_balance(&to_script_key, balance)
+  update_token_balance(&mut context.BRC20_BALANCES, &to_script_key, balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   // update token minted.
   let minted = minted.checked_add(&amt)?.checked_to_u128()?;
-  brc20_store
-    .update_mint_token_info(&tick, minted, context.blockheight)
-    .map_err(|e| Error::LedgerError(e))?;
+  update_mint_token_info(
+    &mut context.BRC20_TOKEN,
+    &tick,
+    minted,
+    context.chain.blockheight,
+  )
+  .map_err(|e| Error::LedgerError(e))?;
 
   Ok(Event::Mint(MintEvent {
     tick: token_info.tick,
@@ -273,24 +264,17 @@ fn process_mint<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreRe
   }))
 }
 
-fn process_inscribe_transfer<
-  'a,
-  O: ord_store::DataStoreReadOnly,
-  N: brc20_store::DataStoreReadWrite,
->(
-  _context: BlockContext,
-  _ord_store: &'a O,
-  brc20_store: &'a N,
+fn process_inscribe_transfer(
+  context: &mut Context,
   msg: &ExecutionMessage,
   transfer: Transfer,
-) -> Result<Event, Error<N>> {
+) -> Result<Event, Error> {
   // ignore inscribe inscription to coinbase.
   let to_script_key = msg.to.clone().ok_or(BRC20Error::InscribeToCoinbase)?;
 
   let tick = transfer.tick.parse::<Tick>()?;
 
-  let token_info = brc20_store
-    .get_token_info(&tick)
+  let token_info = get_token_info(&context.BRC20_TOKEN, &tick)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC20Error::TickNotFound(tick.to_string()))?;
 
@@ -311,8 +295,7 @@ fn process_inscribe_transfer<
     )));
   }
 
-  let mut balance = brc20_store
-    .get_balance(&to_script_key, &tick)
+  let mut balance = get_balance(&context.BRC20_BALANCES, &to_script_key, &tick)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(&tick), |v| v);
 
@@ -329,8 +312,7 @@ fn process_inscribe_transfer<
   balance.transferable_balance = transferable.checked_add(&amt)?.checked_to_u128()?;
 
   let amt = amt.checked_to_u128()?;
-  brc20_store
-    .update_token_balance(&to_script_key, balance)
+  update_token_balance(&mut context.BRC20_BALANCES, &to_script_key, balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   let inscription = TransferableLog {
@@ -340,36 +322,40 @@ fn process_inscribe_transfer<
     tick: token_info.tick.clone(),
     owner: to_script_key,
   };
-  brc20_store
-    .insert_transferable(&inscription.owner, &tick, inscription.clone())
-    .map_err(|e| Error::LedgerError(e))?;
 
-  brc20_store
-    .insert_inscribe_transfer_inscription(
-      msg.inscription_id,
-      TransferInfo {
-        tick: token_info.tick,
-        amt,
-      },
-    )
-    .map_err(|e| Error::LedgerError(e))?;
+  let tick = inscription.tick.clone();
+  insert_transferable(
+    &mut context.BRC20_TRANSFERABLELOG,
+    &inscription.owner.clone(),
+    &tick,
+    inscription,
+  )
+  .map_err(|e| Error::LedgerError(e))?;
+
+  insert_inscribe_transfer_inscription(
+    &mut context.BRC20_INSCRIBE_TRANSFER,
+    &msg.inscription_id,
+    TransferInfo {
+      tick: token_info.tick,
+      amt,
+    },
+  )
+  .map_err(|e| Error::LedgerError(e))?;
 
   Ok(Event::InscribeTransfer(InscripbeTransferEvent {
-    tick: inscription.tick,
+    tick,
     amount: amt,
   }))
 }
 
-fn process_transfer<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataStoreReadWrite>(
-  _context: BlockContext,
-  _ord_store: &'a O,
-  brc20_store: &'a N,
-  msg: &ExecutionMessage,
-) -> Result<Event, Error<N>> {
-  let transferable = brc20_store
-    .get_transferable_by_id(&msg.from, &msg.inscription_id)
-    .map_err(|e| Error::LedgerError(e))?
-    .ok_or(BRC20Error::TransferableNotFound(msg.inscription_id))?;
+fn process_transfer(context: &mut Context, msg: &ExecutionMessage) -> Result<Event, Error> {
+  let transferable = get_transferable_by_id(
+    &context.BRC20_TRANSFERABLELOG,
+    &msg.from,
+    &msg.inscription_id,
+  )
+  .map_err(|e| Error::LedgerError(e))?
+  .ok_or(BRC20Error::TransferableNotFound(msg.inscription_id))?;
 
   let amt = Into::<Num>::into(transferable.amount);
 
@@ -381,14 +367,12 @@ fn process_transfer<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataSto
 
   let tick = transferable.tick;
 
-  let token_info = brc20_store
-    .get_token_info(&tick)
+  let token_info = get_token_info(&context.BRC20_TOKEN, &tick)
     .map_err(|e| Error::LedgerError(e))?
     .ok_or(BRC20Error::TickNotFound(tick.to_string()))?;
 
   // update from key balance.
-  let mut from_balance = brc20_store
-    .get_balance(&msg.from, &tick)
+  let mut from_balance = get_balance(&context.BRC20_BALANCES, &msg.from, &tick)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(&tick), |v| v);
 
@@ -401,8 +385,7 @@ fn process_transfer<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataSto
   from_balance.overall_balance = from_overall;
   from_balance.transferable_balance = from_transferable;
 
-  brc20_store
-    .update_token_balance(&msg.from, from_balance)
+  update_token_balance(&mut context.BRC20_BALANCES, &msg.from, from_balance)
     .map_err(|e| Error::LedgerError(e))?;
 
   // redirect receiver to sender if transfer to conibase.
@@ -417,24 +400,25 @@ fn process_transfer<'a, O: ord_store::DataStoreReadOnly, N: brc20_store::DataSto
   };
 
   // update to key balance.
-  let mut to_balance = brc20_store
-    .get_balance(&to_script_key, &tick)
+  let mut to_balance = get_balance(&context.BRC20_BALANCES, &to_script_key, &tick)
     .map_err(|e| Error::LedgerError(e))?
     .map_or(Balance::new(&tick), |v| v);
 
   let to_overall = Into::<Num>::into(to_balance.overall_balance);
   to_balance.overall_balance = to_overall.checked_add(&amt)?.checked_to_u128()?;
 
-  brc20_store
-    .update_token_balance(&to_script_key, to_balance)
+  update_token_balance(&mut context.BRC20_BALANCES, &to_script_key, to_balance)
     .map_err(|e| Error::LedgerError(e))?;
 
-  brc20_store
-    .remove_transferable(&msg.from, &tick, msg.inscription_id)
-    .map_err(|e| Error::LedgerError(e))?;
+  remove_transferable(
+    &mut context.BRC20_TRANSFERABLELOG,
+    &msg.from,
+    &tick,
+    &msg.inscription_id,
+  )
+  .map_err(|e| Error::LedgerError(e))?;
 
-  brc20_store
-    .remove_inscribe_transfer_inscription(msg.inscription_id)
+  remove_inscribe_transfer_inscription(&mut context.BRC20_INSCRIBE_TRANSFER, &msg.inscription_id)
     .map_err(|e| Error::LedgerError(e))?;
 
   Ok(Event::Transfer(TransferEvent {

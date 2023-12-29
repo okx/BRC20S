@@ -1,34 +1,38 @@
-use crate::{
-  okx::datastore::{ord::DataStoreReadOnly, ScriptKey},
-  InscriptionId, Result, SatPoint,
+use crate::index::{InscriptionEntryValue, InscriptionIdValue, OutPointValue};
+use crate::okx::datastore::ord::redb::table::{
+  get_number_by_inscription_id, get_txout_by_outpoint,
 };
+use crate::{okx::datastore::ScriptKey, InscriptionId, SatPoint};
 use anyhow::anyhow;
 use bitcoin::Network;
+use redb::ReadableTable;
 
-pub(super) fn get_script_key_on_satpoint<O: DataStoreReadOnly>(
-  satpoint: SatPoint,
-  ord_store: &O,
+pub(super) fn get_script_key_on_satpoint<T>(
+  table: &T,
+  satpoint: &SatPoint,
   network: Network,
-) -> Result<ScriptKey> {
-  Ok(ScriptKey::from_script(
-    &ord_store
-      .get_outpoint_to_txout(satpoint.outpoint)
-      .map_err(|e| anyhow!("failed to get tx out from state! error: {e}",))?
-      .ok_or(anyhow!(
-        "failed to get tx out! error: outpoint {} not found",
-        satpoint.outpoint
-      ))?
-      .script_pubkey,
-    network,
-  ))
+) -> crate::Result<ScriptKey>
+where
+  T: ReadableTable<&'static OutPointValue, &'static [u8]>,
+{
+  if let Some(tx_out) = get_txout_by_outpoint(table, &satpoint.outpoint)? {
+    Ok(ScriptKey::from_script(&tx_out.script_pubkey, network))
+  } else {
+    Err(anyhow!(
+      "failed to get tx out! error: outpoint {} not found",
+      &satpoint.outpoint
+    ))
+  }
 }
 
-pub(super) fn get_inscription_number_by_id<O: DataStoreReadOnly>(
-  inscription_id: InscriptionId,
-  ord_store: &O,
-) -> Result<i64> {
-  ord_store
-    .get_number_by_inscription_id(inscription_id)
+pub(super) fn get_inscription_number_by_id<T>(
+  table: &T,
+  inscription_id: &InscriptionId,
+) -> crate::Result<i64>
+where
+  T: ReadableTable<&'static InscriptionIdValue, InscriptionEntryValue>,
+{
+  get_number_by_inscription_id(table, inscription_id)
     .map_err(|e| anyhow!("failed to get inscription number from state! error: {e}"))?
     .ok_or(anyhow!(
       "failed to get inscription number! error: inscription id {} not found",

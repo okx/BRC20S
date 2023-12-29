@@ -88,6 +88,8 @@ pub(crate) struct Options {
     help = "Don't prase BRCZero messages below <FIRST_BRCZERO_HEIGHT>."
   )]
   pub(crate) first_brczero_height: Option<u64>,
+  #[arg(long, default_value = "false", help = "Enable async mode")]
+  pub(crate) enable_async: bool,
 }
 
 #[derive(Debug, Clone)]

@@ -101,7 +101,7 @@ impl<'index> Updater<'_> {
         &mut tx_out_receiver,
         &mut wtx,
         block,
-        false,
+        self.index.options.enable_async,
       )?;
 
       if let Some(progress_bar) = &mut progress_bar {

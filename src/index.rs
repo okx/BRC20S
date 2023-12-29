@@ -893,7 +893,7 @@ impl Index {
   ) -> Result<Option<TxOut>> {
     Self::transaction_output_by_outpoint(
       &self.database.begin_read()?.open_table(OUTPOINT_TO_ENTRY)?,
-      outpoint,
+      &outpoint,
     )
   }
 
@@ -1405,7 +1405,7 @@ impl Index {
 
   pub(crate) fn transaction_output_by_outpoint(
     outpoint_to_entry: &impl ReadableTable<&'static OutPointValue, &'static [u8]>,
-    outpoint: OutPoint,
+    outpoint: &OutPoint,
   ) -> Result<Option<TxOut>> {
     Ok(
       outpoint_to_entry

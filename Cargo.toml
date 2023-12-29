@@ -65,6 +65,7 @@ bigdecimal = "0.3.1"
 shadow-rs = "0.21.0"
 utoipa = { version = "3.4.4", features = ["axum_extras"] }
 utoipa-redoc = { version = "0.1.0", features = ["axum"] }
+rayon = "1.8.0"
 
 [dev-dependencies]
 executable-path = "1.0.0"

@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use {
   self::inscription_updater::InscriptionUpdater,
   super::{fetcher::Fetcher, *},
@@ -89,13 +90,16 @@ impl<'index> Updater<'_> {
     let (mut outpoint_sender, mut tx_out_receiver) = Self::spawn_fetcher(self.index)?;
 
     let mut uncommitted = 0;
+    let mut tx_out_cache = HashMap::new();
     while let Ok(block) = rx.recv() {
+      log::info!("tx_out_cache size: {}", tx_out_cache.len());
       self.index_block(
         self.index,
         &mut outpoint_sender,
         &mut tx_out_receiver,
         &mut wtx,
         block,
+        &mut tx_out_cache,
       )?;
 
       if let Some(progress_bar) = &mut progress_bar {
@@ -316,6 +320,7 @@ impl<'index> Updater<'_> {
     tx_out_receiver: &mut Receiver<TxOut>,
     wtx: &mut WriteTransaction,
     block: BlockData,
+    tx_out_cache: &mut HashMap<OutPoint, TxOut>,
   ) -> Result<()> {
     Reorg::detect_reorg(&block, self.height, self.index)?;
 
@@ -333,8 +338,11 @@ impl<'index> Updater<'_> {
 
     let index_inscriptions = self.height >= index.first_inscription_height;
 
-    let mut fetching_outputs_count = 0;
-    let mut total_outputs_count = 0;
+    let fetching_outputs_count = AtomicUsize::new(0);
+    let total_outputs_count = AtomicUsize::new(0);
+    let cache_outputs_count = AtomicUsize::new(0);
+    let miss_outputs_count = AtomicUsize::new(0);
+    let meet_outputs_count = AtomicUsize::new(0);
     if index_inscriptions {
       // Send all missing input outpoints to be fetched right away
       let txids = block
@@ -342,40 +350,54 @@ impl<'index> Updater<'_> {
         .iter()
         .map(|(_, txid)| txid)
         .collect::<HashSet<_>>();
-      for (tx, _) in &block.txdata {
-        for input in &tx.input {
-          total_outputs_count += 1u64;
+
+      use rayon::prelude::*;
+      let tx_outs = block
+        .txdata
+        .par_iter()
+        .flat_map(|(tx, _)| tx.input.par_iter())
+        .filter_map(|input| {
+          total_outputs_count.fetch_add(1, Ordering::Relaxed);
           let prev_output = input.previous_output;
           // We don't need coinbase input value
           if prev_output.is_null() {
-            continue;
+            None
+          } else if txids.contains(&prev_output.txid) {
+            meet_outputs_count.fetch_add(1, Ordering::Relaxed);
+            None
+          } else if tx_out_cache.contains_key(&prev_output) {
+            cache_outputs_count.fetch_add(1, Ordering::Relaxed);
+            None
+          } else if let Some(txout) =
+            Index::transaction_output_by_outpoint(&outpoint_to_entry, &prev_output).unwrap()
+          {
+            miss_outputs_count.fetch_add(1, Ordering::Relaxed);
+            Some((prev_output, txout))
+          } else {
+            fetching_outputs_count.fetch_add(1, Ordering::Relaxed);
+            outpoint_sender.blocking_send(prev_output).unwrap();
+            None
           }
-          // We don't need input values from txs earlier in the block, since they'll be added to value_cache
-          // when the tx is indexed
-          if txids.contains(&prev_output.txid) {
-            continue;
-          }
-          // We don't need input values we already have in our outpoint_to_entry table from earlier blocks that
-          // were committed to db already
-          if outpoint_to_entry.get(&prev_output.store())?.is_some() {
-            continue;
-          }
-          // We don't know the value of this tx input. Send this outpoint to background thread to be fetched
-          outpoint_sender.blocking_send(prev_output)?;
-          fetching_outputs_count += 1u64;
-        }
+        })
+        .collect::<Vec<_>>();
+      for (out_point, tx_out) in tx_outs.into_iter() {
+        tx_out_cache.insert(out_point, tx_out);
       }
     }
 
     let time = timestamp(block.header.time);
 
     log::info!(
-      "Block {} at {} with {} transactions, fetching previous outputs {}/{}…",
+      "Block {} at {} with {} transactions, fetching previous outputs {}/{}…, {},{},{}, cost:{}ms",
       self.height,
       time,
       block.txdata.len(),
-      fetching_outputs_count,
-      total_outputs_count,
+      fetching_outputs_count.load(Ordering::Relaxed),
+      total_outputs_count.load(Ordering::Relaxed),
+      miss_outputs_count.load(Ordering::Relaxed),
+      meet_outputs_count.load(Ordering::Relaxed),
+      cache_outputs_count.load(Ordering::Relaxed),
+      start.elapsed().as_millis(),
     );
 
     let mut height_to_block_hash = wtx.open_table(HEIGHT_TO_BLOCK_HASH)?;
@@ -402,8 +424,9 @@ impl<'index> Updater<'_> {
       .map(|unbound_inscriptions| unbound_inscriptions.value())
       .unwrap_or(0);
 
-    let mut tx_out_cache = HashMap::new();
+    let mut operations = HashMap::new();
     let mut inscription_updater = InscriptionUpdater::new(
+      &mut operations,
       self.height,
       &mut inscription_id_to_children,
       &mut inscription_id_to_satpoint,
@@ -417,7 +440,7 @@ impl<'index> Updater<'_> {
       &mut satpoint_to_inscription_id,
       block.header.time,
       unbound_inscriptions,
-      &mut tx_out_cache,
+      tx_out_cache,
     )?;
 
     if self.index_sats {
@@ -524,14 +547,8 @@ impl<'index> Updater<'_> {
 
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
-    let operations = inscription_updater.operations.clone();
 
-    // write tx_out to outpoint_to_entry table.
-    for (outpoint, tx_out) in tx_out_cache {
-      let mut entry = Vec::new();
-      tx_out.consensus_encode(&mut entry)?;
-      outpoint_to_entry.insert(&outpoint.store(), entry.as_slice())?;
-    }
+    inscription_updater.flush_cache()?;
 
     // Create a protocol manager to index the block of brc20 data.
     let config = ProtocolConfig::new_with_options(&index.options);

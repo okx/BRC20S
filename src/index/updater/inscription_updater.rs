@@ -27,7 +27,7 @@ enum Origin {
 
 pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   flotsam: Vec<Flotsam>,
-  pub(super) operations: HashMap<Txid, Vec<InscriptionOp>>,
+  pub(super) operations: &'a mut HashMap<Txid, Vec<InscriptionOp>>,
   height: u64,
   id_to_children:
     &'a mut MultimapTable<'db, 'tx, &'static InscriptionIdValue, &'static InscriptionIdValue>,
@@ -47,10 +47,12 @@ pub(super) struct InscriptionUpdater<'a, 'db, 'tx> {
   timestamp: u32,
   pub(super) unbound_inscriptions: u64,
   tx_out_cache: &'a mut HashMap<OutPoint, TxOut>,
+  tx_out_cache_new: HashMap<OutPoint, (TxOut, bool)>,
 }
 
 impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
   pub(super) fn new(
+    operations: &'a mut HashMap<Txid, Vec<InscriptionOp>>,
     height: u64,
     id_to_children: &'a mut MultimapTable<
       'db,
@@ -92,7 +94,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
     Ok(Self {
       flotsam: Vec::new(),
-      operations: HashMap::new(),
+      operations,
       height,
       id_to_children,
       id_to_satpoint,
@@ -110,6 +112,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       timestamp,
       unbound_inscriptions,
       tx_out_cache,
+      tx_out_cache_new: HashMap::new(),
     })
   }
 
@@ -156,25 +159,24 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       let offset = total_input_value;
 
       // multi-level cache for UTXO set to get to the input amount
-      let current_input_value = if let Some(tx_out) = self.tx_out_cache.get(&tx_in.previous_output)
-      {
-        tx_out.value
-      } else if let Some(tx_out) =
-        Index::transaction_output_by_outpoint(self.outpoint_to_entry, tx_in.previous_output)?
-      {
-        tx_out.value
-      } else {
-        let tx_out = self.tx_out_receiver.blocking_recv().ok_or_else(|| {
-          anyhow!(
-            "failed to get transaction for {}",
-            tx_in.previous_output.txid
-          )
-        })?;
-        self
-          .tx_out_cache
-          .insert(tx_in.previous_output, tx_out.clone());
-        tx_out.value
-      };
+      let current_input_value =
+        if let Some(tx_out) = self.tx_out_cache.remove(&tx_in.previous_output) {
+          tx_out.value
+        } else if let Some(tx_out) = self.tx_out_cache_new.get_mut(&tx_in.previous_output) {
+          tx_out.1 = true;
+          tx_out.0.value
+        } else {
+          let tx_out = self.tx_out_receiver.blocking_recv().ok_or_else(|| {
+            anyhow!(
+              "failed to get transaction for {}",
+              tx_in.previous_output.txid
+            )
+          })?;
+          self
+            .tx_out_cache_new
+            .insert(tx_in.previous_output, (tx_out.clone(), false));
+          tx_out.value
+        };
 
       total_input_value += current_input_value;
 
@@ -373,12 +375,22 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
       output_value = end;
 
+      #[cfg(feature = "cache")]
       self.tx_out_cache.insert(
         OutPoint {
           vout: vout.try_into().unwrap(),
           txid,
         },
         tx_out.clone(),
+      );
+
+      #[cfg(not(feature = "cache"))]
+      self.tx_out_cache_new.insert(
+        OutPoint {
+          vout: vout.try_into().unwrap(),
+          txid,
+        },
+        (tx_out.clone(), false),
       );
     }
 
@@ -400,6 +412,26 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       self.reward += total_input_value - output_value;
       Ok(())
     }
+  }
+
+  // write tx_out to outpoint_to_entry table
+  pub(super) fn flush_cache(&mut self) -> Result {
+    let total = self.tx_out_cache_new.len();
+    let mut count = 0;
+    let mut entry = Vec::new();
+    for (outpoint, tx_out) in self.tx_out_cache_new.drain() {
+      tx_out.0.consensus_encode(&mut entry)?;
+      self
+        .outpoint_to_entry
+        .insert(&outpoint.store(), entry.as_slice())?;
+      entry.clear();
+      if !tx_out.1 {
+        count += 1;
+        self.tx_out_cache.insert(outpoint, tx_out.0);
+      }
+    }
+    log::info!("flush cache, cache and persist: {}/{}", count, total);
+    Ok(())
   }
 
   fn calculate_sat(

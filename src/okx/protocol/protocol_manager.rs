@@ -59,7 +59,7 @@ impl<'a> ProtocolManager<'a> {
           let start = Instant::now();
           save_transaction_operations(&mut context.ORD_TX_TO_OPERATIONS, txid, tx_operations)?;
           inscriptions_size += tx_operations.len();
-          cost1 += Instant::now.saturating_duration_since(&start).as_millis();
+          cost1 += Instant::now().saturating_duration_since(start).as_millis();
         }
 
         let start = Instant::now();
@@ -67,12 +67,13 @@ impl<'a> ProtocolManager<'a> {
         let messages = self
           .resolve_man
           .resolve_message(context, tx, tx_operations)?;
-        cost2 += Instant::now.saturating_duration_since(&start).as_millis();
+        cost2 += Instant::now().saturating_duration_since(start).as_millis();
+
         let start = Instant::now();
         for msg in messages.iter() {
           self.call_man.execute_message(context, msg)?;
         }
-        cost3 += Instant::now.saturating_duration_since(&start).as_millis();
+        cost3 += Instant::now().saturating_duration_since(start).as_millis();
         messages_size += messages.len();
       }
     }

@@ -435,7 +435,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       "flush cache, cache and persist: {}/{}, cost: {}ms",
       count,
       total,
-      Instant::now().saturating_duration_since(&start).as_millis()
+      Instant::now().saturating_duration_since(start).as_millis()
     );
     Ok(())
   }

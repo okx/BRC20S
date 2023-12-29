@@ -908,6 +908,47 @@ impl Index {
     }
   }
 
+  pub(crate) fn get_tx_out_retries(
+    client: &Client,
+    txid: Txid,
+    vout: u32,
+  ) -> Result<Option<TxOut>> {
+    let mut errors = 0;
+    loop {
+      match client.get_tx_out(&txid, vout, Some(false)).into_option() {
+        Err(err) => {
+          if cfg!(test) {
+            return Err(err);
+          }
+          errors += 1;
+          let seconds = 1 << errors;
+          log::warn!("failed to fetch transaction {txid}, retrying in {seconds}s: {err}");
+
+          if seconds > 120 {
+            log::error!("would sleep for more than 120s, giving up");
+            return Err(err);
+          }
+
+          thread::sleep(Duration::from_secs(seconds));
+        }
+        Ok(result) => {
+          return Ok(
+            result
+              .flatten()
+              .map(|r| match r.script_pub_key.script() {
+                Ok(script_pubkey) => Ok(TxOut {
+                  value: r.value.to_sat(),
+                  script_pubkey,
+                }),
+                Err(err) => Err(err),
+              })
+              .transpose()?,
+          );
+        }
+      }
+    }
+  }
+
   pub(crate) fn get_transaction_blockhash(&self, txid: Txid) -> Result<Option<BlockHash>> {
     Ok(
       self

@@ -96,7 +96,9 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
               sender.send(m)?;
               messages_size += 1;
               Ok(())
-            })
+            })?;
+          std::mem::drop(sender);
+          Ok::<(), crate::Error>(())
         });
         s.spawn(move || {
           while let Ok(msg) = rx.recv() {

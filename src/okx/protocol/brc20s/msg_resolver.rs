@@ -119,14 +119,11 @@ fn get_commit_input_satpoint<O: ord::DataStoreReadOnly>(
       .map_err(|e| anyhow!("failed to get tx out from state! error: {e}"))?
     {
       tx_out.value
-    } else if let Some(tx_out) = Index::get_transaction_retries(client, input.previous_output.txid)?
-      .map(|tx| {
-        tx.output
-          .get(usize::try_from(input.previous_output.vout).unwrap())
-          .unwrap()
-          .clone()
-      })
-    {
+    } else if let Some(tx_out) = Index::get_tx_out_retries(
+      client,
+      input.previous_output.txid,
+      input.previous_output.vout,
+    )? {
       outpoint_to_txout_cache.insert(input.previous_output, tx_out.clone());
       tx_out.value
     } else {

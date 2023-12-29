@@ -52,21 +52,19 @@ impl Inscription {
   pub(crate) fn from_transaction(tx: &Transaction) -> Vec<TransactionInscription> {
     let mut result = Vec::new();
     for (index, tx_in) in tx.input.iter().enumerate() {
-      let Ok(inscriptions) = InscriptionParser::parse(&tx_in.witness) else {
-        continue;
-      };
-
-      result.extend(
-        inscriptions
-          .into_iter()
-          .enumerate()
-          .map(|(offset, inscription)| TransactionInscription {
-            inscription,
-            tx_in_index: u32::try_from(index).unwrap(),
-            tx_in_offset: u32::try_from(offset).unwrap(),
-          })
-          .collect::<Vec<TransactionInscription>>(),
-      )
+      if let Ok(inscriptions) = InscriptionParser::parse(&tx_in.witness) {
+        result.extend(
+          inscriptions
+            .into_iter()
+            .enumerate()
+            .map(|(offset, inscription)| TransactionInscription {
+              inscription,
+              tx_in_index: u32::try_from(index).unwrap(),
+              tx_in_offset: u32::try_from(offset).unwrap(),
+            })
+            .collect::<Vec<TransactionInscription>>(),
+        )
+      }
     }
 
     result

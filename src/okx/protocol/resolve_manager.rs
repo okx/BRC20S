@@ -19,7 +19,7 @@ impl<'a> MsgResolveManager<'a> {
 
   pub fn resolve_message(
     &self,
-    context: &mut Context,
+    context: &Context,
     tx: &Transaction,
     operations: &[InscriptionOp],
   ) -> Result<Vec<Message>> {

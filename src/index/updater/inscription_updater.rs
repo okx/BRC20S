@@ -416,6 +416,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
   // write tx_out to outpoint_to_entry table
   pub(super) fn flush_cache(&mut self) -> Result {
+    let start = Instant::now();
     let total = self.tx_out_cache_new.len();
     let mut count = 0;
     let mut entry = Vec::new();
@@ -430,7 +431,12 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         self.tx_out_cache.insert(outpoint, tx_out.0);
       }
     }
-    log::info!("flush cache, cache and persist: {}/{}", count, total);
+    log::info!(
+      "flush cache, cache and persist: {}/{}, cost: {}ms",
+      count,
+      total,
+      Instant::now().saturating_duration_since(&start).as_millis()
+    );
     Ok(())
   }
 

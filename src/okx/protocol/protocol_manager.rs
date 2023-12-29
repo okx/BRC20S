@@ -36,6 +36,9 @@ impl<'a> ProtocolManager<'a> {
     let start = Instant::now();
     let mut inscriptions_size = 0;
     let mut messages_size = 0;
+    let mut cost1 = 0u128;
+    let mut cost2 = 0u128;
+    let mut cost3 = 0u128;
     // skip the coinbase transaction.
     for (tx, txid) in block.txdata.iter() {
       // skip coinbase transaction.
@@ -53,17 +56,23 @@ impl<'a> ProtocolManager<'a> {
         if self.config.enable_ord_receipts
           && context.chain.blockheight >= self.config.first_inscription_height
         {
+          let start = Instant::now();
           save_transaction_operations(&mut context.ORD_TX_TO_OPERATIONS, txid, tx_operations)?;
           inscriptions_size += tx_operations.len();
+          cost1 += Instant::now.saturating_duration_since(&start).as_millis();
         }
 
+        let start = Instant::now();
         // Resolve and execute messages.
         let messages = self
           .resolve_man
           .resolve_message(context, tx, tx_operations)?;
+        cost2 += Instant::now.saturating_duration_since(&start).as_millis();
+        let start = Instant::now();
         for msg in messages.iter() {
           self.call_man.execute_message(context, msg)?;
         }
+        cost3 += Instant::now.saturating_duration_since(&start).as_millis();
         messages_size += messages.len();
       }
     }
@@ -73,12 +82,15 @@ impl<'a> ProtocolManager<'a> {
     }
 
     log::info!(
-      "Protocol Manager indexed block {} with ord inscriptions {}, messages {}, bitmap {} in {} ms",
+      "Protocol Manager indexed block {} with ord inscriptions {}, messages {}, bitmap {} in {} ms, {}, {}, {}",
       context.chain.blockheight,
       inscriptions_size,
       messages_size,
       bitmap_count,
       (Instant::now() - start).as_millis(),
+      cost1,
+      cost2,
+      cost3,
     );
     Ok(())
   }

@@ -157,12 +157,16 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
         operations
       }
       ExecuteMode::Async(operation_receiver) => {
-        let mut block_iter = block.txdata.iter();
+        // let mut block_iter = block.txdata.iter();
         let mut operations = std::collections::HashMap::new();
 
         // index inscription operations.
         while let Ok((tx_id, tx_operations)) = operation_receiver.recv() {
-          let (tx, txid) = block_iter.find(|(_, txid)| &tx_id == txid).unwrap();
+          let (tx, _) = block
+            .txdata
+            .iter()
+            .find(|(_, txid)| &tx_id == txid)
+            .unwrap();
 
           if tx
             .input
@@ -174,7 +178,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
             continue;
           }
 
-          let result = self.index_tx(context, txid, tx, &tx_operations, &block_hash, true)?;
+          let result = self.index_tx(context, &tx_id, tx, &tx_operations, &block_hash, true)?;
 
           block_result.update(result);
           operations.insert(tx_id, tx_operations);

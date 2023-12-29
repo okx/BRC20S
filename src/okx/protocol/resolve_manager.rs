@@ -1,3 +1,4 @@
+use crate::okx::datastore::ScriptKey;
 use bitcoin::BlockHash;
 use {
   super::*,
@@ -137,6 +138,7 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
     tx: &Transaction,
     operations: &Vec<InscriptionOp>,
     block_hash: &BlockHash,
+    tx_out_cache: Option<&HashMap<OutPoint, TxOut>>,
   ) -> Result<Vec<BrcZeroMsg>> {
     log::debug!(
       "Resolve Inscription indexed transaction {}, operations size: {}, data: {:?}",
@@ -183,17 +185,25 @@ impl<'a, RW: StateRWriter> MsgResolveManager<'a, RW> {
             let des_res = deserialize_inscription(&inscription);
             match des_res {
               Ok(content) => {
-                let commit_input_satpoint = get_commit_input_satpoint(
-                  self.client,
-                  self.state_store.ord(),
-                  operation.old_satpoint,
-                  &mut outpoint_to_txout_cache,
-                )?;
-                sender = utils::get_script_key_on_satpoint(
-                  commit_input_satpoint,
-                  self.state_store.ord(),
-                  context.network,
-                )?
+                sender = if let Some(tx_out) = tx_out_cache
+                  .map(|c| c.get(&operation.old_satpoint.outpoint))
+                  .flatten()
+                {
+                  ScriptKey::from_script(&tx_out.script_pubkey, context.network)
+                } else {
+                  let commit_input_outpoint = get_commit_input_satpoint(
+                    self.client,
+                    self.state_store.ord(),
+                    operation.old_satpoint,
+                    &mut outpoint_to_txout_cache,
+                  )?
+                  .outpoint;
+                  utils::get_script_key_on_out_point(
+                    commit_input_outpoint,
+                    self.state_store.ord(),
+                    context.network,
+                  )?
+                }
                 .to_string();
                 self.state_store.ord().save_inscription_with_id(&operation.inscription_id,&inscription).map_err(|e| {
                   anyhow!("failed to set inscription with id in ordinals operations to state! error: {e}")

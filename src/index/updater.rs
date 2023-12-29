@@ -323,7 +323,7 @@ impl<'index> Updater<'_> {
     wtx: &WriteTransaction,
     block: &BlockData,
     op_sender: Option<std::sync::mpsc::Sender<(Txid, Vec<InscriptionOp>)>>,
-  ) -> Result<HashMap<Txid, Vec<InscriptionOp>>> {
+  ) -> Result<(HashMap<Txid, Vec<InscriptionOp>>, HashMap<OutPoint, TxOut>)> {
     log::info!("start index_block ord {}", self.height);
     let start = Instant::now();
     let mut sat_ranges_written = 0;
@@ -534,7 +534,7 @@ impl<'index> Updater<'_> {
     let operations = inscription_updater.operations;
 
     // write tx_out to outpoint_to_entry table.
-    for (outpoint, tx_out) in tx_out_cache {
+    for (outpoint, tx_out) in &tx_out_cache {
       let mut entry = Vec::new();
       tx_out.consensus_encode(&mut entry)?;
       outpoint_to_entry.insert(&outpoint.store(), entry.as_slice())?;
@@ -552,7 +552,7 @@ impl<'index> Updater<'_> {
       (Instant::now() - start).as_millis(),
     );
 
-    Ok(operations)
+    Ok((operations, tx_out_cache))
   }
 
   fn index_block(
@@ -569,7 +569,7 @@ impl<'index> Updater<'_> {
     Reorg::detect_reorg(&block, self.height, self.index)?;
 
     if !enable_async {
-      let operations =
+      let (operations, tx_out_cache) =
         self.index_block_ord(index, outpoint_sender, tx_out_receiver, wtx, &block, None)?;
 
       // Create a protocol manager to index the block of brc20, brc20s data.
@@ -582,6 +582,7 @@ impl<'index> Updater<'_> {
         },
         &block,
         ExecuteMode::Sync(operations),
+        Some(tx_out_cache),
       )?;
     } else {
       let (tx, rx) = std::sync::mpsc::channel::<(Txid, Vec<InscriptionOp>)>();
@@ -611,6 +612,7 @@ impl<'index> Updater<'_> {
             },
             &block,
             ExecuteMode::Async(rx),
+            None,
           )
         });
       });

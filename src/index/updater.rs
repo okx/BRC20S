@@ -400,6 +400,7 @@ impl<'index> Updater<'_> {
       start.elapsed().as_millis(),
     );
 
+    let tick = Instant::now();
     let mut height_to_block_hash = wtx.open_table(HEIGHT_TO_BLOCK_HASH)?;
     let mut height_to_last_inscription_number =
       wtx.open_table(HEIGHT_TO_LAST_INSCRIPTION_NUMBER)?;
@@ -538,18 +539,24 @@ impl<'index> Updater<'_> {
         inscription_updater.index_transaction_inscriptions(tx, *txid, None)?;
       }
     }
+    let cost1 = tick.elapsed().as_millis();
 
+    let tick = Instant::now();
     self.index_block_inscription_numbers(
       &mut height_to_last_inscription_number,
       &inscription_updater,
       index_inscriptions,
     )?;
+    let cost2 = tick.elapsed().as_millis();
 
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
+    let tick = Instant::now();
     inscription_updater.flush_cache()?;
+    let cost3 = tick.elapsed().as_millis();
 
+    let tick = Instant::now();
     // Create a protocol manager to index the block of brc20 data.
     let config = ProtocolConfig::new_with_options(&index.options);
     ProtocolManager::new(&config).index_block(
@@ -580,13 +587,18 @@ impl<'index> Updater<'_> {
     statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
 
     height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
+    let cost4 = tick.elapsed().as_millis();
 
     self.height += 1;
     self.outputs_traversed += outputs_in_block;
 
     log::info!(
-      "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms",
+      "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms, segment:{}/{}/{}/{}ms",
       (Instant::now() - start).as_millis(),
+      cost1,
+      cost2,
+      cost3,
+      cost4,
     );
 
     Ok(())

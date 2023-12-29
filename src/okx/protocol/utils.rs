@@ -4,18 +4,22 @@ use crate::okx::datastore::ord::redb::table::{
 };
 use crate::{okx::datastore::ScriptKey, InscriptionId, SatPoint};
 use anyhow::anyhow;
-use bitcoin::Network;
+use bitcoin::{Network, OutPoint, TxOut};
 use redb::ReadableTable;
+use std::collections::HashMap;
 
 pub(super) fn get_script_key_on_satpoint<T>(
   table: &T,
+  tx_out_cache: &HashMap<OutPoint, TxOut>,
   satpoint: &SatPoint,
   network: Network,
 ) -> crate::Result<ScriptKey>
 where
   T: ReadableTable<&'static OutPointValue, &'static [u8]>,
 {
-  if let Some(tx_out) = get_txout_by_outpoint(table, &satpoint.outpoint)? {
+  if let Some(tx_out) = tx_out_cache.get(&satpoint.outpoint) {
+    Ok(ScriptKey::from_script(&tx_out.script_pubkey, network))
+  } else if let Some(tx_out) = get_txout_by_outpoint(table, &satpoint.outpoint)? {
     Ok(ScriptKey::from_script(&tx_out.script_pubkey, network))
   } else {
     Err(anyhow!(

@@ -56,12 +56,14 @@ impl ExecutionMessage {
         .ok_or(anyhow!("new satpoint cannot be None"))?,
       from: utils::get_script_key_on_satpoint(
         &context.OUTPOINT_TO_ENTRY,
+        context.tx_out_cache,
         &msg.old_satpoint,
         network,
       )?,
       to: if msg.sat_in_outputs {
         Some(utils::get_script_key_on_satpoint(
           &context.OUTPOINT_TO_ENTRY,
+          context.tx_out_cache,
           msg.new_satpoint.as_ref().unwrap(),
           network,
         )?)

@@ -559,6 +559,7 @@ impl<'index> Updater<'_> {
           blockheight: self.height,
           blocktime: block.header.time,
         },
+        tx_out_cache,
         ORD_TX_TO_OPERATIONS: wtx.open_table(ORD_TX_TO_OPERATIONS)?,
         COLLECTIONS_KEY_TO_INSCRIPTION_ID: wtx.open_table(COLLECTIONS_KEY_TO_INSCRIPTION_ID)?,
         COLLECTIONS_INSCRIPTION_ID_TO_KINDS: wtx.open_table(COLLECTIONS_INSCRIPTION_ID_TO_KINDS)?,

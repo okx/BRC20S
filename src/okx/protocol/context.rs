@@ -22,10 +22,12 @@ use crate::okx::datastore::ScriptKey;
 use crate::okx::protocol::BlockContext;
 use bitcoin::{OutPoint, TxOut, Txid};
 use redb::Table;
+use std::collections::HashMap;
 
 #[allow(non_snake_case)]
-pub struct Context<'db, 'txn> {
+pub struct Context<'a, 'db, 'txn> {
   pub(crate) chain: BlockContext,
+  pub(crate) tx_out_cache: &'a mut HashMap<OutPoint, TxOut>,
 
   // ord tables
   pub(crate) ORD_TX_TO_OPERATIONS: Table<'db, 'txn, &'static str, &'static [u8]>,
@@ -44,7 +46,7 @@ pub struct Context<'db, 'txn> {
   pub(crate) BRC20_INSCRIBE_TRANSFER: Table<'db, 'txn, &'static [u8; 36], &'static [u8]>,
 }
 
-impl<'db, 'txn> OrdReader for Context<'db, 'txn> {
+impl<'a, 'db, 'txn> OrdReader for Context<'a, 'db, 'txn> {
   type Error = anyhow::Error;
 
   fn get_number_by_inscription_id(
@@ -83,7 +85,7 @@ impl<'db, 'txn> OrdReader for Context<'db, 'txn> {
   }
 }
 
-impl<'db, 'txn> OrdReaderWriter for Context<'db, 'txn> {
+impl<'a, 'db, 'txn> OrdReaderWriter for Context<'a, 'db, 'txn> {
   fn save_transaction_operations(
     &mut self,
     txid: &Txid,
@@ -117,7 +119,7 @@ impl<'db, 'txn> OrdReaderWriter for Context<'db, 'txn> {
   }
 }
 
-impl<'db, 'txn> Brc20Reader for Context<'db, 'txn> {
+impl<'a, 'db, 'txn> Brc20Reader for Context<'a, 'db, 'txn> {
   type Error = anyhow::Error;
 
   fn get_balances(&self, script_key: &ScriptKey) -> crate::Result<Vec<Balance>, Self::Error> {
@@ -175,7 +177,7 @@ impl<'db, 'txn> Brc20Reader for Context<'db, 'txn> {
   }
 }
 
-impl<'db, 'txn> Brc20ReaderWriter for Context<'db, 'txn> {
+impl<'a, 'db, 'txn> Brc20ReaderWriter for Context<'a, 'db, 'txn> {
   fn update_token_balance(
     &mut self,
     script_key: &ScriptKey,

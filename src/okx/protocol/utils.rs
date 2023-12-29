@@ -3,28 +3,20 @@ use crate::{
   InscriptionId, Result, SatPoint,
 };
 use anyhow::anyhow;
-use bitcoin::{Network, OutPoint};
+use bitcoin::Network;
 
 pub(super) fn get_script_key_on_satpoint<O: DataStoreReadOnly>(
   satpoint: SatPoint,
   ord_store: &O,
   network: Network,
 ) -> Result<ScriptKey> {
-  get_script_key_on_out_point(satpoint.outpoint, ord_store, network)
-}
-
-pub(super) fn get_script_key_on_out_point<O: DataStoreReadOnly>(
-  out_point: OutPoint,
-  ord_store: &O,
-  network: Network,
-) -> Result<ScriptKey> {
   Ok(ScriptKey::from_script(
     &ord_store
-      .get_outpoint_to_txout(out_point)
+      .get_outpoint_to_txout(satpoint.outpoint)
       .map_err(|e| anyhow!("failed to get tx out from state! error: {e}",))?
       .ok_or(anyhow!(
         "failed to get tx out! error: outpoint {} not found",
-        out_point
+        satpoint.outpoint
       ))?
       .script_pubkey,
     network,

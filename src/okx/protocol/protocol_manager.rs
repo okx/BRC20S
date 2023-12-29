@@ -1,4 +1,4 @@
-use bitcoin::{BlockHash, OutPoint, Transaction, TxOut};
+use bitcoin::{BlockHash, Transaction};
 use {
   super::*,
   crate::{
@@ -55,7 +55,6 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     tx_operations: &Vec<InscriptionOp>,
     block_hash: &BlockHash,
     enable_async: bool,
-    tx_out_cache: Option<&HashMap<OutPoint, TxOut>>,
   ) -> Result<TxIndexResult> {
     let mut result = TxIndexResult::default();
     // save all transaction operations to ord database.
@@ -78,13 +77,10 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
       for msg in messages.iter() {
         self.call_man.execute_message(context, msg)?;
       }
-      let brczero_messages_in_tx = self.resolve_man.resolve_brczero_inscription(
-        context,
-        tx,
-        tx_operations,
-        &block_hash,
-        tx_out_cache,
-      )?;
+      let brczero_messages_in_tx =
+        self
+          .resolve_man
+          .resolve_brczero_inscription(context, tx, tx_operations, &block_hash)?;
 
       result.brczero_messages = brczero_messages_in_tx;
       result.messages_size = messages.len();
@@ -114,7 +110,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
         s.spawn(|| {
           self
             .resolve_man
-            .resolve_brczero_inscription(context, tx, tx_operations, &block_hash, tx_out_cache)
+            .resolve_brczero_inscription(context, tx, tx_operations, &block_hash)
             .map(|messages| {
               brczero_messages = messages;
               ()
@@ -134,15 +130,12 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     context: BlockContext,
     block: &BlockData,
     mode: ExecuteMode,
-    tx_out_cache: Option<HashMap<OutPoint, TxOut>>,
   ) -> Result {
     log::info!("start index_block proto {}", context.blockheight);
     let start = Instant::now();
 
     let mut block_result = TxIndexResult::default();
     let block_hash = block.header.block_hash();
-
-    let tx_out_cache_ref = tx_out_cache.as_ref();
 
     let operations = match mode {
       ExecuteMode::Sync(operations) => {
@@ -159,15 +152,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
           }
           // index inscription operations.
           if let Some(tx_operations) = operations.get(txid) {
-            let result = self.index_tx(
-              context,
-              txid,
-              tx,
-              tx_operations,
-              &block_hash,
-              false,
-              tx_out_cache_ref,
-            )?;
+            let result = self.index_tx(context, txid, tx, tx_operations, &block_hash, false)?;
             block_result.update(result);
           }
         }
@@ -196,15 +181,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
             continue;
           }
 
-          let result = self.index_tx(
-            context,
-            &tx_id,
-            tx,
-            &tx_operations,
-            &block_hash,
-            true,
-            tx_out_cache_ref,
-          )?;
+          let result = self.index_tx(context, &tx_id, tx, &tx_operations, &block_hash, true)?;
 
           block_result.update(result);
           operations.insert(tx_id, tx_operations);

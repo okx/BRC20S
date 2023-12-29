@@ -1392,7 +1392,7 @@ impl Index {
       return Ok(result);
     }
 
-    result.sort_by_key(|(_satpoint, inscription_id)| {
+    result.sort_by_cached_key(|(_satpoint, inscription_id)| {
       match re_id_to_seq_num.get(&inscription_id.store()) {
         Ok(Some(num)) => num.value() + 1, // remove at next index refactor
         Ok(None) => 0,

@@ -541,20 +541,18 @@ impl<'index> Updater<'_> {
     }
     let cost1 = tick.elapsed().as_millis();
 
-    let tick = Instant::now();
     self.index_block_inscription_numbers(
       &mut height_to_last_inscription_number,
       &inscription_updater,
       index_inscriptions,
     )?;
-    let cost2 = tick.elapsed().as_millis();
 
     let lost_sats = inscription_updater.lost_sats;
     let unbound_inscriptions = inscription_updater.unbound_inscriptions;
 
     let tick = Instant::now();
     inscription_updater.flush_cache()?;
-    let cost3 = tick.elapsed().as_millis();
+    let cost2 = tick.elapsed().as_millis();
 
     let tick = Instant::now();
     // Create a protocol manager to index the block of brc20 data.
@@ -587,18 +585,17 @@ impl<'index> Updater<'_> {
     statistic_to_count.insert(&Statistic::UnboundInscriptions.key(), &unbound_inscriptions)?;
 
     height_to_block_hash.insert(&self.height, &block.header.block_hash().store())?;
-    let cost4 = tick.elapsed().as_millis();
+    let cost3 = tick.elapsed().as_millis();
 
     self.height += 1;
     self.outputs_traversed += outputs_in_block;
 
     log::info!(
-      "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms, segment:{}/{}/{}/{}ms",
-      (Instant::now() - start).as_millis(),
+      "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms, segment:{}/{}/{}ms",
+      start.elapsed().as_millis(),
       cost1,
       cost2,
       cost3,
-      cost4,
     );
 
     Ok(())

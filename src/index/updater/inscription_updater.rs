@@ -202,7 +202,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           let seq_num = self.reinscription_id_to_seq_num.len()?;
 
           let sat = Self::calculate_sat(input_sat_ranges, offset);
-          log::info!("processing reinscription {inscription_id} on sat {:?}: sequence number {seq_num}, inscribed offsets {:?}", sat, inscribed_offsets);
+          log::debug!("processing reinscription {inscription_id} on sat {:?}: sequence number {seq_num}, inscribed offsets {:?}", sat, inscribed_offsets);
 
           // if reinscription track its ordering
           self
@@ -215,7 +215,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         };
 
         if curse.is_some() {
-          log::info!("found cursed inscription {inscription_id}: {:?}", curse);
+          log::debug!("found cursed inscription {inscription_id}: {:?}", curse);
         }
 
         let cursed = if let Some(Curse::Reinscription) = curse {
@@ -237,7 +237,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             })
             .unwrap_or(false);
 
-          log::info!("{inscription_id}: is first reinscription: {first_reinscription}, initial inscription is cursed: {initial_inscription_is_cursed}");
+          log::debug!("{inscription_id}: is first reinscription: {first_reinscription}, initial inscription is cursed: {initial_inscription_is_cursed}");
 
           !(initial_inscription_is_cursed && first_reinscription)
         } else {
@@ -249,7 +249,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           || curse == Some(Curse::UnrecognizedEvenField);
 
         if curse.is_some() || unbound {
-          log::info!(
+          log::debug!(
             "indexing inscription {inscription_id} with curse {:?} as cursed {} and unbound {}",
             curse,
             cursed,

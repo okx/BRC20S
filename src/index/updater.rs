@@ -324,6 +324,7 @@ impl<'index> Updater<'_> {
     block: &BlockData,
     op_sender: Option<std::sync::mpsc::Sender<(Txid, Vec<InscriptionOp>)>>,
   ) -> Result<HashMap<Txid, Vec<InscriptionOp>>> {
+    log::info!("start index_block ord {}", self.height);
     let start = Instant::now();
     let mut sat_ranges_written = 0;
     let mut outputs_in_block = 0;
@@ -563,6 +564,7 @@ impl<'index> Updater<'_> {
     block: BlockData,
     enable_async: bool,
   ) -> Result<()> {
+    log::info!("start index_block {}", self.height);
     let start = Instant::now();
     Reorg::detect_reorg(&block, self.height, self.index)?;
 

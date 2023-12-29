@@ -131,6 +131,7 @@ impl<'a, RW: StateRWriter> ProtocolManager<'a, RW> {
     block: &BlockData,
     mode: ExecuteMode,
   ) -> Result {
+    log::info!("start index_block proto {}", context.blockheight);
     let start = Instant::now();
 
     let mut block_result = TxIndexResult::default();

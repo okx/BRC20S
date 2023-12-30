@@ -443,6 +443,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     new_satpoint: SatPoint,
   ) -> Result {
     let inscription_id = flotsam.inscription_id.store();
+    let mut new_number = None;
     let unbound = match flotsam.origin {
       Origin::Old => {
         self
@@ -493,6 +494,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           }
           .store(),
         )?;
+        new_number = Some(number);
 
         if let Some(parent) = parent {
           self
@@ -516,10 +518,14 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     };
     let ins_op = InscriptionOp {
       txid: flotsam.txid,
-      inscription_number: self
-        .id_to_entry
-        .get(&flotsam.inscription_id.store())?
-        .map(|entry| InscriptionEntry::load(entry.value()).number),
+      inscription_number: if let Some(number) = new_number {
+        Some(number)
+      } else {
+        self
+          .id_to_entry
+          .get(&inscription_id)?
+          .map(|entry| InscriptionEntry::load(entry.value()).number)
+      },
       inscription_id: flotsam.inscription_id,
       action: match flotsam.origin {
         Origin::Old => Action::Transfer,
@@ -538,9 +544,6 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
       old_satpoint: flotsam.old_satpoint,
       new_satpoint: Some(Entry::load(satpoint)),
     };
-    // if let Some(sender) = &self.op_sender {
-    //   sender.send((flotsam.txid, ins_op.clone()));
-    // }
     self
       .operations
       .entry(flotsam.txid)

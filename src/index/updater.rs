@@ -340,6 +340,7 @@ impl<'index> Updater<'_> {
     let index_inscriptions = self.height >= index.first_inscription_height;
 
     let mut fetching_outputs_count = 0;
+    let mut db_cached_count = 0;
     let mut total_outputs_count = 0;
     if index_inscriptions {
       // Send all missing input outpoints to be fetched right away
@@ -364,6 +365,7 @@ impl<'index> Updater<'_> {
           // We don't need input values we already have in our outpoint_to_entry table from earlier blocks that
           // were committed to db already
           if outpoint_to_entry.get(&prev_output.store())?.is_some() {
+            db_cached_count += 1;
             continue;
           }
           // We don't know the value of this tx input. Send this outpoint to background thread to be fetched
@@ -376,12 +378,13 @@ impl<'index> Updater<'_> {
     let time = timestamp(block.header.time);
 
     log::info!(
-      "Block {} at {} with {} transactions, fetching previous outputs {}/{}…",
+      "Block {} at {} with {} transactions, fetching previous outputs {}/{}...find {} in db",
       self.height,
       time,
       block.txdata.len(),
       fetching_outputs_count,
       total_outputs_count,
+      db_cached_count,
     );
 
     let mut height_to_block_hash = wtx.open_table(HEIGHT_TO_BLOCK_HASH)?;

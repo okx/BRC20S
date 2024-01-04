@@ -88,6 +88,10 @@ pub(crate) struct Options {
     help = "Don't prase BRCZero messages below <FIRST_BRCZERO_HEIGHT>."
   )]
   pub(crate) first_brczero_height: Option<u64>,
+  #[clap(long, default_value = "200", help = "DB commit interval.")]
+  pub(crate) commit_height_interval: u64,
+  #[clap(long, default_value = "0", help = "DB commit none interval.")]
+  pub(crate) commit_none_interval: u64,
 }
 
 #[derive(Debug, Clone)]

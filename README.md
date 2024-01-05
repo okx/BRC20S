@@ -1,5 +1,9 @@
-`ord`
+[ARCHIVED]`ord`
 =====
+> ### This repo has been archived
+> With the BRC20 `Jubilee` upgrade, we have decided to suspend maintenance of this repo. Details as follows:
+> 1. Cease maintenance of the BRC20S protocol implementation.
+> 2. The BRC20 protocol implementation that supports the 'Jubilee' upgrade has moved to [okx/ord](https://github.com/okx/ord).
 
 `ord` forks on [casey's](https://github.com/casey/ord) and adds the [BRC20 Protocol](https://domo-2.gitbook.io/brc-20-experiment/) feature. It can easily call the API, obtaining the BRC20 transaction and tick balance.
 

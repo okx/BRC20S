@@ -25,7 +25,7 @@ pub struct Receipt {
 pub enum Event {
   Deploy(DeployEvent),
   Mint(MintEvent),
-  InscribeTransfer(InscripbeTransferEvent),
+  InscribeTransfer(InscribeTransferEvent),
   Transfer(TransferEvent),
 }
 
@@ -45,7 +45,7 @@ pub struct MintEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct InscripbeTransferEvent {
+pub struct InscribeTransferEvent {
   pub tick: Tick,
   pub amount: u128,
 }
